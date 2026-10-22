@@ -125,7 +125,19 @@ matrix-js-sdk 40.2.0.
 - **Join:** `joinMatrixRtcSession()` (`core/voice/matrixRtc.ts`, shared by the app and tests) →
   `joinRTCSession({userId, deviceId, memberId: "user:device"}, [], {…transport, livekit_alias: roomId},
   {callIntent: "audio", manageMediaKeys: encrypted, useExperimentalToDeviceTransport: true})`. To-device keys are
-  **required** (Element Call only sends media keys that way). No `notificationType`: joining never rings.
+  **required** (Element Call only sends media keys that way). Nothing ever rings: voice channels send no
+  `notificationType`; DM/group/room calls (`announceCall`) send `"notification"`, which the SDK emits only for the
+  first joiner.
+- **Calls outside voice channels:** DMs, group chats and plain rooms get a header call button (`ChannelHeader`
+  `call` prop). The call view sits above the chat (`.main-voice-slot.is-call-strip`); others in a call show a
+  "Call in progress / Join call" bar (`useRoomCalls`, live from MatrixRTC memberships). Profile **Call** opens the
+  DM and starts its call. Voice channels keep their own behaviour (the owner likes it; don't change it).
+- **Self mute/deafen** (`ui/voice/selfVoiceState.ts`): the user-panel buttons work outside calls, persist, and set how
+  the next call starts (`joinMuted`/`joinDeafened`; joining muted never opens the mic). Deafen also mutes;
+  undeafen restores only a mute that deafen caused.
+- **Per-person volume 0–120%** (`ui/voice/volumeBoost.ts`): above 100% the voice plays through a Web Audio gain fed by
+  `createMediaStreamSource` while the element plays at volume 0. The boost follows the chosen speaker (`setSinkId`)
+  and the element's `muted` (deafen).
 - **E2EE:** `MatrixRtcKeyProvider` (ratchetWindowSize 10, keyringSize 256) imports keys with livekit's
   `createKeyMaterialFromBuffer`; room option `e2ee` (not `encryption`, which also encrypts data channels);
   inline worker; `setE2EEEnabled(true)` after connect. Key events are format-compatible in both directions.
@@ -141,6 +153,8 @@ moderators could join calls. New voice channels get `events[call.member] = chann
 `allowCallMemberships()`, which **edits the real power levels after creation**. Never pass `events` in
 `power_level_content_override`: Synapse merges shallowly and drops version-specific defaults (v12 tombstone 150).
 Joining checks `canJoinCalls()` first; admins of older channels get **Allow members to join calls**.
+New DMs and group chats (`core/dm/directChats.ts`) call `allowCallMemberships(…, 0)` right after creation: group
+chats use the `private_chat` preset, whose invitees (level 0) otherwise couldn't join calls.
 
 ### 7.3 Discord import
 Never put `m.room.power_levels` in `initial_state`: it replaces server defaults, and on room versions below 12
@@ -165,11 +179,13 @@ unlimited power (`powerLevel === Infinity`).
 - **Accent:** default bright purple `#a64dff`; the pixel color wheel picks any accent; `accentTokens()` keeps 3:1
   contrast with the background and 4.5:1 for button text. CSS defaults must match `accentTokens(DEFAULT, theme)`.
   The encrypted-channel badge stays green on purpose.
-- **Fonts:** Settings → Appearance → Font: `pixel` (default), `mixed` (pixel headings, readable body) or `system`.
+- **Fonts:** Settings → Appearance → Font: Pixel (`pixel`, default), Pixel headings (`mixed`), System (`system`) or
+  Other (`custom` + `customFontFamily`, any installed font: `queryLocalFonts()` where available, which the desktop
+  app allows via the `local-fonts` permission, else a canvas probe of common families; see `theme/systemFonts.ts`).
   `appearance.fontStyle` → `data-font` on `<html>` → swaps `--font-pixel-body` / `--font-pixel-display`.
   All UI fonts must use those variables.
 - **Discord-style UI:** user panel with mic/deafen/settings, Voice Connected panel, date dividers, rail pill,
-  Online/Offline members.
+  Online/Offline members. Profile pictures are round (`pixel.css` exception list); server icons stay square.
 - **Stickers:** 12 sprites from `generate-stickers.mjs`, sent as standard `m.sticker` (uploaded once per homeserver,
   mxc cached); inlined `data:` assets are decoded because the CSP blocks fetching them.
 
@@ -188,6 +204,9 @@ unlimited power (`powerLevel === Infinity`).
 | Code silently dropped by PowerShell edits | `"$nlimport"` is one variable; use the Edit tool for source edits |
 | `// SPDX` became `/ SPDX` | Git Bash mangles a leading `//` in arguments |
 | Sign-in "Failed to fetch" on `http://` or a delegated domain | Browsers don't follow redirects on CORS-preflighted requests (the login POST). `resolveHomeserverBaseUrl()` in `core/auth/loginFlow.ts` resolves `.well-known` / the redirected `/versions` URL first, like Element |
+| Boosted call audio is silent | Chromium outputs silence from `createMediaElementSource` on remote WebRTC audio; use `createMediaStreamSource(element.srcObject)` and keep the element playing (volume 0) |
+| Group-chat members can't join calls | `private_chat` preset leaves invitees at level 0; `allowCallMemberships(…, 0)` after creating DMs/groups |
+| Perl `s\|…\|…\|` edit lands at the top of a file | `\|` inside a `\|`-delimited pattern ends it early; use the Edit tool or another delimiter |
 | Sticker send "Failed to fetch" | Vite inlines <4 KB assets as `data:`; CSP blocks fetching them |
 | Electron 44 build errors on login items | `openAsHidden`/`wasOpenedAsHidden` removed; use `wasOpenedAtLogin` |
 | Electron binary missing after upgrade | `node node_modules/electron/install.js` in `apps/desktop` |
@@ -204,7 +223,7 @@ unlimited power (`powerLevel === Infinity`).
 | Typecheck fix | ✅ |
 | MatrixRTC voice (Element compatible), call permissions, live audio settings | ✅ |
 | Desktop: updates (Update now), tray, login, permissions, Electron 44 | ✅ |
-| Tests: 109 unit, 10 smoke, 6 integration (v11 + v12), 5 E2E | ✅ all passing |
+| Tests: 126 unit, 10 smoke, 7 integration (v11 + v12), 5 E2E | ✅ all passing |
 | Release pipeline (Windows NSIS, Linux AppImage + rpm, Android APK, release-signed) | ✅ |
 | Security: audit 140 → 1 accepted, CodeQL findings fixed, scans in CI, GitHub protections on | ✅ |
 | Branding: Meadhall name, owner's icon + art, pixel theme, color wheel, fonts, stickers, Discord-style UI | ✅ |
@@ -212,6 +231,9 @@ unlimited power (`powerLevel === Infinity`).
 | PR #3 merged to `main` (2026-10-22) | ✅ |
 | `v0.1.0` release (Windows, Linux, Android) | ✅ published: https://github.com/PeytonG/Meadhall/releases/tag/v0.1.0 |
 | Old GitHub fork `PeytonG/Heorot` deleted | ✅ (by the owner; the CLI lacks the `delete_repo` scope) |
+| Default server `https://elementprojectzkypg.duckdns.org`; registration-token field on sign-up | ✅ (branch `fix/homeserver-discovery`) |
+| Fonts (Other = any installed font), round avatars, mute/deafen anytime, 120% volume, DM + group calls | ✅ (same branch) |
+| Discord-style Home (Direct Messages + Group Chats) and Discord-like mobile layout | 🔄 in progress |
 
 ## 10. Open issues and roadmap
 
@@ -226,4 +248,4 @@ unlimited power (`powerLevel === Infinity`).
 
 | Date | Work |
 |---|---|
-| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. |
+| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. |
