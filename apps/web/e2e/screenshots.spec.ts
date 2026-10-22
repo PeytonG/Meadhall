@@ -23,10 +23,16 @@ async function capture(page: Page, name: string): Promise<void> {
 test("captures README screenshots", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Meadhall" })).toBeVisible();
+    // Show the real default server rather than the test server this run points at.
+    await page.getByLabel("Homeserver").fill("https://elementprojectzkypg.duckdns.org");
     await capture(page, "login");
 
     const { viewer } = await seedHall();
     await signIn(page, viewer);
+    await page.getByRole("region", { name: "Group chats" }).getByText("Shieldwall").click();
+    await expect(page.getByText("Who's bringing the shields tonight?")).toBeVisible();
+    await capture(page, "home-dark");
+
     await page.getByTitle("The Mead Hall").click();
     await page.getByText("#general", { exact: true }).first().click();
     await expect(page.getByText("Then it's settled: Fireside at sundown.")).toBeVisible();
@@ -53,4 +59,26 @@ test("captures README screenshots", async ({ page }) => {
     await page.getByText("#general", { exact: true }).first().click();
     await expect(page.getByText("Then it's settled: Fireside at sundown.")).toBeVisible();
     await capture(page, "chat-light");
+});
+
+// The phone layout: the conversation list and an open chat, side by side in one image.
+test("captures the phone screenshot", async ({ page, browser }) => {
+    const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const { viewer } = await seedHall();
+    await signIn(phone, viewer);
+    await phone.waitForTimeout(500);
+    const list = (await phone.screenshot()).toString("base64");
+    await phone.getByRole("region", { name: "Group chats" }).getByText("Shieldwall").click();
+    await expect(phone.getByText("Who's bringing the shields tonight?")).toBeVisible();
+    await phone.waitForTimeout(500);
+    const chat = (await phone.screenshot()).toString("base64");
+    await phone.close();
+
+    await page.setViewportSize({ width: 860, height: 904 });
+    await page.setContent(
+        `<body style="margin:0;background:#0b0b0f;display:flex;gap:40px;justify-content:center;align-items:center;height:904px">` +
+            `<img src="data:image/png;base64,${list}" style="border:2px solid #333">` +
+            `<img src="data:image/png;base64,${chat}" style="border:2px solid #333"></body>`,
+    );
+    await page.screenshot({ path: path.join(OUTPUT, "phone.png") });
 });
