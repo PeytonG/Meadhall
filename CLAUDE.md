@@ -162,13 +162,9 @@ Branch `fork/limitations-fixes`. PR to `main` at the end. `main` still holds the
       muted), "Voice Connected" panel with hang-up, date dividers in the timeline (a new day starts a new group),
       server-rail selection pill, members split into "Online — n" / "Offline — n" (single list without presence).
       Pixel icons: `components/PixelIcon.tsx` (12x12 grids as crisp SVG).
-    - 🔄 New icon from the owner (big horn with metal bands, mug, barrel, food, coins on a gold-rimmed shield; has
-      a *painted* gray/white checkerboard instead of transparency). Saved by the owner somewhere under
-      `D:\AI Playground` with a new name: copy it to `branding/meadhall-icon.png`, run
-      `node scripts/generate-branding.mjs` (removes edge-connected light neutral pixels, prefers the .png), check
-      `apps/desktop/assets/icon.png` visually, then recapture screenshots
-      (`CAPTURE_SCREENSHOTS=1 pnpm --dir apps/web exec playwright test screenshots`, needs the test Synapse) and
-      commit. The owner wants new screenshots after the icon + login changes.
+    - ✅ New icon from the owner (horn with metal bands, mug, barrel, food, coins; source
+      `D:\AI Playground\new_horn_icon_no_transparrency.jpg` → `branding/meadhall-icon.jpg`). Its painted
+      checkerboard is removed by generate-branding.mjs (corners verified alpha 0). Screenshots recaptured.
 11. ✅ README rewritten for everyone (badges, features, download/install table, first steps, dev/test table,
     known limitations, credits); docs/self-hosting.md (homeserver, web app, LiveKit + lk-jwt-service + well-known,
     config reference); CONTRIBUTING.md; issue forms + PR template in .github/. Then: **open the PR to main**
