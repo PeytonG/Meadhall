@@ -87,7 +87,7 @@ describe("DM and group chat calls against Synapse", () => {
 
         joinMatrixRtcSession(carol, carol.matrixRTC.getRoomSession(room(carol, roomId)), TRANSPORT, roomId, {
             manageMediaKeys: false,
-            announce: true,
+            announce: "notification",
         });
 
         await waitFor(() => getRtcVoiceParticipants(alice, room(alice, roomId)).count === 1 || undefined, "alice to see carol's call");
