@@ -204,6 +204,12 @@ unlimited power (`powerLevel === Infinity`).
   AudioWorklet): pitch = two cross-faded ramped delay lines. Measured in Chromium: 220 Hz → 160 (Giant), 331
   (Pixie), 122 (Troll); pitch-up gets +70% make-up gain. Settings → Audio has "Hear yourself" (mic test through
   the effect). Setting: `audio.voiceEffect`.
+- **Speaking campfire** (`ui/voice/campfire.ts`, `components/voice/PixelCampfire.tsx`): replaces the green speaking
+  ring. Hand-drawn flame sprites on a 24-cell grid (avatar = 14 cells, so the SVG is 171% of the avatar) plus
+  crossed logs; 3 frames cycled by CSS (`pixel.css`). The owner asked for chunky pixels: keep the grid coarse.
+  Per-person on/off + color live in the Matrix profile, key `io.github.peytong.meadhall.campfire`
+  `{enabled, color}` (`ui/voice/flameColor.ts`, cached 5 min). Off = the original green ring
+  (`SpeakingCampfire` `ringClassName`). Set in Settings → Audio (`CampfireSettings.tsx`).
 - **Layout previews:** `PREVIEW_DIR=<dir> pnpm --dir apps/web exec playwright test preview` screenshots desktop,
   tablet and phone views of the seeded demo hall (`e2e/support/seedHall.ts`, also used by README screenshots).
 - **Stickers:** 12 sprites from `generate-stickers.mjs`, sent as standard `m.sticker` (uploaded once per homeserver,
@@ -228,6 +234,9 @@ unlimited power (`powerLevel === Infinity`).
 | Group-chat members can't join calls | `private_chat` preset leaves invitees at level 0; `allowCallMemberships(…, 0)` after creating DMs/groups |
 | Perl `s\|…\|…\|` edit lands at the top of a file | `\|` inside a `\|`-delimited pattern ends it early; use the Edit tool or another delimiter |
 | Release published without desktop files (v0.2.0) | electron-builder `--publish always` couldn't find the draft through the releases list and created its own drafts. Desktop jobs now build with `--publish never` and `gh release upload` to the tag's draft; the publish step refuses to publish unless every installer and `latest*.yml` is attached. v0.2.0 was repaired by hand from the workflow artifacts |
+| Pictures broken a few minutes after sign-in (desktop) | Sessions use refresh tokens (Synapse access tokens last ~5 min) and the server enforces authenticated media (`/_matrix/media/v3` 404s). The desktop media hook must get every refreshed token (`core/auth/accessTokenEvents.ts`); the timeline also falls back to a signed fetch. `e2e/media.spec.ts` blocks service workers to reproduce |
+| Screen share choppy at any FPS | Chromium encodes simulcast VP8 screen content at 2–5 fps. Screen shares publish with `simulcast: false` (measured: 3 → 57 fps at 1080p60) |
+| Perl/sed edits silently do nothing | Most files have CRLF endings; `\n`-anchored patterns miss. Prefer the Edit tool, or strip `\r` first |
 | Sticker send "Failed to fetch" | Vite inlines <4 KB assets as `data:`; CSP blocks fetching them |
 | Electron 44 build errors on login items | `openAsHidden`/`wasOpenedAsHidden` removed; use `wasOpenedAtLogin` |
 | Electron binary missing after upgrade | `node node_modules/electron/install.js` in `apps/desktop` |
@@ -244,7 +253,7 @@ unlimited power (`powerLevel === Infinity`).
 | Typecheck fix | ✅ |
 | MatrixRTC voice (Element compatible), call permissions, live audio settings | ✅ |
 | Desktop: updates (Update now), tray, login, permissions, Electron 44 | ✅ |
-| Tests: 129 unit, 10 smoke, 7 integration (v11 + v12), 7 E2E | ✅ all passing |
+| Tests: 135 unit, 10 smoke, 7 integration (v11 + v12), 10 E2E | ✅ all passing |
 | Release pipeline (Windows NSIS, Linux AppImage + rpm, Android APK, release-signed) | ✅ |
 | Security: audit 140 → 1 accepted, CodeQL findings fixed, scans in CI, GitHub protections on | ✅ |
 | Branding: Meadhall name, owner's icon + art, pixel theme, color wheel, fonts, stickers, Discord-style UI | ✅ |
