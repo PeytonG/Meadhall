@@ -1133,3 +1133,128 @@
     width: 32px;
     height: 32px;
 }
+
+/* Members & roles */
+.roles-editor {
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    margin-bottom: 6px;
+}
+
+.roles-editor summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    min-height: 40px;
+}
+
+.roles-editor-body {
+    display: grid;
+    gap: 10px;
+    padding: 0 12px 12px;
+}
+
+.roles-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50% !important;
+    flex-shrink: 0;
+}
+
+.roles-name {
+    flex: 1;
+    font-weight: 700;
+}
+
+.roles-rank,
+.roles-channel-everyone {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.roles-colors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.roles-color {
+    width: 26px;
+    height: 26px;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+
+.roles-color.is-active {
+    border-color: var(--text-main);
+}
+
+.roles-permissions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 6px;
+}
+
+.roles-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.roles-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+}
+
+.roles-chip button {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+.roles-add {
+    background: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    padding: 3px 6px;
+    font: inherit;
+    font-size: 12px;
+}
+
+.roles-channel-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.roles-channel-name {
+    min-width: 140px;
+    font-weight: 700;
+}
+
+.roles-channel-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.roles-channel-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}

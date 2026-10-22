@@ -279,7 +279,7 @@ export function SettingsOverlay({
             case "visibility":
                 return <VisibilityTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
             case "members":
-                return <MembersTab client={client} spaceRoom={spaceRoom} />;
+                return <MembersTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
             case "permissions":
                 return <PermissionsTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
             case "advanced":

@@ -7,6 +7,10 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **Roles and permissions, Discord-style.** In Server Settings → Members, create roles (name, color, rank,
+  permissions such as kick, ban, manage messages, manage channels), give them to people, and make channels private
+  to certain roles. Names show in their role's color. Roles become Matrix power levels and invite-only channels, so
+  the server enforces them for everyone, Element users included. Higher roles can do everything lower roles can.
 - **Server admin panel** (Settings → Server admin, only for server admins): create and delete registration tokens
   (invite codes, with use limits and expiry), create accounts, reset passwords, make admins and deactivate accounts:
   no need for the separate Synapse admin page.

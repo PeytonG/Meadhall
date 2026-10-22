@@ -178,3 +178,7 @@ export async function registerAdmin(prefix: string): Promise<ApiUser> {
     const body = (await response.json()) as { user_id: string; access_token: string };
     return { userId: body.user_id, username, password, accessToken: body.access_token };
 }
+
+export async function readState(user: ApiUser, roomId: string, type: string, stateKey = ""): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>(user, "GET", `/rooms/${encodeURIComponent(roomId)}/state/${encodeURIComponent(type)}/${encodeURIComponent(stateKey)}`);
+}

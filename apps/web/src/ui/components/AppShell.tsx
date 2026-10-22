@@ -1977,6 +1977,24 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         setPendingFocusRoomId(null);
     }, [client, directRoomIds, openRoomAtBottom, pendingFocusRoomId, spaces]);
 
+    // Private channels (Server Settings -> Members & roles -> Channel access) are invite-only: when a server you're
+    // in invites you to one of its channels because you got a role, join it automatically.
+    const autoJoiningChannelIdsRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        for (const room of rooms) {
+            if (room.isSpaceRoom() || room.getMyMembership() !== "invite" || directRoomIds.has(room.roomId)) {
+                continue;
+            }
+            if (!findParentSpaceIdForRoom(room.roomId, spaces) || autoJoiningChannelIdsRef.current.has(room.roomId)) {
+                continue;
+            }
+            autoJoiningChannelIdsRef.current.add(room.roomId);
+            void joinRoomWithRetry(client, room.roomId)
+                .catch(() => undefined)
+                .finally(() => autoJoiningChannelIdsRef.current.delete(room.roomId));
+        }
+    }, [client, directRoomIds, rooms, spaces]);
+
     const leaveActiveRoom = useCallback(async (): Promise<void> => {
         if (!activeRoom) {
             return;
