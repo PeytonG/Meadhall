@@ -34,16 +34,28 @@ function stop() {
 
 async function waitForHealth() {
     const deadline = Date.now() + STARTUP_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-        try {
-            const response = await fetch(HEALTH_URL);
-            if (response.ok) {
-                return;
+    // A health request can hang on a half-open connection while the container boots, and Node's fetch doesn't keep
+    // the process alive then, so Node exited with "unsettled top-level await" (exit 13). Keep the event loop alive
+    // for the whole wait and abort each request after a few seconds.
+    const keepAlive = setInterval(() => undefined, 1000);
+    try {
+        while (Date.now() < deadline) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3000);
+            try {
+                const response = await fetch(HEALTH_URL, { signal: controller.signal });
+                if (response.ok) {
+                    return;
+                }
+            } catch {
+                // Not listening yet, or the request timed out.
+            } finally {
+                clearTimeout(timeout);
             }
-        } catch {
-            // Not listening yet.
+            await new Promise((resolve) => setTimeout(resolve, 1000));
         }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+    } finally {
+        clearInterval(keepAlive);
     }
     console.error(docker(["logs", "--tail", "100", CONTAINER], { allowFailure: true }));
     throw new Error(`Synapse did not become healthy within ${STARTUP_TIMEOUT_MS / 1000}s`);
