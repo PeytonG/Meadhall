@@ -161,7 +161,7 @@ export function ReactionPicker({
                             }}
                             aria-label={`React with ${reaction}`}
                         >
-                            {reaction}
+                            <span className="unicode-emoji">{reaction}</span>
                         </button>
                     ))}
                 </div>

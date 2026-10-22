@@ -6,6 +6,10 @@ Versions follow `vX.Y.Z`.
 
 ## Unreleased
 
+### New
+- **Pixel emoji.** Emoji are drawn as pixel art to match the app (they stay normal, copyable text). Turn it off in
+  Settings → Appearance → Emoji.
+
 ### Fixed
 - **The desktop app takes every click and scroll again.** Nearly the whole window was marked as a "drag the window"
   area, which swallowed clicks and scrolling: the color wheels didn't respond, Settings and call panels scrolled

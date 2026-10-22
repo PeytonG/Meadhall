@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { renderTextWithEmoji } from "../../emoji/unicodeEmoji";
 import { EventType, RelationType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk/src/matrix";
 
 import {
@@ -141,7 +142,7 @@ export function ReactionsRowButton({
                     decoding="async"
                 />
             ) : (
-                <span className="reactions-row-button-content">{content}</span>
+                <span className="reactions-row-button-content">{renderTextWithEmoji(content, "reaction")}</span>
             )}
             <span className="reactions-row-button-count">{count}</span>
         </button>

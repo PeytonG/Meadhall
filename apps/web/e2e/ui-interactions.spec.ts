@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { createSpaceWithChannel, registerUser, sendStickerEvent, setDisplayName } from "./support/matrixApi";
+import { createSpaceWithChannel, registerUser, sendMessage, sendStickerEvent, setDisplayName } from "./support/matrixApi";
 import { emulateWindowsDesktopApp, isWindowDragRegionAt, samplePoints } from "./support/desktop";
 import { signIn } from "./support/ui";
 
@@ -237,4 +237,29 @@ test("people search finds others by display name in any word order, and quickly"
     }
     await search.fill("nobody-matches-this");
     await expect(page.getByRole("option", { name: /Peyton Gnadinger/ })).toBeHidden();
+});
+
+test("emoji are pixel art by default, and the Appearance toggle turns that off", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    const { channelId } = await createSpaceWithChannel(bob, alice, { space: "Hall", channel: "general" });
+    await sendMessage(bob, channelId, "Cheers 🍺🔥 to the hall 🐉");
+    await signIn(page, alice);
+    await page.getByTitle("Hall").click();
+    await page.getByText("#general", { exact: true }).first().click();
+
+    const emoji = page.locator(".timeline .unicode-emoji").first();
+    await expect(emoji).toHaveText("🍺");
+    await expect(page.getByText(/Cheers/)).toContainText("Cheers 🍺🔥 to the hall 🐉"); // still real, copyable text
+    expect(await emoji.evaluate((element) => getComputedStyle(element).filter)).toContain("meadhall-pixel-emoji");
+    if (process.env.PREVIEW_DIR) {
+        await page.locator(".timeline-event").last().screenshot({ path: `${process.env.PREVIEW_DIR}/pixel-emoji-message.png` });
+    }
+
+    await openSettingsTab(page, "Appearance");
+    const toggle = page.getByTestId("pixel-emoji-toggle");
+    await expect(toggle).toBeChecked();
+    await toggle.uncheck();
+    await page.keyboard.press("Escape");
+    expect(await emoji.evaluate((element) => getComputedStyle(element).filter)).toBe("none");
 });

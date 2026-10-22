@@ -126,7 +126,7 @@ export function EmojiPicker({
                                 onClick={() => onSelect(emoji.value)}
                                 title={emoji.label}
                             >
-                                {emoji.value}
+                                <span className="unicode-emoji">{emoji.value}</span>
                             </button>
                         ))}
                     </div>

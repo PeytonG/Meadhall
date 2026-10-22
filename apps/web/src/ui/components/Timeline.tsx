@@ -21,6 +21,7 @@ import { mxidLocalpart, tokenizeMatrixMentions } from "../mentions/mentionTokens
 import { mxcThumbnailToHttp } from "../utils/mxc";
 import { Avatar } from "./Avatar";
 import { MessageRenderer } from "./MessageRenderer";
+import { renderTextWithEmoji } from "../emoji/unicodeEmoji";
 import { MessageActionsBar } from "./messages/MessageActionsBar";
 import { Toast, type ToastState } from "./Toast";
 import { ReactionsRow } from "./reactions/ReactionsRow";
@@ -1027,7 +1028,7 @@ function renderTextSegmentWithCustomEmojis(
     emojiSourcesByShortcode: ReadonlyMap<string, string>,
 ): React.ReactNode[] {
     if (emojiSourcesByShortcode.size === 0) {
-        return [<React.Fragment key={`${keyPrefix}_text`}>{value}</React.Fragment>];
+        return [<React.Fragment key={`${keyPrefix}_text`}>{renderTextWithEmoji(value, `${keyPrefix}_text`)}</React.Fragment>];
     }
 
     const rendered: React.ReactNode[] = [];
@@ -1042,7 +1043,7 @@ function renderTextSegmentWithCustomEmojis(
 
         if (start > cursor) {
             rendered.push(
-                <React.Fragment key={`${keyPrefix}_text_${cursor}`}>{value.slice(cursor, start)}</React.Fragment>,
+                <React.Fragment key={`${keyPrefix}_text_${cursor}`}>{renderTextWithEmoji(value.slice(cursor, start), `${keyPrefix}_text_${cursor}`)}</React.Fragment>,
             );
         }
 
@@ -1071,11 +1072,11 @@ function renderTextSegmentWithCustomEmojis(
     }
 
     if (cursor < value.length) {
-        rendered.push(<React.Fragment key={`${keyPrefix}_tail_${cursor}`}>{value.slice(cursor)}</React.Fragment>);
+        rendered.push(<React.Fragment key={`${keyPrefix}_tail_${cursor}`}>{renderTextWithEmoji(value.slice(cursor), `${keyPrefix}_tail_${cursor}`)}</React.Fragment>);
     }
 
     if (rendered.length === 0) {
-        rendered.push(<React.Fragment key={`${keyPrefix}_text`}>{value}</React.Fragment>);
+        rendered.push(<React.Fragment key={`${keyPrefix}_text`}>{renderTextWithEmoji(value, `${keyPrefix}_text`)}</React.Fragment>);
     }
 
     return rendered;

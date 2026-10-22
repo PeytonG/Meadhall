@@ -642,3 +642,14 @@ select {
     position: relative;
     z-index: 2;
 }
+
+/* Pixel emoji (Settings -> Appearance -> Emoji, on by default): standard emoji are marked .unicode-emoji and drawn
+   through an SVG pixelate filter (emoji/unicodeEmoji.tsx). Bigger emoji get bigger pixels. */
+:root[data-pixel-emoji="on"] .unicode-emoji {
+    display: inline-block;
+    filter: url(#meadhall-pixel-emoji);
+}
+
+:root[data-pixel-emoji="on"] :is(.composer-emoji-item, .reaction-picker-item, .timeline-jumbo-emoji) .unicode-emoji {
+    filter: url(#meadhall-pixel-emoji-big);
+}

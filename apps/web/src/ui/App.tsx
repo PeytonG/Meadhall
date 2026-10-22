@@ -6,6 +6,7 @@ import { AppShell } from "./components/AppShell";
 import { DeviceVerificationView } from "./components/DeviceVerificationView";
 import { LoginView } from "./components/LoginView";
 import { SecurityRecoveryView } from "./components/SecurityRecoveryView";
+import { PixelEmojiFilter } from "./emoji/unicodeEmoji";
 import { MatrixProvider, useMatrix } from "./providers/MatrixProvider";
 import { applyAppearanceTheme, loadUserLocalSettings } from "./settings/user/settingsStore";
 import "./styles/App.css";
@@ -111,6 +112,7 @@ function AppRouter(): React.ReactElement {
 export function App(): React.ReactElement {
     return (
         <MatrixProvider>
+            <PixelEmojiFilter />
             <AppRouter />
         </MatrixProvider>
     );

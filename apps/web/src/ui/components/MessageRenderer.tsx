@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { renderTextWithEmoji } from "../emoji/unicodeEmoji";
 import { mxidLocalpart, tokenizeMatrixMentions } from "../mentions/mentionTokens";
 
 interface MessageRendererProps {
@@ -115,7 +116,7 @@ function renderTextNodeWithMentions(
     segments.forEach((segment, index) => {
         const key = `${keyPrefix}_text_${index}`;
         if (segment.type === "text") {
-            rendered.push(<React.Fragment key={key}>{segment.value}</React.Fragment>);
+            rendered.push(<React.Fragment key={key}>{renderTextWithEmoji(segment.value, key)}</React.Fragment>);
             return;
         }
 
