@@ -33,7 +33,7 @@ export function DesktopUpdateBanner(): React.ReactElement | null {
 
     return (
         <div className="desktop-update-banner" role="status">
-            <span>Heorot {status.version} is ready to install.</span>
+            <span>Version {status.version} is ready to install.</span>
             <button
                 type="button"
                 className="desktop-update-banner-primary"

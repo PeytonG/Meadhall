@@ -1,10 +1,12 @@
-# Heorot
+# Meadhall
 
-A self-hosted Matrix client built to feel like Discord. Spaces are servers. Rooms are channels. End-to-end encryption is on by default.
+A self-hosted Matrix client built to feel like Discord. Spaces are servers. Rooms are channels. End-to-end encryption is on by default. Voice channels interoperate with Element Call.
 
 Runs as a web app or a native desktop client (Windows · macOS · Linux).
 
-![Heorot UI](docs/ui.png)
+> Meadhall is a fork of [Heorot](https://github.com/Vitosicz/Heorot) by Vitosicz. Heorot is the great mead-hall in *Beowulf*, hence the name. Meadhall stays compatible with Heorot: spaces, categories, voice channels and custom emoji use the same Matrix event types (`com.heorot.*`, `org.heorot.*`), so users of both clients can share a space.
+
+![Meadhall UI](docs/ui.png)
 
 <details>
 <summary>More screenshots</summary>
@@ -48,11 +50,12 @@ Personal open-source experiment — alpha stage. Core features work, rough edges
 - Inline image viewer (lightbox)
 - Pinned messages
 
-**Voice** *(requires heorot-voice-relay)*
-- Voice channels alongside text channels
+**Voice** *(MatrixRTC + LiveKit, same as Element Call)*
+- Voice channels alongside text channels, joinable from Element too
+- End-to-end encrypted media in encrypted rooms
 - Mic mute / audio mute
 - Live participant list
-- Auto-discovery via `/.well-known/matrix/client`
+- Auto-discovery via `/.well-known/matrix/client`; heorot-voice-relay still supported as a fallback
 
 **Spaces (servers)**
 - Space hierarchy: spaces contain channels, categories keep them organized
@@ -79,6 +82,8 @@ Personal open-source experiment — alpha stage. Core features work, rough edges
 - Screen sharing and system audio capture (Windows)
 - Window state persistence across restarts
 - Authenticated media (no token-in-URL)
+- Tray icon with close-to-tray, and open at login
+- Auto-update from GitHub Releases
 
 ---
 
@@ -105,8 +110,8 @@ Personal open-source experiment — alpha stage. Core features work, rough edges
 ## Quick start (web)
 
 ```bash
-git clone https://github.com/Vitosicz/heorot.git
-cd heorot
+git clone https://github.com/PeytonG/Heorot.git meadhall
+cd meadhall
 pnpm install
 ```
 
@@ -126,7 +131,7 @@ Edit `apps/web/config.json`:
       "server_name": "matrix.example.com"
     }
   },
-  "brand": "Heorot",
+  "brand": "Meadhall",
   "disable_guests": false,
   "disable_custom_urls": false,
   "force_verification": false,
@@ -185,7 +190,7 @@ pnpm setup:linux
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `default_server_config` | object | — | Default homeserver and identity server |
-| `brand` | string | `"Heorot"` | App name shown in the UI |
+| `brand` | string | `"Meadhall"` | App name shown in the UI (login screen, page title, session/device names) |
 | `disable_guests` | boolean | `false` | Hide guest login option |
 | `disable_custom_urls` | boolean | `false` | Lock to the default homeserver |
 | `force_verification` | boolean | `false` | Require device verification before access |
@@ -201,16 +206,16 @@ Voice auto-discovers its backend. MatrixRTC is used when a LiveKit transport is 
 
 ## Voice channels
 
-Voice channels use **MatrixRTC**, the same protocol as Element Call, so Heorot and Element users can talk in the same room. Media is end-to-end encrypted in encrypted rooms, and keys are exchanged over to-device messages. This needs the same server pieces as Element Call:
+Voice channels use **MatrixRTC**, the same protocol as Element Call, so Meadhall and Element users can talk in the same room. Media is end-to-end encrypted in encrypted rooms, and keys are exchanged over to-device messages. This needs the same server pieces as Element Call:
 
 - **[LiveKit](https://livekit.io)** — media server
 - **[lk-jwt-service](https://github.com/element-hq/lk-jwt-service)** — issues LiveKit tokens for Matrix OpenID tokens, advertised via `org.matrix.msc4143.rtc_foci`
 
-Heorot connects to the SFU advertised by your homeserver. Element users on other homeservers who publish to a different SFU (multi-SFU calls) are not heard yet.
+Meadhall connects to the SFU advertised by your homeserver. Element users on other homeservers who publish to a different SFU (multi-SFU calls) are not heard yet.
 
 ### Fallback: heorot-voice-relay
 
-If no MatrixRTC transport is found, Heorot uses its original relay. Relay calls are not visible to Element users.
+If no MatrixRTC transport is found, Meadhall falls back to Heorot's original relay. Relay calls are not visible to Element users.
 
 - **[heorot-voice-relay](https://github.com/Vitosicz/heorot-voice-relay)** — Matrix-authenticated token service
 - **[LiveKit](https://livekit.io)** — media server
@@ -299,10 +304,10 @@ Planned:
 3. Start dev server: `pnpm dev:web`
 4. Make your changes and open a pull request
 
-Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/Vitosicz/heorot/issues).
+Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/PeytonG/Heorot/issues). Issues that also affect upstream belong in [Heorot's tracker](https://github.com/Vitosicz/Heorot/issues).
 
 ---
 
 ## License
 
-[AGPL-3.0](LICENSE)
+[AGPL-3.0](LICENSE), same as upstream Heorot.

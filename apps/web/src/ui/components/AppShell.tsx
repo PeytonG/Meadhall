@@ -12,6 +12,7 @@ import {
     type Room,
 } from "matrix-js-sdk/src/matrix";
 
+import { getBrandName } from "../../core/config/branding";
 import { ensureDirectRoomMapping, getDirectRoomIds } from "../adapters/dmAdapter";
 import { describeJoinError, joinRoomWithRetry } from "../adapters/joinAdapter";
 import { mediaFromMxc, thumbnailFromMxc } from "../adapters/media";
@@ -45,6 +46,7 @@ import {
 import type { EmojiPackTarget } from "../emoji/EmojiPackTypes";
 import { useSelectedUser } from "../hooks/useSelectedUser";
 import { useElementLikeNotifications } from "../notifications/useElementLikeNotifications";
+import { useMatrix } from "../providers/MatrixProvider";
 import { buildMatrixToRoomPermalink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
@@ -800,6 +802,8 @@ async function copyText(value: string): Promise<void> {
 }
 
 export function AppShell({ client, onLogout }: AppShellProps): React.ReactElement {
+    const { config } = useMatrix();
+    const brandInitial = getBrandName(config).charAt(0).toUpperCase();
     const [voiceDiscoveryReady, setVoiceDiscoveryReady] = useState(false);
     const [rooms, setRooms] = useState<Room[]>(() => [...client.getRooms()]);
     const [selectedSpaceId, setSelectedSpaceId] = useState<string>(PEOPLE_SPACE_ID);
@@ -1930,7 +1934,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
             <aside className="left-rail">
-                <div className="rail-logo">H</div>
+                <div className="rail-logo">{brandInitial}</div>
                 <button
                     type="button"
                     className={`rail-icon${selectedSpaceId === PEOPLE_SPACE_ID ? " is-active" : ""}`}

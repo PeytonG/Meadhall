@@ -72,7 +72,7 @@ describe("DesktopUpdateBanner", () => {
         await act(async () => {
             emitStatus({ state: "downloaded", version: "0.2.0" });
         });
-        expect(container.textContent).toContain("Heorot 0.2.0 is ready to install.");
+        expect(container.textContent).toContain("Version 0.2.0 is ready to install.");
     });
 
     it("installs on request and can be dismissed until the next version", async () => {
@@ -97,7 +97,7 @@ describe("DesktopUpdateBanner", () => {
         await act(async () => {
             emitStatus({ state: "downloaded", version: "0.3.0" });
         });
-        expect(container.textContent).toContain("Heorot 0.3.0 is ready to install.");
+        expect(container.textContent).toContain("Version 0.3.0 is ready to install.");
     });
 
     it("unsubscribes from update events on unmount", async () => {

@@ -19,6 +19,8 @@ type AuthMode = "sign_in" | "register";
 type RegistrationStep = "form" | "uia";
 
 interface LoginViewProps {
+    brandName: string;
+    deviceDisplayName: string;
     defaultHomeserver: string;
     defaultIdentityServer?: string;
     disableHomeserverInput: boolean;
@@ -29,6 +31,8 @@ interface LoginViewProps {
 }
 
 export function LoginView({
+    brandName,
+    deviceDisplayName,
     defaultHomeserver,
     defaultIdentityServer,
     disableHomeserverInput,
@@ -263,7 +267,7 @@ export function LoginView({
     return (
         <div className="login-view">
             <div className="login-card login-card-wide">
-                <h1>Heorot</h1>
+                <h1>{brandName}</h1>
                 <div className="login-mode-switch" role="tablist" aria-label="Authentication flow">
                     <button
                         type="button"
@@ -421,6 +425,7 @@ export function LoginView({
                         username={registerUsername}
                         password={registerPassword}
                         emailAddress={registerUsesEmail ? registerEmail.trim() || undefined : undefined}
+                        initialDeviceDisplayName={deviceDisplayName}
                         onCompleted={handleRegistrationCompleted}
                         onBack={() => {
                             setRegisterStep("form");

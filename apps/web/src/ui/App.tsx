@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 
+import { getBrandName, getDeviceDisplayName } from "../core/config/branding";
 import { getDefaultHomeserver, getDefaultIdentityServer, isCustomHomeserverDisabled } from "../core/config/serverDefaults";
 import { AppShell } from "./components/AppShell";
 import { DeviceVerificationView } from "./components/DeviceVerificationView";
@@ -23,6 +24,11 @@ function LoadingView({ label }: { label: string }): React.ReactElement {
 
 function AppRouter(): React.ReactElement {
     const matrix = useMatrix();
+    const brandName = getBrandName(matrix.config);
+
+    useEffect(() => {
+        document.title = brandName;
+    }, [brandName]);
 
     if (matrix.status === "booting") {
         return <LoadingView label="Bootstrapping core..." />;
@@ -35,6 +41,8 @@ function AppRouter(): React.ReactElement {
     if (matrix.status === "login_required") {
         return (
             <LoginView
+                brandName={brandName}
+                deviceDisplayName={getDeviceDisplayName(matrix.config, Boolean(window.heorotDesktop))}
                 defaultHomeserver={getDefaultHomeserver(matrix.config)}
                 defaultIdentityServer={getDefaultIdentityServer(matrix.config)}
                 disableHomeserverInput={isCustomHomeserverDisabled(matrix.config)}
@@ -83,7 +91,7 @@ function AppRouter(): React.ReactElement {
 
     return (
         <div className="error-screen">
-            <h1>Unable to start Heorot UI</h1>
+            <h1>Unable to start {brandName}</h1>
             <p>{matrix.error ?? "Unknown state"}</p>
         </div>
     );

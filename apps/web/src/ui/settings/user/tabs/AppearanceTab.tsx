@@ -200,7 +200,7 @@ export function AppearanceTab({
                             void window.heorotDesktop?.setStartAtLogin?.(event.target.checked).then(setStartAtLogin);
                         }}
                     />
-                    Start Heorot when you sign in to your computer (desktop)
+                    Open in the background when you sign in to your computer (desktop)
                 </label>
             ) : null}
         </div>

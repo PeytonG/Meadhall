@@ -1,4 +1,4 @@
-// Generates the placeholder "H" monogram icons in assets/ (app icon + tray icons).
+// Generates the placeholder "M" (Meadhall) monogram icons in assets/ (app icon + tray icons).
 // Run with: node scripts/generate-icons.mjs
 import fs from "node:fs";
 import path from "node:path";
@@ -36,7 +36,12 @@ function chunk(type, data) {
     return Buffer.concat([length, typeAndData, crc]);
 }
 
-// Coverage of the rounded-square background and the "H" glyph at a pixel, in unit coordinates.
+function distanceToSegment(x, y, [ax, ay], [bx, by]) {
+    const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2)));
+    return Math.hypot(x - (ax + t * (bx - ax)), y - (ay + t * (by - ay)));
+}
+
+// Color of the rounded-square background and the "M" glyph at a point, in unit coordinates.
 function sample(x, y) {
     const radius = 0.22;
     const dx = Math.max(radius - x, 0, x - (1 - radius));
@@ -45,9 +50,13 @@ function sample(x, y) {
     if (!inBackground) {
         return null;
     }
-    const inStem = (x >= 0.27 && x <= 0.39) || (x >= 0.61 && x <= 0.73);
-    const inGlyph = (y >= 0.24 && y <= 0.76 && inStem) || (x >= 0.27 && x <= 0.73 && y >= 0.45 && y <= 0.56);
-    return inGlyph ? FOREGROUND : BACKGROUND;
+    const halfStroke = 0.06;
+    const inStem = y >= 0.25 && y <= 0.75 && ((x >= 0.24 && x <= 0.36) || (x >= 0.64 && x <= 0.76));
+    const inDiagonal =
+        y >= 0.25 &&
+        (distanceToSegment(x, y, [0.31, 0.25], [0.5, 0.6]) <= halfStroke ||
+            distanceToSegment(x, y, [0.69, 0.25], [0.5, 0.6]) <= halfStroke);
+    return inStem || inDiagonal ? FOREGROUND : BACKGROUND;
 }
 
 function renderPng(size) {

@@ -1,6 +1,6 @@
 {
-  "appId": "com.heorot.app",
-  "productName": "Heorot",
+  "appId": "io.github.peytong.meadhall",
+  "productName": "Meadhall",
   "asar": true,
   "asarUnpack": "**/*.node",
   "directories": {

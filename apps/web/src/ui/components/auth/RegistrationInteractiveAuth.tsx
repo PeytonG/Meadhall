@@ -10,6 +10,7 @@ import {
     type RegisterResponse,
 } from "matrix-js-sdk/src/matrix";
 
+import { DEFAULT_BRAND } from "../../../core/config/branding";
 import type { MatrixCredentials } from "../../../core/types/credentials";
 
 interface RegistrationInteractiveAuthProps {
@@ -119,7 +120,7 @@ export function RegistrationInteractiveAuth({
     username,
     password,
     emailAddress,
-    initialDeviceDisplayName = "Heorot Web",
+    initialDeviceDisplayName = `${DEFAULT_BRAND} Web`,
     onCompleted,
     onBack,
 }: RegistrationInteractiveAuthProps): React.ReactElement {

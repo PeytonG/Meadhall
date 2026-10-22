@@ -10,7 +10,7 @@ export const START_HIDDEN_ARG = "--hidden";
 
 function getLinuxAutostartPath(): string {
     const configHome = process.env.XDG_CONFIG_HOME?.trim() || path.join(os.homedir(), ".config");
-    return path.join(configHome, "autostart", "heorot.desktop");
+    return path.join(configHome, "autostart", "meadhall.desktop");
 }
 
 function getLinuxExecutable(): string {
@@ -42,7 +42,7 @@ export function setStartAtLogin(enabled: boolean): void {
             [
                 "[Desktop Entry]",
                 "Type=Application",
-                "Name=Heorot",
+                "Name=Meadhall",
                 `Exec=${quoteDesktopExecArg(getLinuxExecutable())} ${START_HIDDEN_ARG}`,
                 "X-GNOME-Autostart-enabled=true",
                 "",
