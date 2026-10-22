@@ -6,13 +6,14 @@ Runs as a web app or a native desktop client (Windows · macOS · Linux).
 
 > Meadhall is a fork of [Heorot](https://github.com/Vitosicz/Heorot) by Vitosicz. Heorot is the great mead-hall in *Beowulf*, hence the name. Meadhall stays compatible with Heorot: spaces, categories, voice channels and custom emoji use the same Matrix event types (`com.heorot.*`, `org.heorot.*`), so users of both clients can share a space.
 
-![Meadhall UI](docs/ui.png)
+![Meadhall chat in the dark theme](docs/screenshots/chat-dark.png)
 
 <details>
 <summary>More screenshots</summary>
 
-![Voice channels](docs/voice.png)
-![Custom emoji](docs/emoji.png)
+![Sign-in screen over the mead hall artwork](docs/screenshots/login.png)
+![The pixel color wheel in Appearance settings](docs/screenshots/theme-color-wheel.png)
+![Meadhall chat in the light theme](docs/screenshots/chat-light.png)
 
 </details>
 
