@@ -339,6 +339,77 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 - iOS; code signing for Windows/macOS; optional FCM push for Android (needs the owner's Firebase project + Sygnal).
 - Notification taps on Android open the app but not yet the specific conversation (the intent carries `roomId`).
 
+### 10.1 Owner's backlog for the next version (requested 2026-10-23; start here)
+Work through these in small PRs, each with UI tests (§4). Notes are starting points, not decisions.
+
+**Bugs**
+1. **Ringtone is broken.** Reproduce first (incoming call card, `voice/ringtone.ts`, `IncomingCallCard.tsx`). Likely
+   suspects: AudioContext blocked by autoplay policy until a user gesture (desktop: allow via
+   `autoplayPolicy: "no-user-gesture-required"` in webPreferences), `setSinkId` failing, or the card unmounting.
+2. **Notifications don't show in the Windows app** (worked on web; Linux/Fedora untested, probably the same).
+   Check: Electron permission handler (`notifications` allowed only for the app origin; is `heorot://` matched?),
+   `Notification.permission` in Electron, AUMID vs the installed shortcut (NSIS shortcut must carry the same
+   AppUserModelId), and Windows Focus Assist. Consider showing them from the main process (`new
+   electron.Notification`) via IPC, which is the most reliable on Windows/Linux. Test on the real desktop app.
+3. **Own profile picture sometimes missing in calls** (others' show). Intermittent: likely the local participant's
+   avatar resolving before the own `User`/member profile loads (`VoiceRoom` participant info). Fall back to
+   `client.getProfileInfo(me)`.
+4. **Two screen shares at once are clunky.** Show all active shares (grid/side-by-side stage with a focus toggle)
+   instead of one stage with a picker.
+5. **Call auto-leave:** if you're alone in a call for 5 minutes, disconnect and post a notice ("You were
+   disconnected for being alone in the call for 5 minutes"; a local toast + a system-style message in the room
+   for that user only, not a real room event).
+6. **Transparent images** in chat should get a background (checkerboard or a neutral tile) so they're readable.
+
+**Profiles and presence**
+7. **Profile shows roles** in mutual servers: role chips grouped by server name (read `core/roles` per shared space).
+8. **Custom status** (typed text) and manual presence: Online / Away (idle) / Do not disturb / Invisible
+   (`setPresence({presence, status_msg})`; DND should also silence notifications locally).
+9. **Editable profile banner** (image or animated GIF) above the avatar on profile cards: store as an mxc URL in an
+   extended-profile field (like the campfire key), render with the GIF animating.
+10. **Profile settings: editable About me** and optional fields (email shown publicly, social links); store in
+    extended profile fields. Steam link could appear here (see 12).
+11. **Desktop tray menu:** Mute, Deafen, and status (Online / Away / Do not disturb / Invisible), wired to the same
+    state as the user panel (`selfVoiceState`, presence) via IPC.
+12. **Activity / rich presence (explore):** Steam (Steam Web API `GetPlayerSummaries` with the user's SteamID and an
+    API key from the server owner, polled by a small server-side bot or the client), manual "Playing ..." activity,
+    or a Discord-RPC-compatible local socket in the desktop app. Publish as an extended-profile field.
+
+**Roles (model it on Discord)**
+13. **Full role editor:** today's roles are ranked power levels. Owner wants Discord-like control: create roles; per
+    role choose which channels it can **see** and which it can **talk** in (separately), moderation powers, etc.
+    Channel overrides per role (view / send / connect to voice / manage messages). Matrix mapping: view =
+    invite-only/restricted membership; talk = per-channel `events_default`/`m.room.message` level set to the lowest
+    rank allowed; voice = `call.member` level. Keep the server enforcing everything (§7.6).
+
+**Voice**
+14. **Expand the voice changer** with many more creative effects (e.g. chipmunk, demon, alien, underwater, cave
+    echo, megaphone, ghost/whisper, helium, old radio, telephone, autotune-ish, reverse-echo). Same TrackProcessor
+    approach (§7.5); measure each in Chromium like the existing ones.
+15. **Soundboard in calls:** built-in clips (duck, fart, sword, airhorn, rimshot, sad trombone, applause, cheers,
+    horn/mead-hall themed ones) plus user-added sounds (uploaded to the media repo, stored in account data or a
+    space pack). Play into the call by mixing into the published mic track (Web Audio mix before the processor),
+    with a per-user volume and a cooldown. Original/CC0 sounds only (license!).
+
+**Platforms**
+16. **iOS app with notifications.** Capacitor iOS (`npx cap add ios`) built in the cloud (Codemagic `codemagic.yaml`
+    on a `mac_mini_m2`, or GitHub Actions macOS runners) with App Store Connect API keys (.p8, Key ID, Issuer ID) and
+    automatic signing; ship via TestFlight. Notifications on iOS need APNs (no background polling on iOS): Synapse
+    pusher → Sygnal with APNs credentials. Needs an Apple Developer account (owner).
+
+**Presentation / defaults**
+17. **Default homeserver back to `https://matrix.org`** (owner: more presentable). Change `DEFAULT_HOMESERVER_URL`
+    in `core/config/serverDefaults.ts` and the README; keep the token field logic (it already adapts per server).
+18. **README / GitHub page overhaul with many screenshots:** flames vs no flames on a speaker, Direct Messages,
+    group chats, spaces, the roles editor and member list colors, profiles, settings (fonts, color wheel, voice
+    changer), the admin panel, mobile views, and sign-up with a registration token. Extend
+    `e2e/screenshots.spec.ts`/`seedHall.ts` to stage each scene (a speaking state can be faked by toggling the
+    campfire's `active` in a test-only harness).
+19. **Document registration options** in the README/self-hosting guide: open registration, registration tokens
+    (Synapse `registration_requires_token`, created in the admin panel), email verification, reCAPTCHA, SSO/OIDC,
+    and invite-only (admin creates accounts). Research how common Matrix servers do it (matrix.org, Element's docs,
+    Synapse config docs) and show the matching Meadhall sign-up screen for each.
+
 ## 11. Work log
 
 | Date | Work |
