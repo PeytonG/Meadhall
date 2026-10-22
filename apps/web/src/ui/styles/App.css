@@ -5011,8 +5011,8 @@ select,
     .app-shell.right-panel-collapsed {
         grid-template-columns: 72px minmax(0, 1fr);
         grid-template-rows: minmax(0, 1fr);
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
+        padding-top: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+        padding-bottom: max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px));
     }
 
     .app-shell.mobile-show-list > .main-pane {
@@ -5029,7 +5029,7 @@ select,
     }
 
     .app-shell > .right-panel {
-        top: calc(56px + env(safe-area-inset-top));
+        top: calc(56px + max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)));
         width: 100vw;
         box-shadow: none;
     }

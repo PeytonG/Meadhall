@@ -23,9 +23,21 @@ for (const [label, viewport] of [
 ] as const) {
     test(`layout preview (${label})`, async ({ page }) => {
         await page.setViewportSize(viewport);
+        await page.goto("/");
+        await page.getByRole("button", { name: "Register" }).click();
+        await shot(page, `${label}-0-register`);
         const { viewer } = await seedHall();
         await signIn(page, viewer);
         await shot(page, `${label}-1-home`);
+
+        await page.locator(".pane-user-card").click();
+        await page.getByRole("button", { name: "Appearance", exact: true }).click();
+        await page.getByRole("button", { name: "Other", exact: true }).click();
+        await shot(page, `${label}-4-fonts`);
+        await page.getByRole("button", { name: "Audio", exact: true }).click();
+        await page.getByRole("radio", { name: "Giant" }).click();
+        await shot(page, `${label}-5-voice-changer`);
+        await page.keyboard.press("Escape");
 
         await page.getByText("Shieldwall").first().click();
         await expect(page.getByText("Who's bringing the shields tonight?")).toBeVisible();
