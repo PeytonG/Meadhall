@@ -6,6 +6,7 @@ import {
     type RoomMember,
 } from "matrix-js-sdk/src/matrix";
 import { joinRoomWithRetry } from "../rooms/joinFlow";
+import { allowCallMemberships } from "../voice/voiceChannel";
 
 const MATRIX_USER_ID_PATTERN = /^@[^:\s]+:[^\s]+$/;
 
@@ -496,6 +497,17 @@ export async function ensureDirectRoomMappings(
     await client.setAccountData(EventType.Direct, next);
 }
 
+// Everyone in a DM or group chat can start and join its calls (Element Call and Meadhall announce themselves with a
+// call-member state event, which private_chat rooms otherwise reserve for moderators). Best effort: the chat works
+// without it, and the call view offers the fix to admins.
+async function allowCallsForEveryone(client: MatrixClient, roomId: string): Promise<void> {
+    try {
+        await allowCallMemberships(client, roomId, 0);
+    } catch {
+        // Ignore: the room exists, and calls can be enabled later.
+    }
+}
+
 export async function createOrReuseDirectChat(
     client: MatrixClient,
     targetUserId: string,
@@ -515,6 +527,7 @@ export async function createOrReuseDirectChat(
         invite: [trimmedTarget],
         preset: Preset.TrustedPrivateChat,
     } as any);
+    await allowCallsForEveryone(client, response.room_id);
 
     await ensureDirectRoomMappings(client, response.room_id, [trimmedTarget]);
     return { roomId: response.room_id, created: true };
@@ -540,6 +553,7 @@ export async function createOrReuseDirectGroupChat(
         invite: targets,
         preset: Preset.PrivateChat,
     } as any);
+    await allowCallsForEveryone(client, response.room_id);
 
     await ensureDirectRoomMappings(client, response.room_id, targets, { replaceExisting: false });
     return { roomId: response.room_id, created: true };

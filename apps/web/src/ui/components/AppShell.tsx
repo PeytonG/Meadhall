@@ -14,7 +14,7 @@ import {
 
 import { getBrandName } from "../../core/config/branding";
 import meadhallIcon from "../assets/meadhall-icon.png";
-import { ensureDirectRoomMapping, getDirectRoomIds } from "../adapters/dmAdapter";
+import { createOrReuseDirectChat, ensureDirectRoomMapping, getDirectRoomIds } from "../adapters/dmAdapter";
 import { describeJoinError, joinRoomWithRetry } from "../adapters/joinAdapter";
 import { mediaFromMxc, thumbnailFromMxc } from "../adapters/media";
 import { Composer } from "./Composer";
@@ -60,6 +60,7 @@ import {
     isVoiceChannelRoom,
 } from "../voice/voiceChannel";
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
+import { useRoomCalls } from "../hooks/useRoomCalls";
 import {
     loadSelfVoiceState,
     saveSelfVoiceState,
@@ -1351,6 +1352,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const hasActiveVoiceSession = Boolean(
         voiceSessionRoomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining"),
     );
+    // Calls outside voice channels: DMs, group chats and plain rooms. They show above the chat, Discord-style.
+    const callCandidateRooms = useMemo(() => {
+        const candidates = [...peopleChannels];
+        if (activeRoom && !activeRoom.isSpaceRoom() && !isActiveRoomVoiceChannel && !candidates.includes(activeRoom)) {
+            candidates.push(activeRoom);
+        }
+        return candidates;
+    }, [activeRoom, isActiveRoomVoiceChannel, peopleChannels]);
+    const roomCalls = useRoomCalls(client, callCandidateRooms);
+    const isActiveRoomCallable = Boolean(activeRoom && !activeRoom.isSpaceRoom() && !isActiveRoomVoiceChannel);
+    const activeRoomCallOthers = useMemo(
+        () => (activeRoom ? (roomCalls.get(activeRoom.roomId) ?? []).filter((userId) => userId !== ownUserId) : []),
+        [activeRoom, ownUserId, roomCalls],
+    );
+    const isInActiveRoomCall = Boolean(activeRoom && hasActiveVoiceSession && voiceSessionRoomId === activeRoom.roomId);
+    const shouldShowCallStrip = isActiveRoomCallable && isInActiveRoomCall;
     const liveVoiceParticipantsOverrideRoomId =
         voiceSessionRoomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining")
             ? voiceSessionRoomId
@@ -1668,6 +1685,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         [client, isRoomVoiceChannel, openRoomAtBottom, roomById, voiceSessionRoomId, voiceSessionStatus],
     );
 
+    // Starts (or joins) the call in a DM, group chat or room. Nobody has to answer: the call stays up while anyone
+    // is in it, and the others get a call notification (never a ring).
+    const startCallInRoom = useCallback(
+        (roomId: string): void => {
+            const alreadyInCall =
+                voiceSessionRoomId === roomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining");
+            if (alreadyInCall) {
+                return;
+            }
+            setVoiceSessionRoomId(roomId);
+            setVoiceSessionStatus("joining");
+            setVoiceAutoJoinNonce((value) => value + 1);
+        },
+        [voiceSessionRoomId, voiceSessionStatus],
+    );
+
     const focusRoom = useCallback(
         (roomId: string): void => {
             const room = client.getRoom(roomId);
@@ -1699,6 +1732,21 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             setPendingFocusRoomId(null);
         },
         [client, directRoomIds, openRoomAtBottom, spaces],
+    );
+
+    // The profile card's Call button: open (or create) the DM with that person and start its call.
+    const callUser = useCallback(
+        async (userId: string): Promise<void> => {
+            try {
+                const { roomId } = await createOrReuseDirectChat(client, userId);
+                focusRoom(roomId);
+                startCallInRoom(roomId);
+            } catch (callError) {
+                const message = callError instanceof Error ? callError.message : "Unable to start the call.";
+                pushToast({ type: "error", message });
+            }
+        },
+        [client, focusRoom, pushToast, startCallInRoom],
     );
 
     const requestJoinRoom = useCallback(
@@ -2256,11 +2304,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onOpenModeration={() => setRoomModerationOpen(true)}
                     onCopyRoomLink={copyActiveRoomLink}
                     onLeaveRoom={leaveActiveRoom}
+                    call={
+                        isActiveRoomCallable && activeRoom
+                            ? {
+                                  inCall: isInActiveRoomCall,
+                                  othersInCall: activeRoomCallOthers.length,
+                                  onStartCall: () => startCallInRoom(activeRoom.roomId),
+                              }
+                            : undefined
+                    }
                 />
                 {hasActiveVoiceSession && voiceSessionRoomId ? (
                     <div
-                        className={`main-voice-slot${shouldShowVoicePanel ? "" : " voice-room-hidden"}`}
-                        aria-hidden={!shouldShowVoicePanel}
+                        className={`main-voice-slot${
+                            shouldShowVoicePanel ? "" : shouldShowCallStrip ? " is-call-strip" : " voice-room-hidden"
+                        }`}
+                        aria-hidden={!shouldShowVoicePanel && !shouldShowCallStrip}
                     >
                         <VoiceRoom
                             ref={voiceRoomRef}
@@ -2288,6 +2347,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
+                            announceCall={!isRoomVoiceChannel(activeVoiceSessionRoom)}
                             joinMuted={selfVoice.muted}
                             joinDeafened={selfVoice.deafened}
                             onControlsStateChange={handleVoiceControlsStateChange}
@@ -2297,6 +2357,26 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 ) : null}
                 {!shouldShowVoicePanel ? (
                     <div className="main-chat-stack">
+                        {isActiveRoomCallable && activeRoom && !isInActiveRoomCall && activeRoomCallOthers.length > 0 ? (
+                            <div className="room-call-banner" role="status" data-testid="room-call-banner">
+                                <PixelIcon name="phone" size={18} />
+                                <span className="room-call-banner-text">
+                                    <strong>Call in progress</strong>
+                                    <span>
+                                        {activeRoomCallOthers
+                                            .map((userId) => activeRoom.getMember(userId)?.name ?? userId)
+                                            .join(", ")}
+                                    </span>
+                                </span>
+                                <button
+                                    type="button"
+                                    className="room-call-banner-join"
+                                    onClick={() => startCallInRoom(activeRoom.roomId)}
+                                >
+                                    Join call
+                                </button>
+                            </div>
+                        ) : null}
                         <Timeline
                             client={client}
                             room={activeRoom}
@@ -2346,6 +2426,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onLeaveRoom={leaveActiveRoom}
                     onOpenRoom={focusRoom}
                     onToast={pushToast}
+                    onCallUser={(userId) => void callUser(userId)}
                 />
             ) : null}
             {emojiUploadOpen && emojiUploadTarget ? (

@@ -110,13 +110,16 @@ export function joinMatrixRtcSession(
     session: MatrixRTCSession,
     transport: LivekitTransportConfig,
     roomId: string,
-    options: { manageMediaKeys: boolean },
+    options: { manageMediaKeys: boolean; announce?: boolean },
 ): void {
     const userId = client.getSafeUserId();
     const deviceId = client.getDeviceId() ?? "";
     session.joinRTCSession({ userId, deviceId, memberId: `${userId}:${deviceId}` }, [], toLivekitTransport(transport, roomId), {
         callIntent: "audio",
         manageMediaKeys: options.manageMediaKeys,
+        // DM and group calls tell the others a call started ("notification": shown, never rings). Voice channels
+        // stay quiet, like Discord.
+        ...(options.announce ? { notificationType: "notification" as const } : {}),
         // Required: current Element Call only exchanges media keys over to-device messages.
         useExperimentalToDeviceTransport: true,
     });

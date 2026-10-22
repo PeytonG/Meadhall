@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { EventType, Preset, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
+import { EventType, Preset, RoomEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import { MatrixRTCSessionEvent, type LivekitTransportConfig } from "matrix-js-sdk/src/matrixrtc";
 import { describe, expect, it } from "vitest";
 
+import { createOrReuseDirectGroupChat } from "../../src/core/dm/directChats";
 import { buildRtcIdentityMap, getRtcVoiceParticipants, joinMatrixRtcSession } from "../../src/core/voice/matrixRtc";
 import {
     allowCallMemberships,
@@ -59,6 +60,41 @@ function room(client: MatrixClient, roomId: string): Room {
     if (!found) throw new Error(`${client.getUserId()} has no room ${roomId}`);
     return found;
 }
+
+describe("DM and group chat calls against Synapse", () => {
+    it("lets every member of a new group chat start its call, and tells the others without ringing", async () => {
+        const [aliceUser, bobUser, carolUser] = await Promise.all([
+            registerUser("alice"),
+            registerUser("bob"),
+            registerUser("carol"),
+        ]);
+        const alice = await startClient(aliceUser, { crypto: false });
+        const carol = await startClient(carolUser, { crypto: false });
+
+        // Group chats use the private_chat preset, where invitees are ordinary members (power level 0).
+        const { roomId } = await createOrReuseDirectGroupChat(alice, [bobUser.userId, carolUser.userId]);
+        await waitFor(() => carol.getRoom(roomId), "carol to get the invite");
+        await carol.joinRoom(roomId);
+        await waitFor(() => room(carol, roomId).getMyMembership() === "join" || undefined, "carol to join");
+        expect(canJoinCalls(room(carol, roomId), carolUser.userId)).toBe(true);
+
+        const notifications: string[] = [];
+        alice.on(RoomEvent.Timeline, (event) => {
+            if (event.getRoomId() === roomId && event.getType() === EventType.RTCNotification) {
+                notifications.push(String(event.getContent().notification_type));
+            }
+        });
+
+        joinMatrixRtcSession(carol, carol.matrixRTC.getRoomSession(room(carol, roomId)), TRANSPORT, roomId, {
+            manageMediaKeys: false,
+            announce: true,
+        });
+
+        await waitFor(() => getRtcVoiceParticipants(alice, room(alice, roomId)).count === 1 || undefined, "alice to see carol's call");
+        await waitFor(() => notifications.length > 0 || undefined, "alice to get the call notification");
+        expect(notifications).toEqual(["notification"]);
+    });
+});
 
 describe("MatrixRTC voice sessions against Synapse", () => {
     it("publishes an Element Call compatible membership that other clients list", async () => {

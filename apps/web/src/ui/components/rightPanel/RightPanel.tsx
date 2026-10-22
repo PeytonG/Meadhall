@@ -24,6 +24,7 @@ interface RightPanelProps {
     onLeaveRoom: () => Promise<void>;
     onOpenRoom: (roomId: string) => void;
     onToast?: (toast: { type: "success" | "error" | "info"; message: string }) => void;
+    onCallUser?: (userId: string) => void;
 }
 
 export function RightPanel({
@@ -41,6 +42,7 @@ export function RightPanel({
     onLeaveRoom,
     onOpenRoom,
     onToast,
+    onCallUser,
 }: RightPanelProps): React.ReactElement {
     if (!room) {
         return (
@@ -61,6 +63,7 @@ export function RightPanel({
                     onBack={onBackToRoom}
                     onOpenRoom={onOpenRoom}
                     onToast={onToast}
+                    onCallUser={onCallUser}
                 />
             ) : (
                 <>
