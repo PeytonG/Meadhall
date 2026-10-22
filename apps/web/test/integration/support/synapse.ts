@@ -12,7 +12,7 @@ export interface TestUser {
 }
 
 export async function registerUser(prefix: string): Promise<TestUser> {
-    const username = `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const username = `${prefix}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
     const password = `pw-${crypto.randomUUID()}`;
     const url = `${SYNAPSE_URL}/_matrix/client/v3/register`;
     const body = { username, password, initial_device_display_name: "Meadhall integration test" };

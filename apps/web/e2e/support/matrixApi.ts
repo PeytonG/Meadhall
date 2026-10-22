@@ -25,7 +25,7 @@ async function request<T>(user: ApiUser | null, method: string, path: string, bo
 }
 
 export async function registerUser(prefix: string): Promise<ApiUser> {
-    const username = `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const username = `${prefix}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
     const password = `pw-${crypto.randomUUID()}`;
     const register = (auth?: unknown): Promise<Response> =>
         fetch(`${SYNAPSE_URL}/_matrix/client/v3/register`, {

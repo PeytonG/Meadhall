@@ -14,7 +14,6 @@ const IMAGE = process.env.SYNAPSE_IMAGE || "matrixdotorg/synapse:v1.163.0";
 const CONTAINER = "meadhall-test-synapse";
 const PORT = process.env.SYNAPSE_PORT || "8008";
 const DATA_DIR = path.join(os.tmpdir(), CONTAINER);
-const OVERRIDES_FILE = path.join(os.tmpdir(), `${CONTAINER}-overrides.yaml`);
 const HEALTH_URL = `http://127.0.0.1:${PORT}/health`;
 const STARTUP_TIMEOUT_MS = 120_000;
 
@@ -75,8 +74,10 @@ async function start() {
     if (process.env.SYNAPSE_ROOM_VERSION) {
         overrides += `\ndefault_room_version: "${process.env.SYNAPSE_ROOM_VERSION}"\n`;
     }
-    // Kept outside the data dir, which the runner can't write to once Synapse owns it.
-    fs.writeFileSync(OVERRIDES_FILE, overrides);
+    // Kept outside the data dir, which the runner can't write to once Synapse owns it. A fresh private directory
+    // (unpredictable name) so nothing else on the machine can pre-create or swap the file.
+    const OVERRIDES_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), `${CONTAINER}-`)), "overrides.yaml");
+    fs.writeFileSync(OVERRIDES_FILE, overrides, { mode: 0o644 });
 
     // Later --config-path files override earlier ones.
     docker([
