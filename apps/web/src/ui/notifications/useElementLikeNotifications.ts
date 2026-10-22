@@ -23,6 +23,8 @@ interface UseElementLikeNotificationsOptions {
     activeRoomId: string | null;
     hasOpenDialog: boolean;
     settings: NotificationsSettings;
+    // Opens a conversation (clicking a notification).
+    onOpenRoom?: (roomId: string) => void;
 }
 
 const MAX_PENDING_ENCRYPTED = 20;
@@ -143,8 +145,11 @@ export function useElementLikeNotifications({
     activeRoomId,
     hasOpenDialog,
     settings,
+    onOpenRoom,
 }: UseElementLikeNotificationsOptions): void {
     const settingsRef = useRef(settings);
+    const onOpenRoomRef = useRef(onOpenRoom);
+    onOpenRoomRef.current = onOpenRoom;
     const activeRoomIdRef = useRef(activeRoomId);
     const hasOpenDialogRef = useRef(hasOpenDialog);
     const pendingEncryptedEventIdsRef = useRef<string[]>([]);
@@ -283,7 +288,10 @@ export function useElementLikeNotifications({
             });
 
             notification.onclick = () => {
+                // The desktop app may be hidden in the tray: bring it back, then open the conversation.
+                void window.heorotDesktop?.showWindow?.();
                 window.focus();
+                onOpenRoomRef.current?.(room.roomId);
                 notification.close();
             };
 

@@ -71,7 +71,8 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         showSpaceChannelAvatars: false,
     },
     notifications: {
-        notificationsEnabled: false,
+        // On by default: the desktop and Android apps ask for permission; browsers ask when you turn them on.
+        notificationsEnabled: true,
         notificationBodyEnabled: true,
         audioNotificationsEnabled: true,
         customMessageSoundDataUrl: null,
@@ -149,7 +150,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             showSpaceChannelAvatars,
         },
         notifications: {
-            notificationsEnabled: notifications.notificationsEnabled === true,
+            notificationsEnabled: notifications.notificationsEnabled !== false,
             notificationBodyEnabled: notifications.notificationBodyEnabled !== false,
             audioNotificationsEnabled: notifications.audioNotificationsEnabled !== false,
             customMessageSoundDataUrl,

@@ -2152,6 +2152,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         activeRoomId,
         hasOpenDialog,
         settings: userSettings.notifications,
+        onOpenRoom: focusRoom,
     });
 
     return (

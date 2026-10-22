@@ -347,6 +347,8 @@ function createMainWindow(startHidden = false): BrowserWindow {
             nodeIntegration: false,
             sandbox: true,
             spellcheck: true,
+            // Keep syncing at full speed while hidden in the tray, so message and call notifications arrive on time.
+            backgroundThrottling: false,
             // Hardening (Electronegativity AUXCLICK_JS_CHECK): middle clicks can't script around will-navigate.
             disableBlinkFeatures: "Auxclick",
         },
@@ -429,6 +431,19 @@ function registerIpc(): void {
 
     ipcMain.handle("heorot:setCloseOnWindowCloseMinimize", (_event, enabled: unknown) => {
         closeOnWindowCloseMinimize = enabled !== false;
+    });
+
+    // Clicking a notification brings the window back, even from the tray.
+    ipcMain.handle("heorot:showWindow", (event) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window) {
+            return;
+        }
+        if (window.isMinimized()) {
+            window.restore();
+        }
+        window.show();
+        window.focus();
     });
 
     // The app sends the colors behind the window controls whenever the theme or layout changes.
@@ -522,6 +537,10 @@ async function bootstrap(): Promise<void> {
     });
 
     await app.whenReady();
+    if (process.platform === "win32") {
+        // Windows shows notifications under this ID (the installer registers it); without it toasts can be dropped.
+        app.setAppUserModelId("io.github.peytong.meadhall");
+    }
     configureAppProtocol();
     configurePermissionHandlers(canNavigateInsideApp);
     configureMediaAuthInterceptor();

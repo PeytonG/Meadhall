@@ -26,6 +26,24 @@ export function IncomingCallCard({ client, call, speakerId, onJoin, onDismiss }:
 
     useEffect(() => startRinging(speakerId), [call.eventId, speakerId]);
 
+    // In the background (another window, or the desktop app in the tray): an OS notification too.
+    useEffect(() => {
+        if ((!document.hidden && document.hasFocus()) || typeof Notification === "undefined" || Notification.permission !== "granted") {
+            return undefined;
+        }
+        const notification = new Notification(`${callerName} is calling`, {
+            body: isGroup ? `Call in ${room?.name ?? "a group chat"}` : "Open Meadhall to join",
+            tag: `call:${call.eventId}`,
+            requireInteraction: true,
+        });
+        notification.onclick = () => {
+            void window.heorotDesktop?.showWindow?.();
+            window.focus();
+            notification.close();
+        };
+        return () => notification.close();
+    }, [call.eventId, callerName, isGroup, room?.name]);
+
     return (
         <div className="incoming-call-card" role="alertdialog" aria-label={`${callerName} is calling`} data-testid="incoming-call">
             <Avatar

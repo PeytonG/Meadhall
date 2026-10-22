@@ -13,6 +13,8 @@ export interface HeorotDesktopBridge {
     setMediaAuthState: (state: HeorotDesktopMediaAuthState) => Promise<void>;
     clearMediaAuthState: () => Promise<void>;
     setCloseOnWindowCloseMinimize: (enabled: boolean) => Promise<void>;
+    // Brings the window back (from the tray too), e.g. when a notification is clicked.
+    showWindow: () => Promise<void>;
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp: () => Promise<void>;
@@ -46,6 +48,9 @@ const bridge: HeorotDesktopBridge = {
     },
     setCloseOnWindowCloseMinimize: async (enabled: boolean): Promise<void> => {
         await ipcRenderer.invoke("heorot:setCloseOnWindowCloseMinimize", enabled);
+    },
+    showWindow: async (): Promise<void> => {
+        await ipcRenderer.invoke("heorot:showWindow");
     },
     setTitleBarColors: async (colors: { color: string; symbolColor: string }): Promise<void> => {
         await ipcRenderer.invoke("heorot:setTitleBarColors", colors);

@@ -7,6 +7,8 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **Notifications are on by default** in the desktop app. Clicking one brings Meadhall back (even from the tray) and
+  opens that conversation, and incoming calls notify you while Meadhall is in the background.
 - **Roles and permissions, Discord-style.** In Server Settings → Members, create roles (name, color, rank,
   permissions such as kick, ban, manage messages, manage channels), give them to people, and make channels private
   to certain roles. Names show in their role's color. Roles become Matrix power levels and invite-only channels, so
