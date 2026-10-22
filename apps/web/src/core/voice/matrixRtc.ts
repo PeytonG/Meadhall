@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { BaseKeyProvider, createKeyMaterialFromBuffer } from "livekit-client";
 import type { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
 import {

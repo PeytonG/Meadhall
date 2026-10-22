@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 # Test-only overrides layered on Synapse's generated homeserver.yaml by scripts/test-synapse.mjs.
 # Open registration and no rate limits: never use these settings on a real server.
 enable_registration: true

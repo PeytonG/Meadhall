@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import path from "node:path";
 import { app, Menu, nativeImage, Tray } from "electron";
 

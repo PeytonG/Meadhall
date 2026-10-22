@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 
+import { getBrandName, getSourceCodeUrl } from "../../core/config/branding";
 import type { ToastState } from "../components/Toast";
 import { useMatrix } from "../providers/MatrixProvider";
 import { SettingsNav, type SettingsNavSection } from "./SettingsNav";
@@ -378,6 +379,12 @@ export function SettingsOverlay({
             <div className="settings-shell">
                 <aside className="settings-sidebar">
                     <SettingsNav sections={navSections} activeTab={activeTab} onChangeTab={setActiveTab} />
+                    <p className="settings-source-notice">
+                        {getBrandName(matrix.config)} is free software under the AGPL-3.0.{" "}
+                        <a href={getSourceCodeUrl(matrix.config)} target="_blank" rel="noopener noreferrer">
+                            Source code
+                        </a>
+                    </p>
                 </aside>
                 <section className="settings-main">
                     <header className="settings-header">

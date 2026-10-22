@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { ClientEvent, SyncState, createClient, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 // Synapse started by scripts/test-synapse.mjs (open registration, server name "localhost").

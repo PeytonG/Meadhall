@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E tests drive the production build against the test Synapse: start it with `node scripts/test-synapse.mjs start`.

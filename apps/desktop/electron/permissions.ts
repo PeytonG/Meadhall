@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { session } from "electron";
 
 // Deny every permission except what the app itself needs, and only for the app's own origin

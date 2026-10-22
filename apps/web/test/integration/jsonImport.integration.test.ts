@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { EventType, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import { describe, expect, it } from "vitest";
 

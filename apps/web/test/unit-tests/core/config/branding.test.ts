@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_BRAND, getBrandName, getDeviceDisplayName } from "../../../../src/core/config/branding";
+import { DEFAULT_BRAND, getBrandName, getDeviceDisplayName, getSourceCodeUrl } from "../../../../src/core/config/branding";
 import { DEFAULT_CORE_CONFIG } from "../../../../src/core/config/defaultConfig";
 
 describe("branding", () => {
@@ -18,5 +19,15 @@ describe("branding", () => {
     it("names devices after the brand and runtime", () => {
         expect(getDeviceDisplayName(null, false)).toBe("Meadhall Web");
         expect(getDeviceDisplayName({ brand: "Example Chat" }, true)).toBe("Example Chat Desktop");
+    });
+});
+
+describe("getSourceCodeUrl", () => {
+    it("links to the Meadhall repository unless a deployment publishes its own source", () => {
+        expect(getSourceCodeUrl(null)).toBe("https://github.com/PeytonG/Meadhall");
+        expect(getSourceCodeUrl({ source_code_url: "https://git.example.org/our-meadhall" })).toBe(
+            "https://git.example.org/our-meadhall",
+        );
+        expect(getSourceCodeUrl({ source_code_url: "javascript:alert(1)" })).toBe("https://github.com/PeytonG/Meadhall");
     });
 });

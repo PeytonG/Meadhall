@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { defineConfig } from "vitest/config";
 
 // Integration tests run against a real Synapse: start one with `node scripts/test-synapse.mjs start`.

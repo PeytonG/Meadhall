@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { EventType, Preset, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import { MatrixRTCSessionEvent, type LivekitTransportConfig } from "matrix-js-sdk/src/matrixrtc";
 import { describe, expect, it } from "vitest";

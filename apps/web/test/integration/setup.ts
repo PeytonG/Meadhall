@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { afterEach, beforeAll } from "vitest";
 import { logger } from "matrix-js-sdk/src/logger";
 
