@@ -529,3 +529,14 @@ select {
 .rs-member-row.is-offline:hover {
     opacity: 1;
 }
+
+/* Font setting (Appearance): "pixel" (default) keeps both pixel fonts; "mixed" keeps pixel headings with a
+   readable body font; "system" uses the system font throughout. Set as data-font on <html>. */
+[data-font="mixed"] {
+    --font-pixel-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+[data-font="system"] {
+    --font-pixel-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-pixel-display: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}

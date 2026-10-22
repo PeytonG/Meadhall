@@ -1,6 +1,8 @@
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 
 export type AppTheme = "dark" | "light";
+// Pixel fonts everywhere, pixel headings with a readable body font, or the system font throughout.
+export type FontStyle = "pixel" | "mixed" | "system";
 
 export interface AppearanceSettings {
     theme: AppTheme;
@@ -9,6 +11,7 @@ export interface AppearanceSettings {
     closeOnWindowCloseMinimize: boolean;
     // Theme accent picked with the pixel color wheel.
     accentColor: string;
+    fontStyle: FontStyle;
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
 }
@@ -53,6 +56,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         showTimestamps: true,
         closeOnWindowCloseMinimize: true,
         accentColor: DEFAULT_ACCENT_COLOR,
+        fontStyle: "pixel",
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
     },
@@ -99,6 +103,8 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
     const closeOnWindowCloseMinimize = appearance.closeOnWindowCloseMinimize !== false;
     const showSpaceChannelAvatars = appearance.showSpaceChannelAvatars === true;
     const accentColor = normalizeHexColor(appearance.accentColor) ?? DEFAULT_ACCENT_COLOR;
+    const fontStyle: FontStyle =
+        appearance.fontStyle === "mixed" || appearance.fontStyle === "system" ? appearance.fontStyle : "pixel";
     const chatLineLengthChRaw = typeof appearance.chatLineLengthCh === "number" ? appearance.chatLineLengthCh : 0;
     const chatLineLengthCh =
         Number.isFinite(chatLineLengthChRaw) && chatLineLengthChRaw > 0
@@ -121,6 +127,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             showTimestamps,
             closeOnWindowCloseMinimize,
             accentColor,
+            fontStyle,
             chatLineLengthCh,
             showSpaceChannelAvatars,
         },
@@ -185,6 +192,7 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
 
     const root = document.documentElement;
     root.setAttribute("data-theme", settings.theme);
+    root.setAttribute("data-font", settings.fontStyle);
     for (const [name, value] of Object.entries(accentTokens(settings.accentColor, settings.theme))) {
         root.style.setProperty(name, value);
     }

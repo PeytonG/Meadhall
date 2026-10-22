@@ -107,6 +107,10 @@ It replaces the server's defaults, so the creator loses rights, and on room vers
 - Theme: **pixel art everywhere** (`ui/styles/pixel.css`, imported last). Square corners, stepped borders, bevelled action buttons (not text-like buttons), Pixelify Sans + Silkscreen bundled via @fontsource (CSP only allows local fonts).
 - Accent: default **bright purple `#a64dff`**, user-selectable with the **pixel color wheel** (`ui/theme/PixelColorWheel.tsx`, Appearance settings). `accentTokens()` derives `--primary/--accent/--accent-soft/--primary-rgb/--on-primary`, shifting the shade until it has 3:1 contrast with the background and picking button text for 4.5:1. CSS defaults in App.css/settings/styles.css must match `accentTokens(DEFAULT_ACCENT_COLOR, theme)`. The encrypted-channel badge stays **green** on purpose (security signal).
 - Saved appearance is applied at startup (App.tsx), so the sign-in screen uses it.
+- **Font setting** (owner request): Settings → Appearance → Font: `pixel` (default, Pixelify Sans + Silkscreen),
+  `mixed` (pixel headings, readable system body font) or `system` (system font throughout). Stored as
+  `appearance.fontStyle`; `applyAppearanceTheme` sets `data-font` on `<html>`; pixel.css swaps
+  `--font-pixel-body` / `--font-pixel-display` per mode. All UI fonts must go through those two variables.
 
 ### Testing
 - Integration tests run against a real Synapse on **room versions 11 and 12** (CI matrix). They cover the import, the MatrixRTC membership as Element Call reads it, member call permissions, and real Olm to-device media key exchange between two crypto clients.

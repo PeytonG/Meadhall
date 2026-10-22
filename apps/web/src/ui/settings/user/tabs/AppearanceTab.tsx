@@ -75,6 +75,29 @@ export function AppearanceTab({
             </div>
 
             <div className="settings-section-card">
+                <h3>Font</h3>
+                <div className="settings-theme-row" role="group" aria-label="Font">
+                    {(
+                        [
+                            ["pixel", "Pixel"],
+                            ["mixed", "Pixel headings"],
+                            ["system", "System"],
+                        ] as const
+                    ).map(([fontStyle, label]) => (
+                        <button
+                            key={fontStyle}
+                            type="button"
+                            className={`settings-theme-button${settings.fontStyle === fontStyle ? " is-active" : ""}`}
+                            aria-pressed={settings.fontStyle === fontStyle}
+                            onClick={() => onChange({ ...settings, fontStyle })}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="settings-section-card">
                 <h3>Theme color</h3>
                 <p className="settings-tab-description">Pick any color; it's adjusted to stay readable in light and dark themes.</p>
                 <PixelColorWheel
