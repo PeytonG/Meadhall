@@ -342,6 +342,7 @@ export function SettingsOverlay({
             case "audio":
                 return (
                     <AudioTab
+                        client={client}
                         settings={userSettings.audio}
                         onChange={(audio) =>
                             onUserSettingsChange({

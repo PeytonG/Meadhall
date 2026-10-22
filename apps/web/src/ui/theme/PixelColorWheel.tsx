@@ -50,9 +50,17 @@ function closestBrightness(hex: string): number {
 interface PixelColorWheelProps {
     value: string;
     onChange: (color: string) => void;
+    // What the reset button goes back to (the theme default unless given).
+    resetColor?: string;
+    resetLabel?: string;
 }
 
-export function PixelColorWheel({ value, onChange }: PixelColorWheelProps): React.ReactElement {
+export function PixelColorWheel({
+    value,
+    onChange,
+    resetColor = DEFAULT_ACCENT_COLOR,
+    resetLabel = "Reset to bright purple",
+}: PixelColorWheelProps): React.ReactElement {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const [hexDraft, setHexDraft] = useState(value);
     const brightness = useMemo(() => closestBrightness(value), [value]);
@@ -176,10 +184,10 @@ export function PixelColorWheel({ value, onChange }: PixelColorWheelProps): Reac
                 <button
                     type="button"
                     className="settings-button settings-button-secondary"
-                    disabled={value === DEFAULT_ACCENT_COLOR}
-                    onClick={() => onChange(DEFAULT_ACCENT_COLOR)}
+                    disabled={value === resetColor}
+                    onClick={() => onChange(resetColor)}
                 >
-                    Reset to bright purple
+                    {resetLabel}
                 </button>
             </div>
         </div>

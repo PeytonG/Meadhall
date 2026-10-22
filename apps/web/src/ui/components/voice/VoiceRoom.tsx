@@ -43,6 +43,7 @@ import { useMatrix } from "../../providers/MatrixProvider";
 import type { AudioSettings } from "../../settings/user/settingsStore";
 import { RoomDialog } from "../rooms/RoomDialog";
 import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } from "../../voice/volumeBoost";
+import { SpeakingCampfire } from "./PixelCampfire";
 import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
@@ -505,6 +506,10 @@ function buildScreenSharePublishOptions(profile: ScreenShareQualityProfile): Scr
     return {
         screenShareEncoding: profile.publishEncoding,
         degradationPreference,
+        // No simulcast for screen shares: Chromium encodes simulcast VP8 screen content at 2-5 fps whatever frame
+        // rate is asked for (measured against a LiveKit server: 3 fps at 1080p60 with simulcast, 57 fps without,
+        // with and without E2EE). That was the "choppy at any FPS" stream.
+        simulcast: false,
     };
 }
 
@@ -2174,9 +2179,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                             seed={info.userId}
                                             userId={info.userId}
                                         />
-                                        <span
-                                            className={`voice-room-speaking-indicator${p.isSpeaking ? " is-speaking" : ""}`}
-                                            aria-hidden="true"
+                                        <SpeakingCampfire
+                                            client={client}
+                                            userId={info.userId}
+                                            active={p.isSpeaking}
+                                            ringClassName="voice-room-speaking-indicator"
                                         />
                                     </div>
                                     <span className="voice-room-participant-name">{info.displayName}</span>

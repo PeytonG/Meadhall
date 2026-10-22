@@ -14,6 +14,7 @@ import {
     tryDecryptToken,
 } from "../storage/tokens";
 import type { MatrixClientAssignOpts, MatrixCredentials } from "../types/credentials";
+import { announceAccessTokenRefreshed } from "../auth/accessTokenEvents";
 
 const LOGOUT_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -270,6 +271,7 @@ export class SessionLifecycle {
                 await persistAccessTokenInStorage(nextAccessToken, credentials.pickleKey);
                 await persistRefreshTokenInStorage(nextRefreshToken, credentials.pickleKey);
             }
+            announceAccessTokenRefreshed(nextAccessToken);
 
             return {
                 accessToken: nextAccessToken,

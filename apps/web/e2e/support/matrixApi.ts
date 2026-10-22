@@ -141,3 +141,8 @@ export async function sendStickerEvent(user: ApiUser, roomId: string, png: Uint8
 export async function setAccountData(user: ApiUser, type: string, content: unknown): Promise<void> {
     await request(user, "PUT", `/user/${encodeURIComponent(user.userId)}/account_data/${encodeURIComponent(type)}`, content);
 }
+
+export async function readProfileField(user: ApiUser, userId: string, key: string): Promise<unknown> {
+    const body = await request<Record<string, unknown>>(user, "GET", `/profile/${encodeURIComponent(userId)}/${encodeURIComponent(key)}`);
+    return body[key];
+}

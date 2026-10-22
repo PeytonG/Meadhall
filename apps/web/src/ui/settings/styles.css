@@ -1043,3 +1043,30 @@
         margin: 6px 4px 0;
     }
 }
+
+.settings-campfire-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 28px;
+    margin-top: 12px;
+}
+
+.settings-campfire-preview {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    margin: 40px 40px 34px;
+    flex-shrink: 0;
+}
+
+.settings-campfire-avatar {
+    position: relative;
+    z-index: 2;
+    width: 84px;
+    height: 84px;
+}
+
+.settings-campfire-avatar .avatar-fallback {
+    font-size: 30px;
+}
