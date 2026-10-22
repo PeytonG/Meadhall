@@ -186,6 +186,23 @@ unlimited power (`powerLevel === Infinity`).
   All UI fonts must use those variables.
 - **Discord-style UI:** user panel with mic/deafen/settings, Voice Connected panel, date dividers, rail pill,
   Online/Offline members. Profile pictures are round (`pixel.css` exception list); server icons stay square.
+- **Home** (`components/HomeSidebar.tsx`): the app icon at the top of the rail (`data-testid="rail-home"`, internal id
+  `PEOPLE_SPACE_ID`) opens a filter, **Direct Messages** (DMs with one other person, `isOneToOneRoom`) and **Group
+  Chats** (bigger DMs plus joined rooms with no parent space, `homeOtherRooms`). Only Home conversations get the
+  call button; server text channels don't (Discord behaviour).
+- **Layout** lives in CSS (`App.css` "Layout: tablets and phones"); the channel-pane width is the
+  `--channels-pane-width` variable, never an inline grid. ≤1100px: the right panel is an overlay opened on demand
+  (`isNarrowLayout` + `narrowPanelOpen`, so the saved desktop panel mode is untouched). ≤760px (Android): one
+  screen at a time (`mobilePane` list/chat → `mobile-show-*` classes), back button in the header, and a history
+  entry so Android's Back returns to the list. `viewport-fit=cover` + safe-area padding; settings are full screen
+  with a tab strip.
+- **Voice changer** (`ui/voice/voiceChanger.ts`): Off/Giant/Pixie/Robot/Great hall/Radio/Troll, a livekit
+  `TrackProcessor` on the mic (`applyVoiceEffect`, live), so Element users hear it too. Plain Web Audio nodes (no
+  AudioWorklet): pitch = two cross-faded ramped delay lines. Measured in Chromium: 220 Hz → 160 (Giant), 331
+  (Pixie), 122 (Troll); pitch-up gets +70% make-up gain. Settings → Audio has "Hear yourself" (mic test through
+  the effect). Setting: `audio.voiceEffect`.
+- **Layout previews:** `PREVIEW_DIR=<dir> pnpm --dir apps/web exec playwright test preview` screenshots desktop,
+  tablet and phone views of the seeded demo hall (`e2e/support/seedHall.ts`, also used by README screenshots).
 - **Stickers:** 12 sprites from `generate-stickers.mjs`, sent as standard `m.sticker` (uploaded once per homeserver,
   mxc cached); inlined `data:` assets are decoded because the CSP blocks fetching them.
 
@@ -223,7 +240,7 @@ unlimited power (`powerLevel === Infinity`).
 | Typecheck fix | ✅ |
 | MatrixRTC voice (Element compatible), call permissions, live audio settings | ✅ |
 | Desktop: updates (Update now), tray, login, permissions, Electron 44 | ✅ |
-| Tests: 126 unit, 10 smoke, 7 integration (v11 + v12), 5 E2E | ✅ all passing |
+| Tests: 129 unit, 10 smoke, 7 integration (v11 + v12), 7 E2E | ✅ all passing |
 | Release pipeline (Windows NSIS, Linux AppImage + rpm, Android APK, release-signed) | ✅ |
 | Security: audit 140 → 1 accepted, CodeQL findings fixed, scans in CI, GitHub protections on | ✅ |
 | Branding: Meadhall name, owner's icon + art, pixel theme, color wheel, fonts, stickers, Discord-style UI | ✅ |
@@ -233,7 +250,7 @@ unlimited power (`powerLevel === Infinity`).
 | Old GitHub fork `PeytonG/Heorot` deleted | ✅ (by the owner; the CLI lacks the `delete_repo` scope) |
 | Default server `https://elementprojectzkypg.duckdns.org`; registration-token field on sign-up | ✅ (branch `fix/homeserver-discovery`) |
 | Fonts (Other = any installed font), round avatars, mute/deafen anytime, 120% volume, DM + group calls | ✅ (same branch) |
-| Discord-style Home (Direct Messages + Group Chats) and Discord-like mobile layout | 🔄 in progress |
+| Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ (same branch; not yet pushed) |
 
 ## 10. Open issues and roadmap
 
@@ -248,4 +265,4 @@ unlimited power (`powerLevel === Infinity`).
 
 | Date | Work |
 |---|---|
-| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. |
+| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. |
