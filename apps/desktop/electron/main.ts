@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, desktopCapturer, ipcMain, net, protocol, session } from "electron";
 
+import { configurePermissionHandlers } from "./permissions";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
 
 const APP_TITLE = "Heorot";
@@ -458,6 +459,7 @@ async function bootstrap(): Promise<void> {
 
     await app.whenReady();
     configureAppProtocol();
+    configurePermissionHandlers(canNavigateInsideApp);
     configureMediaAuthInterceptor();
     configureDisplayMediaCapture();
     registerIpc();
