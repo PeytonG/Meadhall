@@ -13,6 +13,7 @@ import {
 } from "matrix-js-sdk/src/matrix";
 
 import { getBrandName } from "../../core/config/branding";
+import meadhallIcon from "../assets/meadhall-icon.png";
 import { ensureDirectRoomMapping, getDirectRoomIds } from "../adapters/dmAdapter";
 import { describeJoinError, joinRoomWithRetry } from "../adapters/joinAdapter";
 import { mediaFromMxc, thumbnailFromMxc } from "../adapters/media";
@@ -803,7 +804,7 @@ async function copyText(value: string): Promise<void> {
 
 export function AppShell({ client, onLogout }: AppShellProps): React.ReactElement {
     const { config } = useMatrix();
-    const brandInitial = getBrandName(config).charAt(0).toUpperCase();
+    const brandName = getBrandName(config);
     const [voiceDiscoveryReady, setVoiceDiscoveryReady] = useState(false);
     const [rooms, setRooms] = useState<Room[]>(() => [...client.getRooms()]);
     const [selectedSpaceId, setSelectedSpaceId] = useState<string>(PEOPLE_SPACE_ID);
@@ -1934,7 +1935,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
             <aside className="left-rail">
-                <div className="rail-logo">{brandInitial}</div>
+                <div className="rail-logo" title={brandName}>
+                    <img src={meadhallIcon} alt={brandName} />
+                </div>
                 <button
                     type="button"
                     className={`rail-icon${selectedSpaceId === PEOPLE_SPACE_ID ? " is-active" : ""}`}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // Minimal client-server API helpers for setting up E2E scenarios on the test Synapse.
 export const SYNAPSE_URL = process.env.SYNAPSE_URL ?? "http://localhost:8008";
 
@@ -101,4 +102,8 @@ export async function createSpaceWithChannel(
     await joinRoom(member, spaceId);
     await joinRoom(member, channelId);
     return { spaceId, channelId };
+}
+
+export async function setDisplayName(user: ApiUser, displayName: string): Promise<void> {
+    await request(user, "PUT", `/profile/${encodeURIComponent(user.userId)}/displayname`, { displayname: displayName });
 }

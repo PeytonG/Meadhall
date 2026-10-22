@@ -13,6 +13,8 @@ import {
     RegistrationProbeError,
     type RegistrationFlow,
 } from "../adapters/registrationAdapter";
+import loginHall from "../assets/login-hall.webp";
+import meadhallIcon from "../assets/meadhall-icon.png";
 import { RegistrationInteractiveAuth } from "./auth/RegistrationInteractiveAuth";
 
 type AuthMode = "sign_in" | "register";
@@ -265,9 +267,12 @@ export function LoginView({
     }, [syncFlowHeight, mode, registerStep]);
 
     return (
-        <div className="login-view">
+        <div className="login-view has-backdrop" style={{ ["--login-backdrop" as string]: `url(${loginHall})` }}>
             <div className="login-card login-card-wide">
-                <h1>{brandName}</h1>
+                <div className="login-brand">
+                    <img src={meadhallIcon} alt="" />
+                    <h1>{brandName}</h1>
+                </div>
                 <div className="login-mode-switch" role="tablist" aria-label="Authentication flow">
                     <button
                         type="button"

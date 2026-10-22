@@ -7,11 +7,17 @@ import { DeviceVerificationView } from "./components/DeviceVerificationView";
 import { LoginView } from "./components/LoginView";
 import { SecurityRecoveryView } from "./components/SecurityRecoveryView";
 import { MatrixProvider, useMatrix } from "./providers/MatrixProvider";
+import { applyAppearanceTheme, loadUserLocalSettings } from "./settings/user/settingsStore";
 import "./styles/App.css";
 import "./styles/composer.css";
 import "./styles/channelHeader.css";
 import "./styles/rightPanel.css";
 import "./settings/styles.css";
+// Pixel-art look: fonts and global overrides, loaded after every other stylesheet.
+import "@fontsource/pixelify-sans/400.css";
+import "@fontsource/pixelify-sans/600.css";
+import "@fontsource/silkscreen/400.css";
+import "./styles/pixel.css";
 
 function LoadingView({ label }: { label: string }): React.ReactElement {
     return (
@@ -29,6 +35,11 @@ function AppRouter(): React.ReactElement {
     useEffect(() => {
         document.title = brandName;
     }, [brandName]);
+
+    // Saved theme and accent color, so screens shown before the app shell (e.g. sign-in) use them too.
+    useEffect(() => {
+        applyAppearanceTheme(loadUserLocalSettings().appearance);
+    }, []);
 
     if (matrix.status === "booting") {
         return <LoadingView label="Bootstrapping core..." />;

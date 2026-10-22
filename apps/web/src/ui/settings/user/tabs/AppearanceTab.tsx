@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 
+import { PixelColorWheel } from "../../../theme/PixelColorWheel";
 import type { AppearanceSettings } from "../settingsStore";
 
 const CHAT_LINE_LENGTH_MIN_CH = 45;
@@ -71,6 +72,15 @@ export function AppearanceTab({
                         Light
                     </button>
                 </div>
+            </div>
+
+            <div className="settings-section-card">
+                <h3>Theme color</h3>
+                <p className="settings-tab-description">Pick any color; it's adjusted to stay readable in light and dark themes.</p>
+                <PixelColorWheel
+                    value={settings.accentColor}
+                    onChange={(accentColor) => onChange({ ...settings, accentColor })}
+                />
             </div>
 
             <div className="settings-section-card settings-chat-width-card">

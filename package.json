@@ -20,5 +20,8 @@
     "dist:mac:universal:unsigned": "npm --prefix apps/desktop run dist:mac:universal:unsigned",
     "dist:mac:universal:signed": "npm --prefix apps/desktop run dist:mac:universal:signed",
     "build:all": "npm run build:web && npm run build:desktop"
+  },
+  "devDependencies": {
+    "sharp": "~0.34.5"
   }
 }

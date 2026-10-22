@@ -1,3 +1,5 @@
+import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
+
 export type AppTheme = "dark" | "light";
 
 export interface AppearanceSettings {
@@ -5,6 +7,8 @@ export interface AppearanceSettings {
     compactMode: boolean;
     showTimestamps: boolean;
     closeOnWindowCloseMinimize: boolean;
+    // Theme accent picked with the pixel color wheel.
+    accentColor: string;
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
 }
@@ -48,6 +52,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         compactMode: false,
         showTimestamps: true,
         closeOnWindowCloseMinimize: true,
+        accentColor: DEFAULT_ACCENT_COLOR,
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
     },
@@ -93,6 +98,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
     const showTimestamps = appearance.showTimestamps !== false;
     const closeOnWindowCloseMinimize = appearance.closeOnWindowCloseMinimize !== false;
     const showSpaceChannelAvatars = appearance.showSpaceChannelAvatars === true;
+    const accentColor = normalizeHexColor(appearance.accentColor) ?? DEFAULT_ACCENT_COLOR;
     const chatLineLengthChRaw = typeof appearance.chatLineLengthCh === "number" ? appearance.chatLineLengthCh : 0;
     const chatLineLengthCh =
         Number.isFinite(chatLineLengthChRaw) && chatLineLengthChRaw > 0
@@ -114,6 +120,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             compactMode,
             showTimestamps,
             closeOnWindowCloseMinimize,
+            accentColor,
             chatLineLengthCh,
             showSpaceChannelAvatars,
         },
@@ -178,6 +185,9 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
 
     const root = document.documentElement;
     root.setAttribute("data-theme", settings.theme);
+    for (const [name, value] of Object.entries(accentTokens(settings.accentColor, settings.theme))) {
+        root.style.setProperty(name, value);
+    }
     root.style.setProperty(
         "--timeline-text-max-width",
         settings.chatLineLengthCh > 0 ? `${settings.chatLineLengthCh}ch` : "none",

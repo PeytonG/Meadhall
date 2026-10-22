@@ -1,0 +1,235 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * Meadhall's pixel-art look, applied on top of every other stylesheet (imported last in App.tsx).
+ * Square corners everywhere, stepped "pixel" borders on panels, bevelled buttons and pixel fonts.
+ * Colors come from the theme tokens, so the accent picked on the pixel color wheel flows through.
+ */
+
+:root {
+    --font-pixel-body: "Pixelify Sans", "Segoe UI", system-ui, sans-serif;
+    --font-pixel-display: "Silkscreen", "Pixelify Sans", system-ui, sans-serif;
+    --pixel: 3px;
+    --pixel-border: var(--border);
+    --pixel-highlight: rgba(255, 255, 255, 0.07);
+    --pixel-shade: rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="light"] {
+    --pixel-border: #c9ccd3;
+    --pixel-highlight: rgba(255, 255, 255, 0.7);
+    --pixel-shade: rgba(0, 0, 0, 0.14);
+}
+
+html,
+body,
+#root,
+button,
+input,
+textarea,
+select {
+    font-family: var(--font-pixel-body);
+}
+
+/* No rounded corners anywhere: avatars, cards, buttons and inputs are all square pixels. */
+*,
+*::before,
+*::after {
+    border-radius: 0 !important;
+}
+
+h1,
+h2,
+h3,
+.settings-tab-title,
+.room-dialog-title,
+.login-mode-button,
+.rail-logo + *,
+.room-list-category-title,
+.room-list-section-title {
+    font-family: var(--font-pixel-display);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+img,
+canvas,
+.rail-icon-avatar,
+.login-brand img {
+    image-rendering: pixelated;
+}
+
+/* Stepped borders: a solid outline whose corners are notched out, like a pixel sprite frame. */
+.login-card,
+.settings-section-card,
+.room-dialog,
+.message-context-menu,
+.message-actions-bar,
+.desktop-update-banner,
+.pixel-color-picker {
+    border-color: transparent !important;
+    box-shadow:
+        0 calc(var(--pixel) * -1) 0 0 var(--pixel-border),
+        0 var(--pixel) 0 0 var(--pixel-border),
+        calc(var(--pixel) * -1) 0 0 0 var(--pixel-border),
+        var(--pixel) 0 0 0 var(--pixel-border),
+        inset 0 var(--pixel) 0 0 var(--pixel-highlight),
+        inset 0 calc(var(--pixel) * -1) 0 0 var(--pixel-shade);
+}
+
+/* Bevelled action buttons: light top-left edge, dark bottom-right edge; pressed buttons invert it.
+   Text-like buttons (names in the timeline, channel and member rows) stay flat. */
+.login-card button,
+.settings-button,
+.settings-theme-button,
+.room-dialog-button-primary,
+.room-dialog-button,
+.verification-primary,
+.emoji-upload-save,
+.desktop-update-banner button,
+.voice-room-audio-warning button,
+.rail-icon {
+    box-shadow:
+        inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--pixel-shade),
+        inset var(--pixel) var(--pixel) 0 0 var(--pixel-highlight);
+}
+
+/* `.login-card button` would otherwise give the inactive sign-in/register tab the solid accent fill. */
+.login-card .login-mode-button {
+    background: var(--bg-input);
+    color: var(--text-muted);
+}
+
+.login-card .login-mode-button.is-active {
+    background: var(--accent);
+    color: var(--on-primary);
+}
+
+:is(.login-card button, .settings-button, .settings-theme-button, .room-dialog-button-primary, .room-dialog-button,
+    .verification-primary, .emoji-upload-save, .desktop-update-banner button, .rail-icon):active:not(:disabled) {
+    box-shadow:
+        inset var(--pixel) var(--pixel) 0 0 var(--pixel-shade),
+        inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--pixel-highlight);
+    transform: translateY(1px);
+}
+
+input,
+textarea,
+select {
+    border-width: 2px !important;
+}
+
+:focus-visible {
+    outline: var(--pixel) solid var(--accent) !important;
+    outline-offset: 2px;
+}
+
+/* Chunky scrollbars. */
+* {
+    scrollbar-width: auto;
+    scrollbar-color: var(--accent) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border: 2px solid var(--bg-pane);
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.rail-logo {
+    box-shadow: none;
+}
+
+/* Pixel color wheel (Appearance settings). */
+.pixel-color-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    background: var(--bg-card);
+}
+
+.pixel-color-wheel-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.pixel-color-wheel {
+    width: 228px;
+    height: 228px;
+    max-width: 100%;
+    cursor: crosshair;
+    touch-action: none;
+    image-rendering: pixelated;
+}
+
+.pixel-color-brightness {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-color-brightness-step,
+.pixel-color-swatch {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.pixel-color-brightness-step.is-active,
+.pixel-color-swatch.is-active {
+    outline: var(--pixel) solid var(--text-main);
+    outline-offset: 2px;
+}
+
+.pixel-color-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pixel-color-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pixel-color-controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pixel-color-controls input {
+    width: 96px;
+    padding: 6px 8px;
+    background: var(--bg-input);
+    border: 2px solid var(--pixel-border);
+    color: var(--text-main);
+    text-transform: lowercase;
+}
+
+.pixel-color-preview {
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    box-shadow: 0 0 0 var(--pixel) var(--pixel-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button:active:not(:disabled) {
+        transform: none;
+    }
+}

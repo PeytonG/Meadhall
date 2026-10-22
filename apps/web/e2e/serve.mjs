@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // Serves the production build for the E2E tests, pointed at the test Synapse.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
