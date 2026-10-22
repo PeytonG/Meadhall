@@ -4,13 +4,13 @@ import { EventType, type MatrixClient } from "matrix-js-sdk/src/matrix";
 import type { Sticker } from "./stickerPack";
 
 // mxc:// URLs of stickers already uploaded, per homeserver, so each sticker is uploaded once.
-const UPLOAD_CACHE_KEY = "heorot.stickers.mxc.v1";
+const UPLOAD_CACHE_STORAGE_ITEM = "heorot.stickers.mxc.v1";
 
 type UploadCache = Record<string, Record<string, string>>;
 
 function readCache(): UploadCache {
     try {
-        const parsed = JSON.parse(localStorage.getItem(UPLOAD_CACHE_KEY) ?? "{}") as unknown;
+        const parsed = JSON.parse(localStorage.getItem(UPLOAD_CACHE_STORAGE_ITEM) ?? "{}") as unknown;
         return parsed && typeof parsed === "object" ? (parsed as UploadCache) : {};
     } catch {
         return {};
@@ -19,7 +19,7 @@ function readCache(): UploadCache {
 
 function writeCache(cache: UploadCache): void {
     try {
-        localStorage.setItem(UPLOAD_CACHE_KEY, JSON.stringify(cache));
+        localStorage.setItem(UPLOAD_CACHE_STORAGE_ITEM, JSON.stringify(cache));
     } catch {
         // Not cached: the sticker is uploaded again next time.
     }
