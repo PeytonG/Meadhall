@@ -55,6 +55,8 @@ import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
+import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
+import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
 import { PixelIcon } from "./PixelIcon";
 import {
     MATRIX_CALL_COMPAT_EVENT,
@@ -2131,6 +2133,23 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             roomModerationOpen ||
             settingsState,
     );
+
+    // Android app: keep notifying in the background (native service) while notifications are on.
+    useEffect(() => {
+        const accessToken = client.getAccessToken();
+        const userId = client.getUserId();
+        if (!userSettings.notifications.notificationsEnabled || !accessToken || !userId) {
+            void stopAndroidBackgroundSync();
+            return undefined;
+        }
+        void startAndroidBackgroundSync({
+            homeserverUrl: client.getHomeserverUrl(),
+            accessToken,
+            userId,
+            showMessageText: userSettings.notifications.notificationBodyEnabled,
+        });
+        return onAccessTokenRefreshed((token) => void updateAndroidBackgroundSyncToken(token));
+    }, [client, userSettings.notifications.notificationBodyEnabled, userSettings.notifications.notificationsEnabled]);
 
     // Desktop app: recolor the window controls to whatever is behind them after any theme or layout change.
     useEffect(() => {

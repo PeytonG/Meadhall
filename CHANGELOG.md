@@ -7,6 +7,10 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **Android notifications in the background**, with no Google account or extra app: Meadhall stays connected (Android
+  shows a quiet "Meadhall is connected" notification) and notifies you of messages and calls, including after the
+  phone restarts. Encrypted messages show as "New message". Sign out and back in once after updating so the
+  background connection gets a lasting sign-in.
 - **Notifications are on by default** in the desktop app. Clicking one brings Meadhall back (even from the tray) and
   opens that conversation, and incoming calls notify you while Meadhall is in the background.
 - **Roles and permissions, Discord-style.** In Server Settings → Members, create roles (name, color, rank,

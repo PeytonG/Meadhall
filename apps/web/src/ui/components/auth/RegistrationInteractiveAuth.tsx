@@ -11,6 +11,7 @@ import {
 } from "matrix-js-sdk/src/matrix";
 
 import { DEFAULT_BRAND } from "../../../core/config/branding";
+import { wantsRefreshTokens } from "../../../core/platform/android";
 import type { MatrixCredentials } from "../../../core/types/credentials";
 
 interface RegistrationInteractiveAuthProps {
@@ -258,7 +259,7 @@ export function RegistrationInteractiveAuth({
                 password,
                 initial_device_display_name: initialDeviceDisplayName,
                 auth: auth ?? undefined,
-                refresh_token: true,
+                refresh_token: wantsRefreshTokens(),
             };
             return client.registerRequest(params);
         };

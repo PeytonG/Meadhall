@@ -28,6 +28,7 @@ import {
 } from "../adapters/securityRecoveryAdapter";
 import { syncMediaServiceWorkerAuthState } from "../serviceWorker/registerMediaServiceWorker";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
+import { stopAndroidBackgroundSync } from "../platform/androidBackgroundSync";
 
 export type MatrixSessionStatus =
     | "booting"
@@ -894,6 +895,9 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
         if (!state.core) {
             return;
         }
+
+        // Android: stop background notifications and forget the sign-in they used.
+        void stopAndroidBackgroundSync();
 
         dispatch({ type: "set_status", status: "starting", error: null });
 
