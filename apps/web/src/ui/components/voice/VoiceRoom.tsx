@@ -226,6 +226,15 @@ function resolveParticipantMatrixUserId(
     return rtcIdentityMap?.get(participant.identity) ?? parseMatrixUserIdFromIdentity(participant.identity);
 }
 
+// Element Call clients on other homeservers can join our SFU as subscribers only, under a hashed identity
+// (the JWT service's /get_token). Those are not call members, so leave them out of the participant list.
+function isListedRemoteParticipant(participant: Participant, rtcIdentityMap: Map<string, string>): boolean {
+    return (
+        resolveParticipantMatrixUserId(participant, rtcIdentityMap) !== undefined ||
+        participant.trackPublications.size > 0
+    );
+}
+
 function getParticipantDisplayInfo(
     matrixRoom: MatrixRoom | null | undefined,
     identity: string,
@@ -649,6 +658,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             });
         }
         for (const participant of room.remoteParticipants.values()) {
+            if (!isListedRemoteParticipant(participant, rtcIdentityMap)) {
+                continue;
+            }
             next.push({
                 participant,
                 identity: participant.identity,
@@ -1075,16 +1087,20 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         syncParticipants();
                     });
                 })
-                .on(RoomEvent.ParticipantConnected, () => {
+                .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
                     runIfCurrentJoin(() => {
-                        void playParticipantJoinSound().catch(() => undefined);
+                        if (isListedRemoteParticipant(participant, rtcIdentityMapRef.current)) {
+                            void playParticipantJoinSound().catch(() => undefined);
+                        }
                         syncParticipants();
                         refreshAudioDiagnostics(room);
                     });
                 })
-                .on(RoomEvent.ParticipantDisconnected, () => {
+                .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
                     runIfCurrentJoin(() => {
-                        void playParticipantLeaveSound().catch(() => undefined);
+                        if (isListedRemoteParticipant(participant, rtcIdentityMapRef.current)) {
+                            void playParticipantLeaveSound().catch(() => undefined);
+                        }
                         syncParticipants();
                         refreshAudioDiagnostics(room);
                     });
@@ -1106,11 +1122,12 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         publication.source === Track.Source.ScreenShareAudio
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
-                        syncParticipants();
                     }
                     if (publication.source === Track.Source.ScreenShare) {
                         void playScreenShareStartSound().catch(() => undefined);
                     }
+                    // A first publication can make a previously unlisted participant listed.
+                    syncParticipants();
                     refreshAudioDiagnostics(room);
                 })
                 .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {

@@ -150,4 +150,19 @@ describe("matrixRtc", () => {
         expect(emitted[0].key.algorithm.name).toBe("HKDF");
         expect(provider.getOptions()).toMatchObject({ ratchetWindowSize: 10, keyringSize: 256 });
     });
+
+    it("imports only the bytes a key view covers", async () => {
+        const provider = new MatrixRtcKeyProvider();
+        const keys: CryptoKey[] = [];
+        provider.on("setKey", (info: any) => keys.push(info.key));
+        const backing = new Uint8Array(32);
+        backing.set(new Uint8Array(16).fill(9), 8);
+
+        await provider.setRawKey(new Uint8Array(backing.buffer, 8, 16), "@bob:example.org:DEV", 0);
+        await provider.setRawKey(new Uint8Array(16).fill(9), "@bob:example.org:DEV", 1);
+
+        const params = { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(8), info: new Uint8Array(8) };
+        const [fromView, fromCopy] = await Promise.all(keys.map((key) => crypto.subtle.deriveBits(params, key, 256)));
+        expect(new Uint8Array(fromView)).toEqual(new Uint8Array(fromCopy));
+    });
 });

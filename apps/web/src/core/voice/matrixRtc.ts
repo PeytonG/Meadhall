@@ -1,4 +1,4 @@
-import { BaseKeyProvider } from "livekit-client";
+import { BaseKeyProvider, createKeyMaterialFromBuffer } from "livekit-client";
 import type { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
 import {
     isLivekitTransportConfig,
@@ -139,7 +139,9 @@ export class MatrixRtcKeyProvider extends BaseKeyProvider {
     }
 
     public async setRawKey(key: Uint8Array<ArrayBuffer>, rtcBackendIdentity: string, index: number): Promise<void> {
-        const cryptoKey = await crypto.subtle.importKey("raw", key, "HKDF", false, ["deriveBits", "deriveKey"]);
+        // Copy out exactly the key bytes: the Uint8Array may be a view into a larger buffer.
+        const keyBytes = key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength);
+        const cryptoKey = await createKeyMaterialFromBuffer(keyBytes);
         this.onSetEncryptionKey(cryptoKey, rtcBackendIdentity, index);
     }
 }
