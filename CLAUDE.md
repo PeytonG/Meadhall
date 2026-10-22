@@ -10,7 +10,7 @@
 | **Upstream** | Fork of [Vitosicz/Heorot](https://github.com/Vitosicz/Heorot) (git remote `upstream`) |
 | **License** | AGPL-3.0 (inherited from Heorot and Element; cannot be changed) |
 | **Latest release** | `v0.2.0` (2026-10-22; first release `v0.1.0`) |
-| **Last updated** | 2026-10-22 |
+| **Last updated** | 2026-10-23 |
 
 > **Upkeep rule (from the owner):** update this file after every few completed tasks, before context runs low, and
 > whenever a non-obvious decision is made. Keep it professional. Commit it with the work it describes.
@@ -66,6 +66,8 @@ Run from the repository root. Requires Node.js 22+, pnpm 10, and Docker for inte
 | Start test Synapse | `node scripts/test-synapse.mjs start` (optional `SYNAPSE_ROOM_VERSION=11\|12`) |
 | Integration tests | `pnpm --dir apps/web test:integration` |
 | End-to-end tests | `pnpm --dir apps/web test:e2e` |
+| UI interaction tests (part of E2E) | `pnpm --dir apps/web exec playwright test ui-interactions` |
+| Real desktop app test (Windows) | `pnpm --dir apps/desktop run build`, then `pnpm --dir apps/web exec playwright test -c playwright.desktop.config.ts` |
 | Refresh screenshots | `CAPTURE_SCREENSHOTS=1 pnpm --dir apps/web exec playwright test screenshots` |
 | Regenerate icons/art | `node scripts/generate-branding.mjs` |
 | Regenerate stickers | `node scripts/generate-stickers.mjs` |
@@ -79,6 +81,10 @@ Run the relevant tests after every change.
 
 - **Small commits**, each explaining *why*, ending with the `Co-Authored-By` trailer the harness specifies.
 - **Run tests after each step.**
+- **UI work isn't done until it's tested like a user would use it** (owner's rule). Add or extend E2E tests for hit
+  areas, scrolling, pickers and dismissing modals (`e2e/ui-interactions.spec.ts`), run them, and for anything the
+  desktop app draws differently (title bar, drag regions, window controls) run the real Electron test too.
+  Browser-only tests can't see Electron drag regions: use `isWindowDragRegionAt()` (`e2e/support/desktop.ts`).
 - **Ask before outward-facing actions** (pushing to `main`, tagging releases, deleting repos, changing repo
   settings) unless the owner has approved them. Work branches may be pushed so CI runs.
 - **Release tags:** `vX.Y.Z` (prereleases `vX.Y.Z-beta.N`). The first release is `v0.1.0`.
@@ -128,9 +134,15 @@ matrix-js-sdk 40.2.0.
 - **Join:** `joinMatrixRtcSession()` (`core/voice/matrixRtc.ts`, shared by the app and tests) →
   `joinRTCSession({userId, deviceId, memberId: "user:device"}, [], {…transport, livekit_alias: roomId},
   {callIntent: "audio", manageMediaKeys: encrypted, useExperimentalToDeviceTransport: true})`. To-device keys are
-  **required** (Element Call only sends media keys that way). Nothing ever rings: voice channels send no
-  `notificationType`; DM/group/room calls (`announceCall`) send `"notification"`, which the SDK emits only for the
-  first joiner.
+  **required** (Element Call only sends media keys that way). Voice channels send no `notificationType`; 1:1 DM
+  calls send `"ring"` and group calls `"notification"` (`announceCall`), which the SDK emits only for the first
+  joiner.
+- **Incoming calls** (`hooks/useIncomingCall.ts`, `components/voice/IncomingCallCard.tsx`, `voice/ringtone.ts`): an
+  RTC/call notification from someone else in a Home room shows "X is calling" (Join/Dismiss) and loops an original
+  Web Audio chiptune until joined, dismissed, the caller leaves, or the notification's lifetime (≤ 90 s) ends. The
+  caller never rings; notifications replayed at startup never ring. OS notification too when in the background.
+- **Speaking detection** (`voice/voiceActivity.ts`): local Web Audio RMS per track (threshold 0.012, 350 ms hold,
+  50 ms poll) OR'd with LiveKit's server-side speakers, which lag ~0.5 s.
 - **Calls outside voice channels:** DMs, group chats and plain rooms get a header call button (`ChannelHeader`
   `call` prop). The call view sits above the chat (`.main-voice-slot.is-call-strip`); others in a call show a
   "Call in progress / Join call" bar (`useRoomCalls`, live from MatrixRTC memberships). Profile **Call** opens the
@@ -171,7 +183,18 @@ unlimited power (`powerLevel === Infinity`).
   autostart `meadhall.desktop` on Linux), started hidden.
 - **Updates:** electron-updater from this repo's GitHub Releases, `autoDownload` off. "Meadhall X is available" →
   **Update now** (download with progress, silent install, restart); Settings → Updates has "Check for updates".
-- **Identity:** app ID `io.github.peytong.meadhall` (installs alongside Heorot). Electron 44.
+- **Identity:** app ID `io.github.peytong.meadhall` (installs alongside Heorot; also the Windows AppUserModelId,
+  set at startup so toasts are delivered). Electron 44.
+- **Drag regions:** only title-bar strips (`.channel-header`, `.pane-top`, `.home-search`, `.rs-panel-header`,
+  `.settings-header`) have `-webkit-app-region: drag`; their controls and every overlay opt out. **Never** make
+  `html`/large areas draggable: drag regions swallow clicks and wheel scrolling (that was the dead color wheels,
+  finicky scrolling and half-working menus before v0.3.0).
+- **Window controls color:** the overlay (`titleBarOverlay`) follows the color behind it: the renderer samples it
+  (`ui/desktop/titleBarColors.ts`) and sends `heorot:setTitleBarColors` after theme/layout changes.
+- **Notifications:** on by default; clicking one calls `heorot:showWindow` (restores from the tray) and opens the
+  room. `backgroundThrottling: false` so the hidden window keeps syncing.
+- **Tests:** `MEADHALL_USER_DATA_DIR` gives the app a throwaway profile; `e2e-desktop/desktop.spec.ts` launches the
+  real app and captures the OS-drawn window to compare colors.
 
 ### 7.5 Branding, theme and fonts
 - `config.brand` (default in `core/config/branding.ts`) drives the sign-in heading, title and device names.
@@ -205,17 +228,51 @@ unlimited power (`powerLevel === Infinity`).
   (Pixie), 122 (Troll); pitch-up gets +70% make-up gain. Settings → Audio has "Hear yourself" (mic test through
   the effect). Setting: `audio.voiceEffect`.
 - **Speaking campfire** (`ui/voice/campfire.ts`, `components/voice/PixelCampfire.tsx`): replaces the green speaking
-  ring. Hand-drawn flame sprites on a 24-cell grid (avatar = 14 cells, so the SVG is 171% of the avatar) plus
-  crossed logs; 3 frames cycled by CSS (`pixel.css`). The owner asked for chunky pixels: keep the grid coarse.
+  ring. Small hand-drawn flame sprites on a 20-cell grid (avatar = 16 cells, SVG 125% of the avatar, offset
+  -12.5%/-37.5%) that **only rise from the top of the avatar and stay within its width** (owner: never cover text;
+  less dramatic). 3 frames cycled by CSS. Keep the grid coarse (owner wants chunky pixels).
   Per-person on/off + color live in the Matrix profile, key `io.github.peytong.meadhall.campfire`
   `{enabled, color}` (`ui/voice/flameColor.ts`, cached 5 min). Off = the original green ring
   (`SpeakingCampfire` `ringClassName`). Set in Settings → Audio (`CampfireSettings.tsx`).
+- **Pixel emoji** (`emoji/unicodeEmoji.tsx`, default on, Appearance toggle `appearance.pixelEmoji` →
+  `data-pixel-emoji`): standard emoji in messages, reactions and pickers are wrapped in `.unicode-emoji` (still real
+  text) and drawn through an SVG pixelate filter (`PixelEmojiFilter` at the app root: sample on a grid + dilate).
+- **People search** (`search/userSearch.ts`): every typed word must appear in the display name, username or ID
+  (accent-insensitive); local matches show instantly, the server directory merges in. Synapse's directory only
+  finds people sharing a room unless the server sets `user_directory.search_all_users: true`.
 - **Layout previews:** `PREVIEW_DIR=<dir> pnpm --dir apps/web exec playwright test preview` screenshots desktop,
   tablet and phone views of the seeded demo hall (`e2e/support/seedHall.ts`, also used by README screenshots).
 - **Stickers:** 12 sprites from `generate-stickers.mjs`, sent as standard `m.sticker` (uploaded once per homeserver,
   mxc cached); inlined `data:` assets are decoded because the CSP blocks fetching them.
 
-### 7.6 Testing and CI
+### 7.6 Roles and permissions (`core/roles`)
+Discord-style roles mapped onto Matrix so the server enforces them (and Element users are bound by them):
+- Space state `io.github.peytong.meadhall.roles` `{roles: [{id, name, color, rank 1-99, permissions[]}]}`;
+  assignments `io.github.peytong.meadhall.member_roles` with state key **`user:@id`** (state keys starting with
+  `@` can only be set by that user); channel viewers `io.github.peytong.meadhall.channel_view` `{roles}`.
+- Member level = highest role rank; each permission's minimum = lowest rank granting it (so higher roles inherit
+  lower roles' permissions). Applied to the space and every channel by the editor's app (`syncRoles`). Never
+  touched: admins (100+), v12 creators, anyone at/above you, and people never given roles in Meadhall.
+- Channels limited to roles become invite-only; the editor invites people who gain access (Meadhall auto-joins
+  invites to channels of servers you're in) and removes those who lose it.
+- UI: Server Settings → Members (`settings/server/tabs/MembersTab.tsx`); member list names take the top role color.
+
+### 7.7 Server admin panel
+Settings → Server admin, shown only when `GET /_synapse/admin/v1/users/<me>/admin` says admin (and re-checked in the
+tab; Synapse rejects non-admins anyway). Registration tokens and user management via `core/admin/synapseAdmin.ts`.
+The test Synapse has a test-only `registration_shared_secret` so E2E can create admins (`registerAdmin`).
+
+### 7.8 Android background notifications (`apps/mobile/android/.../meadhall/`)
+No Google services (owner's choice: no extra apps or accounts). `SyncService` (foreground, type
+`remoteMessaging`, minimum-importance "Meadhall is connected") polls `GET /_matrix/client/v3/notifications` every
+30 s and posts notifications while the app isn't on screen; `BootReceiver` restarts it. **Never a second `/sync`**
+on the same device: it would consume to-device messages (encryption keys). Encrypted messages show "New message".
+The web app drives it through the `MeadhallSync` Capacitor plugin (`ui/platform/androidBackgroundSync.ts`).
+Android sessions sign in **without refresh tokens** (`core/platform/android.ts`) because the service polls for
+hours while the app can't refresh; users updating from older versions must sign out and in once. FCM could be added
+later if the owner creates a Firebase project (needs Sygnal on the server).
+
+### 7.9 Testing and CI
 - Integration tests run against Synapse v1.163 on **room versions 11 and 12** (CI matrix).
 - E2E serves the production build with a hostname-specific config; channels are unencrypted (API can't encrypt).
 - CI: `ci.yml` (checks, integration, E2E), `security.yml` (CodeQL, dependency review, gitleaks, `pnpm audit
@@ -237,6 +294,10 @@ unlimited power (`powerLevel === Infinity`).
 | Pictures broken a few minutes after sign-in (desktop) | Sessions use refresh tokens (Synapse access tokens last ~5 min) and the server enforces authenticated media (`/_matrix/media/v3` 404s). The desktop media hook must get every refreshed token (`core/auth/accessTokenEvents.ts`); the timeline also falls back to a signed fetch. `e2e/media.spec.ts` blocks service workers to reproduce |
 | Screen share choppy at any FPS | Chromium encodes simulcast VP8 screen content at 2–5 fps. Screen shares publish with `simulcast: false` (measured: 3 → 57 fps at 1080p60) |
 | Perl/sed edits silently do nothing | Most files have CRLF endings; `\n`-anchored patterns miss. Prefer the Edit tool, or strip `\r` first |
+| Desktop: clicks, drags or scrolling dead in places, fine in a browser | An Electron drag region (`-webkit-app-region: drag`) covers it. Check with `isWindowDragRegionAt()`; see §7.4 |
+| "You are not allowed to set others state" | State keys starting with `@` are reserved for that user; prefix them (`user:@id`) |
+| Shell heredocs/`node -e` scripts break on apostrophes | The Bash tool wraps commands in single quotes; write files with the Write tool instead |
+| Playwright: "Cannot accept dialog which is already handled" | Two `prompt`/`confirm` dialogs in a row: register one handler that answers both before clicking |
 | Sticker send "Failed to fetch" | Vite inlines <4 KB assets as `data:`; CSP blocks fetching them |
 | Electron 44 build errors on login items | `openAsHidden`/`wasOpenedAsHidden` removed; use `wasOpenedAtLogin` |
 | Electron binary missing after upgrade | `node node_modules/electron/install.js` in `apps/desktop` |
@@ -253,7 +314,7 @@ unlimited power (`powerLevel === Infinity`).
 | Typecheck fix | ✅ |
 | MatrixRTC voice (Element compatible), call permissions, live audio settings | ✅ |
 | Desktop: updates (Update now), tray, login, permissions, Electron 44 | ✅ |
-| Tests: 135 unit, 10 smoke, 7 integration (v11 + v12), 10 E2E | ✅ all passing |
+| Tests: 153 unit, 10 smoke, 8 integration (v11 + v12), 24 E2E, 1 real-desktop | ✅ all passing |
 | Release pipeline (Windows NSIS, Linux AppImage + rpm, Android APK, release-signed) | ✅ |
 | Security: audit 140 → 1 accepted, CodeQL findings fixed, scans in CI, GitHub protections on | ✅ |
 | Branding: Meadhall name, owner's icon + art, pixel theme, color wheel, fonts, stickers, Discord-style UI | ✅ |
@@ -265,6 +326,8 @@ unlimited power (`powerLevel === Infinity`).
 | Default server `https://elementprojectzkypg.duckdns.org`; registration-token field on sign-up | ✅ merged (PR #6) |
 | Fonts (Other = any installed font), round avatars, mute/deafen anytime, 120% volume, DM + group calls | ✅ merged (PR #6) |
 | Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ merged (PR #6) |
+| `v0.2.1` (picture fix, smooth screen share, campfire) | ✅ published |
+| v0.3.0: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ on branch `v0.2.2`, not yet merged |
 
 ## 10. Open issues and roadmap
 
@@ -273,10 +336,11 @@ unlimited power (`powerLevel === Infinity`).
 - **Matrix 2.0 mode:** js-sdk 40.2 hashes `user|device|member`; lk-jwt-service hashes JSON. Upgrade matrix-js-sdk
   (44+) before Element Call makes that mode the default.
 - MSC4195 `url`-only transports aren't supported yet (falls back to the relay).
-- Push notifications; iOS; code signing for Windows/macOS.
+- iOS; code signing for Windows/macOS; optional FCM push for Android (needs the owner's Firebase project + Sygnal).
+- Notification taps on Android open the app but not yet the specific conversation (the intent carries `roomId`).
 
 ## 11. Work log
 
 | Date | Work |
 |---|---|
-| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. PR #6 merged; `v0.2.0` released (desktop files re-attached after an electron-builder draft mix-up; release workflow fixed). |
+| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. PR #6 merged; `v0.2.0` released (desktop files re-attached after an electron-builder draft mix-up; release workflow fixed). Then: v0.2.1 (pictures, screen share, campfire); CHANGELOG-driven release notes. Then v0.3.0 work: desktop drag-region fix + themed window controls, quieter campfire with local speech detection, people search, pixel emoji, incoming-call ringtone, roles/permissions, server admin panel, desktop + Android background notifications, much more UI testing (incl. a real Electron test). |
