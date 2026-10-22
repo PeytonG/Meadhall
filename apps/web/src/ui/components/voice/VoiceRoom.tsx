@@ -43,6 +43,7 @@ import { useMatrix } from "../../providers/MatrixProvider";
 import type { AudioSettings } from "../../settings/user/settingsStore";
 import { RoomDialog } from "../rooms/RoomDialog";
 import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } from "../../voice/volumeBoost";
+import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
 
@@ -728,6 +729,21 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     useEffect(() => {
         setVolumeBoostSinkId(audioSettings.preferredAudioOutputId || "default");
     }, [audioSettings.preferredAudioOutputId]);
+
+    // Voice changer: applied to the published mic as soon as there is one, and changed live mid-call.
+    useEffect(() => {
+        const room = roomRef.current;
+        if (!room || connectionState !== ConnectionState.Connected || micMuted) {
+            return;
+        }
+        const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
+        if (!track) {
+            return;
+        }
+        void applyVoiceEffect(track, audioSettings.voiceEffect).catch((effectError) => {
+            setError(effectError instanceof Error ? `Voice changer: ${effectError.message}` : "Voice changer failed.");
+        });
+    }, [audioSettings.voiceEffect, connectionState, micMuted]);
 
     useEffect(() => {
         const room = roomRef.current;
@@ -2303,6 +2319,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 {audioOutputs.map((device) => (
                                     <option key={device.deviceId} value={device.deviceId}>
                                         {formatDeviceLabel(device)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="settings-field">
+                            <span>Voice changer</span>
+                            <select
+                                className="room-dialog-input"
+                                value={audioSettings.voiceEffect}
+                                onChange={(event) =>
+                                    onAudioSettingsChange({
+                                        ...audioSettings,
+                                        voiceEffect: normalizeVoiceEffect(event.target.value),
+                                    })
+                                }
+                                data-testid="call-voice-effect"
+                            >
+                                {VOICE_EFFECTS.map((effect) => (
+                                    <option key={effect.id} value={effect.id}>
+                                        {effect.label}
                                     </option>
                                 ))}
                             </select>

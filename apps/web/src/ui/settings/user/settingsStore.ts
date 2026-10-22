@@ -1,3 +1,4 @@
+import { normalizeVoiceEffect, type VoiceEffect } from "../../voice/voiceChanger";
 import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 
@@ -41,6 +42,8 @@ export interface AudioSettings {
     noiseSuppressionEnabled: boolean;
     voiceIsolationEnabled: boolean;
     micProfile: "speech" | "music";
+    // Voice changer effect applied to the mic before sending (ui/voice/voiceChanger.ts).
+    voiceEffect: VoiceEffect;
 }
 
 export interface UserLocalSettings {
@@ -84,6 +87,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         noiseSuppressionEnabled: true,
         voiceIsolationEnabled: true,
         micProfile: "speech",
+        voiceEffect: "off",
     },
 };
 
@@ -166,6 +170,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             noiseSuppressionEnabled: audio.noiseSuppressionEnabled !== false,
             voiceIsolationEnabled: audio.voiceIsolationEnabled !== false,
             micProfile: audio.micProfile === "music" ? "music" : "speech",
+            voiceEffect: normalizeVoiceEffect(audio.voiceEffect),
         },
     };
 }
