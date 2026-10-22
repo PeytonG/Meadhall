@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AuthType, MatrixError, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import type { MatrixCredentials } from "../../core/types/credentials";
-import { normalizeHomeserverUrl } from "../adapters/loginAdapter";
+import { normalizeHomeserverUrl, resolveHomeserverBaseUrl } from "../adapters/loginAdapter";
 import {
     authStepIsRequired,
     authStepIsUsed,
@@ -145,7 +145,7 @@ export function LoginView({
         setRegisterSsoUrl(null);
 
         try {
-            const normalizedHomeserver = normalizeHomeserverUrl(homeserver);
+            const normalizedHomeserver = await resolveHomeserverBaseUrl(normalizeHomeserverUrl(homeserver));
             const probe = await discoverRegistrationFlow({
                 homeserverUrl: normalizedHomeserver,
                 identityServerUrl: defaultIdentityServer,

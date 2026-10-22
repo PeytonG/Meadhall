@@ -11,6 +11,7 @@ import {
     assertPasswordLoginSupported,
     loginWithPasswordLikeElement,
     normalizeHomeserverUrl,
+    resolveHomeserverBaseUrl,
     shouldTryFallbackLogin,
 } from "../adapters/loginAdapter";
 import { waitForClientReady } from "../../core/client/clientReady";
@@ -622,7 +623,7 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
             dispatch({ type: "set_status", status: "starting", error: null });
 
             try {
-                const normalizedHomeserver = normalizeHomeserverUrl(homeserverUrl);
+                const normalizedHomeserver = await resolveHomeserverBaseUrl(normalizeHomeserverUrl(homeserverUrl));
                 const identityServerUrl = getDefaultIdentityServer(state.config);
                 const fallbackHomeserverRaw = getFallbackHomeserver(state.config);
                 const fallbackHomeserver = fallbackHomeserverRaw ? normalizeHomeserverUrl(fallbackHomeserverRaw) : null;

@@ -187,6 +187,7 @@ unlimited power (`powerLevel === Infinity`).
 | `require("electron")` returns a path | VS Code sets `ELECTRON_RUN_AS_NODE=1`; unset it before launching Electron |
 | Code silently dropped by PowerShell edits | `"$nlimport"` is one variable; use the Edit tool for source edits |
 | `// SPDX` became `/ SPDX` | Git Bash mangles a leading `//` in arguments |
+| Sign-in "Failed to fetch" on `http://` or a delegated domain | Browsers don't follow redirects on CORS-preflighted requests (the login POST). `resolveHomeserverBaseUrl()` in `core/auth/loginFlow.ts` resolves `.well-known` / the redirected `/versions` URL first, like Element |
 | Sticker send "Failed to fetch" | Vite inlines <4 KB assets as `data:`; CSP blocks fetching them |
 | Electron 44 build errors on login items | `openAsHidden`/`wasOpenedAsHidden` removed; use `wasOpenedAtLogin` |
 | Electron binary missing after upgrade | `node node_modules/electron/install.js` in `apps/desktop` |
@@ -203,13 +204,13 @@ unlimited power (`powerLevel === Infinity`).
 | Typecheck fix | ✅ |
 | MatrixRTC voice (Element compatible), call permissions, live audio settings | ✅ |
 | Desktop: updates (Update now), tray, login, permissions, Electron 44 | ✅ |
-| Tests: 104 unit, 10 smoke, 6 integration (v11 + v12), 5 E2E | ✅ all passing |
+| Tests: 109 unit, 10 smoke, 6 integration (v11 + v12), 5 E2E | ✅ all passing |
 | Release pipeline (Windows NSIS, Linux AppImage + rpm, Android APK, release-signed) | ✅ |
 | Security: audit 140 → 1 accepted, CodeQL findings fixed, scans in CI, GitHub protections on | ✅ |
 | Branding: Meadhall name, owner's icon + art, pixel theme, color wheel, fonts, stickers, Discord-style UI | ✅ |
 | Docs: README, self-hosting, CONTRIBUTING, SECURITY, NOTICE, templates | ✅ |
 | PR #3 merged to `main` (2026-10-22) | ✅ |
-| `v0.1.0` release (Windows, Linux, Android) | 🔄 tag pushed; release workflow running |
+| `v0.1.0` release (Windows, Linux, Android) | ✅ published: https://github.com/PeytonG/Meadhall/releases/tag/v0.1.0 |
 | Old GitHub fork `PeytonG/Heorot` deleted | ✅ (by the owner; the CLI lacks the `delete_repo` scope) |
 
 ## 10. Open issues and roadmap
@@ -225,4 +226,4 @@ unlimited power (`powerLevel === Infinity`).
 
 | Date | Work |
 |---|---|
-| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` tagged. |
+| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. |
