@@ -20,7 +20,10 @@ export interface HeorotDesktopBridge {
     setStartAtLogin: (enabled: boolean) => Promise<boolean>;
     getUpdateStatus: () => Promise<DesktopUpdateStatus | null>;
     onUpdateStatus: (listener: (status: DesktopUpdateStatus) => void) => () => void;
+    // Downloads the available update if needed, then installs it and restarts.
     installUpdate: () => Promise<void>;
+    checkForUpdates: () => Promise<DesktopUpdateStatus | null>;
+    getAppVersion: () => Promise<string>;
     platform: NodeJS.Platform;
     versions: {
         electron: string;
@@ -69,6 +72,12 @@ const bridge: HeorotDesktopBridge = {
     },
     installUpdate: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:installUpdate");
+    },
+    checkForUpdates: async (): Promise<DesktopUpdateStatus | null> => {
+        return (await ipcRenderer.invoke("heorot:checkForUpdates")) as DesktopUpdateStatus | null;
+    },
+    getAppVersion: async (): Promise<string> => {
+        return String(await ipcRenderer.invoke("heorot:getAppVersion"));
     },
     platform: process.platform,
     versions: {

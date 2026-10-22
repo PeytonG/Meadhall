@@ -233,3 +233,24 @@ select {
         transform: none;
     }
 }
+
+/* Update download progress (desktop update banner), a chunky segmented bar. */
+.desktop-update-progress {
+    display: inline-block;
+    width: 120px;
+    height: 12px;
+    background: var(--bg-input);
+    box-shadow: 0 0 0 2px var(--pixel-border);
+}
+
+.desktop-update-progress span {
+    display: block;
+    height: 100%;
+    background: repeating-linear-gradient(90deg, var(--accent) 0 8px, transparent 8px 10px);
+    transition: width 200ms steps(6);
+}
+
+.settings-updates-status {
+    margin: 10px 0 14px;
+    color: var(--text-muted);
+}

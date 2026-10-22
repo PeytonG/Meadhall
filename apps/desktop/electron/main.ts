@@ -6,7 +6,7 @@ import { app, BrowserWindow, desktopCapturer, ipcMain, net, protocol, session } 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
 import { createTray, destroyTray, hasTray } from "./tray";
-import { configureAutoUpdater, getUpdateStatus, installDownloadedUpdate, isAutoUpdateSupported } from "./updater";
+import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
 
 const APP_TITLE = "Meadhall";
@@ -455,8 +455,12 @@ function registerIpc(): void {
 
     ipcMain.handle("heorot:getUpdateStatus", () => (isAutoUpdateSupported() ? getUpdateStatus() : null));
 
+    ipcMain.handle("heorot:checkForUpdates", () => (isAutoUpdateSupported() ? checkForUpdates() : null));
+
+    ipcMain.handle("heorot:getAppVersion", () => app.getVersion());
+
     ipcMain.handle("heorot:installUpdate", () => {
-        installDownloadedUpdate(() => {
+        downloadAndInstallUpdate(() => {
             isAppQuitting = true;
         });
     });
