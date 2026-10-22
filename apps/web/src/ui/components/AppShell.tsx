@@ -60,6 +60,13 @@ import {
     isVoiceChannelRoom,
 } from "../voice/voiceChannel";
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
+import {
+    loadSelfVoiceState,
+    saveSelfVoiceState,
+    toggleSelfDeafen,
+    toggleSelfMute,
+    type SelfVoiceState,
+} from "../voice/selfVoiceState";
 import { CHANNEL_ORDER_STATE_EVENT, readChannelOrder, writeChannelOrder } from "../stores/CategoryStore";
 
 interface AppShellProps {
@@ -852,6 +859,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [voiceSessionStatus, setVoiceSessionStatus] = useState<VoiceSessionStatus>("disconnected");
     const [voiceAutoJoinNonce, setVoiceAutoJoinNonce] = useState(0);
     const [voiceControlState, setVoiceControlState] = useState<VoiceControlState>(DEFAULT_VOICE_CONTROL_STATE);
+    const voiceControlStateRef = useRef<VoiceControlState>(DEFAULT_VOICE_CONTROL_STATE);
+    const pendingVoiceControlTargetRef = useRef<{ micMuted: boolean; audioMuted: boolean } | null>(null);
+    const [selfVoice, setSelfVoice] = useState<SelfVoiceState>(() => loadSelfVoiceState());
+    useEffect(() => {
+        saveSelfVoiceState(selfVoice);
+    }, [selfVoice]);
     const [voiceSpeakingByRoomId, setVoiceSpeakingByRoomId] = useState<Map<string, Set<string>>>(new Map());
     const [voiceScreenShareByRoomId, setVoiceScreenShareByRoomId] = useState<Map<string, Set<string>>>(new Map());
     const [voiceParticipantsByRoomId, setVoiceParticipantsByRoomId] = useState<Map<string, Set<string>>>(new Map());
@@ -1385,6 +1398,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         if (voiceSessionRoomId) {
             return;
         }
+        voiceControlStateRef.current = DEFAULT_VOICE_CONTROL_STATE;
+        pendingVoiceControlTargetRef.current = null;
         setVoiceControlState(DEFAULT_VOICE_CONTROL_STATE);
     }, [voiceSessionRoomId]);
 
@@ -1571,21 +1586,58 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         runVoiceRoomAction((voiceRoom) => voiceRoom.leave(), "Unable to leave voice channel.");
     }, [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus]);
 
-    const toggleVoiceMicFromDock = useCallback((): void => {
-        if (!voiceSessionRoomId || voiceSessionStatus !== "connected") {
-            return;
-        }
+    // Mute/deafen from the user panel work in and out of calls. Outside a call they only change the saved choice,
+    // which the next call starts with; in a call the change is applied to the voice room too.
+    const applySelfVoiceState = useCallback(
+        (next: SelfVoiceState): void => {
+            setSelfVoice(next);
+            if (!voiceSessionRoomId || voiceSessionStatus !== "connected") {
+                return;
+            }
+            const current = voiceControlStateRef.current;
+            if (next.muted === current.micMuted && next.deafened === current.audioMuted) {
+                return;
+            }
+            pendingVoiceControlTargetRef.current = { micMuted: next.muted, audioMuted: next.deafened };
+            if (next.muted !== current.micMuted) {
+                runVoiceRoomAction((voiceRoom) => voiceRoom.toggleMute(), "Unable to update microphone state.");
+            }
+            if (next.deafened !== current.audioMuted) {
+                runVoiceRoomAction((voiceRoom) => voiceRoom.toggleAudioMute(), "Unable to update audio output state.");
+            }
+        },
+        [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus],
+    );
 
-        runVoiceRoomAction((voiceRoom) => voiceRoom.toggleMute(), "Unable to update microphone state.");
-    }, [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus]);
+    const toggleVoiceMicFromDock = useCallback((): void => {
+        applySelfVoiceState(toggleSelfMute(selfVoice));
+    }, [applySelfVoiceState, selfVoice]);
 
     const toggleVoiceAudioFromDock = useCallback((): void => {
-        if (!voiceSessionRoomId || voiceSessionStatus !== "connected") {
+        applySelfVoiceState(toggleSelfDeafen(selfVoice));
+    }, [applySelfVoiceState, selfVoice]);
+
+    // Keeps the saved choice in step with mute/deafen changed inside the call view. Changes the user panel asked
+    // for arrive in steps (mic, then audio); those are skipped until the room reaches the requested state.
+    const handleVoiceControlsStateChange = useCallback((state: VoiceControlState): void => {
+        voiceControlStateRef.current = state;
+        setVoiceControlState(state);
+        if (!state.connected) {
             return;
         }
-
-        runVoiceRoomAction((voiceRoom) => voiceRoom.toggleAudioMute(), "Unable to update audio output state.");
-    }, [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus]);
+        const target = pendingVoiceControlTargetRef.current;
+        if (target) {
+            if (target.micMuted === state.micMuted && target.audioMuted === state.audioMuted) {
+                pendingVoiceControlTargetRef.current = null;
+            }
+            return;
+        }
+        setSelfVoice((current) =>
+            current.muted === state.micMuted && current.deafened === state.audioMuted
+                ? current
+                : { muted: state.micMuted, deafened: state.audioMuted, mutedByDeafen: false },
+        );
+    }, []);
 
     const selectSidebarMode = useCallback(
         (mode: RightSidebarMode): void => {
@@ -2151,25 +2203,25 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         </button>
                         <button
                             type="button"
-                            className={`pane-icon-button${voiceControlState.micMuted ? " is-muted" : ""}`}
+                            className={`pane-icon-button${selfVoice.muted ? " is-muted" : ""}`}
                             onClick={toggleVoiceMicFromDock}
-                            disabled={voiceSessionStatus !== "connected"}
-                            aria-pressed={voiceControlState.micMuted}
-                            aria-label={voiceControlState.micMuted ? "Unmute" : "Mute"}
-                            title={voiceSessionStatus !== "connected" ? "Join a voice channel to use your mic" : voiceControlState.micMuted ? "Unmute" : "Mute"}
+                            aria-pressed={selfVoice.muted}
+                            aria-label={selfVoice.muted ? "Unmute" : "Mute"}
+                            title={selfVoice.muted ? "Unmute" : "Mute"}
+                            data-testid="self-mute"
                         >
-                            <PixelIcon name="mic" slashed={voiceSessionStatus === "connected" && voiceControlState.micMuted} />
+                            <PixelIcon name="mic" slashed={selfVoice.muted} />
                         </button>
                         <button
                             type="button"
-                            className={`pane-icon-button${voiceControlState.audioMuted ? " is-muted" : ""}`}
+                            className={`pane-icon-button${selfVoice.deafened ? " is-muted" : ""}`}
                             onClick={toggleVoiceAudioFromDock}
-                            disabled={voiceSessionStatus !== "connected"}
-                            aria-pressed={voiceControlState.audioMuted}
-                            aria-label={voiceControlState.audioMuted ? "Undeafen" : "Deafen"}
-                            title={voiceSessionStatus !== "connected" ? "Join a voice channel to deafen" : voiceControlState.audioMuted ? "Undeafen" : "Deafen"}
+                            aria-pressed={selfVoice.deafened}
+                            aria-label={selfVoice.deafened ? "Undeafen" : "Deafen"}
+                            title={selfVoice.deafened ? "Undeafen" : "Deafen"}
+                            data-testid="self-deafen"
                         >
-                            <PixelIcon name="headphones" slashed={voiceSessionStatus === "connected" && voiceControlState.audioMuted} />
+                            <PixelIcon name="headphones" slashed={selfVoice.deafened} />
                         </button>
                         <button
                             type="button"
@@ -2236,7 +2288,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
-                            onControlsStateChange={setVoiceControlState}
+                            joinMuted={selfVoice.muted}
+                            joinDeafened={selfVoice.deafened}
+                            onControlsStateChange={handleVoiceControlsStateChange}
                             onLiveParticipantsChange={handleLiveParticipantsChange}
                         />
                     </div>

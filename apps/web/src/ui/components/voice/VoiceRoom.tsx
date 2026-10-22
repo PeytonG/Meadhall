@@ -67,7 +67,10 @@ interface VoiceRoomProps {
     audioSettings: AudioSettings;
     onAudioSettingsChange: (audio: AudioSettings) => void;
     autoJoinNonce?: number;
-    onSessionStateChange?: (state: { roomId: string; status: VoiceSessionStatus }) => void;
+    // Mute/deafen chosen before joining (the user panel works outside calls). Read when the call connects.
+    joinMuted?: boolean;
+    joinDeafened?: boolean;
+    onSessionStateChange?:(state: { roomId: string; status: VoiceSessionStatus }) => void;
     onLiveParticipantsChange?: (state: {
         roomId: string;
         participants: Array<{ identity: string; userId?: string; isSpeaking: boolean; isScreenSharing: boolean }>;
@@ -538,12 +541,18 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         audioSettings,
         onAudioSettingsChange,
         autoJoinNonce,
+        joinMuted = false,
+        joinDeafened = false,
         onSessionStateChange,
         onLiveParticipantsChange,
         onControlsStateChange,
     }: VoiceRoomProps,
     ref,
 ): React.ReactElement {
+    const joinMutedRef = useRef(joinMuted);
+    joinMutedRef.current = joinMuted;
+    const joinDeafenedRef = useRef(joinDeafened);
+    joinDeafenedRef.current = joinDeafened;
     const { config } = useMatrix();
     const ownUserId = client.getUserId() ?? undefined;
     const roomRef = useRef<Room | null>(null);
@@ -991,6 +1000,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
         setJoining(true);
         setError(null);
+        setAudioMuted(joinDeafenedRef.current);
         if (normalizedAttemptNumber === 1) {
             onSessionStateChange?.({ roomId: targetRoomId, status: "joining" });
         }
@@ -1332,22 +1342,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 return;
             }
 
-            await withTimeout(
-                room.localParticipant.setMicrophoneEnabled(
-                    true,
-                    buildMicrophoneCaptureOptions(audioSettings),
-                    buildMicrophonePublishOptions(audioSettings),
-                ),
-                VOICE_JOIN_MEDIA_SETUP_TIMEOUT_MS,
-                "Microphone setup timed out.",
-            );
-            ensureCurrentJoinRequest();
-            if (!isCurrentJoinRequest()) {
-                void room.disconnect().catch(() => undefined);
-                return;
+            // Joining muted (or deafened) never opens the mic; unmuting later publishes it.
+            const startMuted = joinMutedRef.current || joinDeafenedRef.current;
+            if (!startMuted) {
+                await withTimeout(
+                    room.localParticipant.setMicrophoneEnabled(
+                        true,
+                        buildMicrophoneCaptureOptions(audioSettings),
+                        buildMicrophonePublishOptions(audioSettings),
+                    ),
+                    VOICE_JOIN_MEDIA_SETUP_TIMEOUT_MS,
+                    "Microphone setup timed out.",
+                );
+                ensureCurrentJoinRequest();
+                if (!isCurrentJoinRequest()) {
+                    void room.disconnect().catch(() => undefined);
+                    return;
+                }
+                appliedMicProcessingSignatureRef.current = micProcessingSignature;
             }
-            appliedMicProcessingSignatureRef.current = micProcessingSignature;
-            setMicMuted(false);
+            setMicMuted(startMuted);
             syncParticipants();
             refreshAudioDiagnostics(room);
             void playVoiceJoinSound().catch(() => undefined);
