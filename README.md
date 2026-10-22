@@ -30,12 +30,16 @@ Servers, channels, voice hangouts and stickers, end-to-end encrypted and self-ho
 - Bottom-left user panel with mute, deafen and settings. Mute and deafen work **any time**, in or out of a call,
   and you join calls the way you left them. A "Voice Connected" panel shows while you're in a call.
 - Replies, edits, reactions, pinned messages, read receipts, typing indicators, date dividers, and an online/offline member list.
+- **Roles and permissions** like Discord: colored roles with permissions, and channels private to certain roles. They
+  work as Matrix power levels, so the server enforces them for everyone.
+- **Incoming calls ring** with an 8-bit Meadhall ringtone, for the person being called only.
 
 **Pixel art everywhere**
 - A hand-made pixel theme with pixel fonts, sprite borders and pixel icons. Bright purple by default, and the
   **pixel color wheel** (Settings → Appearance) recolors the whole app, readable in light and dark.
 - Fonts: Pixel, Pixel headings, System, or **any font installed on your device**. Profile pictures are round.
 - **Pixel stickers** you can drop into any chat, plus custom emoji packs per server and per person.
+- **Pixel emoji** (on by default) and a pixel **campfire** that flickers above whoever is talking, in their color.
 
 **Voice that works with Element**
 - Voice uses **MatrixRTC with LiveKit**, the same as Element Call, so Meadhall and Element users share calls.
@@ -52,6 +56,9 @@ Servers, channels, voice hangouts and stickers, end-to-end encrypted and self-ho
 **Everywhere**
 - Web, Windows, Linux (AppImage and Fedora .rpm) and Android. The desktop app sits in the tray, can start at
   login, and **updates itself**: a notification offers "Update now", then downloads, installs and restarts.
+- **Notifications** on desktop (even from the tray) and on Android in the background, with no Google account or
+  extra app needed.
+- Server admins get a **Server admin** panel in Settings: invite tokens, new accounts, password resets.
 - On phones it works like the Discord app: the server rail and conversation list on one screen, the chat on the
   next, and Back takes you back.
 
