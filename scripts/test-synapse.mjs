@@ -16,6 +16,10 @@ const PORT = process.env.SYNAPSE_PORT || "8008";
 const DATA_DIR = path.join(os.tmpdir(), CONTAINER);
 const HEALTH_URL = `http://127.0.0.1:${PORT}/health`;
 const STARTUP_TIMEOUT_MS = 120_000;
+// Must match apps/web/e2e/support/matrixApi.ts and registration_shared_secret in test-synapse/overrides.yaml.
+const TEST_ADMIN_USERNAME = "e2e-admin";
+const TEST_ADMIN_PASSWORD = "e2e-admin-test-only-password";
+const TEST_SHARED_SECRET = "meadhall-test-only-shared-secret";
 
 function docker(args, { allowFailure = false } = {}) {
     const result = spawnSync("docker", args, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });
@@ -105,6 +109,14 @@ async function start() {
         "--config-path", "/overrides.yaml",
     ]);
     await waitForHealth();
+    // A server admin for the admin-panel tests, made with Synapse's own tool (tests then create more through the
+    // Admin API). Test-only credentials for a throwaway local server.
+    docker([
+        "exec", CONTAINER, "register_new_matrix_user",
+        "--user", TEST_ADMIN_USERNAME, "--password", TEST_ADMIN_PASSWORD, "--admin",
+        "--shared-secret", TEST_SHARED_SECRET,
+        "http://localhost:8008",
+    ]);
     const roomVersion = process.env.SYNAPSE_ROOM_VERSION ? `, room version ${process.env.SYNAPSE_ROOM_VERSION}` : "";
     console.log(`Synapse (${IMAGE}) is ready at http://localhost:${PORT} (server name "localhost"${roomVersion}).`);
 }

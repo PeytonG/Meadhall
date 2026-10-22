@@ -158,27 +158,40 @@ export async function sendEvent(user: ApiUser, roomId: string, type: string, con
     return body.event_id;
 }
 
-// A server admin, created with the test Synapse's shared secret (scripts/test-synapse/overrides.yaml).
-export async function registerAdmin(prefix: string): Promise<ApiUser> {
-    const { createHmac } = await import("node:crypto");
-    const secret = "meadhall-test-only-shared-secret";
-    const username = `${prefix}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
-    const password = `pw-${crypto.randomUUID()}`;
-    const url = `${SYNAPSE_URL}/_synapse/admin/v1/register`;
-    const { nonce } = (await (await fetch(url)).json()) as { nonce: string };
-    const mac = createHmac("sha1", secret).update(`${nonce}\0${username}\0${password}\0admin`).digest("hex");
-    const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nonce, username, password, admin: true, mac }),
-    });
-    if (!response.ok) {
-        throw new Error(`admin register failed: HTTP ${response.status} ${await response.text()}`);
-    }
-    const body = (await response.json()) as { user_id: string; access_token: string };
-    return { userId: body.user_id, username, password, accessToken: body.access_token };
-}
 
 export async function readState(user: ApiUser, roomId: string, type: string, stateKey = ""): Promise<Record<string, unknown>> {
     return request<Record<string, unknown>>(user, "GET", `/rooms/${encodeURIComponent(roomId)}/state/${encodeURIComponent(type)}/${encodeURIComponent(stateKey)}`);
+}
+
+// The test Synapse's built-in admin (created by scripts/test-synapse.mjs with Synapse's own tool).
+const TEST_ADMIN = { username: "e2e-admin", password: "e2e-admin-test-only-password" };
+
+async function login(username: string, password: string): Promise<{ user_id: string; access_token: string }> {
+    const response = await fetch(`${SYNAPSE_URL}/_matrix/client/v3/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "m.login.password", identifier: { type: "m.id.user", user: username }, password }),
+    });
+    if (!response.ok) {
+        throw new Error(`login ${username} failed: HTTP ${response.status} ${await response.text()}`);
+    }
+    return (await response.json()) as { user_id: string; access_token: string };
+}
+
+// A fresh server admin, created through the Admin API by the built-in admin.
+export async function registerAdmin(prefix: string): Promise<ApiUser> {
+    const admin = await login(TEST_ADMIN.username, TEST_ADMIN.password);
+    const username = `${prefix}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
+    const password = `pw-${crypto.randomUUID()}`;
+    const userId = `@${username}:${admin.user_id.split(":").slice(1).join(":")}`;
+    const response = await fetch(`${SYNAPSE_URL}/_synapse/admin/v2/users/${encodeURIComponent(userId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${admin.access_token}` },
+        body: JSON.stringify({ password, admin: true }),
+    });
+    if (!response.ok) {
+        throw new Error(`creating admin failed: HTTP ${response.status} ${await response.text()}`);
+    }
+    const session = await login(username, password);
+    return { userId: session.user_id, username, password, accessToken: session.access_token };
 }
