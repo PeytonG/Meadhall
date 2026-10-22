@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import type { AppearanceSettings } from "../settingsStore";
 
@@ -21,6 +21,23 @@ export function AppearanceTab({
     onChange,
 }: AppearanceTabProps): React.ReactElement {
     const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.heorotDesktop);
+    // Start-at-login lives in the OS (owned by the desktop main process), not in local settings.
+    const [startAtLogin, setStartAtLogin] = useState<boolean | null>(null);
+    useEffect(() => {
+        const getStartAtLogin = window.heorotDesktop?.getStartAtLogin;
+        if (!getStartAtLogin) {
+            return;
+        }
+        let cancelled = false;
+        void getStartAtLogin().then((enabled) => {
+            if (!cancelled) {
+                setStartAtLogin(enabled);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
     const useMaximumLineWidth = settings.chatLineLengthCh === 0;
     const effectiveLineLengthCh = useMaximumLineWidth
         ? CHAT_LINE_LENGTH_MAX_CH
@@ -171,7 +188,19 @@ export function AppearanceTab({
                             })
                         }
                     />
-                    Close button minimizes app (desktop)
+                    Close button keeps app running in the tray (desktop)
+                </label>
+            ) : null}
+            {isDesktopRuntime && startAtLogin !== null ? (
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={startAtLogin}
+                        onChange={(event) => {
+                            void window.heorotDesktop?.setStartAtLogin?.(event.target.checked).then(setStartAtLogin);
+                        }}
+                    />
+                    Start Heorot when you sign in to your computer (desktop)
                 </label>
             ) : null}
         </div>

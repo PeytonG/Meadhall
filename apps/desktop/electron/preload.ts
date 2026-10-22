@@ -14,6 +14,8 @@ export interface HeorotDesktopBridge {
     quitApp: () => Promise<void>;
     getDesktopCapturerSources: () => Promise<Array<{ id: string; name: string }>>;
     setPreferredDisplayMediaSource: (sourceId: string) => Promise<void>;
+    getStartAtLogin: () => Promise<boolean>;
+    setStartAtLogin: (enabled: boolean) => Promise<boolean>;
     platform: NodeJS.Platform;
     versions: {
         electron: string;
@@ -43,6 +45,12 @@ const bridge: HeorotDesktopBridge = {
     },
     setPreferredDisplayMediaSource: async (sourceId: string): Promise<void> => {
         await ipcRenderer.invoke("heorot:setPreferredDisplayMediaSource", sourceId);
+    },
+    getStartAtLogin: async (): Promise<boolean> => {
+        return (await ipcRenderer.invoke("heorot:getStartAtLogin")) === true;
+    },
+    setStartAtLogin: async (enabled: boolean): Promise<boolean> => {
+        return (await ipcRenderer.invoke("heorot:setStartAtLogin", enabled)) === true;
     },
     platform: process.platform,
     versions: {

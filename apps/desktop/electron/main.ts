@@ -3,7 +3,9 @@ import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, desktopCapturer, ipcMain, net, protocol, session } from "electron";
 
+import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
+import { createTray, destroyTray, hasTray } from "./tray";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
 
 const APP_TITLE = "Heorot";
@@ -314,7 +316,7 @@ function configureNavigationSafety(window: BrowserWindow): void {
     });
 }
 
-function createMainWindow(): BrowserWindow {
+function createMainWindow(startHidden = false): BrowserWindow {
     const windowState = readWindowState();
 
     const window = new BrowserWindow({
@@ -345,6 +347,9 @@ function createMainWindow(): BrowserWindow {
     configureNavigationSafety(window);
 
     window.once("ready-to-show", () => {
+        if (startHidden && hasTray()) {
+            return;
+        }
         if (windowState.isMaximized) {
             window.maximize();
         }
@@ -352,8 +357,14 @@ function createMainWindow(): BrowserWindow {
     });
 
     window.on("close", (event) => {
-        const shouldMinimizeOnClose = !isAppQuitting && closeOnWindowCloseMinimize && process.platform !== "darwin";
-        if (shouldMinimizeOnClose && !window.isMinimized()) {
+        const shouldKeepRunningOnClose = !isAppQuitting && closeOnWindowCloseMinimize && process.platform !== "darwin";
+        if (shouldKeepRunningOnClose && hasTray()) {
+            event.preventDefault();
+            writeWindowState(window);
+            window.hide();
+            return;
+        }
+        if (shouldKeepRunningOnClose && !window.isMinimized()) {
             event.preventDefault();
             window.minimize();
             return;
@@ -379,8 +390,16 @@ function focusMainWindow(): void {
     if (mainWindow.isMinimized()) {
         mainWindow.restore();
     }
+    if (!mainWindow.isVisible()) {
+        mainWindow.show();
+    }
 
     mainWindow.focus();
+}
+
+function quitApp(): void {
+    isAppQuitting = true;
+    app.quit();
 }
 
 function registerIpc(): void {
@@ -421,8 +440,14 @@ function registerIpc(): void {
     });
 
     ipcMain.handle("heorot:quitApp", () => {
-        isAppQuitting = true;
-        app.quit();
+        quitApp();
+    });
+
+    ipcMain.handle("heorot:getStartAtLogin", () => getStartAtLogin());
+
+    ipcMain.handle("heorot:setStartAtLogin", (_event, enabled: unknown) => {
+        setStartAtLogin(enabled === true);
+        return getStartAtLogin();
     });
 }
 
@@ -457,14 +482,21 @@ async function bootstrap(): Promise<void> {
         await loadRenderer(mainWindow);
     });
 
+    app.on("will-quit", () => {
+        destroyTray();
+    });
+
     await app.whenReady();
     configureAppProtocol();
     configurePermissionHandlers(canNavigateInsideApp);
     configureMediaAuthInterceptor();
     configureDisplayMediaCapture();
     registerIpc();
+    if (process.platform !== "darwin") {
+        createTray(APP_TITLE, { showWindow: focusMainWindow, quit: quitApp });
+    }
 
-    mainWindow = createMainWindow();
+    mainWindow = createMainWindow(wasLaunchedHidden());
     await loadRenderer(mainWindow);
 
     // Auto updater stub (infrastructure intentionally not implemented in MVP).

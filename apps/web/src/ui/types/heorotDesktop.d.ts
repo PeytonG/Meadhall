@@ -17,6 +17,8 @@ export interface HeorotDesktopBridge {
     quitApp?: () => Promise<void>;
     getDesktopCapturerSources?: () => Promise<HeorotDesktopCaptureSource[]>;
     setPreferredDisplayMediaSource?: (sourceId: string) => Promise<void>;
+    getStartAtLogin?: () => Promise<boolean>;
+    setStartAtLogin?: (enabled: boolean) => Promise<boolean>;
     platform?: string;
     versions?: {
         electron?: string;
