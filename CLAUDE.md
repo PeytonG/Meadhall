@@ -124,18 +124,33 @@ It replaces the server's defaults, so the creator loses rights, and on room vers
 
 ## Status (update as work lands)
 
-Branch `fork/limitations-fixes`. PR to `main` at the end.
+Branch `fork/limitations-fixes`. PR to `main` at the end. `main` still holds the untouched upstream code and README
+(including Heorot's old screenshots) until that PR is merged.
 
 1. ✅ Typecheck fixed (tsconfig paths).
 2. ✅ MatrixRTC voice, Element Call compatible (verified against upstream source), plus the call-permission fix.
 3. ✅ Desktop: auto-update + banner, tray, close-to-tray, open at login, permission handler.
-4. ✅ Tests: unit (96), smoke (7), integration (6 × room v11/v12), Playwright E2E (3), CI workflow.
-5. 🔄 Release workflow: Windows NSIS, Linux AppImage + rpm, Android APK (Capacitor). The Android project is set up; the workflow is being written.
-6. ⏳ Security: pnpm audit, Electronegativity, gitleaks locally; CodeQL, dependency review, gitleaks in CI; SECURITY.md.
+4. ✅ Tests: unit (96), smoke (7), integration (6 × room v11/v12), Playwright E2E (3), CI workflow (green on GitHub).
+5. 🔄 Release workflow written (`release.yml`). The first build-only run found three bugs (rpm name from the npm
+   package name, dist-with-version.mjs can't spawn pnpm on Windows, gradlew not executable); fixed, rerun pending.
+   No tag has been pushed yet; ask the owner before tagging v0.2.0.
+6. ✅ Security: Electron 34→44.9.3 and tooling upgrades (pnpm audit 140 → 1 accepted moderate), gitleaks clean,
+   Electronegativity reviewed (Auxclick hardening), `security.yml` (CodeQL, dependency review, gitleaks, audit,
+   Electronegativity), Dependabot, SECURITY.md. Enabled on GitHub: Dependabot alerts/security fixes, secret scanning +
+   push protection, private vulnerability reporting.
 7. ✅ Rename to Meadhall, owner's artwork, pixel-art theme, bright purple default, pixel color wheel.
 8. ✅ AGPL: SPDX headers, NOTICE, in-app source link.
-9. ⏳ Professional README (screenshots in docs/screenshots are ready), CONTRIBUTING, issue/PR templates.
-10. ⏳ Open the PR; update the README "Known limitations".
+9. ✅ README uses Meadhall screenshots only (Heorot's docs/ui.png etc. deleted at the owner's request).
+10. ⏳ Owner requests (2026-10-22), in progress:
+    - Login backdrop more subtle (the mead hall art was "too much").
+    - UI "a lot like Discord".
+    - Pixel art everywhere, including **pixel-art stickers sendable in chat** (send as standard `m.sticker` events
+      so Element shows them too).
+11. ⏳ Professional README rewrite, CONTRIBUTING, issue/PR templates; then open the PR.
+12. ⏳ Ask the owner about deleting the unused GitHub fork `PeytonG/Heorot` (permanent, so not done without a yes).
+
+Note: building the Windows installer locally fails with "Cannot create symbolic link" unless Windows Developer Mode is
+on (electron-builder's winCodeSign archive contains symlinks). CI runners are fine.
 
 ## Open issues / future work
 
