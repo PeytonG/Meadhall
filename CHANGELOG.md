@@ -4,7 +4,7 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
-## Unreleased
+## v0.2.1 (2026-10-22)
 
 ### New
 - **Speaking campfire.** While someone talks in a call, a pixel campfire burns around their picture instead of the
