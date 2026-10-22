@@ -115,13 +115,33 @@ export function MembersPanel({
         return copy;
     }, [members, presenceByUserId, presenceEnabled, roleSourceRoom]);
 
+    // Discord-style "Online — n" / "Offline — n" sections when presence is available.
+    const groups = useMemo(() => {
+        if (!presenceEnabled) {
+            return [{ title: `Members — ${orderedMembers.length}`, members: orderedMembers, offline: false }];
+        }
+        const isOnline = (member: RoomMember): boolean => {
+            const state = toAvatarPresenceState(presenceByUserId.get(member.userId));
+            return state !== null && state !== "offline";
+        };
+        const online = orderedMembers.filter(isOnline);
+        const offline = orderedMembers.filter((member) => !isOnline(member));
+        return [
+            { title: `Online — ${online.length}`, members: online, offline: false },
+            { title: `Offline — ${offline.length}`, members: offline, offline: true },
+        ].filter((group) => group.members.length > 0);
+    }, [orderedMembers, presenceByUserId, presenceEnabled]);
+
     return (
         <div className="rs-panel">
             <div className="rs-panel-header">
                 <h2 className="rs-panel-title">Members - {orderedMembers.length}</h2>
             </div>
             <div className="rs-members-list">
-                {orderedMembers.map((member) => {
+                {groups.map((group) => (
+                    <React.Fragment key={group.title}>
+                        {presenceEnabled ? <h3 className="rs-members-group-title">{group.title}</h3> : null}
+                        {group.members.map((member) => {
                     const displayName = member.rawDisplayName || member.name || member.userId;
                     const sources = memberAvatarSources(client, member, 72, "crop");
                     const roleLabel = getRoleLabel(getUserPowerLevel(roleSourceRoom, member.userId));
@@ -130,7 +150,7 @@ export function MembersPanel({
                     return (
                         <button
                             type="button"
-                            className="rs-member-row"
+                            className={`rs-member-row${group.offline ? " is-offline" : ""}`}
                             key={member.userId}
                             onClick={() => onSelectUser(member.userId)}
                             title={member.userId}
@@ -151,7 +171,9 @@ export function MembersPanel({
                             <span className="rs-member-badge">{roleLabel}</span>
                         </button>
                     );
-                })}
+                        })}
+                    </React.Fragment>
+                ))}
                 {orderedMembers.length === 0 ? <div className="rs-empty-state">No members found.</div> : null}
             </div>
         </div>

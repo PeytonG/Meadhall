@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +11,7 @@ import {
     registerUser,
     sendMessage,
     sendState,
+    sendStickerEvent,
     setDisplayName,
     type ApiUser,
 } from "./support/matrixApi";
@@ -85,6 +87,8 @@ async function seedHall(): Promise<ApiUser> {
         [beowulf, "Then it's settled: Fireside at sundown."],
     ];
     for (const [author, text] of conversation) await sendMessage(author, general, text);
+    const cheers = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/ui/assets/stickers/cheers.png"));
+    await sendStickerEvent(wiglaf, general, cheers, "Cheers");
     return beowulf;
 }
 

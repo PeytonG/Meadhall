@@ -158,7 +158,10 @@ Branch `fork/limitations-fixes`. PR to `main` at the end. `main` still holds the
       Audio settings apply **live**: device/processing changes `restartTrack()` the published mic (no rejoin, no
       unpublish); only the speech/music profile republishes; speaker switching works incl. back to "default"; the
       processing toggles are in the in-call panel. Covered by smoke tests.
-    - ⏳ UI "a lot like Discord" (in progress next).
+    - ✅ UI more like Discord: user panel (avatar + pixel mic / headphones / gear icon buttons, red slash when
+      muted), "Voice Connected" panel with hang-up, date dividers in the timeline (a new day starts a new group),
+      server-rail selection pill, members split into "Online — n" / "Offline — n" (single list without presence).
+      Pixel icons: `components/PixelIcon.tsx` (12x12 grids as crisp SVG).
     - ⏳ New icon from the owner (horn with mugs, barrel, food; has a *painted* checkerboard). It was only pasted in
       chat; asked the owner to save it as `branding/meadhall-icon.png`. `generate-branding.mjs` already removes
       painted checkerboards and prefers the .png, so just rerun it.

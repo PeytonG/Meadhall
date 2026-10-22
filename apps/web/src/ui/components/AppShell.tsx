@@ -52,6 +52,7 @@ import { buildMatrixToRoomPermalink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
+import { PixelIcon } from "./PixelIcon";
 import {
     MATRIX_CALL_COMPAT_EVENT,
     HEOROT_VOICE_CHANNEL_EVENT,
@@ -2088,6 +2089,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                       : ""
                             }`}
                         >
+                            {/* Discord-style "Voice Connected" panel */}
                             <button
                                 type="button"
                                 className="pane-voice-pill"
@@ -2095,82 +2097,90 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 title="Open voice channel"
                             >
                                 <span className="pane-voice-pill-title">
-                                    Voice: {activeVoiceSessionRoom ? getRoomName(activeVoiceSessionRoom) : "Voice channel"}
+                                    {voiceSessionStatus === "joining"
+                                        ? "Connecting…"
+                                        : voiceSessionStatus === "connected"
+                                          ? "Voice Connected"
+                                          : "Voice Disconnected"}
                                 </span>
                                 <span className="pane-voice-pill-subtitle">
-                                    {voiceSessionStatus === "joining"
-                                        ? "Connecting..."
-                                        : voiceSessionStatus === "connected"
-                                          ? "Connected"
-                                          : "Not connected"}
+                                    {activeVoiceSessionRoom ? getRoomName(activeVoiceSessionRoom) : "Voice channel"}
                                 </span>
                             </button>
-                            <div className="pane-voice-controls">
-                                {voiceSessionStatus === "disconnected" ? (
-                                    <button
-                                        type="button"
-                                        className="pane-voice-control pane-voice-control-join"
-                                        onClick={joinVoiceFromDock}
-                                    >
-                                        Join
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        className="pane-voice-control pane-voice-control-leave"
-                                        onClick={leaveVoiceFromDock}
-                                    >
-                                        {voiceSessionStatus === "joining" ? "Cancel" : "Leave"}
-                                    </button>
-                                )}
+                            {voiceSessionStatus === "disconnected" ? (
                                 <button
                                     type="button"
-                                    className={`pane-voice-control${voiceControlState.micMuted ? " is-muted" : ""}`}
-                                    onClick={toggleVoiceMicFromDock}
-                                    aria-pressed={!voiceControlState.micMuted}
-                                    disabled={voiceSessionStatus !== "connected"}
+                                    className="pane-voice-control pane-voice-control-join"
+                                    onClick={joinVoiceFromDock}
                                 >
-                                    {voiceControlState.micMuted ? "Unmute mic" : "Mute mic"}
+                                    Join
                                 </button>
+                            ) : (
                                 <button
                                     type="button"
-                                    className={`pane-voice-control${voiceControlState.audioMuted ? " is-muted" : ""}`}
-                                    onClick={toggleVoiceAudioFromDock}
-                                    aria-pressed={!voiceControlState.audioMuted}
-                                    disabled={voiceSessionStatus !== "connected"}
+                                    className="pane-icon-button pane-voice-hangup"
+                                    onClick={leaveVoiceFromDock}
+                                    aria-label={voiceSessionStatus === "joining" ? "Cancel joining" : "Disconnect"}
+                                    title={voiceSessionStatus === "joining" ? "Cancel" : "Disconnect"}
                                 >
-                                    {voiceControlState.audioMuted ? "Unmute audio" : "Mute audio"}
+                                    <PixelIcon name="hangup" />
                                 </button>
-                            </div>
-                            <div className="pane-voice-indicators">
-                                <span className={`pane-voice-indicator${voiceControlState.micMuted ? " is-muted" : " is-live"}`}>
-                                    Mic {voiceControlState.micMuted ? "muted" : "live"}
-                                </span>
-                                <span className={`pane-voice-indicator${voiceControlState.audioMuted ? " is-muted" : " is-live"}`}>
-                                    Audio {voiceControlState.audioMuted ? "muted" : "live"}
-                                </span>
-                            </div>
+                            )}
                         </div>
                     ) : null}
-                    <button
-                        type="button"
-                        className="pane-user-card"
-                        onClick={() => openUserSettings("my-account")}
-                        title="Open user settings"
-                    >
-                        <Avatar
-                            className="pane-user-avatar"
-                            name={ownDisplayName}
-                            src={ownAvatarSources[0] ?? null}
-                            sources={ownAvatarSources}
-                            seed={ownUserId || undefined}
-                            userId={ownUserId || undefined}
-                        />
-                        <span className="pane-user-meta">
-                            <span className="pane-user-name">{ownDisplayName}</span>
-                            <span className="pane-user-id">{ownUserId || "Unknown user"}</span>
-                        </span>
-                    </button>
+                    {/* Discord-style user panel: profile plus mic, deafen and settings */}
+                    <div className="pane-user-panel">
+                        <button
+                            type="button"
+                            className="pane-user-card"
+                            onClick={() => openUserSettings("my-account")}
+                            title="Open user settings"
+                        >
+                            <Avatar
+                                className="pane-user-avatar"
+                                name={ownDisplayName}
+                                src={ownAvatarSources[0] ?? null}
+                                sources={ownAvatarSources}
+                                seed={ownUserId || undefined}
+                                userId={ownUserId || undefined}
+                            />
+                            <span className="pane-user-meta">
+                                <span className="pane-user-name">{ownDisplayName}</span>
+                                <span className="pane-user-id">{ownUserId || "Unknown user"}</span>
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            className={`pane-icon-button${voiceControlState.micMuted ? " is-muted" : ""}`}
+                            onClick={toggleVoiceMicFromDock}
+                            disabled={voiceSessionStatus !== "connected"}
+                            aria-pressed={voiceControlState.micMuted}
+                            aria-label={voiceControlState.micMuted ? "Unmute" : "Mute"}
+                            title={voiceSessionStatus !== "connected" ? "Join a voice channel to use your mic" : voiceControlState.micMuted ? "Unmute" : "Mute"}
+                        >
+                            <PixelIcon name="mic" slashed={voiceSessionStatus === "connected" && voiceControlState.micMuted} />
+                        </button>
+                        <button
+                            type="button"
+                            className={`pane-icon-button${voiceControlState.audioMuted ? " is-muted" : ""}`}
+                            onClick={toggleVoiceAudioFromDock}
+                            disabled={voiceSessionStatus !== "connected"}
+                            aria-pressed={voiceControlState.audioMuted}
+                            aria-label={voiceControlState.audioMuted ? "Undeafen" : "Deafen"}
+                            title={voiceSessionStatus !== "connected" ? "Join a voice channel to deafen" : voiceControlState.audioMuted ? "Undeafen" : "Deafen"}
+                        >
+                            <PixelIcon name="headphones" slashed={voiceSessionStatus === "connected" && voiceControlState.audioMuted} />
+                        </button>
+                        <button
+                            type="button"
+                            className="pane-icon-button"
+                            onClick={() => openUserSettings("my-account")}
+                            aria-label="User settings"
+                            title="User settings"
+                        >
+                            <PixelIcon name="gear" />
+                        </button>
+                    </div>
                 </div>
             </section>
 

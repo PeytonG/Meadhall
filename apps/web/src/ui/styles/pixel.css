@@ -344,5 +344,188 @@ select {
     max-width: 128px;
     object-fit: contain;
     background: transparent;
+    border: 0;
     image-rendering: pixelated;
+}
+
+/* Discord-style bottom of the channel pane: "Voice Connected" panel and the user panel with mic/deafen/settings. */
+.pixel-icon {
+    display: block;
+}
+
+.pixel-icon-slash {
+    fill: var(--danger);
+}
+
+.pane-bottom {
+    gap: 0;
+    padding: 0;
+    background: var(--bg-rail);
+}
+
+.pane-voice-dock {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 8px 8px 10px;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid var(--pixel-border);
+}
+
+.pane-voice-dock.is-connected,
+.pane-voice-dock.is-connecting {
+    background: transparent;
+    border-color: var(--pixel-border);
+}
+
+.pane-voice-pill {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.pane-voice-pill:hover {
+    background: transparent;
+}
+
+.pane-voice-pill:hover .pane-voice-pill-subtitle {
+    color: var(--text-main);
+    text-decoration: underline;
+}
+
+.pane-voice-pill-title {
+    font-family: var(--font-pixel-display);
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.pane-voice-dock.is-connected .pane-voice-pill-title {
+    color: var(--status-online);
+}
+
+.pane-voice-dock.is-connecting .pane-voice-pill-title {
+    color: var(--status-idle);
+}
+
+.pane-user-panel {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+}
+
+.pane-user-panel .pane-user-card {
+    flex: 1;
+    min-width: 0;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.pane-user-panel .pane-user-card:hover {
+    background: var(--bg-hover);
+}
+
+.pane-icon-button {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.pane-icon-button:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.pane-icon-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.pane-icon-button.is-muted {
+    color: var(--text-main);
+}
+
+.pane-voice-hangup:hover:not(:disabled) {
+    color: var(--danger);
+}
+
+/* Discord-style date divider between days in the timeline. */
+.timeline-day-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 16px 6px;
+    color: var(--text-muted);
+    font-family: var(--font-pixel-display);
+    font-size: 10px;
+}
+
+.timeline-day-divider::before,
+.timeline-day-divider::after {
+    content: "";
+    flex: 1;
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--pixel-border) 0 6px, transparent 6px 8px);
+}
+
+/* Discord-style server rail indicator: a pill on the left edge, short on hover and tall when selected. */
+.left-rail .rail-icon {
+    position: relative;
+    overflow: visible;
+}
+
+.left-rail .rail-icon::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    width: 4px;
+    height: 0;
+    background: var(--text-main);
+    transform: translateY(-50%);
+    transition: height 120ms steps(3);
+}
+
+.left-rail .rail-icon:hover::before {
+    height: 20px;
+}
+
+.left-rail .rail-icon.is-active::before {
+    height: 40px;
+}
+
+/* Members list sections ("Online — 3" / "Offline — 1"); offline members are dimmed, as in Discord. */
+.rs-members-group-title {
+    margin: 14px 8px 6px;
+    font-family: var(--font-pixel-display);
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.rs-members-group-title:first-child {
+    margin-top: 4px;
+}
+
+.rs-member-row.is-offline {
+    opacity: 0.5;
+}
+
+.rs-member-row.is-offline:hover {
+    opacity: 1;
 }

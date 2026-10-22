@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react";
+
+// 12x12 pixel-art icons drawn as crisp SVG rects in the current text color. "#" = filled pixel.
+const ICONS = {
+    mic: [
+        "....####....",
+        "...######...",
+        "...######...",
+        "...######...",
+        "...######...",
+        ".#.######.#.",
+        ".#..####..#.",
+        "..#......#..",
+        "...######...",
+        ".....##.....",
+        ".....##.....",
+        "...######...",
+    ],
+    headphones: [
+        "...######...",
+        "..#......#..",
+        ".#........#.",
+        "#..........#",
+        "#..........#",
+        "#..........#",
+        "###......###",
+        "####....####",
+        "####....####",
+        "####....####",
+        "###......###",
+        "............",
+    ],
+    gear: [
+        ".....##.....",
+        "..#..##..#..",
+        ".##########.",
+        "..###..###..",
+        ".###....###.",
+        "####....####",
+        "####....####",
+        ".###....###.",
+        "..###..###..",
+        ".##########.",
+        "..#..##..#..",
+        ".....##.....",
+    ],
+    hangup: [
+        "............",
+        "............",
+        "............",
+        "....####....",
+        "..########..",
+        ".##########.",
+        "###......###",
+        "###......###",
+        "##........##",
+        "............",
+        "............",
+        "............",
+    ],
+} as const;
+
+export type PixelIconName = keyof typeof ICONS;
+
+// Diagonal slash for "off" states (muted mic, deafened).
+const SLASH = Array.from({ length: 12 }, (_, index) => [index, index] as const);
+
+interface PixelIconProps {
+    name: PixelIconName;
+    slashed?: boolean;
+    size?: number;
+}
+
+export function PixelIcon({ name, slashed = false, size = 20 }: PixelIconProps): React.ReactElement {
+    const pixels = ICONS[name].flatMap((row, y) =>
+        [...row].flatMap((cell, x) => (cell === "#" ? [<rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} />] : [])),
+    );
+    return (
+        <svg
+            className="pixel-icon"
+            viewBox="0 0 12 12"
+            width={size}
+            height={size}
+            shapeRendering="crispEdges"
+            fill="currentColor"
+            aria-hidden="true"
+        >
+            {pixels}
+            {slashed ? (
+                <g className="pixel-icon-slash">
+                    {SLASH.map(([x, y]) => (
+                        <rect key={`slash-${x}`} x={x} y={y} width={1.4} height={1.4} />
+                    ))}
+                </g>
+            ) : null}
+        </svg>
+    );
+}
