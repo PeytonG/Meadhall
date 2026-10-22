@@ -397,6 +397,12 @@ Work through these in small PRs, each with UI tests (§4). Notes are starting po
     automatic signing; ship via TestFlight. Notifications on iOS need APNs (no background polling on iOS): Synapse
     pusher → Sygnal with APNs credentials. Needs an Apple Developer account (owner).
 
+**Mobile (Android and iOS)**
+20. **Swipe navigation:** swipe right from the chat to get back to the list / Direct Messages, and left to return
+    (like the Discord app). Touch handlers on the phone layout (`mobilePane`), with the Back button behaviour kept.
+21. **Send button** in the composer on phones, next to the emoji (smile) button: phones have no Enter-to-send.
+    Show it on touch/phone layouts (and when the composer has text or attachments).
+
 **Presentation / defaults**
 17. **Default homeserver back to `https://matrix.org`** (owner: more presentable). Change `DEFAULT_HOMESERVER_URL`
     in `core/config/serverDefaults.ts` and the README; keep the token field logic (it already adapts per server).
