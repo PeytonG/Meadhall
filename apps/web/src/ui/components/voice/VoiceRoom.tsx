@@ -709,23 +709,17 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         [matrixRoomId],
     );
 
+    // Speaker changes apply mid-call, including going back to "System default". (Microphone changes are applied by
+    // restarting the mic track below.)
     useEffect(() => {
         const room = roomRef.current;
-        if (!room || connectionState !== ConnectionState.Connected) {
+        if (!room || connectionState !== ConnectionState.Connected || !supportsAudioOutputSelection) {
             return;
         }
-
-        if (audioSettings.preferredAudioInputId && audioSettings.preferredAudioInputId !== "default") {
-            void room.switchActiveDevice("audioinput", audioSettings.preferredAudioInputId).catch(() => undefined);
-        }
-        if (
-            supportsAudioOutputSelection &&
-            audioSettings.preferredAudioOutputId &&
-            audioSettings.preferredAudioOutputId !== "default"
-        ) {
-            void room.switchActiveDevice("audiooutput", audioSettings.preferredAudioOutputId).catch(() => undefined);
-        }
-    }, [audioSettings.preferredAudioInputId, audioSettings.preferredAudioOutputId, connectionState, supportsAudioOutputSelection]);
+        void room
+            .switchActiveDevice("audiooutput", audioSettings.preferredAudioOutputId || "default")
+            .catch(() => undefined);
+    }, [audioSettings.preferredAudioOutputId, connectionState, supportsAudioOutputSelection]);
 
     useEffect(() => {
         const room = roomRef.current;
@@ -739,6 +733,22 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         let disposed = false;
         const applyMicProcessing = async (): Promise<void> => {
             try {
+                // Device and processing changes restart the published track in place, so the others keep hearing
+                // us without a gap or a rejoin. Only the speech/music profile (an encoding setting) republishes.
+                const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track as
+                    | { restartTrack?: (options?: MicrophoneCaptureOptions) => Promise<void> }
+                    | undefined;
+                const appliedProfile = appliedMicProcessingSignatureRef.current?.split("|")[4];
+                const profileChanged = appliedProfile !== (audioSettings.micProfile === "music" ? "music" : "speech");
+                if (micTrack?.restartTrack && !profileChanged) {
+                    await micTrack.restartTrack(buildMicrophoneCaptureOptions(audioSettings));
+                    if (!disposed) {
+                        appliedMicProcessingSignatureRef.current = micProcessingSignature;
+                        setError(null);
+                        refreshAudioDiagnostics(room);
+                    }
+                    return;
+                }
                 await room.localParticipant.setMicrophoneEnabled(false);
                 if (disposed) {
                     return;
@@ -2275,6 +2285,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     {!supportsAudioOutputSelection ? (
                         <p className="settings-inline-note">Speaker output switching is not supported in this browser.</p>
                     ) : null}
+                    {/* Applied live: changing these never requires leaving the call. */}
+                    <div className="voice-room-processing-toggles" role="group" aria-label="Microphone processing">
+                        {(
+                            [
+                                ["noiseSuppressionEnabled", "Noise suppression"],
+                                ["echoCancellationEnabled", "Echo cancellation"],
+                                ["autoGainControlEnabled", "Automatic gain"],
+                                ["voiceIsolationEnabled", "Voice isolation"],
+                            ] as const
+                        ).map(([key, label]) => (
+                            <label key={key} className="settings-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={audioSettings[key]}
+                                    onChange={(event) => onAudioSettingsChange({ ...audioSettings, [key]: event.target.checked })}
+                                />
+                                {label}
+                            </label>
+                        ))}
+                    </div>
                     <label className="settings-field voice-room-stream-profile-field">
                         <span>Stream quality</span>
                         <select

@@ -120,6 +120,8 @@ describe("voice room smoke", () => {
         options: Record<string, unknown>;
         connectArgs: unknown[];
         setE2EEEnabled: ReturnType<typeof vi.fn>;
+        switchActiveDevice: ReturnType<typeof vi.fn>;
+        localParticipant: { setMicrophoneEnabled: ReturnType<typeof vi.fn> };
     }>;
     let seededRemotePublications: Array<{
         participantIdentity: string;
@@ -135,6 +137,7 @@ describe("voice room smoke", () => {
         updateVoiceParticipantState: ReturnType<typeof vi.fn>;
     };
     let createdWorkers: Array<{ terminate: ReturnType<typeof vi.fn> }>;
+    let micRestarts: ReturnType<typeof vi.fn>;
 
     beforeEach(async () => {
         vi.resetModules();
@@ -149,6 +152,9 @@ describe("voice room smoke", () => {
         playAttempts = [];
         keyProviderKeys = [];
         createdWorkers = [];
+        micRestarts = vi.fn(async () => undefined);
+        // jsdom has no setSinkId; the app only offers speaker switching where it exists.
+        Object.defineProperty(HTMLMediaElement.prototype, "setSinkId", { configurable: true, value: vi.fn(async () => undefined) });
         voiceAdapterMocks = {
             fetchLiveKitToken: vi.fn(async () => ({
                 token: "token",
@@ -230,7 +236,7 @@ describe("voice room smoke", () => {
                         audioLevel: 0,
                         trackPublications: new Map<string, any>(),
                         getTrackPublication: (source: string) => this.localParticipant.trackPublications.get(source),
-                        setMicrophoneEnabled: async (enabled: boolean) => {
+                        setMicrophoneEnabled: vi.fn(async (enabled: boolean) => {
                             if (!enabled) {
                                 this.localParticipant.trackPublications.delete(Track.Source.Microphone);
                                 return;
@@ -239,6 +245,7 @@ describe("voice room smoke", () => {
                                 kind: Track.Kind.Audio,
                                 source: Track.Source.Microphone,
                                 track: {
+                                    restartTrack: micRestarts,
                                     mediaStreamTrack: {
                                         getSettings: () => ({
                                             echoCancellation: true,
@@ -249,7 +256,7 @@ describe("voice room smoke", () => {
                                     },
                                 },
                             });
-                        },
+                        }),
                         setScreenShareEnabled: async () => undefined,
                     };
 
@@ -304,9 +311,7 @@ describe("voice room smoke", () => {
                     this.canPlaybackAudio = true;
                 }
 
-                public async switchActiveDevice(): Promise<void> {
-                    return;
-                }
+                public readonly switchActiveDevice = vi.fn(async (_kind: string, _deviceId: string) => true);
 
                 public async disconnect(): Promise<void> {
                     this.state = ConnectionState.Disconnected;
@@ -529,6 +534,8 @@ describe("voice room smoke", () => {
                 { ...transport, livekit_alias: roomId },
                 { callIntent: "audio", manageMediaKeys: false, useExperimentalToDeviceTransport: true },
             );
+            // Voice channels are persistent hangouts: joining never rings or notifies anyone.
+            expect(session.joinRTCSession.mock.calls[0][3]).not.toHaveProperty("notificationType");
         });
 
         it("enables E2EE in encrypted rooms and hands media keys to LiveKit", async () => {
@@ -623,5 +630,81 @@ describe("voice room smoke", () => {
             expect(container.textContent).not.toContain("c29tZWhhc2hlZGlkZW50aXR5");
         });
     });
-});
+    describe("live audio settings (no leaving the call)", () => {
+        const client = {
+            getUserId: () => "@self:example.org",
+            getUser: () => ({ rawDisplayName: "Self" }),
+            mxcUrlToHttp: () => null,
+            getRoom: () => null,
+        };
 
+        async function renderWith(audioSettings: AudioSettings, ref = createRef<VoiceRoomHandle>()): Promise<React.RefObject<VoiceRoomHandle | null>> {
+            await act(async () => {
+                root.render(
+                    React.createElement(VoiceRoom, {
+                        ref,
+                        client: client as never,
+                        matrixRoomId: "!voice:example.org",
+                        matrixRoom: null,
+                        audioSettings,
+                        onAudioSettingsChange: () => undefined,
+                    }),
+                );
+            });
+            return ref;
+        }
+
+        it("restarts the existing mic track when processing settings change mid-call", async () => {
+            const settings = createAudioSettings();
+            const ref = await renderWith(settings);
+            await act(async () => {
+                await ref.current?.join();
+            });
+            const room = createdRooms[0];
+            room.localParticipant.setMicrophoneEnabled.mockClear();
+
+            await renderWith({ ...settings, noiseSuppressionEnabled: false, preferredAudioInputId: "usb-mic" }, ref);
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(micRestarts).toHaveBeenCalledWith(
+                expect.objectContaining({ noiseSuppression: false, deviceId: { exact: "usb-mic" } }),
+            );
+            // Not unpublished, not disconnected.
+            expect(room.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(false);
+            expect(voiceAdapterMocks.fetchLiveKitToken).toHaveBeenCalledTimes(1);
+        });
+
+        it("republishes only when the speech/music profile changes", async () => {
+            const settings = createAudioSettings();
+            const ref = await renderWith(settings);
+            await act(async () => {
+                await ref.current?.join();
+            });
+            const room = createdRooms[0];
+            micRestarts.mockClear();
+
+            await renderWith({ ...settings, micProfile: "music" }, ref);
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(micRestarts).not.toHaveBeenCalled();
+            expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
+        });
+
+        it("switches the speaker mid-call, including back to the system default", async () => {
+            const settings = createAudioSettings();
+            const ref = await renderWith({ ...settings, preferredAudioOutputId: "headset" });
+            await act(async () => {
+                await ref.current?.join();
+            });
+            const room = createdRooms[0];
+            expect(room.switchActiveDevice).toHaveBeenCalledWith("audiooutput", "headset");
+
+            await renderWith({ ...settings, preferredAudioOutputId: "default" }, ref);
+            expect(room.switchActiveDevice).toHaveBeenLastCalledWith("audiooutput", "default");
+        });
+    });
+});

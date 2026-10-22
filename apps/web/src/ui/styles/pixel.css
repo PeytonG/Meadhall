@@ -254,3 +254,11 @@ select {
     margin: 10px 0 14px;
     color: var(--text-muted);
 }
+
+/* In-call microphone processing toggles (voice settings panel). */
+.voice-room-processing-toggles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 6px 14px;
+    margin: 10px 0;
+}
