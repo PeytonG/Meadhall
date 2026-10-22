@@ -65,6 +65,9 @@
     "category": "Network",
     "executableName": "meadhall"
   },
+  "rpm": {
+    "artifactName": "Meadhall-${version}-${arch}.${ext}"
+  },
   "appImage": {
     "artifactName": "Meadhall-${version}-${arch}.${ext}"
   }
