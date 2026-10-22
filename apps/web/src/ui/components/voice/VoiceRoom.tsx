@@ -74,8 +74,9 @@ interface VoiceRoomProps {
     // Mute/deafen chosen before joining (the user panel works outside calls). Read when the call connects.
     joinMuted?: boolean;
     joinDeafened?: boolean;
-    // True for calls in DMs and group chats: the first joiner sends a call notification (never a ring).
-    announceCall?: boolean;
+    // How the first person in a DM or group call tells the others: "ring" (1:1 DMs) or "notification" (groups).
+    // Voice channels pass nothing.
+    announceCall?: "ring" | "notification" | null;
     onSessionStateChange?:(state: { roomId: string; status: VoiceSessionStatus }) => void;
     onLiveParticipantsChange?: (state: {
         roomId: string;
@@ -554,7 +555,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         autoJoinNonce,
         joinMuted = false,
         joinDeafened = false,
-        announceCall = false,
+        announceCall = null,
         onSessionStateChange,
         onLiveParticipantsChange,
         onControlsStateChange,

@@ -5110,3 +5110,80 @@ img.voice-ctrl-icon {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
 }
+
+/* Incoming call ("Bob is calling"), shown and ringing only for the person being called. */
+.incoming-call-card {
+    position: fixed;
+    top: calc(14px + var(--desktop-titlebar-overlay-height, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: min(380px, calc(100vw - 24px));
+    padding: 10px 12px;
+    background: var(--bg-pane);
+    border: 2px solid var(--success, #3ba55d);
+    color: var(--text-main);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    animation: incoming-call-shake 1.2s steps(2) infinite;
+}
+
+.incoming-call-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.incoming-call-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+}
+
+.incoming-call-text span {
+    color: var(--text-muted);
+}
+
+.incoming-call-join,
+.incoming-call-dismiss {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    padding: 8px 12px;
+    cursor: pointer;
+    font: inherit;
+    color: #fff;
+}
+
+.incoming-call-join {
+    background: var(--success, #3ba55d);
+}
+
+.incoming-call-dismiss {
+    background: var(--danger, #ed4245);
+}
+
+@keyframes incoming-call-shake {
+    0%,
+    70%,
+    100% {
+        transform: translateX(-50%);
+    }
+    80% {
+        transform: translateX(calc(-50% - 2px));
+    }
+    90% {
+        transform: translateX(calc(-50% + 2px));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .incoming-call-card {
+        animation: none;
+    }
+}

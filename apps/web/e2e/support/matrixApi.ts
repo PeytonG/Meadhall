@@ -146,3 +146,14 @@ export async function readProfileField(user: ApiUser, userId: string, key: strin
     const body = await request<Record<string, unknown>>(user, "GET", `/profile/${encodeURIComponent(userId)}/${encodeURIComponent(key)}`);
     return body[key];
 }
+
+export async function sendEvent(user: ApiUser, roomId: string, type: string, content: unknown): Promise<string> {
+    const txnId = `e2e-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const body = await request<{ event_id: string }>(
+        user,
+        "PUT",
+        `/rooms/${encodeURIComponent(roomId)}/send/${encodeURIComponent(type)}/${txnId}`,
+        content,
+    );
+    return body.event_id;
+}

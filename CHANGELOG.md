@@ -7,6 +7,9 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **Incoming calls ring.** When someone calls you in a DM or group chat, a "Bob is calling" card appears with Join and
+  Dismiss, and an 8-bit Meadhall ringtone plays. Only the person being called hears it, never the caller. One-to-one
+  calls also ring in Element.
 - **Pixel emoji.** Emoji are drawn as pixel art to match the app (they stay normal, copyable text). Turn it off in
   Settings → Appearance → Emoji.
 

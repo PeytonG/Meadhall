@@ -110,16 +110,16 @@ export function joinMatrixRtcSession(
     session: MatrixRTCSession,
     transport: LivekitTransportConfig,
     roomId: string,
-    options: { manageMediaKeys: boolean; announce?: boolean },
+    options: { manageMediaKeys: boolean; announce?: "ring" | "notification" | null },
 ): void {
     const userId = client.getSafeUserId();
     const deviceId = client.getDeviceId() ?? "";
     session.joinRTCSession({ userId, deviceId, memberId: `${userId}:${deviceId}` }, [], toLivekitTransport(transport, roomId), {
         callIntent: "audio",
         manageMediaKeys: options.manageMediaKeys,
-        // DM and group calls tell the others a call started ("notification": shown, never rings). Voice channels
-        // stay quiet, like Discord.
-        ...(options.announce ? { notificationType: "notification" as const } : {}),
+        // DM calls ring the other person ("ring"); group calls notify ("notification"). Voice channels stay quiet,
+        // like Discord. The SDK sends it only when we are the first in the call.
+        ...(options.announce ? { notificationType: options.announce } : {}),
         // Required: current Element Call only exchanges media keys over to-device messages.
         useExperimentalToDeviceTransport: true,
     });

@@ -64,6 +64,8 @@ import {
 } from "../voice/voiceChannel";
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
 import { useRoomCalls } from "../hooks/useRoomCalls";
+import { useIncomingCall } from "../hooks/useIncomingCall";
+import { IncomingCallCard } from "./voice/IncomingCallCard";
 import {
     loadSelfVoiceState,
     saveSelfVoiceState,
@@ -1385,6 +1387,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     // Calls outside voice channels belong to Home conversations only (DMs, group chats, rooms outside servers);
     // server text channels have none, as in Discord.
     const roomCalls = useRoomCalls(client, homeRooms);
+    const ringableRoomIds = useMemo(() => new Set(homeRooms.map((room) => room.roomId)), [homeRooms]);
+    const { incoming: incomingCall, dismiss: dismissIncomingCall } = useIncomingCall({
+        client,
+        ringableRoomIds,
+        roomCalls,
+        currentCallRoomId: hasActiveVoiceSession ? voiceSessionRoomId : null,
+    });
     const isActiveRoomCallable = Boolean(
         activeRoom && !isActiveRoomVoiceChannel && homeRooms.some((room) => room.roomId === activeRoom.roomId),
     );
@@ -2130,6 +2139,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     return (
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
+            {incomingCall ? (
+                <IncomingCallCard
+                    client={client}
+                    call={incomingCall}
+                    speakerId={userSettings.audio.preferredAudioOutputId}
+                    onJoin={() => {
+                        const roomId = incomingCall.roomId;
+                        focusRoom(roomId);
+                        startCallInRoom(roomId);
+                    }}
+                    onDismiss={dismissIncomingCall}
+                />
+            ) : null}
             <aside className="left-rail">
                 {/* Discord-style Home: the app icon opens Direct Messages and Group Chats. */}
                 <button
@@ -2464,7 +2486,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
-                            announceCall={!isRoomVoiceChannel(activeVoiceSessionRoom)}
+                            announceCall={
+                                !activeVoiceSessionRoom || isRoomVoiceChannel(activeVoiceSessionRoom)
+                                    ? null
+                                    : isOneToOneRoom(activeVoiceSessionRoom, ownUserId)
+                                      ? "ring"
+                                      : "notification"
+                            }
                             joinMuted={selfVoice.muted}
                             joinDeafened={selfVoice.deafened}
                             onControlsStateChange={handleVoiceControlsStateChange}
