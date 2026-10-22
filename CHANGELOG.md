@@ -4,6 +4,42 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.3.0 (2026-10-23)
+
+### New
+- **Android notifications in the background**, with no Google account or extra app: Meadhall stays connected (Android
+  shows a quiet "Meadhall is connected" notification) and notifies you of messages and calls, including after the
+  phone restarts. Encrypted messages show as "New message". Sign out and back in once after updating so the
+  background connection gets a lasting sign-in.
+- **Notifications are on by default** in the desktop app. Clicking one brings Meadhall back (even from the tray) and
+  opens that conversation, and incoming calls notify you while Meadhall is in the background.
+- **Roles and permissions, Discord-style.** In Server Settings → Members, create roles (name, color, rank,
+  permissions such as kick, ban, manage messages, manage channels), give them to people, and make channels private
+  to certain roles. Names show in their role's color. Roles become Matrix power levels and invite-only channels, so
+  the server enforces them for everyone, Element users included. Higher roles can do everything lower roles can.
+- **Server admin panel** (Settings → Server admin, only for server admins): create and delete registration tokens
+  (invite codes, with use limits and expiry), create accounts, reset passwords, make admins and deactivate accounts:
+  no need for the separate Synapse admin page.
+- **Incoming calls ring.** When someone calls you in a DM or group chat, a "Bob is calling" card appears with Join and
+  Dismiss, and an 8-bit Meadhall ringtone plays. Only the person being called hears it, never the caller. One-to-one
+  calls also ring in Element.
+- **Pixel emoji.** Emoji are drawn as pixel art to match the app (they stay normal, copyable text). Turn it off in
+  Settings → Appearance → Emoji.
+
+### Fixed
+- **The desktop app takes every click and scroll again.** Nearly the whole window was marked as a "drag the window"
+  area, which swallowed clicks and scrolling: the color wheels didn't respond, Settings and call panels scrolled
+  badly, and menu items only worked in certain spots. Now only the title bars drag the window.
+- **The minimize/maximize/close buttons match the theme** (dark, light and any color) instead of a fixed dark strip.
+- **Smoother scrolling** everywhere: scrolling a panel no longer drags the page behind it.
+
+### Changed
+- **People search matches names.** Finding someone to message now matches their display name, username or full ID,
+  in any word order and ignoring accents ("gnad pey" finds Peyton Gnadinger). People you share rooms with appear
+  instantly as you type.
+- **The speaking campfire is smaller and only rises from the top of the picture**, so it never covers names, and it
+  lights up much faster when someone starts talking (measured on your device instead of waiting for the server).
+
 ## v0.2.1 (2026-10-22)
 
 ### New

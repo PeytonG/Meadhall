@@ -54,6 +54,9 @@ import { buildMatrixToRoomPermalink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
+import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
+import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
+import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
 import { PixelIcon } from "./PixelIcon";
 import {
     MATRIX_CALL_COMPAT_EVENT,
@@ -63,6 +66,8 @@ import {
 } from "../voice/voiceChannel";
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
 import { useRoomCalls } from "../hooks/useRoomCalls";
+import { useIncomingCall } from "../hooks/useIncomingCall";
+import { IncomingCallCard } from "./voice/IncomingCallCard";
 import {
     loadSelfVoiceState,
     saveSelfVoiceState,
@@ -1384,6 +1389,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     // Calls outside voice channels belong to Home conversations only (DMs, group chats, rooms outside servers);
     // server text channels have none, as in Discord.
     const roomCalls = useRoomCalls(client, homeRooms);
+    const ringableRoomIds = useMemo(() => new Set(homeRooms.map((room) => room.roomId)), [homeRooms]);
+    const { incoming: incomingCall, dismiss: dismissIncomingCall } = useIncomingCall({
+        client,
+        ringableRoomIds,
+        roomCalls,
+        currentCallRoomId: hasActiveVoiceSession ? voiceSessionRoomId : null,
+    });
     const isActiveRoomCallable = Boolean(
         activeRoom && !isActiveRoomVoiceChannel && homeRooms.some((room) => room.roomId === activeRoom.roomId),
     );
@@ -1967,6 +1979,24 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         setPendingFocusRoomId(null);
     }, [client, directRoomIds, openRoomAtBottom, pendingFocusRoomId, spaces]);
 
+    // Private channels (Server Settings -> Members & roles -> Channel access) are invite-only: when a server you're
+    // in invites you to one of its channels because you got a role, join it automatically.
+    const autoJoiningChannelIdsRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        for (const room of rooms) {
+            if (room.isSpaceRoom() || room.getMyMembership() !== "invite" || directRoomIds.has(room.roomId)) {
+                continue;
+            }
+            if (!findParentSpaceIdForRoom(room.roomId, spaces) || autoJoiningChannelIdsRef.current.has(room.roomId)) {
+                continue;
+            }
+            autoJoiningChannelIdsRef.current.add(room.roomId);
+            void joinRoomWithRetry(client, room.roomId)
+                .catch(() => undefined)
+                .finally(() => autoJoiningChannelIdsRef.current.delete(room.roomId));
+        }
+    }, [client, directRoomIds, rooms, spaces]);
+
     const leaveActiveRoom = useCallback(async (): Promise<void> => {
         if (!activeRoom) {
             return;
@@ -2104,16 +2134,62 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             settingsState,
     );
 
+    // Android app: keep notifying in the background (native service) while notifications are on.
+    useEffect(() => {
+        const accessToken = client.getAccessToken();
+        const userId = client.getUserId();
+        if (!userSettings.notifications.notificationsEnabled || !accessToken || !userId) {
+            void stopAndroidBackgroundSync();
+            return undefined;
+        }
+        void startAndroidBackgroundSync({
+            homeserverUrl: client.getHomeserverUrl(),
+            accessToken,
+            userId,
+            showMessageText: userSettings.notifications.notificationBodyEnabled,
+        });
+        return onAccessTokenRefreshed((token) => void updateAndroidBackgroundSyncToken(token));
+    }, [client, userSettings.notifications.notificationBodyEnabled, userSettings.notifications.notificationsEnabled]);
+
+    // Desktop app: recolor the window controls to whatever is behind them after any theme or layout change.
+    useEffect(() => {
+        const frame = window.requestAnimationFrame(() => syncDesktopTitleBarColors());
+        const timer = window.setTimeout(() => syncDesktopTitleBarColors(), 400); // after transitions settle
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.clearTimeout(timer);
+        };
+    }, [activeRoomId, hasOpenDialog, shouldRenderRightPanel, selectedSpaceId, userSettings.appearance]);
+    useEffect(() => {
+        const onResize = (): void => syncDesktopTitleBarColors();
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
     useElementLikeNotifications({
         client,
         activeRoomId,
         hasOpenDialog,
         settings: userSettings.notifications,
+        onOpenRoom: focusRoom,
     });
 
     return (
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
+            {incomingCall ? (
+                <IncomingCallCard
+                    client={client}
+                    call={incomingCall}
+                    speakerId={userSettings.audio.preferredAudioOutputId}
+                    onJoin={() => {
+                        const roomId = incomingCall.roomId;
+                        focusRoom(roomId);
+                        startCallInRoom(roomId);
+                    }}
+                    onDismiss={dismissIncomingCall}
+                />
+            ) : null}
             <aside className="left-rail">
                 {/* Discord-style Home: the app icon opens Direct Messages and Group Chats. */}
                 <button
@@ -2432,10 +2508,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             audioSettings={userSettings.audio}
                             autoJoinNonce={voiceAutoJoinNonce}
                             onAudioSettingsChange={(audio) =>
-                                setUserSettings({
-                                    ...userSettings,
+                                setUserSettings((current) => ({
+                                    ...current,
                                     audio,
-                                })
+                                }))
                             }
                             onSessionStateChange={(state) => {
                                 setVoiceSessionRoomId(state.roomId);
@@ -2448,7 +2524,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
-                            announceCall={!isRoomVoiceChannel(activeVoiceSessionRoom)}
+                            announceCall={
+                                !activeVoiceSessionRoom || isRoomVoiceChannel(activeVoiceSessionRoom)
+                                    ? null
+                                    : isOneToOneRoom(activeVoiceSessionRoom, ownUserId)
+                                      ? "ring"
+                                      : "notification"
+                            }
                             joinMuted={selfVoice.muted}
                             joinDeafened={selfVoice.deafened}
                             onControlsStateChange={handleVoiceControlsStateChange}

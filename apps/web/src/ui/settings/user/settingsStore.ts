@@ -16,6 +16,8 @@ export interface AppearanceSettings {
     accentColor: string;
     fontStyle: FontStyle;
     customFontFamily: string;
+    // Standard emoji drawn as pixel art (on by default to match the theme).
+    pixelEmoji: boolean;
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
 }
@@ -64,11 +66,13 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         accentColor: DEFAULT_ACCENT_COLOR,
         fontStyle: "pixel",
         customFontFamily: "",
+        pixelEmoji: true,
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
     },
     notifications: {
-        notificationsEnabled: false,
+        // On by default: the desktop and Android apps ask for permission; browsers ask when you turn them on.
+        notificationsEnabled: true,
         notificationBodyEnabled: true,
         audioNotificationsEnabled: true,
         customMessageSoundDataUrl: null,
@@ -141,11 +145,12 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             accentColor,
             fontStyle: fontStyle === "custom" && !customFontFamily ? "system" : fontStyle,
             customFontFamily,
+            pixelEmoji: appearance.pixelEmoji !== false,
             chatLineLengthCh,
             showSpaceChannelAvatars,
         },
         notifications: {
-            notificationsEnabled: notifications.notificationsEnabled === true,
+            notificationsEnabled: notifications.notificationsEnabled !== false,
             notificationBodyEnabled: notifications.notificationBodyEnabled !== false,
             audioNotificationsEnabled: notifications.audioNotificationsEnabled !== false,
             customMessageSoundDataUrl,
@@ -207,6 +212,7 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     const root = document.documentElement;
     root.setAttribute("data-theme", settings.theme);
     root.setAttribute("data-font", settings.fontStyle);
+    root.setAttribute("data-pixel-emoji", settings.pixelEmoji === false ? "off" : "on");
     if (settings.fontStyle === "custom" && settings.customFontFamily) {
         root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));
     } else {

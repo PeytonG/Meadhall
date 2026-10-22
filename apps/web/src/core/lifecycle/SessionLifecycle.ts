@@ -15,6 +15,7 @@ import {
 } from "../storage/tokens";
 import type { MatrixClientAssignOpts, MatrixCredentials } from "../types/credentials";
 import { announceAccessTokenRefreshed } from "../auth/accessTokenEvents";
+import { wantsRefreshTokens } from "../platform/android";
 
 const LOGOUT_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -177,7 +178,7 @@ export class SessionLifecycle {
             identifier,
             password,
             initial_device_display_name: initialDeviceDisplayName,
-            refresh_token: true,
+            refresh_token: wantsRefreshTokens(),
         });
 
         return {
@@ -206,7 +207,7 @@ export class SessionLifecycle {
             type: "m.login.token",
             token,
             initial_device_display_name: initialDeviceDisplayName,
-            refresh_token: true,
+            refresh_token: wantsRefreshTokens(),
         });
 
         return {

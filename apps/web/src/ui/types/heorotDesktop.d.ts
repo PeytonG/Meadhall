@@ -24,6 +24,8 @@ export interface HeorotDesktopBridge {
     setMediaAuthState?: (state: HeorotDesktopMediaAuthState) => Promise<void>;
     clearMediaAuthState?: () => Promise<void>;
     setCloseOnWindowCloseMinimize?: (enabled: boolean) => Promise<void>;
+    showWindow?: () => Promise<void>;
+    setTitleBarColors?: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp?: () => Promise<void>;
     getDesktopCapturerSources?: () => Promise<HeorotDesktopCaptureSource[]>;
     setPreferredDisplayMediaSource?: (sourceId: string) => Promise<void>;

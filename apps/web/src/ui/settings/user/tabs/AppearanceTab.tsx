@@ -78,6 +78,19 @@ export function AppearanceTab({
             <FontPicker settings={settings} onChange={onChange} />
 
             <div className="settings-section-card">
+                <h3>Emoji</h3>
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={settings.pixelEmoji}
+                        onChange={(event) => onChange({ ...settings, pixelEmoji: event.target.checked })}
+                        data-testid="pixel-emoji-toggle"
+                    />
+                    Pixel emoji (draw emoji as pixel art, to match the theme)
+                </label>
+            </div>
+
+            <div className="settings-section-card">
                 <h3>Theme color</h3>
                 <p className="settings-tab-description">Pick any color; it's adjusted to stay readable in light and dark themes.</p>
                 <PixelColorWheel

@@ -15,6 +15,8 @@ import { VisibilityTab } from "./server/tabs/VisibilityTab";
 import { AdvancedTab } from "./server/tabs/AdvancedTab";
 import { AppearanceTab } from "./user/tabs/AppearanceTab";
 import { UpdatesTab } from "./user/tabs/UpdatesTab";
+import { ServerAdminTab } from "./user/tabs/ServerAdminTab";
+import { isServerAdmin } from "../../core/admin/synapseAdmin";
 import { AudioTab } from "./user/tabs/AudioTab";
 import { DevicesTab } from "./user/tabs/DevicesTab";
 import { EncryptionTab } from "./user/tabs/EncryptionTab";
@@ -98,6 +100,15 @@ function withUpdatesTab(sections: SettingsNavSection[]): SettingsNavSection[] {
     return sections.map((section) =>
         section.title === "App Settings"
             ? { ...section, items: [...section.items, { id: "updates", label: "Updates" }] }
+            : section,
+    );
+}
+
+// Server admins only: a "Server admin" entry after Updates (or Audio) under App Settings.
+function withServerAdminTab(sections: SettingsNavSection[]): SettingsNavSection[] {
+    return sections.map((section) =>
+        section.title === "App Settings"
+            ? { ...section, items: [...section.items, { id: "server-admin", label: "Server admin" }] }
             : section,
     );
 }
@@ -204,7 +215,21 @@ export function SettingsOverlay({
     }, [mode, open, spaceRoom]);
 
     const isDesktopApp = typeof window !== "undefined" && Boolean(window.heorotDesktop?.checkForUpdates);
-    const navSections = mode === "server" ? SERVER_NAV : isDesktopApp ? withUpdatesTab(USER_NAV) : USER_NAV;
+    const [isAdmin, setIsAdmin] = useState(false);
+    useEffect(() => {
+        if (!open || mode !== "user") {
+            return undefined;
+        }
+        let cancelled = false;
+        void isServerAdmin(client).then((admin) => {
+            if (!cancelled) setIsAdmin(admin);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [client, mode, open]);
+    const userNav = isDesktopApp ? withUpdatesTab(USER_NAV) : USER_NAV;
+    const navSections = mode === "server" ? SERVER_NAV : isAdmin ? withServerAdminTab(userNav) : userNav;
     const title = useMemo(() => {
         if (mode === "server") {
             const roomName = spaceRoom?.name || spaceRoom?.getCanonicalAlias() || spaceRoom?.roomId || "Server";
@@ -254,7 +279,7 @@ export function SettingsOverlay({
             case "visibility":
                 return <VisibilityTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
             case "members":
-                return <MembersTab client={client} spaceRoom={spaceRoom} />;
+                return <MembersTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
             case "permissions":
                 return <PermissionsTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
             case "advanced":
@@ -313,6 +338,8 @@ export function SettingsOverlay({
                 );
             case "updates":
                 return <UpdatesTab />;
+            case "server-admin":
+                return <ServerAdminTab client={client} onToast={onToast} />;
             case "appearance":
                 return (
                     <AppearanceTab

@@ -30,6 +30,11 @@ let closeOnWindowCloseMinimize = true;
 let isAppQuitting = false;
 let preferredDisplayMediaSourceId: string | null = null;
 
+// Automated UI tests run the app with a throwaway profile so they never touch a real sign-in.
+if (process.env.MEADHALL_USER_DATA_DIR) {
+    app.setPath("userData", process.env.MEADHALL_USER_DATA_DIR);
+}
+
 protocol.registerSchemesAsPrivileged([
     {
         scheme: APP_PROTOCOL,
@@ -342,6 +347,8 @@ function createMainWindow(startHidden = false): BrowserWindow {
             nodeIntegration: false,
             sandbox: true,
             spellcheck: true,
+            // Keep syncing at full speed while hidden in the tray, so message and call notifications arrive on time.
+            backgroundThrottling: false,
             // Hardening (Electronegativity AUXCLICK_JS_CHECK): middle clicks can't script around will-navigate.
             disableBlinkFeatures: "Auxclick",
         },
@@ -426,6 +433,34 @@ function registerIpc(): void {
         closeOnWindowCloseMinimize = enabled !== false;
     });
 
+    // Clicking a notification brings the window back, even from the tray.
+    ipcMain.handle("heorot:showWindow", (event) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window) {
+            return;
+        }
+        if (window.isMinimized()) {
+            window.restore();
+        }
+        window.show();
+        window.focus();
+    });
+
+    // The app sends the colors behind the window controls whenever the theme or layout changes.
+    ipcMain.handle("heorot:setTitleBarColors", (event, colors: unknown) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        const value = colors as { color?: unknown; symbolColor?: unknown } | null;
+        const isHex = (candidate: unknown): candidate is string =>
+            typeof candidate === "string" && /^#[0-9a-f]{6}$/i.test(candidate);
+        if (!window || !value || !isHex(value.color) || !isHex(value.symbolColor)) {
+            return;
+        }
+        if (process.platform === "win32" || process.platform === "linux") {
+            window.setTitleBarOverlay({ color: value.color, symbolColor: value.symbolColor, height: TITLEBAR_OVERLAY_HEIGHT });
+        }
+        window.setBackgroundColor(value.color);
+    });
+
     ipcMain.handle("heorot:getDesktopCapturerSources", async () => {
         const sources = await desktopCapturer.getSources({
             types: ["window", "screen"],
@@ -502,6 +537,10 @@ async function bootstrap(): Promise<void> {
     });
 
     await app.whenReady();
+    if (process.platform === "win32") {
+        // Windows shows notifications under this ID (the installer registers it); without it toasts can be dropped.
+        app.setAppUserModelId("io.github.peytong.meadhall");
+    }
     configureAppProtocol();
     configurePermissionHandlers(canNavigateInsideApp);
     configureMediaAuthInterceptor();

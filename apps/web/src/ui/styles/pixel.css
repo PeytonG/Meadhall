@@ -577,14 +577,14 @@ select {
     --font-pixel-display: var(--font-custom, system-ui, sans-serif);
 }
 
-/* Pixel campfire around a speaking person's avatar (components/voice/PixelCampfire.tsx). The fire's box is 24 cells
-   and the avatar 14 of them, so the fire is 24/14 of the avatar's size, shifted so the avatar sits in its ring. */
+/* Pixel campfire above a speaking person's avatar (components/voice/PixelCampfire.tsx). The fire's box is 20 cells
+   wide and the avatar 16 of them (125%), shifted so the avatar sits at the bottom with flames only above it. */
 .pixel-campfire {
     position: absolute;
-    left: -35.7%;
-    top: -42.9%;
-    width: 171.4%;
-    height: 171.4%;
+    left: -12.5%;
+    top: -37.5%;
+    width: 125%;
+    height: 125%;
     pointer-events: none;
     image-rendering: pixelated;
     opacity: 0;
@@ -641,4 +641,15 @@ select {
 .room-item-voice-avatar-wrap .avatar {
     position: relative;
     z-index: 2;
+}
+
+/* Pixel emoji (Settings -> Appearance -> Emoji, on by default): standard emoji are marked .unicode-emoji and drawn
+   through an SVG pixelate filter (emoji/unicodeEmoji.tsx). Bigger emoji get bigger pixels. */
+:root[data-pixel-emoji="on"] .unicode-emoji {
+    display: inline-block;
+    filter: url(#meadhall-pixel-emoji);
+}
+
+:root[data-pixel-emoji="on"] :is(.composer-emoji-item, .reaction-picker-item, .timeline-jumbo-emoji) .unicode-emoji {
+    filter: url(#meadhall-pixel-emoji-big);
 }

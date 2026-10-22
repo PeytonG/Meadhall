@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// The real desktop app: signs in to the test Synapse and checks what only Electron shows, like the window-controls
+// strip (minimize/maximize/close) matching the theme. Build first: pnpm --dir apps/desktop run build
+import fs from "node:fs";
+import { createRequire } from "node:module";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
+
+import { registerUser } from "../e2e/support/matrixApi";
+
+const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "desktop");
+const electronBinary = createRequire(path.join(desktopDir, "package.json"))("electron") as unknown as string;
+
+let app: ElectronApplication;
+let window: Page;
+
+test.beforeAll(async () => {
+    const env = { ...process.env, MEADHALL_USER_DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "meadhall-desktop-test-")) };
+    delete env.ELECTRON_RUN_AS_NODE;
+    app = await electron.launch({ executablePath: electronBinary, args: [desktopDir], env });
+    window = await app.firstWindow();
+});
+
+test.afterAll(async () => {
+    await app?.close();
+});
+
+// The window as the OS draws it, title bar included, sampled at a point (x from the right edge).
+async function windowPixel(fromRight: number, y: number): Promise<[number, number, number]> {
+    return app.evaluate(
+        async ({ BrowserWindow, desktopCapturer }, { fromRight, y }) => {
+            const win = BrowserWindow.getAllWindows()[0];
+            const bounds = win.getContentBounds();
+            const sources = await desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: bounds.width, height: bounds.height } });
+            const source = sources.find((candidate) => candidate.id === win.getMediaSourceId()) ?? sources.find((candidate) => candidate.name === win.getTitle());
+            if (!source) throw new Error("window not captured");
+            const image = source.thumbnail;
+            const size = image.getSize();
+            const bitmap = image.toBitmap(); // BGRA
+            const x = size.width - Math.round(fromRight * (size.width / bounds.width));
+            const row = Math.round(y * (size.height / bounds.height));
+            const offset = (row * size.width + x) * 4;
+            return [bitmap[offset + 2], bitmap[offset + 1], bitmap[offset]] as [number, number, number];
+        },
+        { fromRight, y },
+    );
+}
+
+function distance(a: [number, number, number], b: [number, number, number]): number {
+    return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
+}
+
+test("signs in and the window controls match the app in dark and light themes", async () => {
+    test.skip(process.platform !== "win32", "the window-controls overlay is drawn by Windows");
+    const user = await registerUser("desk");
+    await window.getByRole("textbox", { name: "Homeserver" }).first().fill("http://localhost:8008");
+    await window.getByLabel("Username or email").fill(user.username);
+    await window.getByLabel("Password", { exact: true }).fill(user.password);
+    await window.locator("form").getByRole("button", { name: "Sign in" }).click();
+    const skip = window.getByRole("button", { name: "Skip for now" });
+    const home = window.getByTestId("rail-home");
+    await expect(home.or(skip).first()).toBeVisible({ timeout: 60_000 });
+    if (await skip.isVisible()) await skip.click();
+    await expect(home).toBeVisible({ timeout: 60_000 });
+
+    for (const theme of ["dark", "light"] as const) {
+        await window.evaluate((theme) => {
+            document.documentElement.setAttribute("data-theme", theme);
+            window.dispatchEvent(new Event("resize"));
+        }, theme);
+        await window.waitForTimeout(1200);
+        // The overlay (138 px of buttons on the right) vs. the app just left of it, both in the title-bar band.
+        const overlay = await windowPixel(100, 4); // inside the minimize button, above its icon
+        const app = await windowPixel(200, 4);
+        console.log(theme, "overlay", overlay, "app", app);
+        expect(distance(overlay, app), `${theme}: overlay ${overlay} vs app ${app}`).toBeLessThanOrEqual(4); // the old fixed color (#121a23) was 9 off the dark theme
+    }
+});

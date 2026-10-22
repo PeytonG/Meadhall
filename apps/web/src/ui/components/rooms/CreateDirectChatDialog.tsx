@@ -5,6 +5,7 @@ import { createOrReuseDirectChat, createOrReuseDirectGroupChat, isValidMatrixUse
 import { mediaFromMxc, thumbnailFromMxc } from "../../adapters/media";
 import { Avatar } from "../Avatar";
 import { RoomDialog } from "./RoomDialog";
+import { matchesUserSearch, userSearchScore } from "../../search/userSearch";
 
 interface CreateDirectChatDialogProps {
     client: MatrixClient;
@@ -44,31 +45,6 @@ function normalize(text: string): string {
     return text.trim().toLocaleLowerCase();
 }
 
-function matchScore(term: string, suggestion: UserSuggestion): number {
-    const userId = suggestion.userId.toLocaleLowerCase();
-    const displayName = suggestion.displayName.toLocaleLowerCase();
-
-    if (userId === term) {
-        return 0;
-    }
-    if (displayName === term) {
-        return 1;
-    }
-    if (userId.startsWith(term)) {
-        return 2;
-    }
-    if (displayName.startsWith(term)) {
-        return 3;
-    }
-    if (userId.includes(term)) {
-        return 4;
-    }
-    if (displayName.includes(term)) {
-        return 5;
-    }
-    return 6;
-}
-
 function collectLocalSuggestions(client: MatrixClient, ownUserId: string, term: string): UserSuggestion[] {
     const byUserId = new Map<string, UserSuggestion>();
     const normalizedTerm = normalize(term);
@@ -86,9 +62,8 @@ function collectLocalSuggestions(client: MatrixClient, ownUserId: string, term: 
                 continue;
             }
 
-            const displayName = toDisplayName(roomMember.name, userId);
-            const searchable = `${userId} ${displayName}`.toLocaleLowerCase();
-            if (normalizedTerm.length > 0 && !searchable.includes(normalizedTerm)) {
+            const displayName = toDisplayName(roomMember.rawDisplayName || roomMember.name, userId);
+            if (normalizedTerm.length > 0 && !matchesUserSearch(term, userId, displayName)) {
                 continue;
             }
 
@@ -333,13 +308,10 @@ export function CreateDirectChatDialog({
             ...localSuggestions,
             ...directorySuggestions,
         ])
-            .filter((entry) => {
-                const searchable = `${entry.userId} ${entry.displayName}`.toLocaleLowerCase();
-                return searchable.includes(normalizedTerm);
-            })
+            .filter((entry) => entry.source === "directory" || matchesUserSearch(trimmed, entry.userId, entry.displayName))
             .sort((left, right) => {
-                const leftScore = matchScore(normalizedTerm, left);
-                const rightScore = matchScore(normalizedTerm, right);
+                const leftScore = userSearchScore(trimmed, left.userId, left.displayName);
+                const rightScore = userSearchScore(trimmed, right.userId, right.displayName);
                 if (leftScore !== rightScore) {
                     return leftScore - rightScore;
                 }
@@ -387,6 +359,13 @@ export function CreateDirectChatDialog({
             setSuggestionsOpen(false);
             return;
         }
+
+        // People you already share rooms with show up instantly; the server directory fills in shortly after.
+        const instant = collectLocalSuggestions(client, ownUserId, trimmed)
+            .sort((left, right) => userSearchScore(trimmed, left.userId, left.displayName) - userSearchScore(trimmed, right.userId, right.displayName))
+            .slice(0, SUGGESTIONS_LIMIT);
+        setSuggestions(instant);
+        setSuggestionsOpen(instant.length > 0);
 
         debounceTimerRef.current = window.setTimeout(() => {
             void updateSuggestions(trimmed);

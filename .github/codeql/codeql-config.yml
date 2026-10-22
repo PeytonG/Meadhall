@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Test-only code (talks to a throwaway local Synapse, uploads fixture files) is not scanned; everything that ships is.
+name: Meadhall CodeQL config
+paths-ignore:
+  - apps/web/e2e
+  - apps/web/e2e-desktop
+  - apps/web/test

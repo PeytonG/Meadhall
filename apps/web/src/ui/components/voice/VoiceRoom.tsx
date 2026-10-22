@@ -44,6 +44,7 @@ import type { AudioSettings } from "../../settings/user/settingsStore";
 import { RoomDialog } from "../rooms/RoomDialog";
 import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } from "../../voice/volumeBoost";
 import { SpeakingCampfire } from "./PixelCampfire";
+import { VoiceActivityMonitor } from "../../voice/voiceActivity";
 import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
@@ -73,8 +74,9 @@ interface VoiceRoomProps {
     // Mute/deafen chosen before joining (the user panel works outside calls). Read when the call connects.
     joinMuted?: boolean;
     joinDeafened?: boolean;
-    // True for calls in DMs and group chats: the first joiner sends a call notification (never a ring).
-    announceCall?: boolean;
+    // How the first person in a DM or group call tells the others: "ring" (1:1 DMs) or "notification" (groups).
+    // Voice channels pass nothing.
+    announceCall?: "ring" | "notification" | null;
     onSessionStateChange?:(state: { roomId: string; status: VoiceSessionStatus }) => void;
     onLiveParticipantsChange?: (state: {
         roomId: string;
@@ -553,7 +555,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         autoJoinNonce,
         joinMuted = false,
         joinDeafened = false,
-        announceCall = false,
+        announceCall = null,
         onSessionStateChange,
         onLiveParticipantsChange,
         onControlsStateChange,
@@ -662,6 +664,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         const speakingSids = speakingSidsRef.current;
         const isParticipantSpeaking = (participant: Participant | LocalParticipant): boolean => {
+            // Measured locally first (reacts in ~50 ms); the server's speaker updates are the fallback.
+            if (voiceActivityRef.current?.isSpeaking(participant.sid)) {
+                return true;
+            }
             const byEvent = speakingSids.has(participant.sid);
             const byFlag = typeof participant.isSpeaking === "boolean" ? participant.isSpeaking : false;
             const byLevel = typeof participant.audioLevel === "number" && participant.audioLevel > SPEAKING_LEVEL_THRESHOLD;
@@ -695,6 +701,12 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         setParticipants((current) => (areParticipantListsEqual(current, next) ? current : next));
     }, []);
+
+    // Local voice-activity detection for the speaking campfire/ring, keyed by participant sid.
+    const voiceActivityRef = useRef<VoiceActivityMonitor | null>(null);
+    voiceActivityRef.current ??= new VoiceActivityMonitor(() => syncParticipants());
+    const voiceActivityTrackOwnerRef = useRef<Map<string, string>>(new Map());
+    useEffect(() => () => voiceActivityRef.current?.clear(), []);
 
     // Leaves the MatrixRTC session (if any) so other clients stop showing us in the call.
     const teardownMatrixRtc = (): void => {
@@ -734,6 +746,23 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     useEffect(() => {
         setVolumeBoostSinkId(audioSettings.preferredAudioOutputId || "default");
     }, [audioSettings.preferredAudioOutputId]);
+
+    // Your own speaking indicator: measured from your microphone while it's on.
+    useEffect(() => {
+        const room = roomRef.current;
+        const monitor = voiceActivityRef.current;
+        const localSid = room?.localParticipant.sid;
+        if (!room || !monitor || !localSid) {
+            return undefined;
+        }
+        const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+        if (connectionState !== ConnectionState.Connected || micMuted || !micTrack) {
+            monitor.untrack(localSid);
+            return undefined;
+        }
+        monitor.track(localSid, micTrack);
+        return () => monitor.untrack(localSid);
+    }, [connectionState, micMuted, localAudioPublished]);
 
     // Voice changer: applied to the published mic as soon as there is one, and changed live mid-call.
     useEffect(() => {
@@ -1641,6 +1670,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         setElementVolumePercent(element, participantVolumePercent);
         element.dataset.lkTrackSid = trackSid;
         element.dataset.voiceParticipantKey = participantVolumeKey;
+        if (participant && publication.source === Track.Source.Microphone) {
+            voiceActivityTrackOwnerRef.current.set(trackSid, participant.sid);
+            voiceActivityRef.current?.track(participant.sid, track.mediaStreamTrack);
+        }
         audioSinkRef.current?.appendChild(element);
         remoteAudioElementsByTrackSidRef.current.set(trackSid, element);
 
@@ -1658,6 +1691,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
         const trackSid = publication.trackSid || track.sid;
         if (trackSid) {
+            const owner = voiceActivityTrackOwnerRef.current.get(trackSid);
+            if (owner) {
+                voiceActivityTrackOwnerRef.current.delete(trackSid);
+                voiceActivityRef.current?.untrack(owner);
+            }
             const attachedElement = remoteAudioElementsByTrackSidRef.current.get(trackSid);
             if (attachedElement) {
                 releaseElementVolume(attachedElement);

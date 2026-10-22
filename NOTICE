@@ -28,6 +28,9 @@ Changes made in this fork (2026, by PeytonG; see the git history for detail):
   layout; calls in DMs and group chats; mute/deafen outside calls; per-person
   volume up to 120%; a voice changer; a font picker; round profile pictures;
   registration tokens on sign-up; homeserver discovery before signing in.
+- Discord-style roles and permissions mapped onto Matrix power levels; a server
+  admin panel (Synapse Admin API); incoming-call ringtone; pixel emoji; speaking
+  campfire; desktop and Android background notifications (no Google services).
 
 Files added by this fork carry an SPDX-License-Identifier: AGPL-3.0-only header.
 Third-party fonts: Pixelify Sans and Silkscreen, SIL Open Font License 1.1.

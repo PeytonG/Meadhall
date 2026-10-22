@@ -1,105 +1,43 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// The pixel campfire shown around someone's avatar while they talk: chunky hand-drawn flame sprites standing on a
-// ring around the avatar (big ones at the bottom and sides, small licks on top) over a pair of crossed logs. Each
-// flame flickers through three sprite frames, out of step with its neighbours; CSS cycles the frames.
+// The pixel campfire shown while someone talks: a small crown of pixel flames licking up from the top of their
+// avatar. Flames only ever rise above the avatar and stay within its width, so they never cover names or text
+// beside or below it. Each flame flickers through three sprite frames, out of step with its neighbours; CSS
+// cycles the frames.
 
-export const CAMPFIRE_GRID = 24;
-// Avatar radius in grid cells: the avatar fills 2 * radius / grid of the fire's box.
-export const CAMPFIRE_AVATAR_RADIUS = 7;
-// The avatar sits a little low, leaving room for flames above it and the logs below.
-export const CAMPFIRE_CENTER_X = 11.5;
-export const CAMPFIRE_CENTER_Y = 12.5;
+export const CAMPFIRE_GRID = 20;
+// Avatar radius in grid cells: the avatar is 2 * radius / grid of the fire's width.
+export const CAMPFIRE_AVATAR_RADIUS = 8;
+export const CAMPFIRE_CENTER_X = 9.5;
+// The avatar sits low in the box: only the strip above it holds flames.
+export const CAMPFIRE_CENTER_Y = 13.5;
 export const CAMPFIRE_FRAMES = 3;
 // The flame color everyone gets until they pick their own.
 export const DEFAULT_FLAME_COLOR = "#ff7a1a";
 
-// Cell values: 0 empty, 1-4 flame from dark edge to white-hot core, 5-6 log (bark, cut end).
+// Cell values: 0 empty, 1 dark flame edge, 2 the chosen color, 3 bright tip/core.
 export type CampfireFrame = Uint8Array;
-const LOG = 5;
-const LOG_END = 6;
 
-// Flame sprites, drawn bottom-aligned. Digits are heat levels, "." is empty.
-const BIG_FLAME = [
+// Small flame sprites, bottom-aligned, three frames each. Digits are heat levels, "." is empty.
+const FLAMES = [
     [
-        "..1...",
-        "..11..",
-        ".121..",
-        ".1221.",
-        "12321.",
-        "123321",
-        "134431",
-        ".1331.",
+        [".1.", ".1.", "121", "121", "232"],
+        ["..1", ".1.", ".21", "121", "232"],
+        ["1..", ".1.", "12.", "121", "232"],
     ],
     [
-        "...1..",
-        "..11..",
-        "..121.",
-        ".1221.",
-        ".12321",
-        "123321",
-        "134431",
-        ".1331.",
+        ["1..", "11.", "121", "232"],
+        [".1.", "121", "121", "232"],
+        ["..1", ".11", "121", "232"],
     ],
     [
-        "......",
-        "..1...",
-        ".121..",
-        ".1221.",
-        "122321",
-        "123321",
-        "134431",
-        ".1331.",
+        [".1.", ".1.", ".1.", "121", "122", "232"],
+        ["..1", ".1.", ".21", "121", "221", "232"],
+        ["...", "1..", ".1.", "121", "122", "232"],
     ],
 ];
 
-const SMALL_FLAME = [
-    [".1..", ".11.", "1221", "1331", ".11."],
-    ["..1.", ".11.", "1221", "1331", ".11."],
-    ["....", ".1..", "121.", "1331", ".11."],
-];
-
-// Where flames stand: angle around the avatar (0 = top, clockwise, degrees) and size.
-const FLAMES: ReadonlyArray<{ angle: number; big: boolean }> = [
-    { angle: 0, big: false },
-    { angle: 38, big: false },
-    { angle: -38, big: false },
-    { angle: 75, big: true },
-    { angle: -75, big: true },
-    { angle: 112, big: true },
-    { angle: -112, big: true },
-    { angle: 150, big: true },
-    { angle: -150, big: true },
-];
-
-function stamp(grid: Uint8Array, sprite: readonly string[], left: number, bottom: number): void {
-    sprite.forEach((row, rowIndex) => {
-        const y = bottom - (sprite.length - 1 - rowIndex);
-        for (let column = 0; column < row.length; column += 1) {
-            const value = row[column] === "." ? 0 : Number(row[column]);
-            const x = left + column;
-            if (value > 0 && x >= 0 && y >= 0 && x < CAMPFIRE_GRID && y < CAMPFIRE_GRID) {
-                const index = y * CAMPFIRE_GRID + x;
-                grid[index] = Math.max(grid[index], value);
-            }
-        }
-    });
-}
-
-function drawLogs(grid: Uint8Array): void {
-    // Two logs crossing in an X under the avatar, two cells thick, with lighter cut ends at the bottom.
-    const length = 9;
-    for (let step = 0; step < length; step += 1) {
-        const y = CAMPFIRE_GRID - 1 - Math.floor(step / 2);
-        for (const x of [5 + step, CAMPFIRE_GRID - 6 - step]) {
-            for (const dx of [0, 1]) {
-                const column = x + dx;
-                if (y >= 0 && column >= 0 && column < CAMPFIRE_GRID) {
-                    grid[y * CAMPFIRE_GRID + column] = step === 0 ? LOG_END : LOG;
-                }
-            }
-        }
-    }
-}
+// Angles (degrees from the top, clockwise) of the flames on the avatar's upper rim; the tallest in the middle.
+const FLAME_ANGLES = [-52, -26, 0, 26, 52];
 
 let cachedFrames: CampfireFrame[] | null = null;
 
@@ -107,25 +45,37 @@ export function campfireFrames(): CampfireFrame[] {
     if (cachedFrames) {
         return cachedFrames;
     }
+    const size = CAMPFIRE_GRID;
+    const left = Math.ceil(CAMPFIRE_CENTER_X - CAMPFIRE_AVATAR_RADIUS);
+    const right = Math.floor(CAMPFIRE_CENTER_X + CAMPFIRE_AVATAR_RADIUS);
     const frames: CampfireFrame[] = [];
     for (let frame = 0; frame < CAMPFIRE_FRAMES; frame += 1) {
-        const grid = new Uint8Array(CAMPFIRE_GRID * CAMPFIRE_GRID);
-        drawLogs(grid);
-        FLAMES.forEach(({ angle, big }, flameIndex) => {
-            const sprites = big ? BIG_FLAME : SMALL_FLAME;
-            const sprite = sprites[(frame + flameIndex) % sprites.length];
+        const grid = new Uint8Array(size * size);
+        FLAME_ANGLES.forEach((angle, flameIndex) => {
+            const variants = FLAMES[flameIndex % FLAMES.length];
+            const sprite = variants[(frame + flameIndex) % variants.length];
             const radians = (angle * Math.PI) / 180;
-            // The flame's base sits on the avatar's edge, so its body rises past the avatar.
-            const edgeX = CAMPFIRE_CENTER_X + Math.sin(radians) * (CAMPFIRE_AVATAR_RADIUS - 0.5);
-            const edgeY = CAMPFIRE_CENTER_Y - Math.cos(radians) * (CAMPFIRE_AVATAR_RADIUS - 0.5);
-            const width = sprite[0].length;
-            stamp(grid, sprite, Math.round(edgeX - width / 2 + Math.sin(radians) * 1.5), Math.round(edgeY + (big ? 2 : 0)));
+            // Base on the rim, tucked half a cell into the avatar so no gap shows between flame and picture.
+            const baseX = Math.round(CAMPFIRE_CENTER_X + Math.sin(radians) * (CAMPFIRE_AVATAR_RADIUS - 1) - 1);
+            const baseY = Math.round(CAMPFIRE_CENTER_Y - Math.cos(radians) * (CAMPFIRE_AVATAR_RADIUS - 0.5));
+            sprite.forEach((row, rowIndex) => {
+                const y = baseY - (sprite.length - 1 - rowIndex);
+                for (let column = 0; column < row.length; column += 1) {
+                    const value = row[column] === "." ? 0 : Number(row[column]);
+                    const x = baseX + column;
+                    // Only above the avatar's middle and within its width: never beside or below it.
+                    if (value > 0 && x >= left && x <= right && y >= 0 && y < CAMPFIRE_CENTER_Y) {
+                        const index = y * size + x;
+                        grid[index] = Math.max(grid[index], value);
+                    }
+                }
+            });
         });
-        // The avatar covers the middle of the fire.
+        // The avatar covers the middle; nothing is drawn inside it.
         for (let index = 0; index < grid.length; index += 1) {
-            const x = index % CAMPFIRE_GRID;
-            const y = Math.floor(index / CAMPFIRE_GRID);
-            if (Math.hypot(x - CAMPFIRE_CENTER_X, y - CAMPFIRE_CENTER_Y) < CAMPFIRE_AVATAR_RADIUS - 0.2 && grid[index] <= 4) {
+            const x = index % size;
+            const y = Math.floor(index / size);
+            if (Math.hypot(x + 0.5 - (CAMPFIRE_CENTER_X + 0.5), y + 0.5 - (CAMPFIRE_CENTER_Y + 0.5)) < CAMPFIRE_AVATAR_RADIUS - 0.3) {
                 grid[index] = 0;
             }
         }
@@ -137,7 +87,7 @@ export function campfireFrames(): CampfireFrame[] {
 
 // SVG path data per cell value for one frame (index = value): one path per color keeps the DOM small.
 export function campfirePaths(frame: CampfireFrame): string[] {
-    const paths = ["", "", "", "", "", "", ""];
+    const paths = ["", "", "", ""];
     for (let index = 0; index < frame.length; index += 1) {
         const value = frame[index];
         if (value > 0) {
@@ -168,16 +118,9 @@ export function normalizeFlameColor(value: unknown): string | null {
     return typeof value === "string" && parseHex(value) ? `#${value.trim().replace(/^#/, "").toLowerCase()}` : null;
 }
 
-// Colors for cell values 1-6: dark flame edge, the chosen color, a bright version, a near-white core, then the
-// logs' bark and cut ends (always wood-colored).
-export function flamePalette(color: string): [string, string, string, string, string, string] {
+// Colors for cell values 1-3: a dark edge, the chosen color, and a light tip. Kept close together so the fire
+// reads as a soft glow rather than a blaze.
+export function flamePalette(color: string): [string, string, string] {
     const base = parseHex(color) ?? parseHex(DEFAULT_FLAME_COLOR)!;
-    return [
-        mix(base, [40, 10, 0], 0.45),
-        mix(base, base, 0),
-        mix(base, [255, 236, 140], 0.5),
-        mix(base, [255, 255, 235], 0.82),
-        "#5a3418",
-        "#c08a52",
-    ];
+    return [mix(base, [30, 8, 0], 0.4), mix(base, base, 0), mix(base, [255, 240, 170], 0.45)];
 }

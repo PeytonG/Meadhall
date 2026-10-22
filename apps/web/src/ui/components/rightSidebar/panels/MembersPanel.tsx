@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { readAssignments, readRoles } from "../../../../core/roles/applyRoles";
 import { EventType, type MatrixClient, type Room, type RoomMember } from "matrix-js-sdk/src/matrix";
 
 import { memberAvatarSources } from "../../../adapters/avatar";
@@ -78,6 +79,13 @@ export function MembersPanel({
     const { config } = useMatrix();
     const members = useMemo(() => getVisibleMembers(room), [room]);
     const roleSourceRoom = activeSpaceRoom ?? room;
+    // Discord-style: names in their highest role's color, and that role as the badge.
+    const spaceRoles = activeSpaceRoom ? readRoles(activeSpaceRoom) : [];
+    const roleAssignments = activeSpaceRoom ? readAssignments(activeSpaceRoom, spaceRoles) : new Map<string, string[]>();
+    const topRole = (userId: string) => {
+        const held = roleAssignments.get(userId) ?? [];
+        return spaceRoles.find((role) => held.includes(role.id)) ?? null;
+    };
     const presenceEnabled = useMemo(() => isPresenceEnabledForClient(config, client), [client, config]);
     const presenceByUserId = usePresenceMap(
         client,
@@ -144,7 +152,8 @@ export function MembersPanel({
                         {group.members.map((member) => {
                     const displayName = member.rawDisplayName || member.name || member.userId;
                     const sources = memberAvatarSources(client, member, 72, "crop");
-                    const roleLabel = getRoleLabel(getUserPowerLevel(roleSourceRoom, member.userId));
+                    const role = topRole(member.userId);
+                    const roleLabel = role?.name ?? getRoleLabel(getUserPowerLevel(roleSourceRoom, member.userId));
                     const presence = presenceByUserId.get(member.userId);
 
                     return (
@@ -165,7 +174,9 @@ export function MembersPanel({
                                 presenceState={presenceEnabled ? toAvatarPresenceState(presence) : null}
                             />
                             <span className="rs-member-meta">
-                                <span className="rs-member-name">{displayName}</span>
+                                <span className="rs-member-name" style={role ? { color: role.color } : undefined}>
+                                    {displayName}
+                                </span>
                                 <span className="rs-member-id">{member.userId}</span>
                             </span>
                             <span className="rs-member-badge">{roleLabel}</span>
