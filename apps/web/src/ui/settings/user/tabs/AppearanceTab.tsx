@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 import { PixelColorWheel } from "../../../theme/PixelColorWheel";
+import { FontPicker } from "./FontPicker";
 import type { AppearanceSettings } from "../settingsStore";
 
 const CHAT_LINE_LENGTH_MIN_CH = 45;
@@ -74,28 +75,7 @@ export function AppearanceTab({
                 </div>
             </div>
 
-            <div className="settings-section-card">
-                <h3>Font</h3>
-                <div className="settings-theme-row" role="group" aria-label="Font">
-                    {(
-                        [
-                            ["pixel", "Pixel"],
-                            ["mixed", "Pixel headings"],
-                            ["system", "System"],
-                        ] as const
-                    ).map(([fontStyle, label]) => (
-                        <button
-                            key={fontStyle}
-                            type="button"
-                            className={`settings-theme-button${settings.fontStyle === fontStyle ? " is-active" : ""}`}
-                            aria-pressed={settings.fontStyle === fontStyle}
-                            onClick={() => onChange({ ...settings, fontStyle })}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <FontPicker settings={settings} onChange={onChange} />
 
             <div className="settings-section-card">
                 <h3>Theme color</h3>

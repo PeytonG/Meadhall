@@ -105,7 +105,7 @@ const VOICE_PRESENCE_POLL_IDLE_MS = 8_000;
 const VOICE_PRESENCE_POLL_HIDDEN_MS = 20_000;
 const VOICE_PRESENCE_POLL_MAX_BACKOFF_MS = 60_000;
 
-function getServerUnreadCount(room: Room): number {
+export function getServerUnreadCount(room: Room): number {
     const getUnreadNotificationCount = (room as Room & {
         getUnreadNotificationCount?: (type?: NotificationCountType) => number;
     }).getUnreadNotificationCount;

@@ -18,6 +18,45 @@ export function normalizeHomeserverUrl(value: string): string {
     return parsed.toString().replace(/\/$/, "");
 }
 
+const DISCOVERY_TIMEOUT_MS = 6000;
+
+async function fetchWithTimeout(url: string): Promise<Response | null> {
+    try {
+        return await fetch(url, { signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS) });
+    } catch {
+        return null;
+    }
+}
+
+// Finds the homeserver's real client API address, as Element does, before signing in or registering.
+// 1. `.well-known/matrix/client` on the entered address (handles "example.com" delegating to "matrix.example.com").
+// 2. Otherwise `/_matrix/client/versions`, following redirects (handles "http://" on HTTPS-only servers).
+// Without this, a redirected login request fails in the browser with "Failed to fetch": browsers don't follow
+// redirects on CORS-preflighted requests such as the JSON login POST.
+export async function resolveHomeserverBaseUrl(normalizedUrl: string): Promise<string> {
+    const origin = new URL(normalizedUrl).origin;
+    const wellKnown = await fetchWithTimeout(`${origin}/.well-known/matrix/client`);
+    if (wellKnown?.ok) {
+        try {
+            const body = (await wellKnown.json()) as { "m.homeserver"?: { base_url?: unknown } };
+            const baseUrl = body["m.homeserver"]?.base_url;
+            if (typeof baseUrl === "string" && /^https?:\/\//i.test(baseUrl)) {
+                return normalizeHomeserverUrl(baseUrl);
+            }
+        } catch {
+            // Not JSON: fall through to the versions check.
+        }
+    }
+
+    const versions = await fetchWithTimeout(`${normalizedUrl}/_matrix/client/versions`);
+    if (versions?.ok && versions.url) {
+        const finalUrl = new URL(versions.url);
+        const basePath = finalUrl.pathname.replace(/\/_matrix\/client\/versions$/, "");
+        return normalizeHomeserverUrl(`${finalUrl.origin}${basePath}`);
+    }
+    return normalizedUrl;
+}
+
 export function buildPasswordIdentifier(username: string): PasswordIdentifier {
     const trimmed = username.trim();
     const isEmail = trimmed.indexOf("@") > 0;

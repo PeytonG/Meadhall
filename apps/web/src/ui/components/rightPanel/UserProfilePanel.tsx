@@ -20,6 +20,7 @@ interface UserProfilePanelProps {
     onBack: () => void;
     onOpenRoom: (roomId: string) => void;
     onToast?: (toast: { type: "success" | "error" | "info"; message: string }) => void;
+    onCallUser?: (userId: string) => void;
 }
 
 interface UserProfileData {
@@ -97,6 +98,7 @@ export function UserProfilePanel({
     onBack,
     onOpenRoom,
     onToast,
+    onCallUser,
 }: UserProfilePanelProps): React.ReactElement {
     const [profile, setProfile] = useState<UserProfileData | null>(null);
     const [loadingProfile, setLoadingProfile] = useState(false);
@@ -207,6 +209,7 @@ export function UserProfilePanel({
                 presence={presenceEnabled ? presence : null}
                 onBack={onBack}
                 onMessage={canMessage ? openDm : undefined}
+                onCall={onCallUser && ownUserId !== userId ? () => onCallUser(userId) : undefined}
                 onCopyMxid={async () => {
                     await copyText(userId);
                     onToast?.({ type: "success", message: "MXID copied." });

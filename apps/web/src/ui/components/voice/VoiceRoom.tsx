@@ -42,6 +42,8 @@ import {
 import { useMatrix } from "../../providers/MatrixProvider";
 import type { AudioSettings } from "../../settings/user/settingsStore";
 import { RoomDialog } from "../rooms/RoomDialog";
+import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } from "../../voice/volumeBoost";
+import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
 
@@ -67,7 +69,12 @@ interface VoiceRoomProps {
     audioSettings: AudioSettings;
     onAudioSettingsChange: (audio: AudioSettings) => void;
     autoJoinNonce?: number;
-    onSessionStateChange?: (state: { roomId: string; status: VoiceSessionStatus }) => void;
+    // Mute/deafen chosen before joining (the user panel works outside calls). Read when the call connects.
+    joinMuted?: boolean;
+    joinDeafened?: boolean;
+    // True for calls in DMs and group chats: the first joiner sends a call notification (never a ring).
+    announceCall?: boolean;
+    onSessionStateChange?:(state: { roomId: string; status: VoiceSessionStatus }) => void;
     onLiveParticipantsChange?: (state: {
         roomId: string;
         participants: Array<{ identity: string; userId?: string; isSpeaking: boolean; isScreenSharing: boolean }>;
@@ -104,7 +111,8 @@ const STREAM_SYSTEM_AUDIO_STORAGE_KEY = "heorot.voice.stream_system_audio.v1";
 const PARTICIPANT_VOLUME_STORAGE_KEY_PREFIX = "heorot.voice.participant_volume.v1";
 const PARTICIPANT_VOLUME_DEFAULT_PERCENT = 100;
 const PARTICIPANT_VOLUME_MIN_PERCENT = 0;
-const PARTICIPANT_VOLUME_MAX_PERCENT = 100;
+// Above 100% boosts quiet mics through Web Audio (see voice/volumeBoost.ts).
+const PARTICIPANT_VOLUME_MAX_PERCENT = 120;
 type ParticipantVolumeMap = Record<string, number>;
 
 type ScreenShareQualityProfileId = "720p30" | "1080p30" | "1080p60" | "1440p60";
@@ -538,12 +546,19 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         audioSettings,
         onAudioSettingsChange,
         autoJoinNonce,
+        joinMuted = false,
+        joinDeafened = false,
+        announceCall = false,
         onSessionStateChange,
         onLiveParticipantsChange,
         onControlsStateChange,
     }: VoiceRoomProps,
     ref,
 ): React.ReactElement {
+    const joinMutedRef = useRef(joinMuted);
+    joinMutedRef.current = joinMuted;
+    const joinDeafenedRef = useRef(joinDeafened);
+    joinDeafenedRef.current = joinDeafened;
     const { config } = useMatrix();
     const ownUserId = client.getUserId() ?? undefined;
     const roomRef = useRef<Room | null>(null);
@@ -710,7 +725,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     );
 
     // Speaker changes apply mid-call, including going back to "System default". (Microphone changes are applied by
-    // restarting the mic track below.)
+    // restarting the mic track below.) Boosted (>100%) voices play through Web Audio, which follows the same speaker.
+    useEffect(() => {
+        setVolumeBoostSinkId(audioSettings.preferredAudioOutputId || "default");
+    }, [audioSettings.preferredAudioOutputId]);
+
+    // Voice changer: applied to the published mic as soon as there is one, and changed live mid-call.
+    useEffect(() => {
+        const room = roomRef.current;
+        if (!room || connectionState !== ConnectionState.Connected || micMuted) {
+            return;
+        }
+        const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
+        if (!track) {
+            return;
+        }
+        void applyVoiceEffect(track, audioSettings.voiceEffect).catch((effectError) => {
+            setError(effectError instanceof Error ? `Voice changer: ${effectError.message}` : "Voice changer failed.");
+        });
+    }, [audioSettings.voiceEffect, connectionState, micMuted]);
+
     useEffect(() => {
         const room = roomRef.current;
         if (!room || connectionState !== ConnectionState.Connected || !supportsAudioOutputSelection) {
@@ -929,7 +963,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         for (const audioElement of remoteAudioElementsByTrackSidRef.current.values()) {
             const participantKey = audioElement.dataset.voiceParticipantKey || "";
             const volumePercent = participantVolumeByUserKey[participantKey] ?? PARTICIPANT_VOLUME_DEFAULT_PERCENT;
-            audioElement.volume = volumePercent / 100;
+            setElementVolumePercent(audioElement, volumePercent);
         }
     }, [participantVolumeByUserKey]);
 
@@ -991,6 +1025,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
         setJoining(true);
         setError(null);
+        setAudioMuted(joinDeafenedRef.current);
         if (normalizedAttemptNumber === 1) {
             onSessionStateChange?.({ roomId: targetRoomId, status: "joining" });
         }
@@ -1298,6 +1333,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 }
                 joinMatrixRtcSession(client, rtcSession, credentials.transport, targetRoomId, {
                     manageMediaKeys: keyProvider !== null,
+                    announce: announceCall,
                 });
                 ensureCurrentJoinRequest();
             }
@@ -1332,22 +1368,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 return;
             }
 
-            await withTimeout(
-                room.localParticipant.setMicrophoneEnabled(
-                    true,
-                    buildMicrophoneCaptureOptions(audioSettings),
-                    buildMicrophonePublishOptions(audioSettings),
-                ),
-                VOICE_JOIN_MEDIA_SETUP_TIMEOUT_MS,
-                "Microphone setup timed out.",
-            );
-            ensureCurrentJoinRequest();
-            if (!isCurrentJoinRequest()) {
-                void room.disconnect().catch(() => undefined);
-                return;
+            // Joining muted (or deafened) never opens the mic; unmuting later publishes it.
+            const startMuted = joinMutedRef.current || joinDeafenedRef.current;
+            if (!startMuted) {
+                await withTimeout(
+                    room.localParticipant.setMicrophoneEnabled(
+                        true,
+                        buildMicrophoneCaptureOptions(audioSettings),
+                        buildMicrophonePublishOptions(audioSettings),
+                    ),
+                    VOICE_JOIN_MEDIA_SETUP_TIMEOUT_MS,
+                    "Microphone setup timed out.",
+                );
+                ensureCurrentJoinRequest();
+                if (!isCurrentJoinRequest()) {
+                    void room.disconnect().catch(() => undefined);
+                    return;
+                }
+                appliedMicProcessingSignatureRef.current = micProcessingSignature;
             }
-            appliedMicProcessingSignatureRef.current = micProcessingSignature;
-            setMicMuted(false);
+            setMicMuted(startMuted);
             syncParticipants();
             refreshAudioDiagnostics(room);
             void playVoiceJoinSound().catch(() => undefined);
@@ -1429,6 +1469,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     const clearRemoteAudioElements = (): void => {
         for (const audioElement of remoteAudioElementsByTrackSidRef.current.values()) {
+            releaseElementVolume(audioElement);
             audioElement.srcObject = null;
             audioElement.remove();
         }
@@ -1538,7 +1579,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             if (audioElement.dataset.voiceParticipantKey !== participantKey) {
                 continue;
             }
-            audioElement.volume = normalizedVolumePercent / 100;
+            setElementVolumePercent(audioElement, normalizedVolumePercent);
         }
     }, []);
 
@@ -1552,7 +1593,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const resetAllParticipantVolumes = useCallback((): void => {
         setParticipantVolumeByUserKey({});
         for (const audioElement of remoteAudioElementsByTrackSidRef.current.values()) {
-            audioElement.volume = PARTICIPANT_VOLUME_DEFAULT_PERCENT / 100;
+            setElementVolumePercent(audioElement, PARTICIPANT_VOLUME_DEFAULT_PERCENT);
         }
     }, []);
 
@@ -1592,7 +1633,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         element.autoplay = true;
         element.setAttribute("playsinline", "true");
         element.muted = audioMuted || (isScreenShareAudio && screenShareAudioMuted);
-        element.volume = participantVolumePercent / 100;
+        setElementVolumePercent(element, participantVolumePercent);
         element.dataset.lkTrackSid = trackSid;
         element.dataset.voiceParticipantKey = participantVolumeKey;
         audioSinkRef.current?.appendChild(element);
@@ -1614,6 +1655,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         if (trackSid) {
             const attachedElement = remoteAudioElementsByTrackSidRef.current.get(trackSid);
             if (attachedElement) {
+                releaseElementVolume(attachedElement);
                 track.detach(attachedElement);
                 attachedElement.remove();
                 remoteAudioElementsByTrackSidRef.current.delete(trackSid);
@@ -2277,6 +2319,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 {audioOutputs.map((device) => (
                                     <option key={device.deviceId} value={device.deviceId}>
                                         {formatDeviceLabel(device)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="settings-field">
+                            <span>Voice changer</span>
+                            <select
+                                className="room-dialog-input"
+                                value={audioSettings.voiceEffect}
+                                onChange={(event) =>
+                                    onAudioSettingsChange({
+                                        ...audioSettings,
+                                        voiceEffect: normalizeVoiceEffect(event.target.value),
+                                    })
+                                }
+                                data-testid="call-voice-effect"
+                            >
+                                {VOICE_EFFECTS.map((effect) => (
+                                    <option key={effect.id} value={effect.id}>
+                                        {effect.label}
                                     </option>
                                 ))}
                             </select>

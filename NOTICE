@@ -24,6 +24,10 @@ Changes made in this fork (2026, by PeytonG; see the git history for detail):
 - Typecheck fix, and unit, smoke, Synapse integration and Playwright E2E tests
   with GitHub Actions CI.
 - Release builds (Windows, Linux, Android), security scanning and documentation.
+- Discord-style Home (direct messages and group chats) and a one-screen phone
+  layout; calls in DMs and group chats; mute/deafen outside calls; per-person
+  volume up to 120%; a voice changer; a font picker; round profile pictures;
+  registration tokens on sign-up; homeserver discovery before signing in.
 
 Files added by this fork carry an SPDX-License-Identifier: AGPL-3.0-only header.
 Third-party fonts: Pixelify Sans and Silkscreen, SIL Open Font License 1.1.

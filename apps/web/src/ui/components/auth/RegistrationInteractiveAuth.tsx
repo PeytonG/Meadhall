@@ -17,6 +17,8 @@ interface RegistrationInteractiveAuthProps {
     client: MatrixClient;
     username: string;
     password: string;
+    // Token typed on the sign-up form; submitted automatically when the server asks for it.
+    registrationToken?: string;
     emailAddress?: string;
     initialDeviceDisplayName?: string;
     onCompleted: (credentials: MatrixCredentials) => Promise<void>;
@@ -119,6 +121,7 @@ export function RegistrationInteractiveAuth({
     client,
     username,
     password,
+    registrationToken: initialRegistrationToken,
     emailAddress,
     initialDeviceDisplayName = `${DEFAULT_BRAND} Web`,
     onCompleted,
@@ -131,7 +134,8 @@ export function RegistrationInteractiveAuth({
     const [stageParams, setStageParams] = useState<Record<string, unknown> | undefined>(undefined);
     const [busy, setBusy] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [registrationToken, setRegistrationToken] = useState("");
+    const [registrationToken, setRegistrationToken] = useState(initialRegistrationToken ?? "");
+    const autoSubmittedTokenRef = useRef(false);
     const [stagePassword, setStagePassword] = useState("");
     const [termsAccepted, setTermsAccepted] = useState<Record<string, boolean>>({});
     const [emailRequestBusy, setEmailRequestBusy] = useState(false);
@@ -171,6 +175,17 @@ export function RegistrationInteractiveAuth({
             setError(formatInteractiveAuthError(submitError));
         });
     }, []);
+
+    // Submit the form's token once when the server reaches the token stage. If the server rejects it, the stage
+    // stays on screen with the error and the token prefilled so the user can correct it.
+    useEffect(() => {
+        const isTokenStage = stage === AuthType.RegistrationToken || stage === AuthType.UnstableRegistrationToken;
+        if (!isTokenStage || busy || autoSubmittedTokenRef.current || !initialRegistrationToken) {
+            return;
+        }
+        autoSubmittedTokenRef.current = true;
+        submitAuthDict({ type: stage, token: initialRegistrationToken } as AuthDict);
+    }, [busy, initialRegistrationToken, stage, submitAuthDict]);
 
     const openFallbackAuth = useCallback((): void => {
         const authLogic = authLogicRef.current;

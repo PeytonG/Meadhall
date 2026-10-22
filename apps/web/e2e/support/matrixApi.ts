@@ -137,3 +137,7 @@ export async function sendStickerEvent(user: ApiUser, roomId: string, png: Uint8
         info: { w: 128, h: 128, mimetype: "image/png", size: png.byteLength },
     });
 }
+
+export async function setAccountData(user: ApiUser, type: string, content: unknown): Promise<void> {
+    await request(user, "PUT", `/user/${encodeURIComponent(user.userId)}/account_data/${encodeURIComponent(type)}`, content);
+}

@@ -1,4 +1,4 @@
-import { createClient, MatrixError, SSOAction, type MatrixClient, type SSOFlow } from "matrix-js-sdk/src/matrix";
+import { AuthType, createClient, MatrixError, SSOAction, type MatrixClient, type SSOFlow } from "matrix-js-sdk/src/matrix";
 
 export interface RegistrationFlow {
     stages: string[];
@@ -147,6 +147,32 @@ export async function discoverRegistrationFlow(options: DiscoverRegistrationFlow
                 ssoFlow,
             },
         );
+    }
+}
+
+export const REGISTRATION_TOKEN_STAGES: readonly string[] = [AuthType.RegistrationToken, AuthType.UnstableRegistrationToken];
+
+export function registrationTokenUsage(flows: RegistrationFlow[]): "required" | "optional" | "none" {
+    const usedBy = flows.filter((flow) => flow.stages.some((stage) => REGISTRATION_TOKEN_STAGES.includes(stage)));
+    if (usedBy.length === 0) {
+        return "none";
+    }
+    return usedBy.length === flows.length ? "required" : "optional";
+}
+
+// Asks the homeserver whether a registration token is valid before starting sign-up (Matrix v1.2+ endpoint).
+// Returns null when the server can't tell us (old server, rate limit, network), so callers just carry on.
+export async function checkRegistrationTokenValidity(homeserverUrl: string, token: string): Promise<boolean | null> {
+    const url = `${homeserverUrl}/_matrix/client/v1/register/m.login.registration_token/validity?token=${encodeURIComponent(token)}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return null;
+        }
+        const body = (await response.json()) as { valid?: unknown };
+        return typeof body.valid === "boolean" ? body.valid : null;
+    } catch {
+        return null;
     }
 }
 

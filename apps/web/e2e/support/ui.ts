@@ -6,7 +6,7 @@ import type { ApiUser } from "./matrixApi";
 // Waits for the app shell, skipping the optional secure backup setup and session check a fresh account (or a
 // reload before backup is set up) is offered.
 export async function waitForAppShell(page: Page): Promise<void> {
-    const appShell = page.locator(".rail-logo");
+    const appShell = page.getByTestId("rail-home");
     const skip = page.getByRole("button", { name: "Skip for now" });
     await expect(appShell.or(skip).first()).toBeVisible({ timeout: 60_000 });
     for (let attempt = 0; attempt < 3 && !(await appShell.isVisible()); attempt += 1) {
@@ -15,7 +15,7 @@ export async function waitForAppShell(page: Page): Promise<void> {
         }
         await expect(appShell.or(skip).first()).toBeVisible({ timeout: 30_000 });
     }
-    await expect(appShell.getByRole("img", { name: "Meadhall" })).toBeVisible();
+    await expect(appShell).toBeVisible();
 }
 
 export async function signIn(page: Page, user: ApiUser): Promise<void> {

@@ -14,7 +14,7 @@ import {
 
 import { getBrandName } from "../../core/config/branding";
 import meadhallIcon from "../assets/meadhall-icon.png";
-import { ensureDirectRoomMapping, getDirectRoomIds } from "../adapters/dmAdapter";
+import { createOrReuseDirectChat, ensureDirectRoomMapping, getDirectRoomIds } from "../adapters/dmAdapter";
 import { describeJoinError, joinRoomWithRetry } from "../adapters/joinAdapter";
 import { mediaFromMxc, thumbnailFromMxc } from "../adapters/media";
 import { Composer } from "./Composer";
@@ -25,6 +25,7 @@ import { RoomList, type DiscoverableSpaceChannel } from "./RoomList";
 import { Timeline } from "./Timeline";
 import { Toast, type ToastState } from "./Toast";
 import { Avatar } from "./Avatar";
+import { HomeSidebar, isOneToOneRoom } from "./HomeSidebar";
 import { CreateRoomDialog } from "./rooms/CreateRoomDialog";
 import { CreateSpaceDialog } from "./rooms/CreateSpaceDialog";
 import { ImportJsonWizard } from "./rooms/ImportJsonWizard";
@@ -46,6 +47,7 @@ import {
 } from "../emoji/EmojiPackStore";
 import type { EmojiPackTarget } from "../emoji/EmojiPackTypes";
 import { useSelectedUser } from "../hooks/useSelectedUser";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useElementLikeNotifications } from "../notifications/useElementLikeNotifications";
 import { useMatrix } from "../providers/MatrixProvider";
 import { buildMatrixToRoomPermalink } from "../utils/permalink";
@@ -60,6 +62,14 @@ import {
     isVoiceChannelRoom,
 } from "../voice/voiceChannel";
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
+import { useRoomCalls } from "../hooks/useRoomCalls";
+import {
+    loadSelfVoiceState,
+    saveSelfVoiceState,
+    toggleSelfDeafen,
+    toggleSelfMute,
+    type SelfVoiceState,
+} from "../voice/selfVoiceState";
 import { CHANNEL_ORDER_STATE_EVENT, readChannelOrder, writeChannelOrder } from "../stores/CategoryStore";
 
 interface AppShellProps {
@@ -852,15 +862,31 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [voiceSessionStatus, setVoiceSessionStatus] = useState<VoiceSessionStatus>("disconnected");
     const [voiceAutoJoinNonce, setVoiceAutoJoinNonce] = useState(0);
     const [voiceControlState, setVoiceControlState] = useState<VoiceControlState>(DEFAULT_VOICE_CONTROL_STATE);
+    const voiceControlStateRef = useRef<VoiceControlState>(DEFAULT_VOICE_CONTROL_STATE);
+    const pendingVoiceControlTargetRef = useRef<{ micMuted: boolean; audioMuted: boolean } | null>(null);
+    const [selfVoice, setSelfVoice] = useState<SelfVoiceState>(() => loadSelfVoiceState());
+    useEffect(() => {
+        saveSelfVoiceState(selfVoice);
+    }, [selfVoice]);
     const [voiceSpeakingByRoomId, setVoiceSpeakingByRoomId] = useState<Map<string, Set<string>>>(new Map());
     const [voiceScreenShareByRoomId, setVoiceScreenShareByRoomId] = useState<Map<string, Set<string>>>(new Map());
     const [voiceParticipantsByRoomId, setVoiceParticipantsByRoomId] = useState<Map<string, Set<string>>>(new Map());
     const [timelineFocusBottomNonce, setTimelineFocusBottomNonce] = useState(0);
     const voiceRoomRef = useRef<VoiceRoomHandle | null>(null);
     const autoJoiningDirectRoomIdsRef = useRef<Set<string>>(new Set());
+    // Phones show one screen at a time, like the Discord app: the server rail + channel list, or the open chat.
+    const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
     const openRoomAtBottom = useCallback((roomId: string): void => {
         setActiveRoomId(roomId);
         setTimelineFocusBottomNonce((value) => value + 1);
+    }, []);
+    const selectHome = useCallback((): void => {
+        setSelectedSpaceId(PEOPLE_SPACE_ID);
+        setMobilePane("list");
+    }, []);
+    const selectServer = useCallback((spaceId: string): void => {
+        setSelectedSpaceId(spaceId);
+        setMobilePane("list");
     }, []);
 
     const handleLiveParticipantsChange = useCallback(
@@ -1063,6 +1089,23 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             ),
         [directRoomIds, visibleRooms],
     );
+    // Joined rooms that belong to no server (not DMs): listed under Home -> Group Chats, as Discord has no other place
+    // for them. Rooms that name a parent space are channels of a server and stay out.
+    const homeOtherRooms = useMemo(
+        () =>
+            sortRoomsByActivity(
+                visibleRooms.filter(
+                    (room) =>
+                        !room.isSpaceRoom() &&
+                        !directRoomIds.has(room.roomId) &&
+                        room.getMyMembership() === "join" &&
+                        room.currentState.getStateEvents(EventType.SpaceParent).length === 0 &&
+                        !findParentSpaceIdForRoom(room.roomId, spaces),
+                ),
+            ),
+        [directRoomIds, spaces, visibleRooms],
+    );
+    const homeRooms = useMemo(() => [...peopleChannels, ...homeOtherRooms], [homeOtherRooms, peopleChannels]);
     const isRoomVoiceChannel = useCallback(
         (room: Room | null): boolean => Boolean(room && (isVoiceChannelRoom(room) || voiceChannelHintRoomIds.has(room.roomId))),
         [voiceChannelHintRoomIds],
@@ -1077,7 +1120,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
-            return peopleChannels;
+            return homeRooms;
         }
 
         if (!selectedSpaceRoom || !selectedSpaceRoom.isSpaceRoom()) {
@@ -1094,7 +1137,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
 
         return getSpaceChannels(selectedSpaceRoom, roomById);
-    }, [peopleChannels, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
+    }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
 
     useEffect(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID || !selectedSpaceRoom?.isSpaceRoom()) {
@@ -1338,6 +1381,18 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const hasActiveVoiceSession = Boolean(
         voiceSessionRoomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining"),
     );
+    // Calls outside voice channels belong to Home conversations only (DMs, group chats, rooms outside servers);
+    // server text channels have none, as in Discord.
+    const roomCalls = useRoomCalls(client, homeRooms);
+    const isActiveRoomCallable = Boolean(
+        activeRoom && !isActiveRoomVoiceChannel && homeRooms.some((room) => room.roomId === activeRoom.roomId),
+    );
+    const activeRoomCallOthers = useMemo(
+        () => (activeRoom ? (roomCalls.get(activeRoom.roomId) ?? []).filter((userId) => userId !== ownUserId) : []),
+        [activeRoom, ownUserId, roomCalls],
+    );
+    const isInActiveRoomCall = Boolean(activeRoom && hasActiveVoiceSession && voiceSessionRoomId === activeRoom.roomId);
+    const shouldShowCallStrip = isActiveRoomCallable && isInActiveRoomCall;
     const liveVoiceParticipantsOverrideRoomId =
         voiceSessionRoomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining")
             ? voiceSessionRoomId
@@ -1385,6 +1440,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         if (voiceSessionRoomId) {
             return;
         }
+        voiceControlStateRef.current = DEFAULT_VOICE_CONTROL_STATE;
+        pendingVoiceControlTargetRef.current = null;
         setVoiceControlState(DEFAULT_VOICE_CONTROL_STATE);
     }, [voiceSessionRoomId]);
 
@@ -1571,34 +1628,122 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         runVoiceRoomAction((voiceRoom) => voiceRoom.leave(), "Unable to leave voice channel.");
     }, [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus]);
 
-    const toggleVoiceMicFromDock = useCallback((): void => {
-        if (!voiceSessionRoomId || voiceSessionStatus !== "connected") {
-            return;
-        }
+    // Mute/deafen from the user panel work in and out of calls. Outside a call they only change the saved choice,
+    // which the next call starts with; in a call the change is applied to the voice room too.
+    const applySelfVoiceState = useCallback(
+        (next: SelfVoiceState): void => {
+            setSelfVoice(next);
+            if (!voiceSessionRoomId || voiceSessionStatus !== "connected") {
+                return;
+            }
+            const current = voiceControlStateRef.current;
+            if (next.muted === current.micMuted && next.deafened === current.audioMuted) {
+                return;
+            }
+            pendingVoiceControlTargetRef.current = { micMuted: next.muted, audioMuted: next.deafened };
+            if (next.muted !== current.micMuted) {
+                runVoiceRoomAction((voiceRoom) => voiceRoom.toggleMute(), "Unable to update microphone state.");
+            }
+            if (next.deafened !== current.audioMuted) {
+                runVoiceRoomAction((voiceRoom) => voiceRoom.toggleAudioMute(), "Unable to update audio output state.");
+            }
+        },
+        [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus],
+    );
 
-        runVoiceRoomAction((voiceRoom) => voiceRoom.toggleMute(), "Unable to update microphone state.");
-    }, [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus]);
+    const toggleVoiceMicFromDock = useCallback((): void => {
+        applySelfVoiceState(toggleSelfMute(selfVoice));
+    }, [applySelfVoiceState, selfVoice]);
 
     const toggleVoiceAudioFromDock = useCallback((): void => {
-        if (!voiceSessionRoomId || voiceSessionStatus !== "connected") {
+        applySelfVoiceState(toggleSelfDeafen(selfVoice));
+    }, [applySelfVoiceState, selfVoice]);
+
+    // Keeps the saved choice in step with mute/deafen changed inside the call view. Changes the user panel asked
+    // for arrive in steps (mic, then audio); those are skipped until the room reaches the requested state.
+    const handleVoiceControlsStateChange = useCallback((state: VoiceControlState): void => {
+        voiceControlStateRef.current = state;
+        setVoiceControlState(state);
+        if (!state.connected) {
             return;
         }
+        const target = pendingVoiceControlTargetRef.current;
+        if (target) {
+            if (target.micMuted === state.micMuted && target.audioMuted === state.audioMuted) {
+                pendingVoiceControlTargetRef.current = null;
+            }
+            return;
+        }
+        setSelfVoice((current) =>
+            current.muted === state.micMuted && current.deafened === state.audioMuted
+                ? current
+                : { muted: state.micMuted, deafened: state.audioMuted, mutedByDeafen: false },
+        );
+    }, []);
 
-        runVoiceRoomAction((voiceRoom) => voiceRoom.toggleAudioMute(), "Unable to update audio output state.");
-    }, [runVoiceRoomAction, voiceSessionRoomId, voiceSessionStatus]);
+    // Below 1100px the members/profile panel slides over the chat, so it only opens when asked for and closing it
+    // there doesn't change the saved (desktop) panel choice.
+    const isNarrowLayout = useMediaQuery("(max-width: 1100px)");
+    const [narrowPanelOpen, setNarrowPanelOpen] = useState(false);
+    useEffect(() => {
+        setNarrowPanelOpen(false);
+    }, [activeRoomId]);
 
     const selectSidebarMode = useCallback(
         (mode: RightSidebarMode): void => {
             clearSelectedUser();
+            if (isNarrowLayout) {
+                setNarrowPanelOpen(mode !== "closed");
+                if (mode === "closed") {
+                    return;
+                }
+            }
             setRightSidebarMode(mode);
         },
-        [clearSelectedUser],
+        [clearSelectedUser, isNarrowLayout],
+    );
+
+    // Phone layout: opening a chat adds a history entry, so Android's Back button (Capacitor goes back in the
+    // WebView's history first) returns to the list instead of closing the app.
+    const isPhoneLayout = useMediaQuery("(max-width: 760px)");
+    useEffect(() => {
+        if (!isPhoneLayout || mobilePane !== "chat") {
+            return;
+        }
+        if ((window.history.state as { meadhallPane?: string } | null)?.meadhallPane !== "chat") {
+            window.history.pushState({ ...(window.history.state ?? {}), meadhallPane: "chat" }, "");
+        }
+    }, [isPhoneLayout, mobilePane]);
+    useEffect(() => {
+        const onPopState = (): void => {
+            if ((window.history.state as { meadhallPane?: string } | null)?.meadhallPane !== "chat") {
+                setMobilePane("list");
+            }
+        };
+        window.addEventListener("popstate", onPopState);
+        return () => window.removeEventListener("popstate", onPopState);
+    }, []);
+    const goBackToList = useCallback((): void => {
+        if ((window.history.state as { meadhallPane?: string } | null)?.meadhallPane === "chat") {
+            window.history.back();
+            return;
+        }
+        setMobilePane("list");
+    }, []);
+
+    const selectUserAndOpenPanel = useCallback(
+        (userId: string): void => {
+            selectUser(userId);
+            setNarrowPanelOpen(true);
+        },
+        [selectUser],
     );
 
     const selectChannel = useCallback(
         (roomId: string): void => {
             setPendingFocusRoomId(null);
             openRoomAtBottom(roomId);
+            setMobilePane("chat");
             const room = roomById.get(roomId) ?? client.getRoom(roomId);
             if (!room || !isRoomVoiceChannel(room)) {
                 return;
@@ -1614,6 +1759,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             setVoiceAutoJoinNonce((value) => value + 1);
         },
         [client, isRoomVoiceChannel, openRoomAtBottom, roomById, voiceSessionRoomId, voiceSessionStatus],
+    );
+
+    // Starts (or joins) the call in a DM, group chat or room. Nobody has to answer: the call stays up while anyone
+    // is in it, and the others get a call notification (never a ring).
+    const startCallInRoom = useCallback(
+        (roomId: string): void => {
+            const alreadyInCall =
+                voiceSessionRoomId === roomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining");
+            if (alreadyInCall) {
+                return;
+            }
+            setVoiceSessionRoomId(roomId);
+            setVoiceSessionStatus("joining");
+            setVoiceAutoJoinNonce((value) => value + 1);
+        },
+        [voiceSessionRoomId, voiceSessionStatus],
     );
 
     const focusRoom = useCallback(
@@ -1644,9 +1805,25 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             }
 
             openRoomAtBottom(roomId);
+            setMobilePane("chat");
             setPendingFocusRoomId(null);
         },
         [client, directRoomIds, openRoomAtBottom, spaces],
+    );
+
+    // The profile card's Call button: open (or create) the DM with that person and start its call.
+    const callUser = useCallback(
+        async (userId: string): Promise<void> => {
+            try {
+                const { roomId } = await createOrReuseDirectChat(client, userId);
+                focusRoom(roomId);
+                startCallInRoom(roomId);
+            } catch (callError) {
+                const message = callError instanceof Error ? callError.message : "Unable to start the call.";
+                pushToast({ type: "error", message });
+            }
+        },
+        [client, focusRoom, pushToast, startCallInRoom],
     );
 
     const requestJoinRoom = useCallback(
@@ -1856,7 +2033,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         setInviteOpen(true);
     }, []);
 
-    const shouldRenderRightPanel = panelMode.mode === "user" || rightSidebarMode !== "closed";
+    const shouldRenderRightPanel =
+        (panelMode.mode === "user" || rightSidebarMode !== "closed") && (!isNarrowLayout || narrowPanelOpen);
 
     const [channelsPaneWidth, setChannelsPaneWidth] = useState<number>(readChannelsPaneWidth);
     const [isResizingPane, setIsResizingPane] = useState(false);
@@ -1883,14 +2061,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         document.addEventListener("pointerup", onUp);
     }, [channelsPaneWidth]);
 
-    const appShellStyle = useMemo(() => ({
-        gridTemplateColumns: shouldRenderRightPanel
-            ? `72px ${channelsPaneWidth}px minmax(0, 1fr) 280px`
-            : `72px ${channelsPaneWidth}px minmax(0, 1fr)`,
-    }), [channelsPaneWidth, shouldRenderRightPanel]);
+    // The grid itself lives in CSS (App.css "Layout"), so phone and tablet layouts can change it.
+    const appShellStyle = useMemo(
+        () => ({ ["--channels-pane-width" as string]: `${channelsPaneWidth}px` }) as React.CSSProperties,
+        [channelsPaneWidth],
+    );
 
     const appShellClassName = useMemo(() => {
         const classes = ["app-shell"];
+        classes.push(mobilePane === "chat" ? "mobile-show-chat" : "mobile-show-list");
         if (userSettings.appearance.compactMode) {
             classes.push("is-compact");
         }
@@ -1910,7 +2089,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             }
         }
         return classes.join(" ");
-    }, [shouldRenderRightPanel, isResizingPane, userSettings.appearance.compactMode, userSettings.appearance.showTimestamps]);
+    }, [mobilePane, shouldRenderRightPanel, isResizingPane, userSettings.appearance.compactMode, userSettings.appearance.showTimestamps]);
 
     const hasOpenDialog = Boolean(
         emojiUploadOpen ||
@@ -1936,17 +2115,18 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
             <aside className="left-rail">
-                <div className="rail-logo" title={brandName}>
-                    <img src={meadhallIcon} alt={brandName} />
-                </div>
+                {/* Discord-style Home: the app icon opens Direct Messages and Group Chats. */}
                 <button
                     type="button"
-                    className={`rail-icon${selectedSpaceId === PEOPLE_SPACE_ID ? " is-active" : ""}`}
-                    onClick={() => setSelectedSpaceId(PEOPLE_SPACE_ID)}
-                    title="People"
+                    className={`rail-icon rail-home${selectedSpaceId === PEOPLE_SPACE_ID ? " is-active" : ""}`}
+                    onClick={() => selectHome()}
+                    title="Direct Messages"
+                    aria-label="Direct Messages"
+                    data-testid="rail-home"
                 >
-                    @
+                    <img src={meadhallIcon} alt="" className="rail-home-icon" />
                 </button>
+                <div className="rail-divider" aria-hidden="true" />
                 {spaces.map((space) => {
                     const avatarUrl = thumbnailFromMxc(client, space.getMxcAvatarUrl(), 48, 48);
                     return (
@@ -1954,7 +2134,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             type="button"
                             key={space.roomId}
                             className={`rail-icon${selectedSpaceId === space.roomId ? " is-active" : ""}`}
-                            onClick={() => setSelectedSpaceId(space.roomId)}
+                            onClick={() => selectServer(space.roomId)}
                             title={getRoomName(space)}
                         >
                             {avatarUrl ? (
@@ -1978,6 +2158,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
             <section className="channels-pane">
                 <div className="channels-pane-resize-handle" onPointerDown={handleResizePointerDown} />
+                {selectedSpaceId === PEOPLE_SPACE_ID ? (
+                    <HomeSidebar
+                        client={client}
+                        directRooms={peopleChannels}
+                        otherRooms={homeOtherRooms}
+                        activeRoomId={activeRoomId}
+                        roomCalls={roomCalls}
+                        currentCallRoomId={hasActiveVoiceSession ? voiceSessionRoomId : null}
+                        onSelectRoom={selectChannel}
+                        onNewConversation={() => setCreateDirectChatOpen(true)}
+                    />
+                ) : (
+                <>
                 <div className="pane-top pane-top-row">
                     <span>{selectedSpaceName}</span>
                     <div className="pane-top-actions">
@@ -2078,6 +2271,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     liveParticipantsOverrideRoomId={liveVoiceParticipantsOverrideRoomId}
                     onOpenRoomSettings={openRoomSettingsFor}
                 />
+                </>
+                )}
                 <div className="pane-bottom">
                     {hasActiveVoiceSession && voiceSessionRoomId ? (
                         <div
@@ -2151,25 +2346,25 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         </button>
                         <button
                             type="button"
-                            className={`pane-icon-button${voiceControlState.micMuted ? " is-muted" : ""}`}
+                            className={`pane-icon-button${selfVoice.muted ? " is-muted" : ""}`}
                             onClick={toggleVoiceMicFromDock}
-                            disabled={voiceSessionStatus !== "connected"}
-                            aria-pressed={voiceControlState.micMuted}
-                            aria-label={voiceControlState.micMuted ? "Unmute" : "Mute"}
-                            title={voiceSessionStatus !== "connected" ? "Join a voice channel to use your mic" : voiceControlState.micMuted ? "Unmute" : "Mute"}
+                            aria-pressed={selfVoice.muted}
+                            aria-label={selfVoice.muted ? "Unmute" : "Mute"}
+                            title={selfVoice.muted ? "Unmute" : "Mute"}
+                            data-testid="self-mute"
                         >
-                            <PixelIcon name="mic" slashed={voiceSessionStatus === "connected" && voiceControlState.micMuted} />
+                            <PixelIcon name="mic" slashed={selfVoice.muted} />
                         </button>
                         <button
                             type="button"
-                            className={`pane-icon-button${voiceControlState.audioMuted ? " is-muted" : ""}`}
+                            className={`pane-icon-button${selfVoice.deafened ? " is-muted" : ""}`}
                             onClick={toggleVoiceAudioFromDock}
-                            disabled={voiceSessionStatus !== "connected"}
-                            aria-pressed={voiceControlState.audioMuted}
-                            aria-label={voiceControlState.audioMuted ? "Undeafen" : "Deafen"}
-                            title={voiceSessionStatus !== "connected" ? "Join a voice channel to deafen" : voiceControlState.audioMuted ? "Undeafen" : "Deafen"}
+                            aria-pressed={selfVoice.deafened}
+                            aria-label={selfVoice.deafened ? "Undeafen" : "Deafen"}
+                            title={selfVoice.deafened ? "Undeafen" : "Deafen"}
+                            data-testid="self-deafen"
                         >
-                            <PixelIcon name="headphones" slashed={voiceSessionStatus === "connected" && voiceControlState.audioMuted} />
+                            <PixelIcon name="headphones" slashed={selfVoice.deafened} />
                         </button>
                         <button
                             type="button"
@@ -2187,9 +2382,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             <section className="main-pane">
                 <ChannelHeader
                     room={activeRoom}
-                    isDirectMessage={isActiveRoomDirect}
+                    isDirectMessage={Boolean(activeRoom && isActiveRoomDirect && isOneToOneRoom(activeRoom, ownUserId))}
+                    subtitle={
+                        activeRoom && selectedSpaceId === PEOPLE_SPACE_ID && !isOneToOneRoom(activeRoom, ownUserId)
+                            ? `Group chat · ${activeRoom.getJoinedMemberCount()} members`
+                            : undefined
+                    }
+                    onMobileBack={goBackToList}
                     showHashPrefix={shouldPrefixRoomWithHash}
-                    sidebarMode={rightSidebarMode}
+                    sidebarMode={isNarrowLayout && !narrowPanelOpen ? "closed" : rightSidebarMode}
                     searchQuery={sidebarSearchQuery}
                     canInviteInRoom={canInviteInActiveRoom}
                     onSearchQueryChange={setSidebarSearchQuery}
@@ -2204,11 +2405,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onOpenModeration={() => setRoomModerationOpen(true)}
                     onCopyRoomLink={copyActiveRoomLink}
                     onLeaveRoom={leaveActiveRoom}
+                    call={
+                        isActiveRoomCallable && activeRoom
+                            ? {
+                                  inCall: isInActiveRoomCall,
+                                  othersInCall: activeRoomCallOthers.length,
+                                  onStartCall: () => startCallInRoom(activeRoom.roomId),
+                              }
+                            : undefined
+                    }
                 />
                 {hasActiveVoiceSession && voiceSessionRoomId ? (
                     <div
-                        className={`main-voice-slot${shouldShowVoicePanel ? "" : " voice-room-hidden"}`}
-                        aria-hidden={!shouldShowVoicePanel}
+                        className={`main-voice-slot${
+                            shouldShowVoicePanel ? "" : shouldShowCallStrip ? " is-call-strip" : " voice-room-hidden"
+                        }`}
+                        aria-hidden={!shouldShowVoicePanel && !shouldShowCallStrip}
                     >
                         <VoiceRoom
                             ref={voiceRoomRef}
@@ -2236,13 +2448,36 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
-                            onControlsStateChange={setVoiceControlState}
+                            announceCall={!isRoomVoiceChannel(activeVoiceSessionRoom)}
+                            joinMuted={selfVoice.muted}
+                            joinDeafened={selfVoice.deafened}
+                            onControlsStateChange={handleVoiceControlsStateChange}
                             onLiveParticipantsChange={handleLiveParticipantsChange}
                         />
                     </div>
                 ) : null}
                 {!shouldShowVoicePanel ? (
                     <div className="main-chat-stack">
+                        {isActiveRoomCallable && activeRoom && !isInActiveRoomCall && activeRoomCallOthers.length > 0 ? (
+                            <div className="room-call-banner" role="status" data-testid="room-call-banner">
+                                <PixelIcon name="phone" size={18} />
+                                <span className="room-call-banner-text">
+                                    <strong>Call in progress</strong>
+                                    <span>
+                                        {activeRoomCallOthers
+                                            .map((userId) => activeRoom.getMember(userId)?.name ?? userId)
+                                            .join(", ")}
+                                    </span>
+                                </span>
+                                <button
+                                    type="button"
+                                    className="room-call-banner-join"
+                                    onClick={() => startCallInRoom(activeRoom.roomId)}
+                                >
+                                    Join call
+                                </button>
+                            </div>
+                        ) : null}
                         <Timeline
                             client={client}
                             room={activeRoom}
@@ -2256,7 +2491,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 setReplyToEvent(null);
                                 setEditingEvent(event);
                             }}
-                            onSelectUser={selectUser}
+                            onSelectUser={selectUserAndOpenPanel}
                             activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
                             customReactionImagesEnabled={renderReactionImages}
                             showReadReceipts={shouldShowReadReceipts}
@@ -2285,13 +2520,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     roomMode={rightSidebarMode}
                     searchQuery={sidebarSearchQuery}
                     onSearchQueryChange={setSidebarSearchQuery}
-                    onSelectUser={selectUser}
+                    onSelectUser={selectUserAndOpenPanel}
                     onBackToRoom={clearSelectedUser}
                     onOpenRoomSettings={() => openRoomSettingsFor(activeRoom?.roomId ?? null)}
                     onCopyRoomLink={copyActiveRoomLink}
                     onLeaveRoom={leaveActiveRoom}
                     onOpenRoom={focusRoom}
                     onToast={pushToast}
+                    onCallUser={(userId) => void callUser(userId)}
                 />
             ) : null}
             {emojiUploadOpen && emojiUploadTarget ? (

@@ -22,20 +22,28 @@ Servers, channels, voice hangouts and stickers, end-to-end encrypted and self-ho
 
 **Feels like Discord**
 - Spaces are servers, rooms are channels, with categories, drag-and-drop channel order and per-channel settings.
+- **Home**: the Meadhall icon opens your **Direct Messages**, with **Group Chats** under them, with presence, unread
+  counts and who's in a call.
+- **Calls in DMs and group chats**: press the phone button (or **Call** on someone's profile). Nobody has to answer;
+  the others get a notification (never a ring) and a "Join call" bar.
 - Voice channels are **persistent hangouts**: click to join, no ringing and no "answering". A call stays open as long as anyone is in it.
-- Bottom-left user panel with mute, deafen and settings; a "Voice Connected" panel while you're in a call.
+- Bottom-left user panel with mute, deafen and settings. Mute and deafen work **any time**, in or out of a call,
+  and you join calls the way you left them. A "Voice Connected" panel shows while you're in a call.
 - Replies, edits, reactions, pinned messages, read receipts, typing indicators, date dividers, and an online/offline member list.
 
 **Pixel art everywhere**
 - A hand-made pixel theme with pixel fonts, sprite borders and pixel icons. Bright purple by default, and the
   **pixel color wheel** (Settings → Appearance) recolors the whole app, readable in light and dark.
+- Fonts: Pixel, Pixel headings, System, or **any font installed on your device**. Profile pictures are round.
 - **Pixel stickers** you can drop into any chat, plus custom emoji packs per server and per person.
 
 **Voice that works with Element**
 - Voice uses **MatrixRTC with LiveKit**, the same as Element Call, so Meadhall and Element users share calls.
 - Media is **end-to-end encrypted** in encrypted rooms.
 - Change your microphone, speaker, noise suppression or echo cancellation **mid-call**, with no leaving and rejoining.
-- Screen sharing, per-person volume, and system audio capture on Windows.
+- **Voice changer** (Giant, Pixie, Robot, Great hall, Radio, Troll): everyone hears it, Element users included, and
+  you can switch mid-call or try it first with "Hear yourself" in Settings → Audio.
+- Screen sharing, per-person volume **up to 120%** for quiet mics, and system audio capture on Windows.
 
 **Private and yours**
 - End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery.
@@ -44,9 +52,15 @@ Servers, channels, voice hangouts and stickers, end-to-end encrypted and self-ho
 **Everywhere**
 - Web, Windows, Linux (AppImage and Fedora .rpm) and Android. The desktop app sits in the tray, can start at
   login, and **updates itself**: a notification offers "Update now", then downloads, installs and restarts.
+- On phones it works like the Discord app: the server rail and conversation list on one screen, the chat on the
+  next, and Back takes you back.
 
 <details>
 <summary><b>More screenshots</b></summary>
+
+<img src="docs/screenshots/home-dark.png" alt="Home: direct messages and group chats" width="800" />
+
+<img src="docs/screenshots/phone.png" alt="Meadhall on a phone: conversation list and chat" width="600" />
 
 <img src="docs/screenshots/login.png" alt="Sign-in screen" width="800" />
 
@@ -74,8 +88,9 @@ Every release includes `SHA256SUMS.txt` so you can verify downloads. Desktop app
 
 ### First steps
 
-1. Sign in with any Matrix account (or register one if your server allows it). The homeserver field defaults to
-   the server your Meadhall is configured for.
+1. Sign in with any Matrix account, or register one. The homeserver defaults to the Meadhall community server
+   (`https://elementprojectzkypg.duckdns.org`). If a server needs a **registration token** (an invite code from its
+   admin), the Register form asks for it.
 2. A fresh account may offer to set up **secure backup**. Do it, and keep the key safe: it unlocks your encrypted
    history on new devices.
 3. Create a space with **+** in the left rail, add text and voice channels, and invite friends.

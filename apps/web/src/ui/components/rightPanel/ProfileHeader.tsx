@@ -14,6 +14,7 @@ interface ProfileHeaderProps {
     onCopyMxid: () => Promise<void>;
     onCopyUserId: () => Promise<void>;
     onMessage?: () => Promise<void>;
+    onCall?: () => void;
 }
 
 function hashToHue(value: string): number {
@@ -33,6 +34,7 @@ export function ProfileHeader({
     onCopyMxid,
     onCopyUserId,
     onMessage,
+    onCall,
 }: ProfileHeaderProps): React.ReactElement {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
@@ -97,7 +99,14 @@ export function ProfileHeader({
                         Message
                     </button>
                 ) : null}
-                <button type="button" className="rp-icon-btn" disabled>
+                <button
+                    type="button"
+                    className="rp-icon-btn"
+                    disabled={!onCall}
+                    onClick={onCall}
+                    title={onCall ? "Start a call" : undefined}
+                    data-testid="profile-call"
+                >
                     Call
                 </button>
                 <button type="button" className="rp-icon-btn" disabled>

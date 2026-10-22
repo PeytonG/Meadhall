@@ -1,8 +1,11 @@
+import { normalizeVoiceEffect, type VoiceEffect } from "../../voice/voiceChanger";
+import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 
 export type AppTheme = "dark" | "light";
-// Pixel fonts everywhere, pixel headings with a readable body font, or the system font throughout.
-export type FontStyle = "pixel" | "mixed" | "system";
+// Pixel fonts everywhere, pixel headings with a readable body font, the system font throughout, or any installed
+// font ("custom", family in customFontFamily).
+export type FontStyle = "pixel" | "mixed" | "system" | "custom";
 
 export interface AppearanceSettings {
     theme: AppTheme;
@@ -12,6 +15,7 @@ export interface AppearanceSettings {
     // Theme accent picked with the pixel color wheel.
     accentColor: string;
     fontStyle: FontStyle;
+    customFontFamily: string;
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
 }
@@ -38,6 +42,8 @@ export interface AudioSettings {
     noiseSuppressionEnabled: boolean;
     voiceIsolationEnabled: boolean;
     micProfile: "speech" | "music";
+    // Voice changer effect applied to the mic before sending (ui/voice/voiceChanger.ts).
+    voiceEffect: VoiceEffect;
 }
 
 export interface UserLocalSettings {
@@ -57,6 +63,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         closeOnWindowCloseMinimize: true,
         accentColor: DEFAULT_ACCENT_COLOR,
         fontStyle: "pixel",
+        customFontFamily: "",
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
     },
@@ -80,6 +87,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         noiseSuppressionEnabled: true,
         voiceIsolationEnabled: true,
         micProfile: "speech",
+        voiceEffect: "off",
     },
 };
 
@@ -104,7 +112,11 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
     const showSpaceChannelAvatars = appearance.showSpaceChannelAvatars === true;
     const accentColor = normalizeHexColor(appearance.accentColor) ?? DEFAULT_ACCENT_COLOR;
     const fontStyle: FontStyle =
-        appearance.fontStyle === "mixed" || appearance.fontStyle === "system" ? appearance.fontStyle : "pixel";
+        appearance.fontStyle === "mixed" || appearance.fontStyle === "system" || appearance.fontStyle === "custom"
+            ? appearance.fontStyle
+            : "pixel";
+    const customFontFamily =
+        typeof appearance.customFontFamily === "string" ? sanitizeFontFamily(appearance.customFontFamily) : "";
     const chatLineLengthChRaw = typeof appearance.chatLineLengthCh === "number" ? appearance.chatLineLengthCh : 0;
     const chatLineLengthCh =
         Number.isFinite(chatLineLengthChRaw) && chatLineLengthChRaw > 0
@@ -127,7 +139,8 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             showTimestamps,
             closeOnWindowCloseMinimize,
             accentColor,
-            fontStyle,
+            fontStyle: fontStyle === "custom" && !customFontFamily ? "system" : fontStyle,
+            customFontFamily,
             chatLineLengthCh,
             showSpaceChannelAvatars,
         },
@@ -157,6 +170,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             noiseSuppressionEnabled: audio.noiseSuppressionEnabled !== false,
             voiceIsolationEnabled: audio.voiceIsolationEnabled !== false,
             micProfile: audio.micProfile === "music" ? "music" : "speech",
+            voiceEffect: normalizeVoiceEffect(audio.voiceEffect),
         },
     };
 }
@@ -193,6 +207,11 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     const root = document.documentElement;
     root.setAttribute("data-theme", settings.theme);
     root.setAttribute("data-font", settings.fontStyle);
+    if (settings.fontStyle === "custom" && settings.customFontFamily) {
+        root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));
+    } else {
+        root.style.removeProperty("--font-custom");
+    }
     for (const [name, value] of Object.entries(accentTokens(settings.accentColor, settings.theme))) {
         root.style.setProperty(name, value);
     }

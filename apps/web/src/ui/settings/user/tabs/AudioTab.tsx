@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Room } from "livekit-client";
 
+import { buildVoiceEffect, normalizeVoiceEffect, VOICE_EFFECTS, type VoiceEffectChain } from "../../../voice/voiceChanger";
 import type { AudioSettings } from "../settingsStore";
 
 interface AudioTabProps {
@@ -36,6 +37,10 @@ export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElem
     const analyserRef = useRef<AnalyserNode | null>(null);
     const rafRef = useRef<number | null>(null);
     const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
+    const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const effectRef = useRef<VoiceEffectChain | null>(null);
+    const loopbackRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+    const [hearingSelf, setHearingSelf] = useState(false);
 
     const supportsAudioOutputSelection = useMemo(() => "setSinkId" in HTMLMediaElement.prototype, []);
 
@@ -90,11 +95,17 @@ export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElem
         analyserRef.current = null;
         playbackAudioRef.current?.pause();
         playbackAudioRef.current = null;
+        effectRef.current?.dispose();
+        effectRef.current = null;
+        sourceRef.current = null;
+        loopbackRef.current = null;
+        setHearingSelf(false);
         setMicLevel(0);
         setMicTestActive(false);
     };
 
-    const startMicTest = async (): Promise<void> => {
+    // `hearSelf` plays the mic back through the voice changer even when the loopback setting is off.
+    const startMicTest = async (hearSelf = false): Promise<void> => {
         stopMicTest();
         setError(null);
 
@@ -112,13 +123,22 @@ export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElem
             const analyser = context.createAnalyser();
             analyser.fftSize = 512;
             analyserRef.current = analyser;
+            sourceRef.current = source;
             source.connect(analyser);
 
-            if (settings.micTestLoopbackEnabled) {
+            if (settings.micTestLoopbackEnabled || hearSelf) {
+                // Played back through the voice changer, so you hear what others will hear.
+                const loopback = context.createMediaStreamDestination();
+                loopbackRef.current = loopback;
+                const effect = buildVoiceEffect(context, settings.voiceEffect);
+                effectRef.current = effect;
+                source.connect(effect.input);
+                effect.output.connect(loopback);
+                setHearingSelf(true);
                 const audio = new Audio();
                 audio.autoplay = true;
                 audio.muted = false;
-                audio.srcObject = stream;
+                audio.srcObject = loopback.stream;
                 playbackAudioRef.current = audio;
                 if (supportsAudioOutputSelection && settings.preferredAudioOutputId !== "default") {
                     const sinkSetter = audio as HTMLAudioElement & { setSinkId?: (sinkId: string) => Promise<void> };
@@ -151,6 +171,21 @@ export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElem
             setError(micError instanceof Error ? micError.message : "Unable to start microphone test.");
         }
     };
+
+    // Switching effects while hearing yourself swaps the effect in place.
+    useEffect(() => {
+        const context = contextRef.current;
+        const source = sourceRef.current;
+        const loopback = loopbackRef.current;
+        if (!context || !source || !loopback || !effectRef.current) {
+            return;
+        }
+        effectRef.current.dispose();
+        const effect = buildVoiceEffect(context, settings.voiceEffect);
+        effectRef.current = effect;
+        source.connect(effect.input);
+        effect.output.connect(loopback);
+    }, [settings.voiceEffect]);
 
     return (
         <div className="settings-tab">
@@ -257,6 +292,40 @@ export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElem
             </label>
 
             <div className="settings-section-card">
+                <h3>Voice changer</h3>
+                <p className="settings-tab-description">
+                    Changes your voice for everyone in a call, Element users included. Switch any time, even mid-call.
+                </p>
+                <div className="settings-voice-effects" role="radiogroup" aria-label="Voice changer">
+                    {VOICE_EFFECTS.map((effect) => (
+                        <button
+                            key={effect.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={settings.voiceEffect === effect.id}
+                            className={`settings-theme-button${settings.voiceEffect === effect.id ? " is-active" : ""}`}
+                            onClick={() => onChange({ ...settings, voiceEffect: normalizeVoiceEffect(effect.id) })}
+                            title={effect.description}
+                        >
+                            {effect.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="settings-actions-row">
+                    <button
+                        type="button"
+                        className="settings-button"
+                        onClick={() => {
+                            void (hearingSelf ? Promise.resolve(stopMicTest()) : startMicTest(true));
+                        }}
+                        data-testid="voice-effect-preview"
+                    >
+                        {hearingSelf ? "Stop listening" : "Hear yourself"}
+                    </button>
+                </div>
+            </div>
+
+            <div className="settings-section-card">
                 <h3>Microphone test</h3>
                 <div className="settings-audio-meter" aria-label="Microphone level meter">
                     <div className="settings-audio-meter-fill" style={{ width: `${Math.round(micLevel * 100)}%` }} />
@@ -266,7 +335,7 @@ export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElem
                         type="button"
                         className="settings-button"
                         onClick={() => {
-                            void (micTestActive ? Promise.resolve(stopMicTest()) : startMicTest());
+                            void (micTestActive ? Promise.resolve(stopMicTest()) : startMicTest(false));
                         }}
                     >
                         {micTestActive ? "Stop test" : "Start test"}
