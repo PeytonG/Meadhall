@@ -162,10 +162,20 @@ Branch `fork/limitations-fixes`. PR to `main` at the end. `main` still holds the
       muted), "Voice Connected" panel with hang-up, date dividers in the timeline (a new day starts a new group),
       server-rail selection pill, members split into "Online — n" / "Offline — n" (single list without presence).
       Pixel icons: `components/PixelIcon.tsx` (12x12 grids as crisp SVG).
-    - ⏳ New icon from the owner (horn with mugs, barrel, food; has a *painted* checkerboard). It was only pasted in
-      chat; asked the owner to save it as `branding/meadhall-icon.png`. `generate-branding.mjs` already removes
-      painted checkerboards and prefers the .png, so just rerun it.
-11. ⏳ Professional README rewrite, CONTRIBUTING, issue/PR templates; then open the PR.
+    - 🔄 New icon from the owner (big horn with metal bands, mug, barrel, food, coins on a gold-rimmed shield; has
+      a *painted* gray/white checkerboard instead of transparency). Saved by the owner somewhere under
+      `D:\AI Playground` with a new name: copy it to `branding/meadhall-icon.png`, run
+      `node scripts/generate-branding.mjs` (removes edge-connected light neutral pixels, prefers the .png), check
+      `apps/desktop/assets/icon.png` visually, then recapture screenshots
+      (`CAPTURE_SCREENSHOTS=1 pnpm --dir apps/web exec playwright test screenshots`, needs the test Synapse) and
+      commit. The owner wants new screenshots after the icon + login changes.
+11. ✅ README rewritten for everyone (badges, features, download/install table, first steps, dev/test table,
+    known limitations, credits); docs/self-hosting.md (homeserver, web app, LiveKit + lk-jwt-service + well-known,
+    config reference); CONTRIBUTING.md; issue forms + PR template in .github/. Then: **open the PR to main**
+    (owner approved "PR at the end"); use `gh pr create` with a summary of all commits.
+    - Release workflow is green (Windows/Linux/Android build-only run). CI green. Security green after the
+      gitleaks false positive fix (`.gitleaksignore` holds one exact fingerprint).
+    - No release tag pushed yet; ask the owner before tagging `v0.2.0`.
 12. ⏳ Ask the owner about deleting the unused GitHub fork `PeytonG/Heorot` (permanent, so not done without a yes).
 13. Access: only `PeytonG` (admin) has access to PeytonG/Meadhall. Vitosicz (upstream author) has no access and
     can't modify it. He shows in "Contributors" because GitHub lists commit authors and `main` holds his original

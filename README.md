@@ -1,314 +1,163 @@
+<div align="center">
+
+<img src="apps/desktop/assets/icon.png" alt="Meadhall" width="112" />
+
 # Meadhall
 
-A self-hosted Matrix client built to feel like Discord. Spaces are servers. Rooms are channels. End-to-end encryption is on by default. Voice channels interoperate with Element Call.
+**A pixel-art, Discord-style chat app on the open Matrix protocol.**
+Servers, channels, voice hangouts and stickers, end-to-end encrypted and self-hostable, and it talks to Element users too.
 
-Runs as a web app or a native desktop client (Windows · macOS · Linux).
+[![CI](https://github.com/PeytonG/Meadhall/actions/workflows/ci.yml/badge.svg)](https://github.com/PeytonG/Meadhall/actions/workflows/ci.yml)
+[![Security](https://github.com/PeytonG/Meadhall/actions/workflows/security.yml/badge.svg)](https://github.com/PeytonG/Meadhall/actions/workflows/security.yml)
+[![Release](https://github.com/PeytonG/Meadhall/actions/workflows/release.yml/badge.svg)](https://github.com/PeytonG/Meadhall/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-a64dff)](LICENSE)
 
-> Meadhall is a fork of [Heorot](https://github.com/Vitosicz/Heorot) by Vitosicz. Heorot is the great mead-hall in *Beowulf*, hence the name. Meadhall stays compatible with Heorot: spaces, categories, voice channels and custom emoji use the same Matrix event types (`com.heorot.*`, `org.heorot.*`), so users of both clients can share a space.
+[Download](#download) · [Features](#features) · [Self-hosting](docs/self-hosting.md) · [Development](#development) · [Security](SECURITY.md)
 
-![Meadhall chat in the dark theme](docs/screenshots/chat-dark.png)
+<img src="docs/screenshots/chat-dark.png" alt="Meadhall: a space with channels, a conversation with a pixel sticker, and the member list" width="900" />
 
-<details>
-<summary>More screenshots</summary>
-
-![Sign-in screen over the mead hall artwork](docs/screenshots/login.png)
-![The pixel color wheel in Appearance settings](docs/screenshots/theme-color-wheel.png)
-![Meadhall chat in the light theme](docs/screenshots/chat-light.png)
-
-</details>
-
-**What makes it different:**
-- Discord-style spaces and channels on top of the open Matrix protocol
-- Voice channels — self-hosted, no third-party infra required
-- Custom emoji per space and personal packs
-- Fully self-hostable in minutes via Docker Compose
-
-> Heavily inspired by [Element Web](https://github.com/element-hq/element-web). Parts of the client logic and architecture are derived from the Element codebase and adapted for a different UX approach.
-
----
-
-## Status
-
-Personal open-source experiment — alpha stage. Core features work, rough edges remain. Breaking changes between updates are possible.
-
----
-
-## Goals
-
-- Community-first Matrix UX with Discord-like interaction patterns
-- Strong self-hosting support — one domain, one compose file
-- Privacy by default: E2EE on, no analytics, no telemetry
-- Open protocol, open source
-
----
+</div>
 
 ## Features
 
-**Messaging**
-- Channels and DMs with replies and message editing
-- Reactions with custom emoji support (per-space and personal emoji packs)
-- Read receipts and typing indicators
-- Inline image viewer (lightbox)
-- Pinned messages
+**Feels like Discord**
+- Spaces are servers, rooms are channels, with categories, drag-and-drop channel order and per-channel settings.
+- Voice channels are **persistent hangouts**: click to join, no ringing and no "answering". A call stays open as long as anyone is in it.
+- Bottom-left user panel with mute, deafen and settings; a "Voice Connected" panel while you're in a call.
+- Replies, edits, reactions, pinned messages, read receipts, typing indicators, date dividers, and an online/offline member list.
 
-**Voice** *(MatrixRTC + LiveKit, same as Element Call)*
-- Voice channels alongside text channels, joinable from Element too
-- End-to-end encrypted media in encrypted rooms
-- Mic mute / audio mute
-- Live participant list
-- Auto-discovery via `/.well-known/matrix/client`; heorot-voice-relay still supported as a fallback
+**Pixel art everywhere**
+- A hand-made pixel theme with pixel fonts, sprite borders and pixel icons. Bright purple by default, and the
+  **pixel color wheel** (Settings → Appearance) recolors the whole app, readable in light and dark.
+- **Pixel stickers** you can drop into any chat, plus custom emoji packs per server and per person.
 
-**Spaces (servers)**
-- Space hierarchy: spaces contain channels, categories keep them organized
-- Channel ordering — manual drag-and-drop or activity-sorted
-- Collapsible categories
-- Discoverable channels within a space
-- Space and channel settings, visibility controls, member management, role permissions
+**Voice that works with Element**
+- Voice uses **MatrixRTC with LiveKit**, the same as Element Call, so Meadhall and Element users share calls.
+- Media is **end-to-end encrypted** in encrypted rooms.
+- Change your microphone, speaker, noise suppression or echo cancellation **mid-call**, with no leaving and rejoining.
+- Screen sharing, per-person volume, and system audio capture on Windows.
 
-**Security**
-- End-to-end encryption via Rust Crypto WASM (matrix-sdk-crypto)
-- Cross-signing and device verification (SAS and QR code)
-- Key backup and security recovery (secret storage)
-- Forced verification mode (server-configurable)
+**Private and yours**
+- End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery.
+- No analytics, no telemetry. Run it on your own server or sign in to any Matrix homeserver.
 
-**User experience**
-- Online/offline/away presence indicators
-- User profiles with avatar and roles
-- Resizable channel sidebar
-- Appearance themes (light / dark)
-- Notification sounds
+**Everywhere**
+- Web, Windows, Linux (AppImage and Fedora .rpm) and Android. The desktop app sits in the tray, can start at
+  login, and **updates itself**: a notification offers "Update now", then downloads, installs and restarts.
 
-**Desktop extras** *(Electron)*
-- Native window with titlebar overlay
-- Screen sharing and system audio capture (Windows)
-- Window state persistence across restarts
-- Authenticated media (no token-in-URL)
-- Tray icon with close-to-tray, and open at login
-- Auto-update from GitHub Releases
+<details>
+<summary><b>More screenshots</b></summary>
 
----
+<img src="docs/screenshots/login.png" alt="Sign-in screen" width="800" />
 
-## Stack
+<img src="docs/screenshots/theme-color-wheel.png" alt="The pixel color wheel in Appearance settings" width="800" />
 
-| Layer | Technology |
-|---|---|
-| UI | React 19, TypeScript, Vite |
-| Matrix | matrix-js-sdk 40.x, Rust Crypto WASM |
-| Voice | LiveKit client |
-| Desktop | Electron 34, electron-builder |
-| Package manager | pnpm 10 |
+<img src="docs/screenshots/chat-light.png" alt="Meadhall in the light theme" width="800" />
 
----
+<img src="docs/stickers-sheet.png" alt="The pixel sticker pack" width="640" />
 
-## Prerequisites
+</details>
 
-- Node.js 22 LTS (or later)
-- pnpm 10+ (or npm 10+)
-- A Matrix homeserver (e.g. [Synapse](https://github.com/element-hq/synapse))
+## Download
 
----
+Get the latest version from **[Releases](https://github.com/PeytonG/Meadhall/releases/latest)**.
 
-## Quick start (web)
+| Platform | File | Install |
+|---|---|---|
+| **Windows** 10/11 | `Meadhall-Setup-<version>.exe` | Run the installer. Windows SmartScreen may warn because the app isn't code-signed yet: choose **More info → Run anyway**. |
+| **Linux** (any distro) | `Meadhall-<version>-x86_64.AppImage` | `chmod +x Meadhall-*.AppImage`, then run it. |
+| **Fedora / RHEL** | `Meadhall-<version>-x86_64.rpm` | `sudo dnf install ./Meadhall-*.rpm` |
+| **Android** 7+ | `Meadhall-<version>-android.apk` | Open the APK on your phone and allow installing from your browser or file manager when asked. |
+| **Web** | — | Use a Meadhall someone hosts, or [host your own](docs/self-hosting.md). |
+
+Every release includes `SHA256SUMS.txt` so you can verify downloads. Desktop apps update themselves from here.
+
+### First steps
+
+1. Sign in with any Matrix account (or register one if your server allows it). The homeserver field defaults to
+   the server your Meadhall is configured for.
+2. A fresh account may offer to set up **secure backup**. Do it, and keep the key safe: it unlocks your encrypted
+   history on new devices.
+3. Create a space with **+** in the left rail, add text and voice channels, and invite friends.
+4. Click a voice channel to join. Use the gear in the voice panel or **Settings → Audio** for devices.
+
+## Self-hosting
+
+Meadhall is a static web app that talks to a Matrix homeserver. For the full setup (homeserver, the web app, and
+the LiveKit voice backend shared with Element Call), see **[docs/self-hosting.md](docs/self-hosting.md)**.
+
+Quick version for the web app:
 
 ```bash
-git clone https://github.com/PeytonG/Meadhall.git
-cd Meadhall
+git clone https://github.com/PeytonG/Meadhall.git && cd Meadhall
 pnpm install
+cp apps/web/config.example.json apps/web/config.json   # point default_server_config at your homeserver
+pnpm build:web                                         # static files in apps/web/dist/ (serve with any web server)
 ```
 
-Copy the example config and point it at your homeserver:
+## Development
+
+**Requirements:** Node.js 22+, pnpm 10, and Docker for the integration and end-to-end tests.
 
 ```bash
-cp apps/web/config.example.json apps/web/config.json
-```
-
-Edit `apps/web/config.json`:
-
-```json
-{
-  "default_server_config": {
-    "m.homeserver": {
-      "base_url": "https://matrix.example.com",
-      "server_name": "matrix.example.com"
-    }
-  },
-  "brand": "Meadhall",
-  "disable_guests": false,
-  "disable_custom_urls": false,
-  "force_verification": false,
-  "voice_enabled": false
-}
-```
-
-Start the dev server:
-
-```bash
-pnpm dev:web
-# → http://localhost:5173
-```
-
-Build for production:
-
-```bash
-pnpm build:web
-# Output: apps/web/dist/
-```
-
----
-
-## Desktop (Electron)
-
-Requires the web app to be built first.
-
-```bash
-# Development
-pnpm dev:desktop
-
-# Windows installer (.exe)
-pnpm dist:desktop
-
-# Linux AppImage
-pnpm dist:linux
-
-# macOS DMG (unsigned, local dev)
-pnpm dist:mac:universal:unsigned
-```
-
-macOS signed release requires `APPLE_TEAM_ID`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `CSC_LINK`, and `CSC_KEY_PASSWORD` — see `apps/desktop/package.json` for the full command.
-
-### Linux setup
-
-Some Linux environments fail on Windows-targeted install scripts during `pnpm install`. Use the safe path:
-
-```bash
-pnpm setup:linux
-```
-
----
-
-## Configuration reference (`config.json`)
-
-| Key | Type | Default | Description |
-|---|---|---|---|
-| `default_server_config` | object | — | Default homeserver and identity server |
-| `brand` | string | `"Meadhall"` | App name shown in the UI (login screen, page title, session/device names) |
-| `disable_guests` | boolean | `false` | Hide guest login option |
-| `disable_custom_urls` | boolean | `false` | Lock to the default homeserver |
-| `force_verification` | boolean | `false` | Require device verification before access |
-| `voice_enabled` | boolean | `false` | Enable voice channel UI |
-| `voice_service_url` | string | — | Base URL of heorot-voice-relay (e.g. `https://matrix.example.com`) |
-| `livekit_ws_url` | string | — | LiveKit WebSocket URL (legacy, overridden by discovery) |
-| `livekit_service_url` | string | — | MatrixRTC LiveKit JWT service (e.g. `https://matrix.example.com/livekit/jwt`), used only if the homeserver and `.well-known` don't advertise one |
-| `enable_presence_by_hs_url` | object | `{}` | Map of homeserver URLs to presence opt-in |
-
-Voice auto-discovers its backend. MatrixRTC is used when a LiveKit transport is advertised by the homeserver (MSC4143 `/rtc/transports`), by `org.matrix.msc4143.rtc_foci` in `/.well-known/matrix/client`, or by `livekit_service_url`. Otherwise the app falls back to heorot-voice-relay, and `voice_service_url` can be omitted when the relay is discoverable.
-
----
-
-## Voice channels
-
-Voice channels use **MatrixRTC**, the same protocol as Element Call, so Meadhall and Element users can talk in the same room. Media is end-to-end encrypted in encrypted rooms, and keys are exchanged over to-device messages. This needs the same server pieces as Element Call:
-
-- **[LiveKit](https://livekit.io)** — media server
-- **[lk-jwt-service](https://github.com/element-hq/lk-jwt-service)** — issues LiveKit tokens for Matrix OpenID tokens, advertised via `org.matrix.msc4143.rtc_foci`
-
-Meadhall connects to the SFU advertised by your homeserver. Element users on other homeservers who publish to a different SFU (multi-SFU calls) are not heard yet.
-
-### Fallback: heorot-voice-relay
-
-If no MatrixRTC transport is found, Meadhall falls back to Heorot's original relay. Relay calls are not visible to Element users.
-
-- **[heorot-voice-relay](https://github.com/Vitosicz/heorot-voice-relay)** — Matrix-authenticated token service
-- **[LiveKit](https://livekit.io)** — media server
-
-**heorot-voice-relay ships a ready-made Docker Compose stack** (Synapse + LiveKit + relay + Caddy with auto TLS). Three commands from zero to running:
-
-```bash
-cp .env.example .env          # set your domain and LiveKit keys (5 placeholders)
-docker compose up -d           # starts all four services
-
-# Create the first admin (one-time):
-docker compose exec synapse register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008
-
-# Get an admin access token (log in as the admin you just created):
-curl -s -X POST "https://your-domain.com/_matrix/client/v3/login" \
-  -H "Content-Type: application/json" \
-  -d '{"type":"m.login.password","user":"admin","password":"your_password"}' \
-  | grep -o '"access_token":"[^"]*"'
-
-# Create a registration token so others can sign up:
-curl -X POST "https://your-domain.com/_synapse/admin/v1/registration_tokens/new" \
-  -H "Authorization: Bearer <access_token_from_above>" \
-  -H "Content-Type: application/json" \
-  -d '{"uses_allowed": 10}'
-# Users enter the token on the registration screen.
-# Omit uses_allowed for an unlimited token, or add "expiry_time" (unix ms) to expire it.
-```
-
-Then set `"voice_enabled": true` in `config.json` — the relay URL is auto-discovered via `/.well-known/matrix/client`.
-
-See [heorot-voice-relay](https://github.com/Vitosicz/heorot-voice-relay) for the full setup guide.
-
----
-
-## All commands
-
-```bash
-# From repo root — pnpm
-pnpm dev:web
-pnpm dev:desktop
-pnpm build:web
-pnpm build:desktop
-pnpm dist:desktop       # Windows
-pnpm dist:linux         # Linux AppImage
-pnpm dist:mac           # macOS DMG (unsigned)
-
-# Tests
-pnpm --filter @heorot/web test
-
-# Type checking
+pnpm install
+pnpm dev:web                 # web app at http://localhost:5173
+pnpm dev:desktop             # Electron desktop app
 pnpm typecheck
-
-# From repo root — npm
-npm run dev:web
-npm run dev:desktop
-npm run build:web
-npm run build:desktop
+pnpm --dir apps/web test     # unit tests
 ```
 
----
+| Tests | Command | What it covers |
+|---|---|---|
+| Unit | `pnpm --dir apps/web test` | Logic: voice/MatrixRTC helpers, theme engine, stickers, updates UI and more |
+| Smoke | `pnpm --dir apps/web test:smoke` | The voice room component with a simulated call (E2EE, live audio settings) |
+| Integration | `node scripts/test-synapse.mjs start` then `pnpm --dir apps/web test:integration` | Real Synapse (room versions 11 and 12): imports, MatrixRTC memberships, encrypted key exchange |
+| End-to-end | `pnpm --dir apps/web test:e2e` (Synapse running) | The real app in Chromium: sign-in, chat, stickers |
+
+All of these run on every push in [GitHub Actions](.github/workflows/ci.yml), alongside
+[security scanning](.github/workflows/security.yml) (CodeQL, dependency review, gitleaks, `pnpm audit`,
+Electronegativity).
+
+| Path | What's there |
+|---|---|
+| `apps/web` | The app: React 19, Vite, matrix-js-sdk, LiveKit |
+| `apps/desktop` | Electron wrapper: tray, updates, permissions |
+| `apps/mobile` | Android app (Capacitor) |
+| `branding/`, `scripts/generate-branding.mjs` | Source artwork and the script that makes every icon from it |
+| `scripts/generate-stickers.mjs` | The pixel sticker sprites |
+| `CLAUDE.md` | Architecture notes, decisions and their reasons, for humans and AI agents |
+
+**Releasing** (maintainers): push a tag like `v0.2.0`. The [release workflow](.github/workflows/release.yml)
+builds Windows, Linux and Android, attaches them to a GitHub Release with checksums, and publishes it once every
+build has succeeded. For a release-signed APK, set the `ANDROID_KEYSTORE_*` secrets described in the workflow.
 
 ## Known limitations
 
-- **Alpha stage** — UX and some settings flows are still evolving
-- **No auto-updater** — update by pulling the repo and rebuilding
-- **No push notifications** — browser/OS notifications only while the app is open
-- **Voice media is direct UDP** — RTP traffic cannot go through an HTTP proxy; clients need UDP access to LiveKit or an external TURN server
-- **End-to-end tests** — coverage is unit tests only; integration and E2E test suite is not yet in place
-
----
+- **Alpha**: features and settings are still evolving, and there may be breaking changes between versions.
+- **Push notifications** aren't implemented: you're notified while the app is open (desktop keeps running in the tray).
+- **Calls across homeservers**: Meadhall joins the voice server (SFU) of its own homeserver. Element users who
+  publish on a different homeserver's SFU can hear you, but you won't hear them yet (multi-SFU is on the roadmap).
+- **Voice needs UDP** access to LiveKit (or a TURN server); it can't go through an HTTP proxy.
+- The Windows and macOS apps aren't code-signed yet, and there's no iOS app.
 
 ## Roadmap
 
-Planned:
-- Mobile clients (Android / iOS)
+- Multi-SFU calls (hear Element users on any homeserver)
 - Push notifications
-- Voice participant limit and scaling improvements
-- Federation UX improvements
-
----
+- iOS
+- More sticker packs, and custom sticker packs per server
 
 ## Contributing
 
-1. Fork and clone the repo
-2. Install dependencies: `pnpm install`
-3. Start dev server: `pnpm dev:web`
-4. Make your changes and open a pull request
+Issues and pull requests are welcome. Read **[CONTRIBUTING.md](CONTRIBUTING.md)** first. Please report security
+issues privately as described in **[SECURITY.md](SECURITY.md)**.
 
-Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/PeytonG/Meadhall/issues). Issues that also affect upstream belong in [Heorot's tracker](https://github.com/Vitosicz/Heorot/issues).
+## Credits and license
 
----
+Meadhall is a fork of **[Heorot](https://github.com/Vitosicz/Heorot)** by Vitosicz. Heorot is the great mead-hall
+in *Beowulf*, hence the name. Parts of Heorot derive from [Element Web](https://github.com/element-hq/element-web).
+Meadhall stays compatible with Heorot: servers, categories, voice channels and emoji use the same Matrix event
+types, so users of both apps can share a space. See [NOTICE](NOTICE) for what this fork changed.
 
-## License
-
-[AGPL-3.0](LICENSE), same as upstream Heorot.
+Licensed under the **[GNU AGPL-3.0](LICENSE)**. If you host a modified Meadhall for others, you must offer them its
+source (set `source_code_url` in `config.json`). Fonts: Pixelify Sans and Silkscreen (SIL Open Font License).
