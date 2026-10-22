@@ -23,7 +23,7 @@
       "provider": "github",
       "owner": "PeytonG",
       "repo": "Meadhall",
-      "releaseType": "release"
+      "releaseType": "draft"
     }
   ],
   "files": [
@@ -40,7 +40,8 @@
   },
   "nsis": {
     "oneClick": false,
-    "allowToChangeInstallationDirectory": true
+    "allowToChangeInstallationDirectory": true,
+    "artifactName": "Meadhall-Setup-${version}.${ext}"
   },
   "mac": {
     "target": [
@@ -58,9 +59,13 @@
   "dmg": {},
   "linux": {
     "target": [
-      "AppImage"
+      "AppImage",
+      "rpm"
     ],
     "category": "Network",
     "executableName": "meadhall"
+  },
+  "appImage": {
+    "artifactName": "Meadhall-${version}-${arch}.${ext}"
   }
 }

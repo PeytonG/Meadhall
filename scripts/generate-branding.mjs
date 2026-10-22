@@ -67,3 +67,40 @@ for (const [relative, size] of targets) {
 
 await sharp(branding("meadhall-hall.jpg")).webp({ quality: 82 }).toFile(out("apps/web/src/ui/assets/login-hall.webp"));
 console.log("wrote apps/web/src/ui/assets/login-hall.webp");
+
+// Android (Capacitor) launcher icons and splash screens.
+const ANDROID_BACKGROUND = "#14091f";
+const res = (relative) => out(`apps/mobile/android/app/src/main/res/${relative}`);
+const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+for (const [density, scale] of Object.entries(densities)) {
+    const size = Math.round(48 * scale);
+    for (const name of ["ic_launcher", "ic_launcher_round"]) {
+        await sharp(icon).resize(size, size).png().toFile(res(`mipmap-${density}/${name}.png`));
+    }
+    // Adaptive icon foreground: 108dp canvas, artwork inside the 66dp safe zone.
+    const canvas = Math.round(108 * scale);
+    const art = Math.round(66 * scale);
+    const inset = Math.round((canvas - art) / 2);
+    await sharp(icon)
+        .resize(art, art)
+        .extend({ top: inset, bottom: canvas - art - inset, left: inset, right: canvas - art - inset, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png()
+        .toFile(res(`mipmap-${density}/ic_launcher_foreground.png`));
+}
+fs.writeFileSync(
+    res("values/ic_launcher_background.xml"),
+    `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${ANDROID_BACKGROUND}</color>\n</resources>\n`,
+);
+const splashDir = path.join(root, "apps/mobile/android/app/src/main/res");
+for (const folder of fs.readdirSync(splashDir).filter((name) => name.startsWith("drawable"))) {
+    const splash = path.join(splashDir, folder, "splash.png");
+    if (!fs.existsSync(splash)) continue;
+    const { width, height } = await sharp(splash).metadata();
+    const art = Math.round(Math.min(width, height) * 0.3);
+    const artwork = await sharp(icon).resize(art, art).png().toBuffer();
+    await sharp({ create: { width, height, channels: 4, background: ANDROID_BACKGROUND } })
+        .composite([{ input: artwork, gravity: "center" }])
+        .png()
+        .toFile(splash);
+}
+console.log("wrote Android launcher icons and splash screens");

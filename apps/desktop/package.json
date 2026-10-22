@@ -2,7 +2,12 @@
   "name": "@heorot/desktop",
   "version": "0.1.0",
   "private": true,
-  "author": "Meadhall",
+  "author": {
+    "name": "Meadhall",
+    "email": "47164665+PeytonG@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/PeytonG/Meadhall",
+  "license": "AGPL-3.0-only",
   "description": "Meadhall desktop app",
   "main": "dist/electron/main.js",
   "scripts": {
