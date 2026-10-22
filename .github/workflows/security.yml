@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Security scanning: CodeQL, dependency review, secret scanning (gitleaks), dependency audit and an Electron
+# configuration scan (Electronegativity). See SECURITY.md for how findings are handled.
+name: Security
+
+on:
+  push:
+    branches: [main, "fork/**"]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1" # Mondays: catch advisories published since the last change
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+          # AGPL-3.0 project: block licenses that can't be combined with it.
+          deny-licenses: SSPL-1.0, BUSL-1.1
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Scan the full history
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 \
+            git /repo --redact --no-banner --exit-code 1
+
+  audit:
+    name: Dependency audit and Electron config scan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # Fails on high/critical advisories; accepted moderate ones are listed in SECURITY.md.
+      - run: pnpm audit --audit-level high
+      - name: Electronegativity
+        env:
+          npm_config_ignore_scripts: "true"
+        run: |
+          electron_version=$(node -p "require('./apps/desktop/package.json').devDependencies.electron.replace(/^[^0-9]*/, '')")
+          npx --yes @doyensec/electronegativity@1.10.3 -i apps/desktop/electron -e "$electron_version" -o electronegativity.csv
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: electronegativity
+          path: electronegativity.csv
+          if-no-files-found: ignore
