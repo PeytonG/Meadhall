@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { expect, test } from "@playwright/test";
 
-import { SYNAPSE_URL, createSpaceWithChannel, readMessages, registerUser, sendMessage } from "./support/matrixApi";
+import { SYNAPSE_URL, createSpaceWithChannel, readMessages, readEvents, registerUser, sendMessage, sendStickerEvent } from "./support/matrixApi";
 import { signIn } from "./support/ui";
 
 test("shows the Meadhall sign-in screen", async ({ page }) => {
@@ -43,4 +47,27 @@ test("signs in, reads a space channel and sends a message", async ({ page }) => 
             timeout: 30_000,
         })
         .toBe(true);
+});
+
+test("sends pixel stickers and shows stickers from others", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    const { channelId } = await createSpaceWithChannel(bob, alice, { space: "Sticker Hall", channel: "general" });
+    const crown = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/ui/assets/stickers/crown.png"));
+    await sendStickerEvent(bob, channelId, crown, "Crown");
+
+    await signIn(page, alice);
+    await page.getByTitle("Sticker Hall").click();
+    await page.getByText("#general", { exact: true }).first().click();
+    await expect(page.locator(".timeline-sticker img")).toHaveCount(1);
+
+    await page.getByRole("button", { name: "Open sticker picker" }).click();
+    await page.getByRole("button", { name: "Send Cheers sticker" }).click();
+
+    await expect(page.locator(".timeline-sticker img")).toHaveCount(2);
+    await expect
+        .poll(async () =>
+            (await readEvents(bob, channelId)).find((event) => event.type === "m.sticker" && event.sender === alice.userId)?.content,
+        )
+        .toMatchObject({ body: "Cheers", url: expect.stringMatching(/^mxc:\/\/localhost\//), info: { w: 128, h: 128, mimetype: "image/png" } });
 });

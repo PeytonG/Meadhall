@@ -107,3 +107,33 @@ export async function createSpaceWithChannel(
 export async function setDisplayName(user: ApiUser, displayName: string): Promise<void> {
     await request(user, "PUT", `/profile/${encodeURIComponent(user.userId)}/displayname`, { displayname: displayName });
 }
+
+export async function readEvents(
+    user: ApiUser,
+    roomId: string,
+): Promise<Array<{ type: string; sender: string; content: Record<string, unknown> }>> {
+    const { chunk } = await request<{ chunk: Array<{ type: string; sender: string; content: Record<string, unknown> }> }>(
+        user,
+        "GET",
+        `/rooms/${encodeURIComponent(roomId)}/messages?dir=b&limit=50`,
+    );
+    return chunk;
+}
+
+// Uploads a PNG and sends it as an m.sticker event, like any Matrix client would.
+export async function sendStickerEvent(user: ApiUser, roomId: string, png: Uint8Array, body: string): Promise<void> {
+    const upload = await fetch(`${SYNAPSE_URL}/_matrix/media/v3/upload?filename=sticker.png`, {
+        method: "POST",
+        headers: { "Content-Type": "image/png", Authorization: `Bearer ${user.accessToken}` },
+        body: png,
+    });
+    if (!upload.ok) {
+        throw new Error(`Sticker upload failed: HTTP ${upload.status} ${await upload.text()}`);
+    }
+    const { content_uri: url } = (await upload.json()) as { content_uri: string };
+    await request(user, "PUT", `/rooms/${encodeURIComponent(roomId)}/send/m.sticker/${crypto.randomUUID()}`, {
+        body,
+        url,
+        info: { w: 128, h: 128, mimetype: "image/png", size: png.byteLength },
+    });
+}

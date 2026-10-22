@@ -337,8 +337,14 @@ async function fetchEncryptedArrayBufferWithRetry(
     throw new Error("Failed to download encrypted media");
 }
 
+// Stickers (m.sticker, e.g. Meadhall's pixel stickers) render as images without the image chrome.
+function isStickerEvent(event: MatrixEvent): boolean {
+    return event.getType() === EventType.Sticker;
+}
+
 function getMessageContent(event: MatrixEvent): MessageContent {
-    return event.getContent() as MessageContent;
+    const content = event.getContent() as MessageContent;
+    return isStickerEvent(event) ? ({ ...content, msgtype: MsgType.Image } as MessageContent) : content;
 }
 
 function getTextBody(content: MessageContent): string | null {
@@ -590,7 +596,7 @@ function collectLatestEditEventsByTarget(room: Room | null): Map<string, MatrixE
 }
 
 function isRenderableMessage(event: MatrixEvent): boolean {
-    if (event.getType() !== EventType.RoomMessage || event.isRedacted()) {
+    if ((event.getType() !== EventType.RoomMessage && !isStickerEvent(event)) || event.isRedacted()) {
         return false;
     }
 
@@ -2119,7 +2125,7 @@ export function Timeline({
                                 </div>
                             ) : null}
                             {mediaMsgType === MsgType.Image && mediaUrl ? (
-                                <div className={`timeline-image-wrap${showHeader ? "" : " timeline-image-wrap-grouped"}`}>
+                                <div className={`timeline-image-wrap${showHeader ? "" : " timeline-image-wrap-grouped"}${isStickerEvent(event) ? " timeline-sticker" : ""}`}>
                                     <button
                                         type="button"
                                         className="timeline-image-button"

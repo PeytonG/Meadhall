@@ -262,3 +262,87 @@ select {
     gap: 6px 14px;
     margin: 10px 0;
 }
+
+/* Pixel sticker picker (composer) and stickers in the timeline. */
+.composer-sticker-anchor {
+    position: relative;
+    display: flex;
+}
+
+.composer-sticker-button img {
+    width: 22px;
+    height: 22px;
+    image-rendering: pixelated;
+}
+
+.sticker-picker {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    z-index: 40;
+    width: 304px;
+    padding: 10px;
+    background: var(--bg-card);
+    box-shadow:
+        0 calc(var(--pixel) * -1) 0 0 var(--pixel-border),
+        0 var(--pixel) 0 0 var(--pixel-border),
+        calc(var(--pixel) * -1) 0 0 0 var(--pixel-border),
+        var(--pixel) 0 0 0 var(--pixel-border);
+}
+
+.sticker-picker-title {
+    font-family: var(--font-pixel-display);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.sticker-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.sticker-picker-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.sticker-picker-item:hover:not(:disabled),
+.sticker-picker-item:focus-visible {
+    background: var(--bg-hover);
+}
+
+.sticker-picker-item img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.sticker-picker-error {
+    margin: 8px 0 0;
+    color: var(--danger);
+    font-size: 12px;
+}
+
+.timeline-image-wrap.timeline-sticker .timeline-image-button {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+}
+
+.timeline-image-wrap.timeline-sticker .timeline-image {
+    width: 128px;
+    height: 128px;
+    max-width: 128px;
+    object-fit: contain;
+    background: transparent;
+    image-rendering: pixelated;
+}

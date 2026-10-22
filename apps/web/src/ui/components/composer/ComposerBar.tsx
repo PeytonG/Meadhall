@@ -19,6 +19,7 @@ interface ComposerBarProps {
     onAttach: () => void;
     onToggleEmoji: () => void;
     emojiPicker: React.ReactNode;
+    stickerControl?: React.ReactNode;
 }
 
 export function ComposerBar({
@@ -40,6 +41,7 @@ export function ComposerBar({
     onAttach,
     onToggleEmoji,
     emojiPicker,
+    stickerControl,
 }: ComposerBarProps): React.ReactElement {
     return (
         <div className="composer-bar">
@@ -76,6 +78,7 @@ export function ComposerBar({
                     rows={1}
                 />
                 <div className="composer-input-actions">
+                    {stickerControl}
                     <div className="composer-emoji-anchor">
                         <button
                             ref={emojiButtonRef}

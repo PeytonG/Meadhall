@@ -116,7 +116,10 @@ It replaces the server's defaults, so the creator loses rights, and on room vers
 ## Gotchas (learned the hard way)
 
 - VS Code's extension host sets `ELECTRON_RUN_AS_NODE=1`; unset it before launching Electron from an agent shell or `require("electron")` returns a path string.
-- PowerShell: `"$nlimport"` is one variable. Bash on Windows (Git Bash) mangles a leading `//` in arguments (an SPDX header became `/ SPDX`). Prefer the Edit tool for source edits. Files use CRLF in the working tree.
+- PowerShell: `"$nlimport"` / `"$nlfunction"` is one variable (it silently dropped code twice); use the Edit tool.
+- Vite inlines assets under 4 KB as `data:` URLs; the CSP blocks fetch() of `data:`.
+- Electron 44 removed `openAsHidden`/`wasOpenedAsHidden` (use `wasOpenedAtLogin`). After upgrading Electron with
+  pnpm, run `node node_modules/electron/install.js` in apps/desktop if the binary is missing. Bash on Windows (Git Bash) mangles a leading `//` in arguments (an SPDX header became `/ SPDX`). Prefer the Edit tool for source edits. Files use CRLF in the working tree.
 - Synapse's Docker `generate` hands the data dir to uid 991 on Linux; the test script mounts overrides separately and cleans the dir from inside a container.
 - After a page reload, a fresh test account is offered "Set up secure backup" again; use `waitForAppShell()` in E2E.
 - `.login-card button` out-ranks `.login-mode-button` in CSS specificity (fixed in pixel.css).
@@ -141,13 +144,30 @@ Branch `fork/limitations-fixes`. PR to `main` at the end. `main` still holds the
 7. ✅ Rename to Meadhall, owner's artwork, pixel-art theme, bright purple default, pixel color wheel.
 8. ✅ AGPL: SPDX headers, NOTICE, in-app source link.
 9. ✅ README uses Meadhall screenshots only (Heorot's docs/ui.png etc. deleted at the owner's request).
-10. ⏳ Owner requests (2026-10-22), in progress:
-    - Login backdrop more subtle (the mead hall art was "too much").
-    - UI "a lot like Discord".
-    - Pixel art everywhere, including **pixel-art stickers sendable in chat** (send as standard `m.sticker` events
-      so Element shows them too).
+10. Owner requests (2026-10-22):
+    - ✅ Login backdrop subtle (dark veil + accent glow over the mead hall art).
+    - ✅ Pixel-art **stickers** (12, `scripts/generate-stickers.mjs` draws them from 16x16 sprites; picker in the
+      composer). Sent as standard `m.sticker` events (Element shows them); each sticker is uploaded once per
+      homeserver (mxc cached in localStorage `heorot.stickers.mxc.v1`). Received `m.sticker` events render via the
+      image path (`isStickerEvent` in Timeline). Small assets are inlined as `data:` URLs, which the CSP blocks from
+      fetch(), so `sendSticker` decodes them.
+    - ✅ Updates: "Meadhall X is available" notification → **Update now** (download with progress, silent install,
+      restart); Settings → Updates (desktop only) shows the version and has "Check for updates". `autoDownload` is
+      off by design.
+    - ✅ Voice: channels are persistent hangouts (join never rings/notifies; the call lives while anyone is in it).
+      Audio settings apply **live**: device/processing changes `restartTrack()` the published mic (no rejoin, no
+      unpublish); only the speech/music profile republishes; speaker switching works incl. back to "default"; the
+      processing toggles are in the in-call panel. Covered by smoke tests.
+    - ⏳ UI "a lot like Discord" (in progress next).
+    - ⏳ New icon from the owner (horn with mugs, barrel, food; has a *painted* checkerboard). It was only pasted in
+      chat; asked the owner to save it as `branding/meadhall-icon.png`. `generate-branding.mjs` already removes
+      painted checkerboards and prefers the .png, so just rerun it.
 11. ⏳ Professional README rewrite, CONTRIBUTING, issue/PR templates; then open the PR.
 12. ⏳ Ask the owner about deleting the unused GitHub fork `PeytonG/Heorot` (permanent, so not done without a yes).
+13. Access: only `PeytonG` (admin) has access to PeytonG/Meadhall. Vitosicz (upstream author) has no access and
+    can't modify it. He shows in "Contributors" because GitHub lists commit authors and `main` holds his original
+    commits. Do **not** rewrite history to remove his authorship (misattribution, AGPL attribution). Blocking him is
+    the owner's choice in GitHub settings.
 
 Note: building the Windows installer locally fails with "Cannot create symbolic link" unless Windows Developer Mode is
 on (electron-builder's winCodeSign archive contains symlinks). CI runners are fine.
