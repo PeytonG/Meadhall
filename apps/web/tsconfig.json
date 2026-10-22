@@ -21,6 +21,9 @@
       "matrix-js-sdk/src/logger": ["node_modules/matrix-js-sdk/lib/logger.d.ts"],
       "matrix-js-sdk/src/base64": ["node_modules/matrix-js-sdk/lib/base64.d.ts"],
       "matrix-js-sdk/src/types": ["node_modules/matrix-js-sdk/lib/types.d.ts"],
+      "matrix-js-sdk/src/crypto-api": ["node_modules/matrix-js-sdk/lib/crypto-api/index.d.ts"],
+      "matrix-js-sdk/src/crypto-api/recovery-key": ["node_modules/matrix-js-sdk/lib/crypto-api/recovery-key.d.ts"],
+      "matrix-js-sdk/src/matrixrtc": ["node_modules/matrix-js-sdk/lib/matrixrtc/index.d.ts"],
       "matrix-js-sdk/src/utils/decryptAESSecretStorageItem": [
         "node_modules/matrix-js-sdk/lib/utils/decryptAESSecretStorageItem.d.ts"
       ],
