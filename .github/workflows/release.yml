@@ -53,8 +53,9 @@ jobs:
           fi
           IFS=. read -r major minor patch <<< "${version%%-*}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          # Android versionCode: 1.2.3 -> 10203 (must only ever increase).
-          echo "code=$((major * 10000 + minor * 100 + patch))" >> "$GITHUB_OUTPUT"
+          # Android versionCode: 1.2.3 -> 10203 (must only ever increase and be positive; dev builds use the run number).
+          code=$((major * 10000 + minor * 100 + patch))
+          echo "code=$(( code > 0 ? code : GITHUB_RUN_NUMBER ))" >> "$GITHUB_OUTPUT"
 
   draft:
     name: Create draft release
