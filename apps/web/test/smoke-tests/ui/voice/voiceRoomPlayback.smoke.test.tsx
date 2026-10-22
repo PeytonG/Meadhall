@@ -452,14 +452,36 @@ describe("voice room smoke", () => {
         const roomId = "!voice:example.org";
         const transport = { type: "livekit", livekit_service_url: "https://rtc.example.org/livekit/jwt" };
 
-        function createRtcClient(session: FakeRtcSession, encrypted: boolean): Record<string, unknown> {
+        function createRtcClient(
+            session: FakeRtcSession,
+            encrypted: boolean,
+            permissions: { callMemberLevel?: number; ownLevel?: number } = {},
+        ): Record<string, unknown> & { sendStateEvent: ReturnType<typeof vi.fn> } {
+            const { callMemberLevel = 0, ownLevel = 0 } = permissions;
+            const powerLevels = {
+                users_default: 0,
+                state_default: 50,
+                events: { "m.room.power_levels": 100, "org.matrix.msc3401.call.member": callMemberLevel },
+            };
+            const fakeRoom = {
+                roomId,
+                hasEncryptionStateEvent: () => encrypted,
+                currentState: {
+                    getStateEvents: (type: string) =>
+                        type === "m.room.power_levels" ? { getContent: () => powerLevels } : null,
+                    maySendStateEvent: (type: string) =>
+                        ownLevel >= ((powerLevels.events as Record<string, number>)[type] ?? powerLevels.state_default),
+                },
+            };
             return {
                 getUserId: () => "@self:example.org",
                 getSafeUserId: () => "@self:example.org",
                 getDeviceId: () => "SELFDEVICE",
                 getUser: () => ({ rawDisplayName: "Self" }),
                 mxcUrlToHttp: () => null,
-                getRoom: (id: string) => (id === roomId ? { roomId, hasEncryptionStateEvent: () => encrypted } : null),
+                getRoom: (id: string) => (id === roomId ? fakeRoom : null),
+                getStateEvent: vi.fn(async () => powerLevels),
+                sendStateEvent: vi.fn(async () => ({})),
                 matrixRTC: { getRoomSession: () => session },
             };
         }
@@ -542,6 +564,41 @@ describe("voice room smoke", () => {
             expect(session.listenerCount()).toBe(0);
             expect(createdWorkers[0].terminate).toHaveBeenCalledTimes(1);
             expect(voiceAdapterMocks.updateVoiceParticipantState).not.toHaveBeenCalled();
+        });
+
+        it("explains instead of joining when the member may not join calls", async () => {
+            const session = createRtcSession();
+            await renderAndJoin(createRtcClient(session, false, { callMemberLevel: 50, ownLevel: 0 }));
+
+            expect(container.textContent).toContain("Your role can't join calls in this channel yet.");
+            expect(createdRooms).toHaveLength(0);
+            expect(voiceAdapterMocks.fetchSfuCredentials).not.toHaveBeenCalled();
+            expect(session.joinRTCSession).not.toHaveBeenCalled();
+        });
+
+        it("offers admins of older voice channels to let members join calls", async () => {
+            const session = createRtcSession();
+            const client = createRtcClient(session, false, { callMemberLevel: 50, ownLevel: 100 });
+            await renderAndJoin(client);
+
+            const fixButton = Array.from(container.querySelectorAll("button")).find(
+                (button) => button.textContent === "Allow members to join calls",
+            );
+            expect(fixButton).toBeTruthy();
+            await act(async () => {
+                fixButton!.click();
+                await Promise.resolve();
+            });
+
+            expect(client.sendStateEvent).toHaveBeenCalledWith(
+                roomId,
+                "m.room.power_levels",
+                expect.objectContaining({
+                    events: { "m.room.power_levels": 100, "org.matrix.msc3401.call.member": 0 },
+                }),
+                "",
+            );
+            expect(container.textContent).not.toContain("Allow members to join calls");
         });
 
         it("lists call members but not subscriber-only connections", async () => {

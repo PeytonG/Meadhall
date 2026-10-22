@@ -5,6 +5,7 @@ import {
     type CallMembership,
     type LivekitTransport,
     type LivekitTransportConfig,
+    type MatrixRTCSession,
 } from "matrix-js-sdk/src/matrixrtc";
 
 import type { CoreConfig } from "../config/configTypes";
@@ -99,6 +100,26 @@ export function clearLiveKitTransportCache(client: MatrixClient): void {
 
 export function toLivekitTransport(transport: LivekitTransportConfig, roomId: string): LivekitTransport {
     return { ...transport, livekit_alias: roomId };
+}
+
+// Sends the same membership Element Call does in its default (Compatibility) mode: a session state event naming
+// our transport, with the @user:server:DEVICE identity that /sfu/get assigns.
+export function joinMatrixRtcSession(
+    client: MatrixClient,
+    session: MatrixRTCSession,
+    transport: LivekitTransportConfig,
+    roomId: string,
+    options: { manageMediaKeys: boolean },
+): void {
+    const userId = client.getSafeUserId();
+    const deviceId = client.getDeviceId() ?? "";
+    session.joinRTCSession({ userId, deviceId, memberId: `${userId}:${deviceId}` }, [], toLivekitTransport(transport, roomId), {
+        callIntent: "audio",
+        manageMediaKeys: options.manageMediaKeys,
+        // Required: current Element Call only exchanges media keys over to-device messages.
+        useExperimentalToDeviceTransport: true,
+    });
+    session.reemitEncryptionKeys();
 }
 
 export async function fetchSfuCredentials(

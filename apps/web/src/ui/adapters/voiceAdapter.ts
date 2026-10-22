@@ -16,6 +16,7 @@ export {
     discoverLiveKitTransport,
     fetchSfuCredentials,
     getRtcVoiceParticipants,
+    joinMatrixRtcSession,
     parseMatrixUserIdFromIdentity,
     toLivekitTransport,
 } from "../../core/voice/matrixRtc";

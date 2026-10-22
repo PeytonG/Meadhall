@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     HEOROT_VOICE_CHANNEL_EVENT,
     MATRIX_CALL_COMPAT_EVENT,
+    canMembersJoinCalls,
     isVoiceChannelRoom,
 } from "../../../../src/ui/voice/voiceChannel";
 
@@ -75,5 +76,35 @@ describe("isVoiceChannelRoom", () => {
         });
 
         expect(isVoiceChannelRoom(room as any)).toBe(false);
+    });
+});
+
+function makeAccessRoom(powerLevels: unknown, channelAccess?: unknown): any {
+    return {
+        currentState: {
+            getStateEvents: (eventType: string) => {
+                if (eventType === "m.room.power_levels") return powerLevels === undefined ? null : makeStateEvent(powerLevels);
+                if (eventType === "com.heorot.channel_access") return channelAccess === undefined ? null : makeStateEvent(channelAccess);
+                return null;
+            },
+        },
+    };
+}
+
+describe("canMembersJoinCalls", () => {
+    it("is false at the default state level, as in voice channels made before calls were allowed", () => {
+        expect(canMembersJoinCalls(makeAccessRoom({ users_default: 0, state_default: 50 }))).toBe(false);
+        expect(canMembersJoinCalls(makeAccessRoom(undefined))).toBe(false);
+    });
+
+    it("is true once call memberships are lowered to the members' level", () => {
+        const powerLevels = { users_default: 0, state_default: 50, events: { "org.matrix.msc3401.call.member": 0 } };
+        expect(canMembersJoinCalls(makeAccessRoom(powerLevels))).toBe(true);
+    });
+
+    it("measures restricted channels against their access level", () => {
+        const restricted = { users_default: 0, events: { "org.matrix.msc3401.call.member": 50 } };
+        expect(canMembersJoinCalls(makeAccessRoom(restricted, { min_power_level: 50 }))).toBe(true);
+        expect(canMembersJoinCalls(makeAccessRoom(restricted))).toBe(false);
     });
 });

@@ -1,15 +1,14 @@
 import { EventType, Preset, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import {
-    HEOROT_VOICE_CHANNEL_EVENT,
+    CHANNEL_ACCESS_EVENT,
     HEOROT_SPACE_CHILD_CHANNEL_TYPE_KEY,
     HEOROT_SPACE_CHILD_VOICE_KEY,
-    MATRIX_CALL_COMPAT_EVENT,
+    allowCallMemberships,
+    voiceChannelInitialState,
 } from "../voice/voiceChannel";
 import { getSpacePack, saveSpacePack } from "../emoji/EmojiPackStore";
 import { createCategory, writeCategories, writeChannelOrder, type HeorotCategory } from "../stores/CategoryStore";
-
-const CHANNEL_ACCESS_EVENT = "com.heorot.channel_access";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -261,24 +260,10 @@ export async function runJsonImport(
                     });
                 }
             } else {
-                initialState.push({
-                    type: HEOROT_VOICE_CHANNEL_EVENT,
-                    state_key: "",
-                    content: { enabled: true, version: 1, chat_suppressed: true },
-                });
-                initialState.push({
-                    type: MATRIX_CALL_COMPAT_EVENT,
-                    state_key: "",
-                    content: { type: "voice", intent: "voice", chat_suppressed: true },
-                });
+                initialState.push(...voiceChannelInitialState());
             }
 
             if (cfg.minPL > 0) {
-                initialState.push({
-                    type: EventType.RoomPowerLevels,
-                    state_key: "",
-                    content: { events_default: cfg.minPL },
-                });
                 initialState.push({
                     type: CHANNEL_ACCESS_EVENT,
                     state_key: "",
@@ -299,9 +284,15 @@ export async function runJsonImport(
                     topic: channel.topic ?? undefined,
                     preset: Preset.PrivateChat,
                     initial_state: initialState,
+                    // Merged into the server's default power levels. A power levels event in initial_state would
+                    // replace them, dropping the creator's rights (and failing the request on room versions < 12).
+                    power_level_content_override: cfg.minPL > 0 ? { events_default: cfg.minPL } : undefined,
                 }),
             rateLimitState,
             );
+            if (isVoice) {
+                await withRateLimit(() => allowCallMemberships(client, roomResponse.room_id, cfg.minPL), rateLimitState);
+            }
 
             const childContent: Record<string, unknown> = { suggested: true };
             if (via) childContent.via = via;

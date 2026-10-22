@@ -12,7 +12,7 @@ import {
     type RemoteTrack,
     type RemoteTrackPublication,
 } from "livekit-client";
-import type { MatrixClient, Room as MatrixRoom } from "matrix-js-sdk/src/matrix";
+import { EventType, type MatrixClient, type Room as MatrixRoom } from "matrix-js-sdk/src/matrix";
 import { MatrixRTCSessionEvent, type MatrixRTCSession } from "matrix-js-sdk/src/matrixrtc";
 
 import { Avatar } from "../Avatar";
@@ -25,11 +25,12 @@ import {
     discoverLiveKitTransport,
     fetchLiveKitToken,
     fetchSfuCredentials,
+    joinMatrixRtcSession,
     parseMatrixUserIdFromIdentity,
-    toLivekitTransport,
     updateVoiceParticipantState,
 } from "../../adapters/voiceAdapter";
 import { createLiveKitE2EEWorker } from "../../voice/e2eeWorker";
+import { allowMembersToJoinCalls, canJoinCalls, canMembersJoinCalls } from "../../voice/voiceChannel";
 import {
     playVoiceJoinSound,
     playVoiceLeaveSound,
@@ -590,6 +591,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [selectedDesktopCaptureSourceId, setSelectedDesktopCaptureSourceId] = useState<string | null>(null);
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [callAccessFixPending, setCallAccessFixPending] = useState(false);
+    const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
     const supportsAudioOutputSelection = useMemo(() => "setSinkId" in HTMLMediaElement.prototype, []);
     const selectedScreenShareQualityProfile = useMemo(
@@ -1001,6 +1004,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             const credentials = await withTimeout(
                 (async () => {
                     const transport = targetMatrixRoom ? await discoverLiveKitTransport(client, config) : null;
+                    if (transport && targetMatrixRoom && !canJoinCalls(targetMatrixRoom, client.getSafeUserId())) {
+                        throw new Error(
+                            "Your role can't join calls in this channel yet. Ask a channel admin to allow members to join calls.",
+                        );
+                    }
                     if (!transport) {
                         const relay = await fetchLiveKitToken(client, config, targetRoomId, {
                             signal: joinAbortController.signal,
@@ -1049,12 +1057,21 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
                     runIfCurrentJoin(() => syncParticipants());
                 };
+                // Without a membership the others neither see us nor send us media keys, so don't stay connected.
+                const onMembershipManagerError = (membershipError: unknown): void => {
+                    runIfCurrentJoin(() => {
+                        const reason = membershipError instanceof Error ? membershipError.message : "unknown error";
+                        void leaveVoice().then(() => setError(`Left the call: the call membership failed (${reason}).`));
+                    });
+                };
                 session.on(MatrixRTCSessionEvent.EncryptionKeyChanged, onEncryptionKeyChanged);
                 session.on(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
+                session.on(MatrixRTCSessionEvent.MembershipManagerError, onMembershipManagerError);
                 rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
                 rtcTeardownRef.current = () => {
                     session.off(MatrixRTCSessionEvent.EncryptionKeyChanged, onEncryptionKeyChanged);
                     session.off(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
+                    session.off(MatrixRTCSessionEvent.MembershipManagerError, onMembershipManagerError);
                     if (session.isJoined()) {
                         void session.leaveRoomSession().catch(() => undefined);
                     }
@@ -1269,20 +1286,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 if (keyProvider) {
                     await room.setE2EEEnabled(true);
                 }
-                const userId = client.getSafeUserId();
-                const deviceId = client.getDeviceId() ?? "";
-                rtcSession.joinRTCSession(
-                    { userId, deviceId, memberId: `${userId}:${deviceId}` },
-                    [],
-                    toLivekitTransport(credentials.transport, targetRoomId),
-                    {
-                        callIntent: "audio",
-                        manageMediaKeys: keyProvider !== null,
-                        // Required: current Element Call only exchanges media keys over to-device messages.
-                        useExperimentalToDeviceTransport: true,
-                    },
-                );
-                rtcSession.reemitEncryptionKeys();
+                joinMatrixRtcSession(client, rtcSession, credentials.transport, targetRoomId, {
+                    manageMediaKeys: keyProvider !== null,
+                });
                 ensureCurrentJoinRequest();
             }
 
@@ -1882,6 +1888,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const connected = connectionState === ConnectionState.Connected;
+    // Voice channels created before call memberships were allowed: offer whoever can edit power levels a fix.
+    const callAccessRoom = connected && voiceBackendRef.current === "matrixrtc" ? client.getRoom(matrixRoomId) : null;
+    const showCallAccessFix =
+        callAccessRoom !== null &&
+        callAccessFixedRoomId !== matrixRoomId &&
+        ownUserId !== undefined &&
+        !canMembersJoinCalls(callAccessRoom) &&
+        callAccessRoom.currentState.maySendStateEvent(EventType.RoomPowerLevels, ownUserId);
 
     const ownUser = ownUserId ? client.getUser(ownUserId) ?? undefined : undefined;
     const ownDisplayName = ownUser?.displayName ?? ownUserId ?? "You";
@@ -2183,6 +2197,28 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             }}
                         >
                             Enable audio
+                        </button>
+                    </div>
+                ) : null}
+
+                {showCallAccessFix && callAccessRoom ? (
+                    <div className="voice-room-audio-warning">
+                        <p>Members can't join calls in this channel yet, so only moderators are in the call.</p>
+                        <button
+                            type="button"
+                            className="settings-button settings-button-secondary"
+                            disabled={callAccessFixPending}
+                            onClick={() => {
+                                setCallAccessFixPending(true);
+                                void allowMembersToJoinCalls(client, callAccessRoom)
+                                    .then(() => setCallAccessFixedRoomId(callAccessRoom.roomId))
+                                    .catch((fixError: unknown) =>
+                                        setError(fixError instanceof Error ? fixError.message : "Unable to update permissions."),
+                                    )
+                                    .finally(() => setCallAccessFixPending(false));
+                            }}
+                        >
+                            Allow members to join calls
                         </button>
                     </div>
                 ) : null}
