@@ -9,7 +9,7 @@
 | **Owner** | PeytonG |
 | **Upstream** | Fork of [Vitosicz/Heorot](https://github.com/Vitosicz/Heorot) (git remote `upstream`) |
 | **License** | AGPL-3.0 (inherited from Heorot and Element; cannot be changed) |
-| **Latest release** | `v0.2.0` (2026-10-22; first release `v0.1.0`) |
+| **Latest release** | `v0.3.0` (2026-10-23; first release `v0.1.0`) |
 | **Last updated** | 2026-10-23 |
 
 > **Upkeep rule (from the owner):** update this file after every few completed tasks, before context runs low, and
@@ -327,7 +327,7 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 | Fonts (Other = any installed font), round avatars, mute/deafen anytime, 120% volume, DM + group calls | ✅ merged (PR #6) |
 | Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ merged (PR #6) |
 | `v0.2.1` (picture fix, smooth screen share, campfire) | ✅ published |
-| v0.3.0: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ on branch `v0.2.2`, not yet merged |
+| `v0.3.0`: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ published (PR #9): https://github.com/PeytonG/Meadhall/releases/tag/v0.3.0 |
 
 ## 10. Open issues and roadmap
 
