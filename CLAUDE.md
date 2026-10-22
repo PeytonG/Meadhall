@@ -85,7 +85,7 @@ Run the relevant tests after every change.
 - **Git identity:** repo-local `PeytonG <47164665+PeytonG@users.noreply.github.com>`. Never commit the owner's
   personal email.
 - **Secrets:** the Android release key lives outside the repo at `%USERPROFILE%\Meadhall-android-signing\`
-  (with a README holding its password) and in the `ANDROID_KEYSTORE_*` / `ANDROID_KEY_*` GitHub secrets. Never commit
+  (with a README holding its password), backed up to `Documents\Meadhall-android-signing-backup`, and in the `ANDROID_KEYSTORE_*` / `ANDROID_KEY_*` GitHub secrets. Never commit
   it; losing it means Android users can't receive updates.
 - **Access:** only PeytonG has access to the repository. Vitosicz (upstream author) appears under "Contributors"
   because he authored the original commits; do **not** rewrite history to remove his authorship.
@@ -208,8 +208,9 @@ unlimited power (`powerLevel === Infinity`).
 | Security: audit 140 → 1 accepted, CodeQL findings fixed, scans in CI, GitHub protections on | ✅ |
 | Branding: Meadhall name, owner's icon + art, pixel theme, color wheel, fonts, stickers, Discord-style UI | ✅ |
 | Docs: README, self-hosting, CONTRIBUTING, SECURITY, NOTICE, templates | ✅ |
-| PR #3 merged to `main`; `v0.1.0` released | 🔄 in progress (see §11) |
-| Old GitHub fork `PeytonG/Heorot` deleted | 🔄 approved; needs the owner to grant `delete_repo` scope |
+| PR #3 merged to `main` (2026-10-22) | ✅ |
+| `v0.1.0` release (Windows, Linux, Android) | 🔄 tag pushed; release workflow running |
+| Old GitHub fork `PeytonG/Heorot` deleted | ✅ (by the owner; the CLI lacks the `delete_repo` scope) |
 
 ## 10. Open issues and roadmap
 
@@ -224,4 +225,4 @@ unlimited power (`powerLevel === Infinity`).
 
 | Date | Work |
 |---|---|
-| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets; PR #3; `v0.1.0`. |
+| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` tagged. |
