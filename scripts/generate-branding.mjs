@@ -19,7 +19,14 @@ const out = (relative) => {
 async function cutOutIcon(source) {
     const { data, info } = await sharp(source).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const { width, height } = info;
-    const isBackground = (offset) => data[offset] > 228 && data[offset + 1] > 228 && data[offset + 2] > 228;
+    // Background = light, colorless pixels: plain white, or the gray/white checkerboard some exports paint in to
+    // fake transparency. The fill stops at the artwork's (colored or dark) outline.
+    const isBackground = (offset) => {
+        const r = data[offset];
+        const g = data[offset + 1];
+        const b = data[offset + 2];
+        return Math.min(r, g, b) > 175 && Math.max(r, g, b) - Math.min(r, g, b) < 20;
+    };
     const visited = new Uint8Array(width * height);
     const stack = [];
     for (let x = 0; x < width; x += 1) stack.push(x, (height - 1) * width + x);
@@ -50,7 +57,9 @@ async function cutOutIcon(source) {
         .toBuffer();
 }
 
-const icon = await cutOutIcon(branding("meadhall-icon.jpg"));
+// Prefer a PNG source (e.g. a newer export) over the original JPEG.
+const iconSource = fs.existsSync(branding("meadhall-icon.png")) ? branding("meadhall-icon.png") : branding("meadhall-icon.jpg");
+const icon = await cutOutIcon(iconSource);
 const targets = [
     ["apps/desktop/assets/icon.png", 512],
     ["apps/desktop/assets/tray.png", 32],
