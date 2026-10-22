@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { createSpaceWithChannel, registerUser, sendStickerEvent } from "./support/matrixApi";
+import { createSpaceWithChannel, registerUser, sendStickerEvent, setDisplayName } from "./support/matrixApi";
 import { emulateWindowsDesktopApp, isWindowDragRegionAt, samplePoints } from "./support/desktop";
 import { signIn } from "./support/ui";
 
@@ -218,4 +218,23 @@ test("the image viewer closes from the backdrop, the X and Escape; settings clos
     await expect(page.locator(".settings-overlay")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.locator(".settings-overlay")).toBeHidden();
+});
+
+test("people search finds others by display name in any word order, and quickly", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const peyton = await registerUser("peytongna");
+    await setDisplayName(peyton, "Peyton Gnadinger");
+    await createSpaceWithChannel(peyton, alice, { space: "Hall", channel: "general" });
+    await signIn(page, alice);
+
+    await page.getByRole("button", { name: "New direct message" }).click();
+    const search = page.getByPlaceholder("Search or enter @alice:example.org");
+    for (const term of ["Peyton", "gnadinger", "gnad pey", "peytongna"]) {
+        await search.fill(term);
+        const started = Date.now();
+        await expect(page.getByRole("option", { name: /Peyton Gnadinger/ }), `search "${term}"`).toBeVisible({ timeout: 3_000 });
+        expect(Date.now() - started, `"${term}" shows up quickly`).toBeLessThan(1_500);
+    }
+    await search.fill("nobody-matches-this");
+    await expect(page.getByRole("option", { name: /Peyton Gnadinger/ })).toBeHidden();
 });

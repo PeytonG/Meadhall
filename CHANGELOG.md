@@ -14,6 +14,9 @@ Versions follow `vX.Y.Z`.
 - **Smoother scrolling** everywhere: scrolling a panel no longer drags the page behind it.
 
 ### Changed
+- **People search matches names.** Finding someone to message now matches their display name, username or full ID,
+  in any word order and ignoring accents ("gnad pey" finds Peyton Gnadinger). People you share rooms with appear
+  instantly as you type.
 - **The speaking campfire is smaller and only rises from the top of the picture**, so it never covers names, and it
   lights up much faster when someone starts talking (measured on your device instead of waiting for the server).
 
