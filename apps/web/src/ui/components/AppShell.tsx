@@ -25,6 +25,7 @@ import { RoomList, type DiscoverableSpaceChannel } from "./RoomList";
 import { Timeline } from "./Timeline";
 import { Toast, type ToastState } from "./Toast";
 import { Avatar } from "./Avatar";
+import { HomeSidebar, isOneToOneRoom } from "./HomeSidebar";
 import { CreateRoomDialog } from "./rooms/CreateRoomDialog";
 import { CreateSpaceDialog } from "./rooms/CreateSpaceDialog";
 import { ImportJsonWizard } from "./rooms/ImportJsonWizard";
@@ -46,6 +47,7 @@ import {
 } from "../emoji/EmojiPackStore";
 import type { EmojiPackTarget } from "../emoji/EmojiPackTypes";
 import { useSelectedUser } from "../hooks/useSelectedUser";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useElementLikeNotifications } from "../notifications/useElementLikeNotifications";
 import { useMatrix } from "../providers/MatrixProvider";
 import { buildMatrixToRoomPermalink } from "../utils/permalink";
@@ -872,9 +874,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [timelineFocusBottomNonce, setTimelineFocusBottomNonce] = useState(0);
     const voiceRoomRef = useRef<VoiceRoomHandle | null>(null);
     const autoJoiningDirectRoomIdsRef = useRef<Set<string>>(new Set());
+    // Phones show one screen at a time, like the Discord app: the server rail + channel list, or the open chat.
+    const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
     const openRoomAtBottom = useCallback((roomId: string): void => {
         setActiveRoomId(roomId);
         setTimelineFocusBottomNonce((value) => value + 1);
+    }, []);
+    const selectHome = useCallback((): void => {
+        setSelectedSpaceId(PEOPLE_SPACE_ID);
+        setMobilePane("list");
+    }, []);
+    const selectServer = useCallback((spaceId: string): void => {
+        setSelectedSpaceId(spaceId);
+        setMobilePane("list");
     }, []);
 
     const handleLiveParticipantsChange = useCallback(
@@ -1077,6 +1089,23 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             ),
         [directRoomIds, visibleRooms],
     );
+    // Joined rooms that belong to no server (not DMs): listed under Home -> Group Chats, as Discord has no other place
+    // for them. Rooms that name a parent space are channels of a server and stay out.
+    const homeOtherRooms = useMemo(
+        () =>
+            sortRoomsByActivity(
+                visibleRooms.filter(
+                    (room) =>
+                        !room.isSpaceRoom() &&
+                        !directRoomIds.has(room.roomId) &&
+                        room.getMyMembership() === "join" &&
+                        room.currentState.getStateEvents(EventType.SpaceParent).length === 0 &&
+                        !findParentSpaceIdForRoom(room.roomId, spaces),
+                ),
+            ),
+        [directRoomIds, spaces, visibleRooms],
+    );
+    const homeRooms = useMemo(() => [...peopleChannels, ...homeOtherRooms], [homeOtherRooms, peopleChannels]);
     const isRoomVoiceChannel = useCallback(
         (room: Room | null): boolean => Boolean(room && (isVoiceChannelRoom(room) || voiceChannelHintRoomIds.has(room.roomId))),
         [voiceChannelHintRoomIds],
@@ -1091,7 +1120,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
-            return peopleChannels;
+            return homeRooms;
         }
 
         if (!selectedSpaceRoom || !selectedSpaceRoom.isSpaceRoom()) {
@@ -1108,7 +1137,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
 
         return getSpaceChannels(selectedSpaceRoom, roomById);
-    }, [peopleChannels, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
+    }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
 
     useEffect(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID || !selectedSpaceRoom?.isSpaceRoom()) {
@@ -1352,16 +1381,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const hasActiveVoiceSession = Boolean(
         voiceSessionRoomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining"),
     );
-    // Calls outside voice channels: DMs, group chats and plain rooms. They show above the chat, Discord-style.
-    const callCandidateRooms = useMemo(() => {
-        const candidates = [...peopleChannels];
-        if (activeRoom && !activeRoom.isSpaceRoom() && !isActiveRoomVoiceChannel && !candidates.includes(activeRoom)) {
-            candidates.push(activeRoom);
-        }
-        return candidates;
-    }, [activeRoom, isActiveRoomVoiceChannel, peopleChannels]);
-    const roomCalls = useRoomCalls(client, callCandidateRooms);
-    const isActiveRoomCallable = Boolean(activeRoom && !activeRoom.isSpaceRoom() && !isActiveRoomVoiceChannel);
+    // Calls outside voice channels belong to Home conversations only (DMs, group chats, rooms outside servers);
+    // server text channels have none, as in Discord.
+    const roomCalls = useRoomCalls(client, homeRooms);
+    const isActiveRoomCallable = Boolean(
+        activeRoom && !isActiveRoomVoiceChannel && homeRooms.some((room) => room.roomId === activeRoom.roomId),
+    );
     const activeRoomCallOthers = useMemo(
         () => (activeRoom ? (roomCalls.get(activeRoom.roomId) ?? []).filter((userId) => userId !== ownUserId) : []),
         [activeRoom, ownUserId, roomCalls],
@@ -1656,18 +1681,69 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         );
     }, []);
 
+    // Below 1100px the members/profile panel slides over the chat, so it only opens when asked for and closing it
+    // there doesn't change the saved (desktop) panel choice.
+    const isNarrowLayout = useMediaQuery("(max-width: 1100px)");
+    const [narrowPanelOpen, setNarrowPanelOpen] = useState(false);
+    useEffect(() => {
+        setNarrowPanelOpen(false);
+    }, [activeRoomId]);
+
     const selectSidebarMode = useCallback(
         (mode: RightSidebarMode): void => {
             clearSelectedUser();
+            if (isNarrowLayout) {
+                setNarrowPanelOpen(mode !== "closed");
+                if (mode === "closed") {
+                    return;
+                }
+            }
             setRightSidebarMode(mode);
         },
-        [clearSelectedUser],
+        [clearSelectedUser, isNarrowLayout],
+    );
+
+    // Phone layout: opening a chat adds a history entry, so Android's Back button (Capacitor goes back in the
+    // WebView's history first) returns to the list instead of closing the app.
+    const isPhoneLayout = useMediaQuery("(max-width: 760px)");
+    useEffect(() => {
+        if (!isPhoneLayout || mobilePane !== "chat") {
+            return;
+        }
+        if ((window.history.state as { meadhallPane?: string } | null)?.meadhallPane !== "chat") {
+            window.history.pushState({ ...(window.history.state ?? {}), meadhallPane: "chat" }, "");
+        }
+    }, [isPhoneLayout, mobilePane]);
+    useEffect(() => {
+        const onPopState = (): void => {
+            if ((window.history.state as { meadhallPane?: string } | null)?.meadhallPane !== "chat") {
+                setMobilePane("list");
+            }
+        };
+        window.addEventListener("popstate", onPopState);
+        return () => window.removeEventListener("popstate", onPopState);
+    }, []);
+    const goBackToList = useCallback((): void => {
+        if ((window.history.state as { meadhallPane?: string } | null)?.meadhallPane === "chat") {
+            window.history.back();
+            return;
+        }
+        setMobilePane("list");
+    }, []);
+
+    const selectUserAndOpenPanel = useCallback(
+        (userId: string): void => {
+            selectUser(userId);
+            setNarrowPanelOpen(true);
+        },
+        [selectUser],
     );
 
     const selectChannel = useCallback(
         (roomId: string): void => {
             setPendingFocusRoomId(null);
             openRoomAtBottom(roomId);
+            setMobilePane("chat");
             const room = roomById.get(roomId) ?? client.getRoom(roomId);
             if (!room || !isRoomVoiceChannel(room)) {
                 return;
@@ -1729,6 +1805,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             }
 
             openRoomAtBottom(roomId);
+            setMobilePane("chat");
             setPendingFocusRoomId(null);
         },
         [client, directRoomIds, openRoomAtBottom, spaces],
@@ -1956,7 +2033,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         setInviteOpen(true);
     }, []);
 
-    const shouldRenderRightPanel = panelMode.mode === "user" || rightSidebarMode !== "closed";
+    const shouldRenderRightPanel =
+        (panelMode.mode === "user" || rightSidebarMode !== "closed") && (!isNarrowLayout || narrowPanelOpen);
 
     const [channelsPaneWidth, setChannelsPaneWidth] = useState<number>(readChannelsPaneWidth);
     const [isResizingPane, setIsResizingPane] = useState(false);
@@ -1983,14 +2061,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         document.addEventListener("pointerup", onUp);
     }, [channelsPaneWidth]);
 
-    const appShellStyle = useMemo(() => ({
-        gridTemplateColumns: shouldRenderRightPanel
-            ? `72px ${channelsPaneWidth}px minmax(0, 1fr) 280px`
-            : `72px ${channelsPaneWidth}px minmax(0, 1fr)`,
-    }), [channelsPaneWidth, shouldRenderRightPanel]);
+    // The grid itself lives in CSS (App.css "Layout"), so phone and tablet layouts can change it.
+    const appShellStyle = useMemo(
+        () => ({ ["--channels-pane-width" as string]: `${channelsPaneWidth}px` }) as React.CSSProperties,
+        [channelsPaneWidth],
+    );
 
     const appShellClassName = useMemo(() => {
         const classes = ["app-shell"];
+        classes.push(mobilePane === "chat" ? "mobile-show-chat" : "mobile-show-list");
         if (userSettings.appearance.compactMode) {
             classes.push("is-compact");
         }
@@ -2010,7 +2089,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             }
         }
         return classes.join(" ");
-    }, [shouldRenderRightPanel, isResizingPane, userSettings.appearance.compactMode, userSettings.appearance.showTimestamps]);
+    }, [mobilePane, shouldRenderRightPanel, isResizingPane, userSettings.appearance.compactMode, userSettings.appearance.showTimestamps]);
 
     const hasOpenDialog = Boolean(
         emojiUploadOpen ||
@@ -2036,17 +2115,18 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
             <aside className="left-rail">
-                <div className="rail-logo" title={brandName}>
-                    <img src={meadhallIcon} alt={brandName} />
-                </div>
+                {/* Discord-style Home: the app icon opens Direct Messages and Group Chats. */}
                 <button
                     type="button"
-                    className={`rail-icon${selectedSpaceId === PEOPLE_SPACE_ID ? " is-active" : ""}`}
-                    onClick={() => setSelectedSpaceId(PEOPLE_SPACE_ID)}
-                    title="People"
+                    className={`rail-icon rail-home${selectedSpaceId === PEOPLE_SPACE_ID ? " is-active" : ""}`}
+                    onClick={() => selectHome()}
+                    title="Direct Messages"
+                    aria-label="Direct Messages"
+                    data-testid="rail-home"
                 >
-                    @
+                    <img src={meadhallIcon} alt="" className="rail-home-icon" />
                 </button>
+                <div className="rail-divider" aria-hidden="true" />
                 {spaces.map((space) => {
                     const avatarUrl = thumbnailFromMxc(client, space.getMxcAvatarUrl(), 48, 48);
                     return (
@@ -2054,7 +2134,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             type="button"
                             key={space.roomId}
                             className={`rail-icon${selectedSpaceId === space.roomId ? " is-active" : ""}`}
-                            onClick={() => setSelectedSpaceId(space.roomId)}
+                            onClick={() => selectServer(space.roomId)}
                             title={getRoomName(space)}
                         >
                             {avatarUrl ? (
@@ -2078,6 +2158,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
             <section className="channels-pane">
                 <div className="channels-pane-resize-handle" onPointerDown={handleResizePointerDown} />
+                {selectedSpaceId === PEOPLE_SPACE_ID ? (
+                    <HomeSidebar
+                        client={client}
+                        directRooms={peopleChannels}
+                        otherRooms={homeOtherRooms}
+                        activeRoomId={activeRoomId}
+                        roomCalls={roomCalls}
+                        currentCallRoomId={hasActiveVoiceSession ? voiceSessionRoomId : null}
+                        onSelectRoom={selectChannel}
+                        onNewConversation={() => setCreateDirectChatOpen(true)}
+                    />
+                ) : (
+                <>
                 <div className="pane-top pane-top-row">
                     <span>{selectedSpaceName}</span>
                     <div className="pane-top-actions">
@@ -2178,6 +2271,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     liveParticipantsOverrideRoomId={liveVoiceParticipantsOverrideRoomId}
                     onOpenRoomSettings={openRoomSettingsFor}
                 />
+                </>
+                )}
                 <div className="pane-bottom">
                     {hasActiveVoiceSession && voiceSessionRoomId ? (
                         <div
@@ -2287,9 +2382,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             <section className="main-pane">
                 <ChannelHeader
                     room={activeRoom}
-                    isDirectMessage={isActiveRoomDirect}
+                    isDirectMessage={Boolean(activeRoom && isActiveRoomDirect && isOneToOneRoom(activeRoom, ownUserId))}
+                    subtitle={
+                        activeRoom && selectedSpaceId === PEOPLE_SPACE_ID && !isOneToOneRoom(activeRoom, ownUserId)
+                            ? `Group chat · ${activeRoom.getJoinedMemberCount()} members`
+                            : undefined
+                    }
+                    onMobileBack={goBackToList}
                     showHashPrefix={shouldPrefixRoomWithHash}
-                    sidebarMode={rightSidebarMode}
+                    sidebarMode={isNarrowLayout && !narrowPanelOpen ? "closed" : rightSidebarMode}
                     searchQuery={sidebarSearchQuery}
                     canInviteInRoom={canInviteInActiveRoom}
                     onSearchQueryChange={setSidebarSearchQuery}
@@ -2390,7 +2491,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 setReplyToEvent(null);
                                 setEditingEvent(event);
                             }}
-                            onSelectUser={selectUser}
+                            onSelectUser={selectUserAndOpenPanel}
                             activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
                             customReactionImagesEnabled={renderReactionImages}
                             showReadReceipts={shouldShowReadReceipts}
@@ -2419,7 +2520,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     roomMode={rightSidebarMode}
                     searchQuery={sidebarSearchQuery}
                     onSearchQueryChange={setSidebarSearchQuery}
-                    onSelectUser={selectUser}
+                    onSelectUser={selectUserAndOpenPanel}
                     onBackToRoom={clearSelectedUser}
                     onOpenRoomSettings={() => openRoomSettingsFor(activeRoom?.roomId ?? null)}
                     onCopyRoomLink={copyActiveRoomLink}

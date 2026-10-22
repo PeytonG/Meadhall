@@ -24,7 +24,7 @@ test("rejects a wrong password", async ({ page }) => {
     await page.locator("form").getByRole("button", { name: "Sign in" }).click();
 
     await expect(page.locator(".login-error")).toBeVisible();
-    await expect(page.locator(".rail-logo")).toHaveCount(0);
+    await expect(page.getByTestId("rail-home")).toHaveCount(0);
 });
 
 test("signs in, reads a space channel and sends a message", async ({ page }) => {

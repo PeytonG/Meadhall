@@ -660,7 +660,7 @@ textarea {
     height: 100%;
     width: 100%;
     display: grid;
-    grid-template-columns: 72px 280px minmax(0, 1fr) 280px;
+    grid-template-columns: 72px var(--channels-pane-width, 280px) minmax(0, 1fr) 280px;
     background: var(--bg-app);
     overflow: hidden;
     transition: grid-template-columns var(--motion-normal) var(--motion-ease-standard);
@@ -673,7 +673,7 @@ textarea {
 }
 
 .app-shell.right-panel-collapsed {
-    grid-template-columns: 72px 280px minmax(0, 1fr);
+    grid-template-columns: 72px var(--channels-pane-width, 280px) minmax(0, 1fr);
 }
 
 .app-shell.is-resizing {
@@ -4534,26 +4534,8 @@ img.voice-ctrl-icon {
 }
 }
 
-@media (max-width: 1200px) {
-    .app-shell {
-        grid-template-columns: 64px 240px minmax(0, 1fr);
-}
-
-    .members-sidebar,
-    .right-panel {
-        display: none;
-}
-}
 
 @media (max-width: 860px) {
-    .app-shell {
-        grid-template-columns: 64px minmax(0, 1fr);
-}
-
-    .channels-pane {
-        display: none;
-}
-
     .search-box {
         width: 120px;
 }
@@ -4825,4 +4807,279 @@ select,
 
 .channel-header-call-btn.is-live {
     color: var(--success, #3ba55d);
+}
+
+/* ---------------------------------------------------------------------------
+   Home (Direct Messages + Group Chats), Discord-style
+--------------------------------------------------------------------------- */
+
+.left-rail .rail-home {
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.rail-home-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.rail-divider {
+    width: 32px;
+    height: 2px;
+    flex-shrink: 0;
+    background: var(--border);
+}
+
+.left-rail {
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.home-sidebar {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.home-search {
+    flex-shrink: 0;
+    padding: 10px;
+    border-bottom: 2px solid var(--border);
+}
+
+.home-search input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 13px;
+}
+
+.home-sections {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.home-section + .home-section {
+    margin-top: 14px;
+}
+
+.home-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 6px 10px;
+    color: var(--text-muted);
+    font-family: var(--font-pixel-display);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.home-section-header button {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.home-section-header button:hover {
+    color: var(--text-main);
+}
+
+.home-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+.home-row:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.home-row.is-active {
+    background: rgba(var(--primary-rgb), 0.22);
+    color: var(--text-main);
+}
+
+.home-row.has-unread .home-row-name {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.home-row-avatar {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+}
+
+.home-row-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.home-row-name,
+.home-row-subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-row-name {
+    font-size: 14px;
+}
+
+.home-row-subtitle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.home-row-subtitle.is-call {
+    color: var(--success, #3ba55d);
+}
+
+.home-row-unread {
+    min-width: 18px;
+    padding: 1px 5px;
+    background: var(--danger, #ed4245);
+    color: #fff;
+    font-size: 11px;
+    text-align: center;
+}
+
+.home-empty {
+    margin: 4px 10px 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+   Layout: tablets and phones
+--------------------------------------------------------------------------- */
+
+.channel-header-back {
+    display: none;
+}
+
+/* Narrow laptops and tablets: the members/profile panel slides over the chat instead of taking a column. */
+@media (max-width: 1100px) {
+    .app-shell,
+    .app-shell.right-panel-collapsed {
+        grid-template-columns: 72px var(--channels-pane-width, 260px) minmax(0, 1fr);
+    }
+
+    .app-shell > .right-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(320px, 90vw);
+        z-index: 40;
+        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.45);
+    }
+}
+
+/* Phones (the Android app): one screen at a time, like the Discord app. The list screen is the server rail plus
+   the channel/DM list; picking a conversation opens it full screen with a back button. */
+@media (max-width: 760px) {
+    .app-shell,
+    .app-shell.right-panel-collapsed {
+        grid-template-columns: 72px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .app-shell.mobile-show-list > .main-pane {
+        display: none;
+    }
+
+    .app-shell.mobile-show-chat {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .app-shell.mobile-show-chat > .left-rail,
+    .app-shell.mobile-show-chat > .channels-pane {
+        display: none;
+    }
+
+    .app-shell > .right-panel {
+        top: calc(56px + env(safe-area-inset-top));
+        width: 100vw;
+        box-shadow: none;
+    }
+
+    .app-shell.mobile-show-list > .right-panel {
+        display: none;
+    }
+
+    .channels-pane {
+        border-right: 0;
+    }
+
+    .channels-pane-resize-handle {
+        display: none;
+    }
+
+    .channel-header-back {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        margin-right: 4px;
+        border: 0;
+        background: transparent;
+        color: var(--text-main);
+        cursor: pointer;
+    }
+
+    .channel-header {
+        padding-left: 6px;
+    }
+
+    /* Keep the header to the essentials on a phone: call, search and members. */
+    .channel-header-actions .channel-header-icon-btn[aria-label="Pins panel"],
+    .channel-header-actions .channel-header-icon-btn[aria-label="Channel info panel"] {
+        display: none;
+    }
+
+    .channel-header-chip {
+        display: none;
+    }
+
+    /* Bigger touch targets. */
+    .home-row,
+    .room-item-select {
+        min-height: 48px;
+    }
+
+    .main-voice-slot.is-call-strip {
+        max-height: 55%;
+    }
 }

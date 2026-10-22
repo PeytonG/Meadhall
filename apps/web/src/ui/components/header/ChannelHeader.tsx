@@ -23,6 +23,10 @@ interface ChannelHeaderProps {
     onLeaveRoom: () => Promise<void>;
     // DM, group chat and plain-room calls (voice channels join on click instead). Undefined hides the button.
     call?: { inCall: boolean; othersInCall: number; onStartCall: () => void };
+    // Shown when the room has no topic (e.g. "Group chat · 3 members").
+    subtitle?: string;
+    // Phone layout: back to the channel list (the button is hidden on wider screens).
+    onMobileBack?: () => void;
 }
 
 type HeaderIconKind = "search" | "pins" | "members" | "info" | "more";
@@ -113,6 +117,8 @@ export function ChannelHeader({
     onCopyRoomLink,
     onLeaveRoom,
     call,
+    subtitle,
+    onMobileBack,
 }: ChannelHeaderProps): React.ReactElement {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
@@ -134,10 +140,10 @@ export function ChannelHeader({
             return topic.trim();
         }
         if (room) {
-            return isDirectMessage ? "Direct message" : "No topic set";
+            return subtitle ?? (isDirectMessage ? "Direct message" : "No topic set");
         }
         return "Select a room to start chatting";
-    }, [isDirectMessage, room, topic]);
+    }, [isDirectMessage, room, subtitle, topic]);
 
     useEffect(() => {
         if (sidebarMode !== "search") {
@@ -180,6 +186,11 @@ export function ChannelHeader({
 
     return (
         <header className="channel-header">
+            {onMobileBack ? (
+                <button type="button" className="channel-header-back" onClick={onMobileBack} aria-label="Back to channels" title="Back">
+                    <PixelIcon name="back" size={18} />
+                </button>
+            ) : null}
             <div className="channel-header-main">
                 <div className="channel-header-title-row">
                     <h1 className="channel-header-title">{`${titlePrefix}${roomName}`}</h1>
