@@ -7,14 +7,17 @@ import {
     authStepIsRequired,
     authStepIsUsed,
     buildRegistrationSsoUrl,
+    checkRegistrationTokenValidity,
     discoverRegistrationFlow,
     formatRegistrationError,
     looksLikeEmail,
     RegistrationProbeError,
+    registrationTokenUsage,
     type RegistrationFlow,
 } from "../adapters/registrationAdapter";
 import loginHall from "../assets/login-hall.webp";
 import meadhallIcon from "../assets/meadhall-icon.png";
+import { DEFAULT_HOMESERVER_URL } from "../../core/config/serverDefaults";
 import { RegistrationInteractiveAuth } from "./auth/RegistrationInteractiveAuth";
 
 type AuthMode = "sign_in" | "register";
@@ -63,6 +66,38 @@ export function LoginView({
     const [registerError, setRegisterError] = useState<string | null>(null);
     const [registerSsoUrl, setRegisterSsoUrl] = useState<string | null>(null);
     const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+    const [registerToken, setRegisterToken] = useState("");
+    // Whether the server's sign-up flows ask for a registration token; "unknown" until probed (shows the field).
+    const [tokenUsage, setTokenUsage] = useState<"required" | "optional" | "none" | "unknown">("unknown");
+
+    // Ask the server how sign-up works as soon as the Register tab is open, so the token field shows up front.
+    useEffect(() => {
+        if (mode !== "register" || homeserver.trim().length === 0) {
+            return undefined;
+        }
+
+        let cancelled = false;
+        const timer = window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const resolved = await resolveHomeserverBaseUrl(normalizeHomeserverUrl(homeserver));
+                    const probe = await discoverRegistrationFlow({ homeserverUrl: resolved });
+                    if (!cancelled) {
+                        setTokenUsage(registrationTokenUsage(probe.flows));
+                    }
+                } catch {
+                    if (!cancelled) {
+                        setTokenUsage("unknown");
+                    }
+                }
+            })();
+        }, 500);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [homeserver, mode]);
 
     const switchMode = useCallback((nextMode: AuthMode): void => {
         setMode(nextMode);
@@ -169,6 +204,21 @@ export function LoginView({
             if (!usernameAvailable) {
                 setRegisterError("Username is already in use.");
                 return;
+            }
+
+            const usage = registrationTokenUsage(probe.flows);
+            setTokenUsage(usage);
+            const token = registerToken.trim();
+            if (usage === "required" && token.length === 0) {
+                setRegisterError("This server needs a registration token. Ask the server admin for one.");
+                return;
+            }
+            if (usage !== "none" && token.length > 0) {
+                const valid = await checkRegistrationTokenValidity(normalizedHomeserver, token);
+                if (valid === false) {
+                    setRegisterError("That registration token isn't valid. Check it, or ask the server admin for a new one.");
+                    return;
+                }
             }
 
             const emailUsed = authStepIsUsed(probe.flows, AuthType.Email);
@@ -301,7 +351,7 @@ export function LoginView({
                                 type="url"
                                 value={homeserver}
                                 onChange={(event) => setHomeserver(event.target.value)}
-                                placeholder="https://matrix.org"
+                                placeholder={DEFAULT_HOMESERVER_URL}
                                 autoComplete="url"
                                 disabled={disableHomeserverInput}
                             />
@@ -353,7 +403,7 @@ export function LoginView({
                                 type="url"
                                 value={homeserver}
                                 onChange={(event) => setHomeserver(event.target.value)}
-                                placeholder="https://matrix.org"
+                                placeholder={DEFAULT_HOMESERVER_URL}
                                 autoComplete="url"
                                 disabled={disableHomeserverInput || registerBusy}
                             />
@@ -369,6 +419,21 @@ export function LoginView({
                                 autoComplete="username"
                             />
                         </label>
+
+                        {tokenUsage !== "none" ? (
+                            <label>
+                                {tokenUsage === "required" ? "Registration token" : "Registration token (if you have one)"}
+                                <input
+                                    type="text"
+                                    value={registerToken}
+                                    onChange={(event) => setRegisterToken(event.target.value)}
+                                    placeholder="From your server admin"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    data-testid="registration-token"
+                                />
+                            </label>
+                        ) : null}
 
                         <label>
                             Email (optional)
@@ -429,6 +494,7 @@ export function LoginView({
                         client={registerClient}
                         username={registerUsername}
                         password={registerPassword}
+                        registrationToken={registerToken.trim() || undefined}
                         emailAddress={registerUsesEmail ? registerEmail.trim() || undefined : undefined}
                         initialDeviceDisplayName={deviceDisplayName}
                         onCompleted={handleRegistrationCompleted}

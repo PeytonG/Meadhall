@@ -1,5 +1,8 @@
 import type { CoreConfig } from "./configTypes";
 
+// The Meadhall community server. Deployers override it with `default_server_config` in config.json.
+export const DEFAULT_HOMESERVER_URL = "https://elementprojectzkypg.duckdns.org";
+
 export function getDefaultHomeserver(config: CoreConfig | null): string {
     const serverConfig = config?.default_server_config;
     const homeserver =
@@ -7,7 +10,7 @@ export function getDefaultHomeserver(config: CoreConfig | null): string {
             ? (serverConfig["m.homeserver"] as { base_url?: string } | undefined)
             : undefined;
 
-    return homeserver?.base_url ?? config?.default_hs_url?.toString() ?? "https://matrix.org";
+    return homeserver?.base_url ?? config?.default_hs_url?.toString() ?? DEFAULT_HOMESERVER_URL;
 }
 
 export function getDefaultIdentityServer(config: CoreConfig | null): string | undefined {
