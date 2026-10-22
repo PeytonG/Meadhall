@@ -342,6 +342,8 @@ function createMainWindow(startHidden = false): BrowserWindow {
             nodeIntegration: false,
             sandbox: true,
             spellcheck: true,
+            // Hardening (Electronegativity AUXCLICK_JS_CHECK): middle clicks can't script around will-navigate.
+            disableBlinkFeatures: "Auxclick",
         },
     });
 

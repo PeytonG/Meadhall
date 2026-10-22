@@ -53,9 +53,9 @@ export function setStartAtLogin(enabled: boolean): void {
         return;
     }
 
+    // `args` only applies on Windows; macOS reports a login launch through wasOpenedAtLogin instead.
     app.setLoginItemSettings({
         openAtLogin: enabled,
-        openAsHidden: enabled,
         args: enabled ? [START_HIDDEN_ARG] : [],
     });
 }
@@ -64,5 +64,5 @@ export function wasLaunchedHidden(): boolean {
     if (process.argv.includes(START_HIDDEN_ARG)) {
         return true;
     }
-    return process.platform === "darwin" && app.getLoginItemSettings().wasOpenedAsHidden;
+    return process.platform === "darwin" && app.getLoginItemSettings().wasOpenedAtLogin;
 }
