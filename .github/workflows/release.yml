@@ -65,13 +65,32 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # tags, for the compare link
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+        # The release notes are the tag's section of CHANGELOG.md (from "## vX.Y.Z" to the next "## "), followed by
+        # the compare link. A tag without a changelog section stops here, before anything is built.
         run: |
+          awk -v tag="$TAG" '
+            $0 ~ "^## " && found { exit }
+            index($0, "## " tag " ") == 1 || $0 == "## " tag { found = 1; next }
+            found { print }
+          ' CHANGELOG.md | perl -0pe 's/\n  (?=\S)/ /g' > notes.md
+          # (perl rejoins wrapped lines: release pages show every newline as a line break)
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for $TAG. Add one (## $TAG (date)) before tagging."
+            exit 1
+          fi
+          previous=$(git tag --sort=-v:refname --merged "$TAG" | grep -v "^$TAG$" | head -1)
+          if [[ -n "$previous" ]]; then
+            printf '\n**Full changelog:** https://github.com/%s/compare/%s...%s\n' "$GITHUB_REPOSITORY" "$previous" "$TAG" >> notes.md
+          fi
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --generate-notes --title "Meadhall $TAG" \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --notes-file notes.md --title "Meadhall $TAG" \
               $([[ "$TAG" == *-* ]] && echo --prerelease)
 
   desktop:

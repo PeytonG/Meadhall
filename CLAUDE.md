@@ -82,6 +82,9 @@ Run the relevant tests after every change.
 - **Ask before outward-facing actions** (pushing to `main`, tagging releases, deleting repos, changing repo
   settings) unless the owner has approved them. Work branches may be pushed so CI runs.
 - **Release tags:** `vX.Y.Z` (prereleases `vX.Y.Z-beta.N`). The first release is `v0.1.0`.
+- **Changelog:** every user-facing change gets a plain-language line under `## Unreleased` in `CHANGELOG.md`, in the same PR.
+  Before tagging, rename that section to `## vX.Y.Z (date)`: the release workflow publishes it as the release notes
+  and refuses to release a tag without one.
 - **Git identity:** repo-local `PeytonG <47164665+PeytonG@users.noreply.github.com>`. Never commit the owner's
   personal email.
 - **Secrets:** the Android release key lives outside the repo at `%USERPROFILE%\Meadhall-android-signing\`
