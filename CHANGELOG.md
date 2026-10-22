@@ -4,6 +4,19 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## Unreleased
+
+### Fixed
+- **The desktop app takes every click and scroll again.** Nearly the whole window was marked as a "drag the window"
+  area, which swallowed clicks and scrolling: the color wheels didn't respond, Settings and call panels scrolled
+  badly, and menu items only worked in certain spots. Now only the title bars drag the window.
+- **The minimize/maximize/close buttons match the theme** (dark, light and any color) instead of a fixed dark strip.
+- **Smoother scrolling** everywhere: scrolling a panel no longer drags the page behind it.
+
+### Changed
+- **The speaking campfire is smaller and only rises from the top of the picture**, so it never covers names, and it
+  lights up much faster when someone starts talking (measured on your device instead of waiting for the server).
+
 ## v0.2.1 (2026-10-22)
 
 ### New

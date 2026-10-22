@@ -3691,7 +3691,7 @@ img.voice-ctrl-icon {
     flex-direction: column;
     gap: 10px;
     background: var(--bg-pane);
-    max-height: 280px;
+    max-height: min(280px, 55%);
     overflow-y: auto;
 }
 
@@ -4735,24 +4735,34 @@ img.voice-ctrl-icon {
     cursor: pointer;
 }
 
-/* Electron window drag regions - html is draggable by default,
-   interactive and scrollable content opts out */
-html {
+/* Electron window drag regions (desktop app; ignored by browsers). Only the bare title-bar strips drag the window:
+   a drag region swallows clicks, drags and wheel scrolling, and it used to cover the whole page (html), which broke
+   the color wheels, scrolling in Settings and call panels, and menus. Everything interactive inside a strip opts out. */
+.app-shell.is-desktop-runtime .channel-header,
+.app-shell.is-desktop-runtime .pane-top,
+.app-shell.is-desktop-runtime .home-search,
+.app-shell.is-desktop-runtime .rail-divider,
+.app-shell.is-desktop-runtime .rs-panel-header,
+.app-shell.is-desktop-runtime .settings-header {
     -webkit-app-region: drag;
 }
-button,
-a,
-input,
-textarea,
-select,
-[contenteditable="true"],
-.timeline,
-.room-list-items,
-.pane-bottom,
-.right-panel,
-.channel-header-actions,
-.composer-bar,
-.composer-input-shell {
+
+.app-shell.is-desktop-runtime :is(.channel-header, .pane-top, .home-search, .rs-panel-header, .settings-header)
+    :is(button, a, input, textarea, select, [role="menu"], [role="menuitem"], [contenteditable="true"], .channel-header-actions, .channel-header-menu-panel) {
+    -webkit-app-region: no-drag;
+}
+
+/* Anything drawn over a strip (dialogs, the image viewer, menus, toasts) must opt out explicitly, or the part
+   covering the strip drags the window instead of taking clicks. Headers inside them opt back in above. */
+.app-shell.is-desktop-runtime :is(.settings-overlay, .room-dialog-overlay, .emoji-upload-overlay, .verification-dialog-overlay, .timeline-lightbox, [role="dialog"], [role="menu"], .toast) {
+    -webkit-app-region: no-drag;
+}
+
+.app-shell.is-desktop-runtime .settings-overlay .settings-header {
+    -webkit-app-region: drag;
+}
+
+.app-shell.is-desktop-runtime .settings-overlay .settings-header :is(button, a, input) {
     -webkit-app-region: no-drag;
 }
 
@@ -5082,4 +5092,21 @@ select,
     .main-voice-slot.is-call-strip {
         max-height: 55%;
     }
+}
+
+/* Scroll containers keep their scrolling to themselves: a wheel or swipe that reaches the end of one doesn't jerk
+   the page or panel behind it, and touch scrolling stays smooth. */
+.settings-content,
+.settings-sidebar,
+.voice-room-content,
+.voice-settings-panel,
+.home-sections,
+.room-list,
+.room-list-items,
+.right-panel-body,
+.timeline,
+.room-dialog-body,
+.channel-header-menu-panel {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }

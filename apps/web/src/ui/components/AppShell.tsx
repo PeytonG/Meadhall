@@ -54,6 +54,7 @@ import { buildMatrixToRoomPermalink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
+import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { PixelIcon } from "./PixelIcon";
 import {
     MATRIX_CALL_COMPAT_EVENT,
@@ -2104,6 +2105,21 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             settingsState,
     );
 
+    // Desktop app: recolor the window controls to whatever is behind them after any theme or layout change.
+    useEffect(() => {
+        const frame = window.requestAnimationFrame(() => syncDesktopTitleBarColors());
+        const timer = window.setTimeout(() => syncDesktopTitleBarColors(), 400); // after transitions settle
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.clearTimeout(timer);
+        };
+    }, [activeRoomId, hasOpenDialog, shouldRenderRightPanel, selectedSpaceId, userSettings.appearance]);
+    useEffect(() => {
+        const onResize = (): void => syncDesktopTitleBarColors();
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
     useElementLikeNotifications({
         client,
         activeRoomId,
@@ -2432,10 +2448,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             audioSettings={userSettings.audio}
                             autoJoinNonce={voiceAutoJoinNonce}
                             onAudioSettingsChange={(audio) =>
-                                setUserSettings({
-                                    ...userSettings,
+                                setUserSettings((current) => ({
+                                    ...current,
                                     audio,
-                                })
+                                }))
                             }
                             onSessionStateChange={(state) => {
                                 setVoiceSessionRoomId(state.roomId);

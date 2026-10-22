@@ -577,14 +577,14 @@ select {
     --font-pixel-display: var(--font-custom, system-ui, sans-serif);
 }
 
-/* Pixel campfire around a speaking person's avatar (components/voice/PixelCampfire.tsx). The fire's box is 24 cells
-   and the avatar 14 of them, so the fire is 24/14 of the avatar's size, shifted so the avatar sits in its ring. */
+/* Pixel campfire above a speaking person's avatar (components/voice/PixelCampfire.tsx). The fire's box is 20 cells
+   wide and the avatar 16 of them (125%), shifted so the avatar sits at the bottom with flames only above it. */
 .pixel-campfire {
     position: absolute;
-    left: -35.7%;
-    top: -42.9%;
-    width: 171.4%;
-    height: 171.4%;
+    left: -12.5%;
+    top: -37.5%;
+    width: 125%;
+    height: 125%;
     pointer-events: none;
     image-rendering: pixelated;
     opacity: 0;

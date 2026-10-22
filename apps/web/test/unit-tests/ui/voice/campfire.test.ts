@@ -23,34 +23,29 @@ describe("pixel campfire", () => {
         expect(frames[0]).not.toEqual(frames[1]);
     });
 
-    it("leaves the avatar uncovered and burns all around it", () => {
+    it("only rises from the top of the avatar, never beside or below it (no text is covered)", () => {
+        const left = CAMPFIRE_CENTER_X - CAMPFIRE_AVATAR_RADIUS;
+        const right = CAMPFIRE_CENTER_X + CAMPFIRE_AVATAR_RADIUS;
         for (const frame of frames) {
-            let above = 0;
-            let left = 0;
-            let right = 0;
+            let flames = 0;
             frame.forEach((value, index) => {
+                if (value === 0) return;
+                flames += 1;
                 const x = index % CAMPFIRE_GRID;
                 const y = Math.floor(index / CAMPFIRE_GRID);
-                const inside = Math.hypot(x - CAMPFIRE_CENTER_X, y - CAMPFIRE_CENTER_Y) < CAMPFIRE_AVATAR_RADIUS - 1;
-                if (inside) {
-                    expect(value).toBe(0);
-                }
-                if (value >= 1 && value <= 4) {
-                    if (y < CAMPFIRE_CENTER_Y - CAMPFIRE_AVATAR_RADIUS) above += 1;
-                    if (x < CAMPFIRE_CENTER_X - CAMPFIRE_AVATAR_RADIUS) left += 1;
-                    if (x > CAMPFIRE_CENTER_X + CAMPFIRE_AVATAR_RADIUS) right += 1;
-                }
+                expect(y).toBeLessThan(CAMPFIRE_CENTER_Y);
+                expect(x).toBeGreaterThanOrEqual(Math.floor(left));
+                expect(x).toBeLessThanOrEqual(Math.ceil(right));
+                expect(Math.hypot(x - CAMPFIRE_CENTER_X, y - CAMPFIRE_CENTER_Y)).toBeGreaterThan(CAMPFIRE_AVATAR_RADIUS - 1);
             });
-            expect(above).toBeGreaterThan(0);
-            expect(left).toBeGreaterThan(0);
-            expect(right).toBeGreaterThan(0);
+            expect(flames).toBeGreaterThan(10);
         }
     });
 
     it("draws one path per color", () => {
         const paths = campfirePaths(frames[0]);
-        expect(paths[4]).toMatch(/^M\d+ \d+h1v1h-1z/);
-        expect(paths[5]).not.toBe(""); // the logs
+        expect(paths[2]).toMatch(/^M\d+ \d+h1v1h-1z/);
+        expect(paths).toHaveLength(4);
     });
 
     it("builds the palette from the chosen color", () => {

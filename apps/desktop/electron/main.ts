@@ -30,6 +30,11 @@ let closeOnWindowCloseMinimize = true;
 let isAppQuitting = false;
 let preferredDisplayMediaSourceId: string | null = null;
 
+// Automated UI tests run the app with a throwaway profile so they never touch a real sign-in.
+if (process.env.MEADHALL_USER_DATA_DIR) {
+    app.setPath("userData", process.env.MEADHALL_USER_DATA_DIR);
+}
+
 protocol.registerSchemesAsPrivileged([
     {
         scheme: APP_PROTOCOL,
@@ -424,6 +429,21 @@ function registerIpc(): void {
 
     ipcMain.handle("heorot:setCloseOnWindowCloseMinimize", (_event, enabled: unknown) => {
         closeOnWindowCloseMinimize = enabled !== false;
+    });
+
+    // The app sends the colors behind the window controls whenever the theme or layout changes.
+    ipcMain.handle("heorot:setTitleBarColors", (event, colors: unknown) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        const value = colors as { color?: unknown; symbolColor?: unknown } | null;
+        const isHex = (candidate: unknown): candidate is string =>
+            typeof candidate === "string" && /^#[0-9a-f]{6}$/i.test(candidate);
+        if (!window || !value || !isHex(value.color) || !isHex(value.symbolColor)) {
+            return;
+        }
+        if (process.platform === "win32" || process.platform === "linux") {
+            window.setTitleBarOverlay({ color: value.color, symbolColor: value.symbolColor, height: TITLEBAR_OVERLAY_HEIGHT });
+        }
+        window.setBackgroundColor(value.color);
     });
 
     ipcMain.handle("heorot:getDesktopCapturerSources", async () => {
