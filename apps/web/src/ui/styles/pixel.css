@@ -531,7 +531,7 @@ select {
 }
 
 /* Font setting (Appearance): "pixel" (default) keeps both pixel fonts; "mixed" keeps pixel headings with a
-   readable body font; "system" uses the system font throughout. Set as data-font on <html>. */
+   readable body font; "system" uses the system font throughout; "custom" below. Set as data-font on <html>. */
 [data-font="mixed"] {
     --font-pixel-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -539,4 +539,10 @@ select {
 [data-font="system"] {
     --font-pixel-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
     --font-pixel-display: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* "custom": any installed font picked under Font -> Other; --font-custom is set on <html> by applyAppearanceTheme. */
+[data-font="custom"] {
+    --font-pixel-body: var(--font-custom, system-ui, sans-serif);
+    --font-pixel-display: var(--font-custom, system-ui, sans-serif);
 }

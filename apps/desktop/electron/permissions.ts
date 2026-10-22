@@ -6,7 +6,8 @@ import { session } from "electron";
 // - media / notifications: voice and message alerts
 // - clipboard-sanitized-write: navigator.clipboard.writeText (copy buttons, recovery keys)
 // - fullscreen: screen-share stage fullscreen
-const ALLOWED_PERMISSIONS = new Set(["media", "notifications", "clipboard-sanitized-write", "fullscreen"]);
+// - local-fonts: queryLocalFonts() for Settings -> Appearance -> Font -> Other (font names only)
+const ALLOWED_PERMISSIONS = new Set(["media", "notifications", "clipboard-sanitized-write", "fullscreen", "local-fonts"]);
 
 export function configurePermissionHandlers(isAppUrl: (url: string) => boolean): void {
     session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {

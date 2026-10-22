@@ -158,4 +158,28 @@ describe("font setting", () => {
         applyAppearanceTheme({ ...loadUserLocalSettings().appearance, fontStyle: "system" });
         expect(document.documentElement.getAttribute("data-font")).toBe("system");
     });
+
+    it("keeps a custom font and strips characters that could break the CSS", () => {
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ appearance: { fontStyle: "custom", customFontFamily: 'Comic "Neue"; } body {' } }),
+        );
+        const { appearance } = loadUserLocalSettings();
+        expect(appearance.fontStyle).toBe("custom");
+        expect(appearance.customFontFamily).toBe("Comic Neue body");
+    });
+
+    it("falls back to the system font when Other has no font chosen", () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ appearance: { fontStyle: "custom", customFontFamily: "" } }));
+        expect(loadUserLocalSettings().appearance.fontStyle).toBe("system");
+    });
+
+    it("applies a custom font as a CSS variable", () => {
+        applyAppearanceTheme({ ...loadUserLocalSettings().appearance, fontStyle: "custom", customFontFamily: "Georgia" });
+        expect(document.documentElement.getAttribute("data-font")).toBe("custom");
+        expect(document.documentElement.style.getPropertyValue("--font-custom")).toBe('"Georgia", system-ui, sans-serif');
+
+        applyAppearanceTheme({ ...loadUserLocalSettings().appearance, fontStyle: "pixel" });
+        expect(document.documentElement.style.getPropertyValue("--font-custom")).toBe("");
+    });
 });

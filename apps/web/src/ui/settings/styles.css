@@ -967,3 +967,18 @@
 .settings-source-notice a {
     color: var(--accent);
 }
+
+.settings-font-other {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.settings-font-preview {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-main);
+    font-size: 16px;
+}
