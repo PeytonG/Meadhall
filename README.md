@@ -192,15 +192,25 @@ pnpm setup:linux
 | `voice_enabled` | boolean | `false` | Enable voice channel UI |
 | `voice_service_url` | string | — | Base URL of heorot-voice-relay (e.g. `https://matrix.example.com`) |
 | `livekit_ws_url` | string | — | LiveKit WebSocket URL (legacy, overridden by discovery) |
+| `livekit_service_url` | string | — | MatrixRTC LiveKit JWT service (e.g. `https://matrix.example.com/livekit/jwt`), used only if the homeserver and `.well-known` don't advertise one |
 | `enable_presence_by_hs_url` | object | `{}` | Map of homeserver URLs to presence opt-in |
 
-The app also supports voice auto-discovery via `/.well-known/matrix/client` — if the relay is running, `voice_service_url` can be omitted.
+Voice auto-discovers its backend. MatrixRTC is used when a LiveKit transport is advertised by the homeserver (MSC4143 `/rtc/transports`), by `org.matrix.msc4143.rtc_foci` in `/.well-known/matrix/client`, or by `livekit_service_url`. Otherwise the app falls back to heorot-voice-relay, and `voice_service_url` can be omitted when the relay is discoverable.
 
 ---
 
 ## Voice channels
 
-Voice requires two additional services:
+Voice channels use **MatrixRTC**, the same protocol as Element Call, so Heorot and Element users can talk in the same room. Media is end-to-end encrypted in encrypted rooms, and keys are exchanged over to-device messages. This needs the same server pieces as Element Call:
+
+- **[LiveKit](https://livekit.io)** — media server
+- **[lk-jwt-service](https://github.com/element-hq/lk-jwt-service)** — issues LiveKit tokens for Matrix OpenID tokens, advertised via `org.matrix.msc4143.rtc_foci`
+
+Heorot connects to the SFU advertised by your homeserver. Element users on other homeservers who publish to a different SFU (multi-SFU calls) are not heard yet.
+
+### Fallback: heorot-voice-relay
+
+If no MatrixRTC transport is found, Heorot uses its original relay. Relay calls are not visible to Element users.
 
 - **[heorot-voice-relay](https://github.com/Vitosicz/heorot-voice-relay)** — Matrix-authenticated token service
 - **[LiveKit](https://livekit.io)** — media server

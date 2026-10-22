@@ -14,5 +14,7 @@ export interface CoreConfig {
     voice_enabled?: boolean;
     voice_service_url?: string;
     livekit_ws_url?: string;
+    // MatrixRTC LiveKit JWT service, used when neither the homeserver nor .well-known advertises one.
+    livekit_service_url?: string;
     [key: string]: unknown;
 }
