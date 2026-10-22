@@ -4,7 +4,7 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
-## Unreleased
+## v0.3.0 (2026-10-23)
 
 ### New
 - **Android notifications in the background**, with no Google account or extra app: Meadhall stays connected (Android
