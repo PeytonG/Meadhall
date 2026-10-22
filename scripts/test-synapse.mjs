@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // Starts or stops a throwaway Synapse in Docker for the integration and E2E tests.
 // Usage: node scripts/test-synapse.mjs start|stop
 // Env: SYNAPSE_PORT (default 8008), SYNAPSE_IMAGE (default pinned below),
@@ -13,6 +14,7 @@ const IMAGE = process.env.SYNAPSE_IMAGE || "matrixdotorg/synapse:v1.163.0";
 const CONTAINER = "meadhall-test-synapse";
 const PORT = process.env.SYNAPSE_PORT || "8008";
 const DATA_DIR = path.join(os.tmpdir(), CONTAINER);
+const OVERRIDES_FILE = path.join(os.tmpdir(), `${CONTAINER}-overrides.yaml`);
 const HEALTH_URL = `http://127.0.0.1:${PORT}/health`;
 const STARTUP_TIMEOUT_MS = 120_000;
 
@@ -48,10 +50,19 @@ async function waitForHealth() {
     throw new Error(`Synapse did not become healthy within ${STARTUP_TIMEOUT_MS / 1000}s`);
 }
 
+// On Linux the data dir ends up owned by the container's synapse user, so clear it from inside a container.
+function clearDataDir() {
+    if (fs.existsSync(DATA_DIR)) {
+        docker(["run", "--rm", "--volume", `${DATA_DIR}:/data`, "--entrypoint", "sh", IMAGE, "-c", "rm -rf /data/* /data/.[!.]*"], {
+            allowFailure: true,
+        });
+    }
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
 async function start() {
     stop();
-    fs.rmSync(DATA_DIR, { recursive: true, force: true });
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    clearDataDir();
 
     docker([
         "run", "--rm",
@@ -64,7 +75,8 @@ async function start() {
     if (process.env.SYNAPSE_ROOM_VERSION) {
         overrides += `\ndefault_room_version: "${process.env.SYNAPSE_ROOM_VERSION}"\n`;
     }
-    fs.writeFileSync(path.join(DATA_DIR, "overrides.yaml"), overrides);
+    // Kept outside the data dir, which the runner can't write to once Synapse owns it.
+    fs.writeFileSync(OVERRIDES_FILE, overrides);
 
     // Later --config-path files override earlier ones.
     docker([
@@ -72,11 +84,12 @@ async function start() {
         "--name", CONTAINER,
         "--publish", `127.0.0.1:${PORT}:8008`,
         "--volume", `${DATA_DIR}:/data`,
+        "--volume", `${OVERRIDES_FILE}:/overrides.yaml:ro`,
         "--entrypoint", "python",
         IMAGE,
         "-m", "synapse.app.homeserver",
         "--config-path", "/data/homeserver.yaml",
-        "--config-path", "/data/overrides.yaml",
+        "--config-path", "/overrides.yaml",
     ]);
     await waitForHealth();
     const roomVersion = process.env.SYNAPSE_ROOM_VERSION ? `, room version ${process.env.SYNAPSE_ROOM_VERSION}` : "";
