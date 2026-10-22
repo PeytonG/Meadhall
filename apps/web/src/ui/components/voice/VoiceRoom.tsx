@@ -505,6 +505,10 @@ function buildScreenSharePublishOptions(profile: ScreenShareQualityProfile): Scr
     return {
         screenShareEncoding: profile.publishEncoding,
         degradationPreference,
+        // No simulcast for screen shares: Chromium encodes simulcast VP8 screen content at 2-5 fps whatever frame
+        // rate is asked for (measured against a LiveKit server: 3 fps at 1080p60 with simulcast, 57 fps without,
+        // with and without E2EE). That was the "choppy at any FPS" stream.
+        simulcast: false,
     };
 }
 

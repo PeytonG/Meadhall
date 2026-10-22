@@ -10,6 +10,8 @@ Versions follow `vX.Y.Z`.
 - **Pictures show up again.** On servers that require signed media downloads (the Meadhall server does), pictures
   sent a few minutes after signing in appeared as broken images in the desktop app. The app now keeps its media
   sign-in current, and falls back to downloading a picture directly if it still fails to load.
+- **Smooth screen sharing.** Shared screens ran at about 3 frames per second whatever quality was picked. They now
+  run at the chosen rate (measured: 1080p at about 57 fps for the 60 fps setting, 720p at 30 fps).
 
 ## v0.2.0 (2026-10-22)
 
