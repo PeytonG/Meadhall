@@ -255,19 +255,40 @@ function toDecryptFailureReason(error: unknown, fallbackUrl?: string): string {
     return "unknown error";
 }
 
-function retryImageLoadOnce(event: React.SyntheticEvent<HTMLImageElement>): void {
-    const image = event.currentTarget;
-    if (image.dataset.heorotRetryAttempted === "1") {
-        return;
-    }
+// Image load failures: retry once, then download the file directly with the current access token and show it from
+// memory. Servers that enforce authenticated media only serve signed requests; the service worker (web) or the
+// desktop request hook normally signs <img> loads, but neither can on a first visit before the worker controls the
+// page, or with a token that has since been refreshed.
+function createImageErrorHandler(client: MatrixClient): (event: React.SyntheticEvent<HTMLImageElement>) => void {
+    return (event) => {
+        const image = event.currentTarget;
+        const currentSource = image.currentSrc || image.src;
+        if (!currentSource || currentSource.startsWith("blob:")) {
+            return;
+        }
 
-    const currentSource = image.currentSrc || image.src;
-    if (!currentSource) {
-        return;
-    }
+        if (!image.dataset.heorotRetryAttempted) {
+            image.dataset.heorotRetryAttempted = "1";
+            image.dataset.heorotOriginalSrc = currentSource;
+            image.src = withImageRetryCacheBuster(currentSource);
+            return;
+        }
+        if (image.dataset.heorotRetryAttempted !== "1") {
+            return;
+        }
 
-    image.dataset.heorotRetryAttempted = "1";
-    image.src = withImageRetryCacheBuster(currentSource);
+        image.dataset.heorotRetryAttempted = "2";
+        const originalSource = image.dataset.heorotOriginalSrc ?? currentSource;
+        void fetchEncryptedArrayBufferWithRetry(buildEncryptedMediaDownloadCandidates(originalSource), {
+            timeoutMs: 20_000,
+            retries: 1,
+            accessToken: client.getAccessToken() ?? null,
+        })
+            .then((data) => {
+                image.src = URL.createObjectURL(new Blob([data]));
+            })
+            .catch(() => undefined);
+    };
 }
 
 async function fetchEncryptedArrayBufferWithRetry(
@@ -1210,6 +1231,7 @@ export function Timeline({
     showReadReceipts,
 }: TimelineProps): React.ReactElement {
     const decryptTuning = useMemo<DecryptTuning>(() => loadDecryptTuning(), []);
+    const handleImageError = useMemo(() => createImageErrorHandler(client), [client]);
     const [events, setEvents] = useState<MatrixEvent[]>(() => extractMessageEvents(room));
     const [emojiSourcesByShortcode, setEmojiSourcesByShortcode] = useState<ReadonlyMap<string, string>>(
         () => new Map(),
@@ -2159,7 +2181,7 @@ export function Timeline({
                                             title={imageAlt}
                                             loading="lazy"
                                             decoding="async"
-                                            onError={retryImageLoadOnce}
+                                            onError={handleImageError}
                                         />
                                     </button>
                                 </div>
@@ -2298,7 +2320,7 @@ export function Timeline({
                                                     alt=""
                                                     loading="lazy"
                                                     decoding="async"
-                                                    onError={retryImageLoadOnce}
+                                                    onError={handleImageError}
                                                 />
                                             ) : null}
                                             <span className="timeline-link-preview-body">

@@ -27,6 +27,7 @@ import {
     triggerRoomHistoryDecryption,
 } from "../adapters/securityRecoveryAdapter";
 import { syncMediaServiceWorkerAuthState } from "../serviceWorker/registerMediaServiceWorker";
+import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 
 export type MatrixSessionStatus =
     | "booting"
@@ -522,7 +523,7 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
     useEffect(() => {
         let isCancelled = false;
 
-        const syncDesktopMediaAuth = async (): Promise<void> => {
+        const syncDesktopMediaAuth = async (refreshedAccessToken?: string): Promise<void> => {
             const desktopBridge = getDesktopBridge();
             if (!desktopBridge?.setMediaAuthState || !desktopBridge.clearMediaAuthState) {
                 return;
@@ -551,16 +552,22 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
             }
 
             await desktopBridge.setMediaAuthState({
-                accessToken: client.getAccessToken() ?? undefined,
+                accessToken: refreshedAccessToken ?? client.getAccessToken() ?? undefined,
                 homeserverUrl: client.getHomeserverUrl(),
                 versions,
             });
         };
 
         void syncDesktopMediaAuth();
+        // Access tokens are refreshed every few minutes; hand each new one to the desktop media hook, or images
+        // sent after the first refresh load with an expired token and break.
+        const stopListening = onAccessTokenRefreshed((accessToken) => {
+            void syncDesktopMediaAuth(accessToken);
+        });
 
         return () => {
             isCancelled = true;
+            stopListening();
         };
     }, [state.client, state.status]);
 
