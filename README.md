@@ -110,8 +110,8 @@ Personal open-source experiment — alpha stage. Core features work, rough edges
 ## Quick start (web)
 
 ```bash
-git clone https://github.com/PeytonG/Heorot.git meadhall
-cd meadhall
+git clone https://github.com/PeytonG/Meadhall.git
+cd Meadhall
 pnpm install
 ```
 
@@ -304,7 +304,7 @@ Planned:
 3. Start dev server: `pnpm dev:web`
 4. Make your changes and open a pull request
 
-Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/PeytonG/Heorot/issues). Issues that also affect upstream belong in [Heorot's tracker](https://github.com/Vitosicz/Heorot/issues).
+Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/PeytonG/Meadhall/issues). Issues that also affect upstream belong in [Heorot's tracker](https://github.com/Vitosicz/Heorot/issues).
 
 ---
 
