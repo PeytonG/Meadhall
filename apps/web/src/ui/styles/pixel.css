@@ -37,6 +37,36 @@ select {
     border-radius: 0 !important;
 }
 
+/* ...except profile pictures, which are round like Discord's. Server icons stay square. */
+.avatar,
+.avatar-mask,
+.avatar-image,
+.avatar-fallback,
+.avatar-presence-dot,
+.pane-user-avatar,
+.timeline-avatar,
+.timeline-reply-avatar,
+.timeline-read-receipt-avatar,
+.voice-room-participant-avatar,
+.room-item-avatar,
+.room-item-voice-avatar,
+.rp-profile-avatar,
+.rp-member-avatar,
+.rp-member-row-avatar,
+.rs-member-avatar,
+.member-avatar,
+.settings-profile-avatar,
+.settings-members-avatar,
+.settings-chat-preview-avatar,
+.room-dialog-recipient-avatar,
+.room-dialog-autocomplete-avatar {
+    border-radius: 50% !important;
+}
+
+.avatar-image {
+    image-rendering: auto;
+}
+
 h1,
 h2,
 h3,
