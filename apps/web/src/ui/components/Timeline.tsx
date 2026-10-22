@@ -55,6 +55,7 @@ interface RenderEvent {
     senderAvatarUrl: string | null;
     senderAvatarSources: string[];
     timeLabel: string;
+    dayDivider: string | null;
 }
 
 interface ReplySummary {
@@ -337,8 +338,14 @@ async function fetchEncryptedArrayBufferWithRetry(
     throw new Error("Failed to download encrypted media");
 }
 
+// Stickers (m.sticker, e.g. Meadhall's pixel stickers) render as images without the image chrome.
+function isStickerEvent(event: MatrixEvent): boolean {
+    return event.getType() === EventType.Sticker;
+}
+
 function getMessageContent(event: MatrixEvent): MessageContent {
-    return event.getContent() as MessageContent;
+    const content = event.getContent() as MessageContent;
+    return isStickerEvent(event) ? ({ ...content, msgtype: MsgType.Image } as MessageContent) : content;
 }
 
 function getTextBody(content: MessageContent): string | null {
@@ -590,7 +597,7 @@ function collectLatestEditEventsByTarget(room: Room | null): Map<string, MatrixE
 }
 
 function isRenderableMessage(event: MatrixEvent): boolean {
-    if (event.getType() !== EventType.RoomMessage || event.isRedacted()) {
+    if ((event.getType() !== EventType.RoomMessage && !isStickerEvent(event)) || event.isRedacted()) {
         return false;
     }
 
@@ -810,13 +817,17 @@ function toRenderEvents(
         const rawBody = getTextBody(content) ?? "";
         const body = getReplyEventId(event) ? stripPlainReplyFallback(rawBody) : rawBody;
 
+        // Discord-style date divider before the first message of each day; a new day also starts a new group.
+        const dayDivider =
+            !previous || !isSameLocalDay(previous.getTs(), event.getTs()) ? formatDayDivider(event.getTs()) : null;
+
         let showHeader = true;
         if (previous) {
             const sameSender = previous.getSender() === event.getSender();
             const sameWindow = Math.abs(event.getTs() - previous.getTs()) <= 5 * 60 * 1000;
             showHeader = !(sameSender && sameWindow);
         }
-        if (edited) {
+        if (edited || dayDivider) {
             showHeader = true;
         }
 
@@ -831,8 +842,17 @@ function toRenderEvents(
             senderAvatarUrl: sender.avatarUrl,
             senderAvatarSources: sender.avatarSources,
             timeLabel: formatTime(event.getTs()),
+            dayDivider,
         };
     });
+}
+
+function isSameLocalDay(first: number, second: number): boolean {
+    return new Date(first).toDateString() === new Date(second).toDateString();
+}
+
+function formatDayDivider(timestamp: number): string {
+    return new Date(timestamp).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
 function splitTrailingUrlDecoration(candidate: string): { url: string; suffix: string } {
@@ -1970,7 +1990,7 @@ export function Timeline({
         <>
             <div className="timeline" ref={scrollContainerRef} onScroll={(event) => void handleScroll(event)}>
                 {paginating ? <div className="timeline-paginating">Loading older messages...</div> : null}
-                {renderEvents.map(({ event, content, edited, showHeader, body, reply, senderName, senderAvatarUrl, senderAvatarSources, timeLabel }) => {
+                {renderEvents.map(({ event, content, edited, showHeader, body, reply, senderName, senderAvatarUrl, senderAvatarSources, timeLabel, dayDivider }) => {
                     const key = eventKey(event);
                     const eventId = event.getId();
                     const senderId = event.getSender();
@@ -2023,7 +2043,12 @@ export function Timeline({
                               }
                             : null;
 
-                    return (
+                    return [
+                        dayDivider ? (
+                            <div key={`${key}:day`} className="timeline-day-divider" role="separator" aria-label={dayDivider}>
+                                <span>{dayDivider}</span>
+                            </div>
+                        ) : null,
                         <div
                             className={`timeline-event${isActiveReplyTarget ? " timeline-event-reply-target" : ""}${isDirectMentionEvent ? " timeline-event-direct-mention" : ""}`}
                             key={key}
@@ -2119,7 +2144,7 @@ export function Timeline({
                                 </div>
                             ) : null}
                             {mediaMsgType === MsgType.Image && mediaUrl ? (
-                                <div className={`timeline-image-wrap${showHeader ? "" : " timeline-image-wrap-grouped"}`}>
+                                <div className={`timeline-image-wrap${showHeader ? "" : " timeline-image-wrap-grouped"}${isStickerEvent(event) ? " timeline-sticker" : ""}`}>
                                     <button
                                         type="button"
                                         className="timeline-image-button"
@@ -2331,8 +2356,8 @@ export function Timeline({
                                     ) : null}
                                 </div>
                             ) : null}
-                        </div>
-                    );
+                        </div>,
+                    ];
                 })}
             </div>
             {lightbox ? (

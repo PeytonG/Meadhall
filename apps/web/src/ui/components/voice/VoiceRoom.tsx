@@ -12,13 +12,25 @@ import {
     type RemoteTrack,
     type RemoteTrackPublication,
 } from "livekit-client";
-import type { MatrixClient, Room as MatrixRoom } from "matrix-js-sdk/src/matrix";
+import { EventType, type MatrixClient, type Room as MatrixRoom } from "matrix-js-sdk/src/matrix";
+import { MatrixRTCSessionEvent, type MatrixRTCSession } from "matrix-js-sdk/src/matrixrtc";
 
 import { Avatar } from "../Avatar";
 import micMutedIcon from "../icons/mic-02.svg";
 import volumeMutedIcon from "../icons/volume-mute-02.svg";
 
-import { fetchLiveKitToken, updateVoiceParticipantState } from "../../adapters/voiceAdapter";
+import {
+    MatrixRtcKeyProvider,
+    buildRtcIdentityMap,
+    discoverLiveKitTransport,
+    fetchLiveKitToken,
+    fetchSfuCredentials,
+    joinMatrixRtcSession,
+    parseMatrixUserIdFromIdentity,
+    updateVoiceParticipantState,
+} from "../../adapters/voiceAdapter";
+import { createLiveKitE2EEWorker } from "../../voice/e2eeWorker";
+import { allowMembersToJoinCalls, canJoinCalls, canMembersJoinCalls } from "../../voice/voiceChannel";
 import {
     playVoiceJoinSound,
     playVoiceLeaveSound,
@@ -182,9 +194,9 @@ function formatDeviceLabel(device: MediaDeviceInfo): string {
     return device.label && device.label.trim().length > 0 ? device.label : `${device.kind} (${device.deviceId.slice(0, 6)})`;
 }
 
-// NOTE: parseMatrixUserIdFromMetadata / parseMatrixUserIdFromIdentity / resolveParticipantMatrixUserId
-// are intentionally duplicated in heorot-voice-relay/src/services/livekit.ts.
-// Both sides must parse LiveKit participant metadata the same way - keep them in sync.
+// NOTE: parseMatrixUserIdFromMetadata / resolveParticipantMatrixUserId are intentionally duplicated in
+// heorot-voice-relay/src/services/livekit.ts. Both sides must parse LiveKit participant metadata the same way.
+// parseMatrixUserIdFromIdentity additionally understands MatrixRTC "@user:server:DEVICEID" identities.
 function parseMatrixUserIdFromMetadata(metadata: string | undefined): string | undefined {
     if (!metadata || metadata.trim().length === 0) {
         return undefined;
@@ -202,23 +214,26 @@ function parseMatrixUserIdFromMetadata(metadata: string | undefined): string | u
     return undefined;
 }
 
-function parseMatrixUserIdFromIdentity(identity: string): string | undefined {
-    if (!identity.startsWith("@")) {
-        return undefined;
-    }
-    const separatorIndex = identity.indexOf("::");
-    const candidate = separatorIndex > 0 ? identity.slice(0, separatorIndex) : identity;
-    return candidate.includes(":") ? candidate : undefined;
-}
-
-function resolveParticipantMatrixUserId(participant: Participant | LocalParticipant): string | undefined {
+function resolveParticipantMatrixUserId(
+    participant: Participant | LocalParticipant,
+    rtcIdentityMap?: Map<string, string>,
+): string | undefined {
     const metadata = (participant as { metadata?: unknown }).metadata;
     const metadataValue = typeof metadata === "string" ? metadata : undefined;
     const fromMetadata = parseMatrixUserIdFromMetadata(metadataValue);
     if (fromMetadata) {
         return fromMetadata;
     }
-    return parseMatrixUserIdFromIdentity(participant.identity);
+    return rtcIdentityMap?.get(participant.identity) ?? parseMatrixUserIdFromIdentity(participant.identity);
+}
+
+// Element Call clients on other homeservers can join our SFU as subscribers only, under a hashed identity
+// (the JWT service's /get_token). Those are not call members, so leave them out of the participant list.
+function isListedRemoteParticipant(participant: Participant, rtcIdentityMap: Map<string, string>): boolean {
+    return (
+        resolveParticipantMatrixUserId(participant, rtcIdentityMap) !== undefined ||
+        participant.trackPublications.size > 0
+    );
 }
 
 function getParticipantDisplayInfo(
@@ -533,6 +548,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const ownUserId = client.getUserId() ?? undefined;
     const roomRef = useRef<Room | null>(null);
     const connectedRoomIdRef = useRef<string | null>(null);
+    // "matrixrtc" when joined via MatrixRTC (Element Call compatible), "relay" for the heorot-voice-relay fallback.
+    const voiceBackendRef = useRef<"matrixrtc" | "relay" | null>(null);
+    const rtcIdentityMapRef = useRef<Map<string, string>>(new Map());
+    const rtcTeardownRef = useRef<(() => void) | null>(null);
     const joinAbortControllerRef = useRef<AbortController | null>(null);
     const joinRequestIdRef = useRef(0);
     const expectedDisconnectReasonByRoomIdRef = useRef<Map<string, VoiceDisconnectReason>>(new Map());
@@ -572,6 +591,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [selectedDesktopCaptureSourceId, setSelectedDesktopCaptureSourceId] = useState<string | null>(null);
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [callAccessFixPending, setCallAccessFixPending] = useState(false);
+    const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
     const supportsAudioOutputSelection = useMemo(() => "setSinkId" in HTMLMediaElement.prototype, []);
     const selectedScreenShareQualityProfile = useMemo(
@@ -627,22 +648,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             return byEvent || byFlag || byLevel;
         };
         const next: VoiceParticipantState[] = [];
+        const rtcIdentityMap = rtcIdentityMapRef.current;
 
         if (room.localParticipant.identity) {
             next.push({
                 participant: room.localParticipant,
                 identity: room.localParticipant.identity,
-                matrixUserId: resolveParticipantMatrixUserId(room.localParticipant),
+                matrixUserId: resolveParticipantMatrixUserId(room.localParticipant, rtcIdentityMap),
                 isLocal: true,
                 isSpeaking: isParticipantSpeaking(room.localParticipant),
                 isScreenSharing: isParticipantScreenSharing(room.localParticipant),
             });
         }
         for (const participant of room.remoteParticipants.values()) {
+            if (!isListedRemoteParticipant(participant, rtcIdentityMap)) {
+                continue;
+            }
             next.push({
                 participant,
                 identity: participant.identity,
-                matrixUserId: resolveParticipantMatrixUserId(participant),
+                matrixUserId: resolveParticipantMatrixUserId(participant, rtcIdentityMap),
                 isLocal: false,
                 isSpeaking: isParticipantSpeaking(participant),
                 isScreenSharing: isParticipantScreenSharing(participant),
@@ -650,6 +675,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         setParticipants((current) => (areParticipantListsEqual(current, next) ? current : next));
     }, []);
+
+    // Leaves the MatrixRTC session (if any) so other clients stop showing us in the call.
+    const teardownMatrixRtc = (): void => {
+        const teardown = rtcTeardownRef.current;
+        rtcTeardownRef.current = null;
+        rtcIdentityMapRef.current = new Map();
+        teardown?.();
+    };
 
     useEffect(() => {
         void refreshDevices();
@@ -671,27 +704,22 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 expectedDisconnectReasonByRoomIdRef.current.set(roomId, "component_unmount");
                 void room.disconnect();
             }
+            teardownMatrixRtc();
         },
         [matrixRoomId],
     );
 
+    // Speaker changes apply mid-call, including going back to "System default". (Microphone changes are applied by
+    // restarting the mic track below.)
     useEffect(() => {
         const room = roomRef.current;
-        if (!room || connectionState !== ConnectionState.Connected) {
+        if (!room || connectionState !== ConnectionState.Connected || !supportsAudioOutputSelection) {
             return;
         }
-
-        if (audioSettings.preferredAudioInputId && audioSettings.preferredAudioInputId !== "default") {
-            void room.switchActiveDevice("audioinput", audioSettings.preferredAudioInputId).catch(() => undefined);
-        }
-        if (
-            supportsAudioOutputSelection &&
-            audioSettings.preferredAudioOutputId &&
-            audioSettings.preferredAudioOutputId !== "default"
-        ) {
-            void room.switchActiveDevice("audiooutput", audioSettings.preferredAudioOutputId).catch(() => undefined);
-        }
-    }, [audioSettings.preferredAudioInputId, audioSettings.preferredAudioOutputId, connectionState, supportsAudioOutputSelection]);
+        void room
+            .switchActiveDevice("audiooutput", audioSettings.preferredAudioOutputId || "default")
+            .catch(() => undefined);
+    }, [audioSettings.preferredAudioOutputId, connectionState, supportsAudioOutputSelection]);
 
     useEffect(() => {
         const room = roomRef.current;
@@ -705,6 +733,22 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         let disposed = false;
         const applyMicProcessing = async (): Promise<void> => {
             try {
+                // Device and processing changes restart the published track in place, so the others keep hearing
+                // us without a gap or a rejoin. Only the speech/music profile (an encoding setting) republishes.
+                const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track as
+                    | { restartTrack?: (options?: MicrophoneCaptureOptions) => Promise<void> }
+                    | undefined;
+                const appliedProfile = appliedMicProcessingSignatureRef.current?.split("|")[4];
+                const profileChanged = appliedProfile !== (audioSettings.micProfile === "music" ? "music" : "speech");
+                if (micTrack?.restartTrack && !profileChanged) {
+                    await micTrack.restartTrack(buildMicrophoneCaptureOptions(audioSettings));
+                    if (!disposed) {
+                        appliedMicProcessingSignatureRef.current = micProcessingSignature;
+                        setError(null);
+                        refreshAudioDiagnostics(room);
+                    }
+                    return;
+                }
                 await room.localParticipant.setMicrophoneEnabled(false);
                 if (disposed) {
                     return;
@@ -963,12 +1007,29 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 }
                 void previousRoom.disconnect().catch(() => undefined);
             }
+            teardownMatrixRtc();
             ensureCurrentJoinRequest();
 
+            const targetMatrixRoom = client.getRoom(targetRoomId);
             const credentials = await withTimeout(
-                fetchLiveKitToken(client, config, targetRoomId, {
-                    signal: joinAbortController.signal,
-                }),
+                (async () => {
+                    const transport = targetMatrixRoom ? await discoverLiveKitTransport(client, config) : null;
+                    if (transport && targetMatrixRoom && !canJoinCalls(targetMatrixRoom, client.getSafeUserId())) {
+                        throw new Error(
+                            "Your role can't join calls in this channel yet. Ask a channel admin to allow members to join calls.",
+                        );
+                    }
+                    if (!transport) {
+                        const relay = await fetchLiveKitToken(client, config, targetRoomId, {
+                            signal: joinAbortController.signal,
+                        });
+                        return { backend: "relay" as const, wsUrl: relay.wsUrl, token: relay.token, transport: null };
+                    }
+                    const sfu = await fetchSfuCredentials(client, transport, targetRoomId, {
+                        signal: joinAbortController.signal,
+                    });
+                    return { backend: "matrixrtc" as const, wsUrl: sfu.url, token: sfu.jwt, transport };
+                })(),
                 VOICE_JOIN_TOKEN_TIMEOUT_MS,
                 "Voice token request timed out.",
                 () => {
@@ -976,11 +1037,65 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 },
             );
             ensureCurrentJoinRequest();
+            voiceBackendRef.current = credentials.backend;
+
+            let rtcSession: MatrixRTCSession | null = null;
+            let keyProvider: MatrixRtcKeyProvider | null = null;
+            let e2eeWorker: Worker | null = null;
+            if (credentials.transport && targetMatrixRoom) {
+                rtcSession = client.matrixRTC.getRoomSession(targetMatrixRoom);
+                if (targetMatrixRoom.hasEncryptionStateEvent()) {
+                    keyProvider = new MatrixRtcKeyProvider();
+                    e2eeWorker = await createLiveKitE2EEWorker();
+                    if (!isCurrentJoinRequest()) {
+                        e2eeWorker.terminate();
+                    }
+                    ensureCurrentJoinRequest();
+                }
+                const session = rtcSession;
+                const sessionKeyProvider = keyProvider;
+                const sessionWorker = e2eeWorker;
+                const onEncryptionKeyChanged = (
+                    key: Uint8Array<ArrayBuffer>,
+                    encryptionKeyIndex: number,
+                    _membership: unknown,
+                    rtcBackendIdentity: string,
+                ): void => {
+                    void sessionKeyProvider?.setRawKey(key, rtcBackendIdentity, encryptionKeyIndex);
+                };
+                const onMembershipsChanged = (): void => {
+                    rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
+                    runIfCurrentJoin(() => syncParticipants());
+                };
+                // Without a membership the others neither see us nor send us media keys, so don't stay connected.
+                const onMembershipManagerError = (membershipError: unknown): void => {
+                    runIfCurrentJoin(() => {
+                        const reason = membershipError instanceof Error ? membershipError.message : "unknown error";
+                        void leaveVoice().then(() => setError(`Left the call: the call membership failed (${reason}).`));
+                    });
+                };
+                session.on(MatrixRTCSessionEvent.EncryptionKeyChanged, onEncryptionKeyChanged);
+                session.on(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
+                session.on(MatrixRTCSessionEvent.MembershipManagerError, onMembershipManagerError);
+                rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
+                rtcTeardownRef.current = () => {
+                    session.off(MatrixRTCSessionEvent.EncryptionKeyChanged, onEncryptionKeyChanged);
+                    session.off(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
+                    session.off(MatrixRTCSessionEvent.MembershipManagerError, onMembershipManagerError);
+                    if (session.isJoined()) {
+                        void session.leaveRoomSession().catch(() => undefined);
+                    }
+                    sessionWorker?.terminate();
+                };
+            }
+
             const room = new Room({
                 adaptiveStream: true,
                 dynacast: true,
                 audioCaptureDefaults: buildMicrophoneCaptureOptions(audioSettings),
                 publishDefaults: buildMicrophonePublishOptions(audioSettings),
+                // `e2ee` rather than `encryption`: the latter also encrypts data channels, which Element Call does not.
+                ...(keyProvider && e2eeWorker ? { e2ee: { keyProvider, worker: e2eeWorker } } : {}),
             });
             inFlightRoom = room;
 
@@ -999,16 +1114,20 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         syncParticipants();
                     });
                 })
-                .on(RoomEvent.ParticipantConnected, () => {
+                .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
                     runIfCurrentJoin(() => {
-                        void playParticipantJoinSound().catch(() => undefined);
+                        if (isListedRemoteParticipant(participant, rtcIdentityMapRef.current)) {
+                            void playParticipantJoinSound().catch(() => undefined);
+                        }
                         syncParticipants();
                         refreshAudioDiagnostics(room);
                     });
                 })
-                .on(RoomEvent.ParticipantDisconnected, () => {
+                .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
                     runIfCurrentJoin(() => {
-                        void playParticipantLeaveSound().catch(() => undefined);
+                        if (isListedRemoteParticipant(participant, rtcIdentityMapRef.current)) {
+                            void playParticipantLeaveSound().catch(() => undefined);
+                        }
                         syncParticipants();
                         refreshAudioDiagnostics(room);
                     });
@@ -1030,11 +1149,12 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         publication.source === Track.Source.ScreenShareAudio
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
-                        syncParticipants();
                     }
                     if (publication.source === Track.Source.ScreenShare) {
                         void playScreenShareStartSound().catch(() => undefined);
                     }
+                    // A first publication can make a previously unlisted participant listed.
+                    syncParticipants();
                     refreshAudioDiagnostics(room);
                 })
                 .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
@@ -1136,6 +1256,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     appliedMicProcessingSignatureRef.current = null;
                     clearRemoteAudioElements();
                     clearScreenSharePreview();
+                    teardownMatrixRtc();
                     onSessionStateChange?.({ roomId: targetRoomId, status: "disconnected" });
                 })
                 .on(RoomEvent.MediaDevicesChanged, () => {
@@ -1170,6 +1291,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             }
             roomRef.current = room;
             connectedRoomIdRef.current = targetRoomId;
+
+            if (rtcSession && credentials.transport) {
+                if (keyProvider) {
+                    await room.setE2EEEnabled(true);
+                }
+                joinMatrixRtcSession(client, rtcSession, credentials.transport, targetRoomId, {
+                    manageMediaKeys: keyProvider !== null,
+                });
+                ensureCurrentJoinRequest();
+            }
 
             try {
                 await room.startAudio();
@@ -1229,6 +1360,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             if (!isCurrentJoinRequest()) {
                 return;
             }
+            teardownMatrixRtc();
             const elapsedMs = Date.now() - joinStartedAtMs;
             const withinRetryBudget = elapsedMs < VOICE_JOIN_RETRY_BUDGET_MS;
             const shouldRetry =
@@ -1556,15 +1688,18 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         joinAbortControllerRef.current = null;
         joinRequestIdRef.current += 1;
         const currentRoomId = connectedRoomIdRef.current ?? matrixRoomId;
-        void updateVoiceParticipantState(client, config, {
-            matrixRoomId: currentRoomId,
-            audioMuted: false,
-        }).catch(() => undefined);
+        if (voiceBackendRef.current === "relay") {
+            void updateVoiceParticipantState(client, config, {
+                matrixRoomId: currentRoomId,
+                audioMuted: false,
+            }).catch(() => undefined);
+        }
         const room = roomRef.current;
         roomRef.current = null;
         connectedRoomIdRef.current = null;
         setJoining(false);
         void playVoiceLeaveSound().catch(() => undefined);
+        teardownMatrixRtc();
         if (room) {
             expectedDisconnectReasonByRoomIdRef.current.set(currentRoomId, "user_left");
             await room.disconnect();
@@ -1610,6 +1745,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         const nextAudioMuted = !audioMuted;
         setAudioMuted(nextAudioMuted);
         const currentRoomId = connectedRoomIdRef.current ?? matrixRoomId;
+        if (voiceBackendRef.current !== "relay") {
+            return;
+        }
         void updateVoiceParticipantState(client, config, {
             matrixRoomId: currentRoomId,
             audioMuted: nextAudioMuted,
@@ -1760,6 +1898,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const connected = connectionState === ConnectionState.Connected;
+    // Voice channels created before call memberships were allowed: offer whoever can edit power levels a fix.
+    const callAccessRoom = connected && voiceBackendRef.current === "matrixrtc" ? client.getRoom(matrixRoomId) : null;
+    const showCallAccessFix =
+        callAccessRoom !== null &&
+        callAccessFixedRoomId !== matrixRoomId &&
+        ownUserId !== undefined &&
+        !canMembersJoinCalls(callAccessRoom) &&
+        callAccessRoom.currentState.maySendStateEvent(EventType.RoomPowerLevels, ownUserId);
 
     const ownUser = ownUserId ? client.getUser(ownUserId) ?? undefined : undefined;
     const ownDisplayName = ownUser?.displayName ?? ownUserId ?? "You";
@@ -2065,6 +2211,28 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     </div>
                 ) : null}
 
+                {showCallAccessFix && callAccessRoom ? (
+                    <div className="voice-room-audio-warning">
+                        <p>Members can't join calls in this channel yet, so only moderators are in the call.</p>
+                        <button
+                            type="button"
+                            className="settings-button settings-button-secondary"
+                            disabled={callAccessFixPending}
+                            onClick={() => {
+                                setCallAccessFixPending(true);
+                                void allowMembersToJoinCalls(client, callAccessRoom)
+                                    .then(() => setCallAccessFixedRoomId(callAccessRoom.roomId))
+                                    .catch((fixError: unknown) =>
+                                        setError(fixError instanceof Error ? fixError.message : "Unable to update permissions."),
+                                    )
+                                    .finally(() => setCallAccessFixPending(false));
+                            }}
+                        >
+                            Allow members to join calls
+                        </button>
+                    </div>
+                ) : null}
+
                 {error ? <p className="settings-inline-error">{error}</p> : null}
             </div>
 
@@ -2117,6 +2285,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     {!supportsAudioOutputSelection ? (
                         <p className="settings-inline-note">Speaker output switching is not supported in this browser.</p>
                     ) : null}
+                    {/* Applied live: changing these never requires leaving the call. */}
+                    <div className="voice-room-processing-toggles" role="group" aria-label="Microphone processing">
+                        {(
+                            [
+                                ["noiseSuppressionEnabled", "Noise suppression"],
+                                ["echoCancellationEnabled", "Echo cancellation"],
+                                ["autoGainControlEnabled", "Automatic gain"],
+                                ["voiceIsolationEnabled", "Voice isolation"],
+                            ] as const
+                        ).map(([key, label]) => (
+                            <label key={key} className="settings-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={audioSettings[key]}
+                                    onChange={(event) => onAudioSettingsChange({ ...audioSettings, [key]: event.target.checked })}
+                                />
+                                {label}
+                            </label>
+                        ))}
+                    </div>
                     <label className="settings-field voice-room-stream-profile-field">
                         <span>Stream quality</span>
                         <select

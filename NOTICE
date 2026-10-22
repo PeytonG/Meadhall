@@ -1,0 +1,29 @@
+Meadhall
+Copyright (C) 2026 PeytonG and Meadhall contributors
+
+Meadhall is a modified version of Heorot (https://github.com/Vitosicz/Heorot),
+copyright Vitosicz and the Heorot contributors. Parts of Heorot are derived from
+Element Web (https://github.com/element-hq/element-web), copyright New Vector Ltd
+and Element Creations Ltd. All of it is licensed under the GNU Affero General
+Public License, version 3 (see LICENSE). The original copyright notices are kept.
+
+Source code: https://github.com/PeytonG/Meadhall
+Running or hosting Meadhall for others? AGPL-3.0 section 13 requires offering
+them the source of the version you run; set `source_code_url` in config.json if
+you publish a modified copy elsewhere. The app links to it from Settings.
+
+Changes made in this fork (2026, by PeytonG; see the git history for detail):
+- Renamed the app to Meadhall, with new artwork, a pixel-art look, a bright purple
+  default theme and a pixel color wheel for choosing the theme color.
+- Voice channels use MatrixRTC so they interoperate with Element Call, including
+  end-to-end encrypted media; heorot-voice-relay is kept as a fallback.
+- Voice channels let members join calls (call membership power level); the
+  Discord import no longer breaks power levels for restricted channels.
+- Desktop: auto-updates from GitHub Releases, tray icon, open at login, and a
+  permission handler restricting renderer permissions to the app.
+- Typecheck fix, and unit, smoke, Synapse integration and Playwright E2E tests
+  with GitHub Actions CI.
+- Release builds (Windows, Linux, Android), security scanning and documentation.
+
+Files added by this fork carry an SPDX-License-Identifier: AGPL-3.0-only header.
+Third-party fonts: Pixelify Sans and Silkscreen, SIL Open Font License 1.1.

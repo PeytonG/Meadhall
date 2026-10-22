@@ -13,12 +13,16 @@ import {
     RegistrationProbeError,
     type RegistrationFlow,
 } from "../adapters/registrationAdapter";
+import loginHall from "../assets/login-hall.webp";
+import meadhallIcon from "../assets/meadhall-icon.png";
 import { RegistrationInteractiveAuth } from "./auth/RegistrationInteractiveAuth";
 
 type AuthMode = "sign_in" | "register";
 type RegistrationStep = "form" | "uia";
 
 interface LoginViewProps {
+    brandName: string;
+    deviceDisplayName: string;
     defaultHomeserver: string;
     defaultIdentityServer?: string;
     disableHomeserverInput: boolean;
@@ -29,6 +33,8 @@ interface LoginViewProps {
 }
 
 export function LoginView({
+    brandName,
+    deviceDisplayName,
     defaultHomeserver,
     defaultIdentityServer,
     disableHomeserverInput,
@@ -261,9 +267,12 @@ export function LoginView({
     }, [syncFlowHeight, mode, registerStep]);
 
     return (
-        <div className="login-view">
+        <div className="login-view has-backdrop" style={{ ["--login-backdrop" as string]: `url(${loginHall})` }}>
             <div className="login-card login-card-wide">
-                <h1>Heorot</h1>
+                <div className="login-brand">
+                    <img src={meadhallIcon} alt="" />
+                    <h1>{brandName}</h1>
+                </div>
                 <div className="login-mode-switch" role="tablist" aria-label="Authentication flow">
                     <button
                         type="button"
@@ -421,6 +430,7 @@ export function LoginView({
                         username={registerUsername}
                         password={registerPassword}
                         emailAddress={registerUsesEmail ? registerEmail.trim() || undefined : undefined}
+                        initialDeviceDisplayName={deviceDisplayName}
                         onCompleted={handleRegistrationCompleted}
                         onBack={() => {
                             setRegisterStep("form");

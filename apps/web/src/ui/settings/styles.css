@@ -1,5 +1,7 @@
 [data-theme="light"] {
     color-scheme: light;
+    /* Matches accentTokens(DEFAULT_ACCENT_COLOR, "light"); replaced at runtime. */
+    --accent-soft: #7436b3;
     --bg-app: #ffffff;
     --bg-rail: #f2f3f5;
     --bg-pane: #ffffff;
@@ -402,7 +404,7 @@
 .settings-theme-button.is-active {
     border-color: var(--accent-soft);
     background: var(--primary);
-    color: #ffffff;
+    color: var(--on-primary);
 }
 
 .settings-field {
@@ -471,7 +473,7 @@
     border: 1px solid var(--primary);
     border-radius: 8px;
     background: var(--primary);
-    color: #ffffff;
+    color: var(--on-primary);
     padding: 8px 11px;
     font-size: 13px;
     cursor: pointer;
@@ -752,7 +754,7 @@
 
 .settings-role-mod {
     border-color: var(--primary);
-    background: rgba(16, 99, 40, 0.22);
+    background: rgba(var(--primary-rgb), 0.22);
 }
 
 .settings-role-member {
@@ -954,3 +956,14 @@
 
 
 
+
+/* AGPL-3.0 source offer, always visible in settings. */
+.settings-source-notice {
+    margin: 18px 4px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.settings-source-notice a {
+    color: var(--accent);
+}

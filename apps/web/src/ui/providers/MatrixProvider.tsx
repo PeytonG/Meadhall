@@ -4,6 +4,7 @@ import { MatrixClient as MatrixClientSdk, MatrixError, type MatrixClient } from 
 
 import { bootstrapCore } from "../../bootstrap";
 import type { CoreContext } from "../../core/CoreContext";
+import { getDeviceDisplayName } from "../../core/config/branding";
 import type { CoreConfig } from "../../core/config/configTypes";
 import type { MatrixCredentials } from "../../core/types/credentials";
 import {
@@ -648,7 +649,7 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
                         identityServerUrl,
                         username,
                         password,
-                        initialDeviceDisplayName: "Heorot Web",
+                        initialDeviceDisplayName: getDeviceDisplayName(state.config, Boolean(getDesktopBridge())),
                     });
                 } catch (loginError) {
                     const shouldFallback =
@@ -665,7 +666,7 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
                         identityServerUrl,
                         username,
                         password,
-                        initialDeviceDisplayName: "Heorot Web",
+                        initialDeviceDisplayName: getDeviceDisplayName(state.config, Boolean(getDesktopBridge())),
                     });
                 }
 

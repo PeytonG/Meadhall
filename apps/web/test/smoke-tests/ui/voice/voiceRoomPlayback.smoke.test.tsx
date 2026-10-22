@@ -49,6 +49,49 @@ function createAudioTrack(trackSid: string): FakeTrack {
     };
 }
 
+interface FakeRtcSession {
+    memberships: Array<{ rtcBackendIdentity: string; userId: string }>;
+    on: (event: string, handler: (...args: unknown[]) => void) => void;
+    off: (event: string, handler: (...args: unknown[]) => void) => void;
+    emit: (event: string, ...args: unknown[]) => void;
+    listenerCount: () => number;
+    joinRTCSession: ReturnType<typeof vi.fn>;
+    isJoined: ReturnType<typeof vi.fn>;
+    leaveRoomSession: ReturnType<typeof vi.fn>;
+    reemitEncryptionKeys: ReturnType<typeof vi.fn>;
+}
+
+function createRtcSession(memberships: FakeRtcSession["memberships"] = []): FakeRtcSession {
+    const handlers = new Map<string, Set<(...args: unknown[]) => void>>();
+    let joined = false;
+    return {
+        memberships,
+        on: (event, handler) => {
+            const set = handlers.get(event) ?? new Set();
+            set.add(handler);
+            handlers.set(event, set);
+        },
+        off: (event, handler) => {
+            handlers.get(event)?.delete(handler);
+        },
+        emit: (event, ...args) => {
+            for (const handler of handlers.get(event) ?? []) {
+                handler(...args);
+            }
+        },
+        listenerCount: () => [...handlers.values()].reduce((total, set) => total + set.size, 0),
+        joinRTCSession: vi.fn(() => {
+            joined = true;
+        }),
+        isJoined: vi.fn(() => joined),
+        leaveRoomSession: vi.fn(async () => {
+            joined = false;
+            return true;
+        }),
+        reemitEncryptionKeys: vi.fn(),
+    };
+}
+
 function createAudioPublication(trackSid: string): FakePublication {
     const publication = {
         kind: "audio",
@@ -72,16 +115,33 @@ describe("voice room smoke", () => {
     let VoiceRoom: VoiceRoomComponent;
     let RoomEvent: Record<string, string>;
 
-    let createdRooms: Array<{ emit: (event: string, ...args: unknown[]) => void }>;
+    let createdRooms: Array<{
+        emit: (event: string, ...args: unknown[]) => void;
+        options: Record<string, unknown>;
+        connectArgs: unknown[];
+        setE2EEEnabled: ReturnType<typeof vi.fn>;
+        switchActiveDevice: ReturnType<typeof vi.fn>;
+        localParticipant: { setMicrophoneEnabled: ReturnType<typeof vi.fn> };
+    }>;
     let seededRemotePublications: Array<{
         participantIdentity: string;
         participantSid: string;
-        publication: FakePublication;
+        publication: FakePublication | null;
     }>;
     let playAttempts: string[];
+    let keyProviderKeys: Array<{ key: unknown; identity?: string; index?: number }>;
+    let voiceAdapterMocks: {
+        fetchLiveKitToken: ReturnType<typeof vi.fn>;
+        discoverLiveKitTransport: ReturnType<typeof vi.fn>;
+        fetchSfuCredentials: ReturnType<typeof vi.fn>;
+        updateVoiceParticipantState: ReturnType<typeof vi.fn>;
+    };
+    let createdWorkers: Array<{ terminate: ReturnType<typeof vi.fn> }>;
+    let micRestarts: ReturnType<typeof vi.fn>;
 
     beforeEach(async () => {
         vi.resetModules();
+        (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
         container = document.createElement("div");
         document.body.appendChild(container);
@@ -90,6 +150,22 @@ describe("voice room smoke", () => {
         createdRooms = [];
         seededRemotePublications = [];
         playAttempts = [];
+        keyProviderKeys = [];
+        createdWorkers = [];
+        micRestarts = vi.fn(async () => undefined);
+        // jsdom has no setSinkId; the app only offers speaker switching where it exists.
+        Object.defineProperty(HTMLMediaElement.prototype, "setSinkId", { configurable: true, value: vi.fn(async () => undefined) });
+        voiceAdapterMocks = {
+            fetchLiveKitToken: vi.fn(async () => ({
+                token: "token",
+                wsUrl: "wss://livekit.example/ws",
+                livekitRoom: "voice-room",
+                expiresAt: "2026-01-01T00:00:00.000Z",
+            })),
+            discoverLiveKitTransport: vi.fn(async () => null),
+            fetchSfuCredentials: vi.fn(async () => ({ url: "wss://sfu.example.org", jwt: "sfu-jwt" })),
+            updateVoiceParticipantState: vi.fn(async () => undefined),
+        };
 
         Object.defineProperty(HTMLMediaElement.prototype, "play", {
             configurable: true,
@@ -147,10 +223,12 @@ describe("voice room smoke", () => {
                 public activeSpeakers: unknown[] = [];
                 public canPlaybackAudio = true;
                 public state = ConnectionState.Disconnected;
+                public connectArgs: unknown[] = [];
+                public readonly setE2EEEnabled = vi.fn(async () => undefined);
 
                 private readonly handlers = new Map<string, Set<(...args: unknown[]) => void>>();
 
-                public constructor() {
+                public constructor(public readonly options: Record<string, unknown> = {}) {
                     this.localParticipant = {
                         identity: "@self:example.org::local",
                         sid: "local-sid",
@@ -158,7 +236,7 @@ describe("voice room smoke", () => {
                         audioLevel: 0,
                         trackPublications: new Map<string, any>(),
                         getTrackPublication: (source: string) => this.localParticipant.trackPublications.get(source),
-                        setMicrophoneEnabled: async (enabled: boolean) => {
+                        setMicrophoneEnabled: vi.fn(async (enabled: boolean) => {
                             if (!enabled) {
                                 this.localParticipant.trackPublications.delete(Track.Source.Microphone);
                                 return;
@@ -167,6 +245,7 @@ describe("voice room smoke", () => {
                                 kind: Track.Kind.Audio,
                                 source: Track.Source.Microphone,
                                 track: {
+                                    restartTrack: micRestarts,
                                     mediaStreamTrack: {
                                         getSettings: () => ({
                                             echoCancellation: true,
@@ -177,7 +256,7 @@ describe("voice room smoke", () => {
                                     },
                                 },
                             });
-                        },
+                        }),
                         setScreenShareEnabled: async () => undefined,
                     };
 
@@ -187,7 +266,9 @@ describe("voice room smoke", () => {
                             sid: seed.participantSid,
                             isSpeaking: false,
                             audioLevel: 0,
-                            trackPublications: new Map<string, FakePublication>([[seed.publication.trackSid, seed.publication]]),
+                            trackPublications: new Map<string, FakePublication>(
+                                seed.publication ? [[seed.publication.trackSid, seed.publication]] : [],
+                            ),
                             getTrackPublication: (source: string) => {
                                 for (const publication of participant.trackPublications.values()) {
                                     if (publication.source === source) {
@@ -220,7 +301,8 @@ describe("voice room smoke", () => {
                     }
                 }
 
-                public async connect(): Promise<void> {
+                public async connect(...args: unknown[]): Promise<void> {
+                    this.connectArgs = args;
                     this.state = ConnectionState.Connected;
                     this.emit(RoomEvent.ConnectionStateChanged, ConnectionState.Connected);
                 }
@@ -229,13 +311,19 @@ describe("voice room smoke", () => {
                     this.canPlaybackAudio = true;
                 }
 
-                public async switchActiveDevice(): Promise<void> {
-                    return;
-                }
+                public readonly switchActiveDevice = vi.fn(async (_kind: string, _deviceId: string) => true);
 
                 public async disconnect(): Promise<void> {
                     this.state = ConnectionState.Disconnected;
                     this.emit(RoomEvent.Disconnected);
+                }
+            }
+
+            class BaseKeyProvider {
+                public constructor(public readonly keyProviderOptions: Record<string, unknown> = {}) {}
+
+                protected onSetEncryptionKey(key: unknown, identity?: string, index?: number): void {
+                    keyProviderKeys.push({ key, identity, index });
                 }
             }
 
@@ -244,6 +332,8 @@ describe("voice room smoke", () => {
                 RoomEvent,
                 ConnectionState,
                 Track,
+                BaseKeyProvider,
+                createKeyMaterialFromBuffer: async (buffer: ArrayBuffer) => ({ importedBytes: new Uint8Array(buffer) }),
                 AudioPresets: {
                     speech: "speech",
                     music: "music",
@@ -256,14 +346,20 @@ describe("voice room smoke", () => {
             };
         });
 
-        vi.doMock("../../../../src/ui/adapters/voiceAdapter", () => ({
-            fetchLiveKitToken: vi.fn(async () => ({
-                token: "token",
-                wsUrl: "wss://livekit.example/ws",
-                livekitRoom: "voice-room",
-                expiresAt: "2026-01-01T00:00:00.000Z",
-            })),
-            updateVoiceParticipantState: vi.fn(async () => undefined),
+        // Real identity/key helpers; only the network calls are faked.
+        vi.doMock("../../../../src/ui/adapters/voiceAdapter", async () => ({
+            ...(await vi.importActual<typeof import("../../../../src/ui/adapters/voiceAdapter")>(
+                "../../../../src/ui/adapters/voiceAdapter",
+            )),
+            ...voiceAdapterMocks,
+        }));
+
+        vi.doMock("../../../../src/ui/voice/e2eeWorker", () => ({
+            createLiveKitE2EEWorker: vi.fn(async () => {
+                const worker = { terminate: vi.fn() };
+                createdWorkers.push(worker);
+                return worker;
+            }),
         }));
 
         vi.doMock("../../../../src/ui/providers/MatrixProvider", () => ({
@@ -317,6 +413,7 @@ describe("voice room smoke", () => {
                         getUserId: () => "@self:example.org",
                         getUser: () => ({ rawDisplayName: "Self" }),
                         mxcUrlToHttp: () => null,
+                        getRoom: () => null,
                     },
                     matrixRoomId: "!voice:example.org",
                     matrixRoom: null,
@@ -353,6 +450,261 @@ describe("voice room smoke", () => {
         expect(attachedSids).toContain("aud-initial");
         expect(attachedSids).toContain("aud-late");
         expect(playAttempts).toContain("aud-late");
+        expect(voiceAdapterMocks.fetchLiveKitToken).toHaveBeenCalledTimes(1);
+    });
+
+    describe("MatrixRTC (Element Call compatible)", () => {
+        const roomId = "!voice:example.org";
+        const transport = { type: "livekit", livekit_service_url: "https://rtc.example.org/livekit/jwt" };
+
+        function createRtcClient(
+            session: FakeRtcSession,
+            encrypted: boolean,
+            permissions: { callMemberLevel?: number; ownLevel?: number } = {},
+        ): Record<string, unknown> & { sendStateEvent: ReturnType<typeof vi.fn> } {
+            const { callMemberLevel = 0, ownLevel = 0 } = permissions;
+            const powerLevels = {
+                users_default: 0,
+                state_default: 50,
+                events: { "m.room.power_levels": 100, "org.matrix.msc3401.call.member": callMemberLevel },
+            };
+            const fakeRoom = {
+                roomId,
+                hasEncryptionStateEvent: () => encrypted,
+                currentState: {
+                    getStateEvents: (type: string) =>
+                        type === "m.room.power_levels" ? { getContent: () => powerLevels } : null,
+                    maySendStateEvent: (type: string) =>
+                        ownLevel >= ((powerLevels.events as Record<string, number>)[type] ?? powerLevels.state_default),
+                },
+            };
+            return {
+                getUserId: () => "@self:example.org",
+                getSafeUserId: () => "@self:example.org",
+                getDeviceId: () => "SELFDEVICE",
+                getUser: () => ({ rawDisplayName: "Self" }),
+                mxcUrlToHttp: () => null,
+                getRoom: (id: string) => (id === roomId ? fakeRoom : null),
+                getStateEvent: vi.fn(async () => powerLevels),
+                sendStateEvent: vi.fn(async () => ({})),
+                matrixRTC: { getRoomSession: () => session },
+            };
+        }
+
+        async function renderAndJoin(client: Record<string, unknown>): Promise<React.RefObject<VoiceRoomHandle | null>> {
+            const ref = createRef<VoiceRoomHandle>();
+            await act(async () => {
+                root.render(
+                    React.createElement(VoiceRoom, {
+                        ref,
+                        client: client as never,
+                        matrixRoomId: roomId,
+                        matrixRoom: null,
+                        audioSettings: createAudioSettings(),
+                        onAudioSettingsChange: () => undefined,
+                    }),
+                );
+            });
+            await act(async () => {
+                await ref.current?.join();
+            });
+            return ref;
+        }
+
+        beforeEach(() => {
+            voiceAdapterMocks.discoverLiveKitTransport.mockResolvedValue(transport);
+        });
+
+        it("joins with the SFU credentials and an Element Call compatible membership", async () => {
+            const session = createRtcSession();
+            await renderAndJoin(createRtcClient(session, false));
+
+            expect(voiceAdapterMocks.fetchLiveKitToken).not.toHaveBeenCalled();
+            expect(voiceAdapterMocks.fetchSfuCredentials).toHaveBeenCalledWith(
+                expect.anything(),
+                transport,
+                roomId,
+                expect.anything(),
+            );
+            expect(createdRooms[0].connectArgs).toEqual(["wss://sfu.example.org", "sfu-jwt"]);
+            expect(createdRooms[0].options.e2ee).toBeUndefined();
+            expect(session.joinRTCSession).toHaveBeenCalledWith(
+                { userId: "@self:example.org", deviceId: "SELFDEVICE", memberId: "@self:example.org:SELFDEVICE" },
+                [],
+                { ...transport, livekit_alias: roomId },
+                { callIntent: "audio", manageMediaKeys: false, useExperimentalToDeviceTransport: true },
+            );
+            // Voice channels are persistent hangouts: joining never rings or notifies anyone.
+            expect(session.joinRTCSession.mock.calls[0][3]).not.toHaveProperty("notificationType");
+        });
+
+        it("enables E2EE in encrypted rooms and hands media keys to LiveKit", async () => {
+            const session = createRtcSession();
+            await renderAndJoin(createRtcClient(session, true));
+
+            const room = createdRooms[0];
+            const e2ee = room.options.e2ee as { keyProvider: { keyProviderOptions: unknown }; worker: unknown };
+            expect(e2ee.worker).toBe(createdWorkers[0]);
+            expect(e2ee.keyProvider.keyProviderOptions).toEqual({ ratchetWindowSize: 10, keyringSize: 256 });
+            expect(room.setE2EEEnabled).toHaveBeenCalledWith(true);
+            expect(session.joinRTCSession.mock.calls[0][3]).toMatchObject({ manageMediaKeys: true });
+
+            await act(async () => {
+                session.emit("encryption_key_changed", new Uint8Array([1, 2, 3]), 4, {}, "@bob:example.org:BOBDEVICE");
+                await Promise.resolve();
+            });
+            expect(keyProviderKeys).toEqual([
+                { key: { importedBytes: new Uint8Array([1, 2, 3]) }, identity: "@bob:example.org:BOBDEVICE", index: 4 },
+            ]);
+        });
+
+        it("leaves the session and releases the E2EE worker on leave", async () => {
+            const session = createRtcSession();
+            const ref = await renderAndJoin(createRtcClient(session, true));
+            expect(session.listenerCount()).toBeGreaterThan(0);
+
+            await act(async () => {
+                await ref.current?.leave();
+            });
+
+            expect(session.leaveRoomSession).toHaveBeenCalledTimes(1);
+            expect(session.listenerCount()).toBe(0);
+            expect(createdWorkers[0].terminate).toHaveBeenCalledTimes(1);
+            expect(voiceAdapterMocks.updateVoiceParticipantState).not.toHaveBeenCalled();
+        });
+
+        it("explains instead of joining when the member may not join calls", async () => {
+            const session = createRtcSession();
+            await renderAndJoin(createRtcClient(session, false, { callMemberLevel: 50, ownLevel: 0 }));
+
+            expect(container.textContent).toContain("Your role can't join calls in this channel yet.");
+            expect(createdRooms).toHaveLength(0);
+            expect(voiceAdapterMocks.fetchSfuCredentials).not.toHaveBeenCalled();
+            expect(session.joinRTCSession).not.toHaveBeenCalled();
+        });
+
+        it("offers admins of older voice channels to let members join calls", async () => {
+            const session = createRtcSession();
+            const client = createRtcClient(session, false, { callMemberLevel: 50, ownLevel: 100 });
+            await renderAndJoin(client);
+
+            const fixButton = Array.from(container.querySelectorAll("button")).find(
+                (button) => button.textContent === "Allow members to join calls",
+            );
+            expect(fixButton).toBeTruthy();
+            await act(async () => {
+                fixButton!.click();
+                await Promise.resolve();
+            });
+
+            expect(client.sendStateEvent).toHaveBeenCalledWith(
+                roomId,
+                "m.room.power_levels",
+                expect.objectContaining({
+                    events: { "m.room.power_levels": 100, "org.matrix.msc3401.call.member": 0 },
+                }),
+                "",
+            );
+            expect(container.textContent).not.toContain("Allow members to join calls");
+        });
+
+        it("lists call members but not subscriber-only connections", async () => {
+            seededRemotePublications.push(
+                {
+                    participantIdentity: "@bob:example.org:BOBDEVICE",
+                    participantSid: "remote-bob",
+                    publication: createAudioPublication("aud-bob"),
+                },
+                {
+                    participantIdentity: "c29tZWhhc2hlZGlkZW50aXR5",
+                    participantSid: "remote-subscriber",
+                    publication: null,
+                },
+            );
+            const session = createRtcSession([
+                { rtcBackendIdentity: "@bob:example.org:BOBDEVICE", userId: "@bob:example.org" },
+            ]);
+            await renderAndJoin(createRtcClient(session, false));
+
+            expect(container.textContent).toContain("@bob:example.org");
+            expect(container.textContent).not.toContain("c29tZWhhc2hlZGlkZW50aXR5");
+        });
+    });
+    describe("live audio settings (no leaving the call)", () => {
+        const client = {
+            getUserId: () => "@self:example.org",
+            getUser: () => ({ rawDisplayName: "Self" }),
+            mxcUrlToHttp: () => null,
+            getRoom: () => null,
+        };
+
+        async function renderWith(audioSettings: AudioSettings, ref = createRef<VoiceRoomHandle>()): Promise<React.RefObject<VoiceRoomHandle | null>> {
+            await act(async () => {
+                root.render(
+                    React.createElement(VoiceRoom, {
+                        ref,
+                        client: client as never,
+                        matrixRoomId: "!voice:example.org",
+                        matrixRoom: null,
+                        audioSettings,
+                        onAudioSettingsChange: () => undefined,
+                    }),
+                );
+            });
+            return ref;
+        }
+
+        it("restarts the existing mic track when processing settings change mid-call", async () => {
+            const settings = createAudioSettings();
+            const ref = await renderWith(settings);
+            await act(async () => {
+                await ref.current?.join();
+            });
+            const room = createdRooms[0];
+            room.localParticipant.setMicrophoneEnabled.mockClear();
+
+            await renderWith({ ...settings, noiseSuppressionEnabled: false, preferredAudioInputId: "usb-mic" }, ref);
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(micRestarts).toHaveBeenCalledWith(
+                expect.objectContaining({ noiseSuppression: false, deviceId: { exact: "usb-mic" } }),
+            );
+            // Not unpublished, not disconnected.
+            expect(room.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(false);
+            expect(voiceAdapterMocks.fetchLiveKitToken).toHaveBeenCalledTimes(1);
+        });
+
+        it("republishes only when the speech/music profile changes", async () => {
+            const settings = createAudioSettings();
+            const ref = await renderWith(settings);
+            await act(async () => {
+                await ref.current?.join();
+            });
+            const room = createdRooms[0];
+            micRestarts.mockClear();
+
+            await renderWith({ ...settings, micProfile: "music" }, ref);
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(micRestarts).not.toHaveBeenCalled();
+            expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(false);
+        });
+
+        it("switches the speaker mid-call, including back to the system default", async () => {
+            const settings = createAudioSettings();
+            const ref = await renderWith({ ...settings, preferredAudioOutputId: "headset" });
+            await act(async () => {
+                await ref.current?.join();
+            });
+            const room = createdRooms[0];
+            expect(room.switchActiveDevice).toHaveBeenCalledWith("audiooutput", "headset");
+
+            await renderWith({ ...settings, preferredAudioOutputId: "default" }, ref);
+            expect(room.switchActiveDevice).toHaveBeenLastCalledWith("audiooutput", "default");
+        });
     });
 });
-

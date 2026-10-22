@@ -1,6 +1,6 @@
 # @heorot/web
 
-React web app package within the Heorot monorepo. For user-facing documentation, setup guides, and voice configuration see the [root README](../../README.md).
+React web app package within the Meadhall monorepo. For user-facing documentation, setup guides, and voice configuration see the [root README](../../README.md).
 
 ---
 

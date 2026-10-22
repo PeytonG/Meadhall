@@ -1,0 +1,38 @@
+name: Bug report
+description: Something in Meadhall doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report! Security problems go through private reporting instead (see SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a voice channel
+        2. ...
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Web, Windows, Linux (AppImage), Linux (rpm), Android, Other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Meadhall version
+      description: Settings → Updates on desktop, or the release you downloaded.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, logs, the homeserver you use, whether Element users were involved...

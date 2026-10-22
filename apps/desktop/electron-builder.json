@@ -1,6 +1,6 @@
 {
-  "appId": "com.heorot.app",
-  "productName": "Heorot",
+  "appId": "io.github.peytong.meadhall",
+  "productName": "Meadhall",
   "asar": true,
   "asarUnpack": "**/*.node",
   "electronFuses": {
@@ -17,9 +17,19 @@
   "directories": {
     "output": "dist-electron"
   },
+  "icon": "assets/icon.png",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "PeytonG",
+      "repo": "Meadhall",
+      "releaseType": "draft"
+    }
+  ],
   "files": [
     "dist/electron/**/*",
     "web/**/*",
+    "assets/**/*",
     "package.json"
   ],
   "afterPack": "scripts/electron-builder-after-pack.cjs",
@@ -30,7 +40,8 @@
   },
   "nsis": {
     "oneClick": false,
-    "allowToChangeInstallationDirectory": true
+    "allowToChangeInstallationDirectory": true,
+    "artifactName": "Meadhall-Setup-${version}.${ext}"
   },
   "mac": {
     "target": [
@@ -48,9 +59,16 @@
   "dmg": {},
   "linux": {
     "target": [
-      "AppImage"
+      "AppImage",
+      "rpm"
     ],
     "category": "Network",
-    "executableName": "heorot"
+    "executableName": "meadhall"
+  },
+  "rpm": {
+    "artifactName": "Meadhall-${version}-${arch}.${ext}"
+  },
+  "appImage": {
+    "artifactName": "Meadhall-${version}-${arch}.${ext}"
   }
 }

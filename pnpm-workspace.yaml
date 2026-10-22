@@ -5,3 +5,9 @@ packages:
 onlyBuiltDependencies:
   - electron
   - esbuild
+
+# Security: force patched versions of build-time transitive dependencies (see SECURITY.md).
+overrides:
+  electron-builder-squirrel-windows>app-builder-lib: 26.15.3
+  builder-util-runtime: ">=9.7.0"
+  xcode>uuid: ^11.1.1

@@ -18,6 +18,8 @@ import { mediaFromMxc } from "../adapters/media";
 import { mxcThumbnailToHttp } from "../utils/mxc";
 import { ComposerBar } from "./composer/ComposerBar";
 import { EmojiPicker } from "./composer/EmojiPicker";
+import { sendSticker } from "../stickers/sendSticker";
+import { StickerButton } from "../stickers/StickerButton";
 import { Toast, type ToastState } from "./Toast";
 import { TypingIndicator } from "./typing/TypingIndicator";
 
@@ -1980,6 +1982,14 @@ export function Composer({
                 onDrop={handleDrop}
                 onAttach={() => fileInputRef.current?.click()}
                 onToggleEmoji={() => setEmojiPickerOpen((open) => !open)}
+                stickerControl={
+                    <StickerButton
+                        disabled={!room}
+                        onSend={async (sticker) => {
+                            if (room) await sendSticker(client, room.roomId, sticker);
+                        }}
+                    />
+                }
                 emojiPicker={
                     emojiPickerOpen && room ? (
                         <div ref={emojiPickerRef} className="composer-emoji-picker-popover">

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 
+import { getBrandName, getSourceCodeUrl } from "../../core/config/branding";
 import type { ToastState } from "../components/Toast";
 import { useMatrix } from "../providers/MatrixProvider";
 import { SettingsNav, type SettingsNavSection } from "./SettingsNav";
@@ -13,6 +14,7 @@ import { PermissionsTab } from "./server/tabs/PermissionsTab";
 import { VisibilityTab } from "./server/tabs/VisibilityTab";
 import { AdvancedTab } from "./server/tabs/AdvancedTab";
 import { AppearanceTab } from "./user/tabs/AppearanceTab";
+import { UpdatesTab } from "./user/tabs/UpdatesTab";
 import { AudioTab } from "./user/tabs/AudioTab";
 import { DevicesTab } from "./user/tabs/DevicesTab";
 import { EncryptionTab } from "./user/tabs/EncryptionTab";
@@ -90,6 +92,15 @@ const USER_NAV: SettingsNavSection[] = [
         items: [{ id: "sign-out", label: "Sign out" }],
     },
 ];
+
+// Desktop app only: an "Updates" entry under App Settings.
+function withUpdatesTab(sections: SettingsNavSection[]): SettingsNavSection[] {
+    return sections.map((section) =>
+        section.title === "App Settings"
+            ? { ...section, items: [...section.items, { id: "updates", label: "Updates" }] }
+            : section,
+    );
+}
 
 interface SettingsOverlayProps {
     open: boolean;
@@ -192,7 +203,8 @@ export function SettingsOverlay({
         };
     }, [mode, open, spaceRoom]);
 
-    const navSections = mode === "server" ? SERVER_NAV : USER_NAV;
+    const isDesktopApp = typeof window !== "undefined" && Boolean(window.heorotDesktop?.checkForUpdates);
+    const navSections = mode === "server" ? SERVER_NAV : isDesktopApp ? withUpdatesTab(USER_NAV) : USER_NAV;
     const title = useMemo(() => {
         if (mode === "server") {
             const roomName = spaceRoom?.name || spaceRoom?.getCanonicalAlias() || spaceRoom?.roomId || "Server";
@@ -299,6 +311,8 @@ export function SettingsOverlay({
                         onToast={onToast}
                     />
                 );
+            case "updates":
+                return <UpdatesTab />;
             case "appearance":
                 return (
                     <AppearanceTab
@@ -378,6 +392,12 @@ export function SettingsOverlay({
             <div className="settings-shell">
                 <aside className="settings-sidebar">
                     <SettingsNav sections={navSections} activeTab={activeTab} onChangeTab={setActiveTab} />
+                    <p className="settings-source-notice">
+                        {getBrandName(matrix.config)} is free software under the AGPL-3.0.{" "}
+                        <a href={getSourceCodeUrl(matrix.config)} target="_blank" rel="noopener noreferrer">
+                            Source code
+                        </a>
+                    </p>
                 </aside>
                 <section className="settings-main">
                     <header className="settings-header">

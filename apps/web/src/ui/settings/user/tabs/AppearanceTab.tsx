@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
+import { PixelColorWheel } from "../../../theme/PixelColorWheel";
 import type { AppearanceSettings } from "../settingsStore";
 
 const CHAT_LINE_LENGTH_MIN_CH = 45;
@@ -21,6 +22,23 @@ export function AppearanceTab({
     onChange,
 }: AppearanceTabProps): React.ReactElement {
     const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.heorotDesktop);
+    // Start-at-login lives in the OS (owned by the desktop main process), not in local settings.
+    const [startAtLogin, setStartAtLogin] = useState<boolean | null>(null);
+    useEffect(() => {
+        const getStartAtLogin = window.heorotDesktop?.getStartAtLogin;
+        if (!getStartAtLogin) {
+            return;
+        }
+        let cancelled = false;
+        void getStartAtLogin().then((enabled) => {
+            if (!cancelled) {
+                setStartAtLogin(enabled);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
     const useMaximumLineWidth = settings.chatLineLengthCh === 0;
     const effectiveLineLengthCh = useMaximumLineWidth
         ? CHAT_LINE_LENGTH_MAX_CH
@@ -54,6 +72,38 @@ export function AppearanceTab({
                         Light
                     </button>
                 </div>
+            </div>
+
+            <div className="settings-section-card">
+                <h3>Font</h3>
+                <div className="settings-theme-row" role="group" aria-label="Font">
+                    {(
+                        [
+                            ["pixel", "Pixel"],
+                            ["mixed", "Pixel headings"],
+                            ["system", "System"],
+                        ] as const
+                    ).map(([fontStyle, label]) => (
+                        <button
+                            key={fontStyle}
+                            type="button"
+                            className={`settings-theme-button${settings.fontStyle === fontStyle ? " is-active" : ""}`}
+                            aria-pressed={settings.fontStyle === fontStyle}
+                            onClick={() => onChange({ ...settings, fontStyle })}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="settings-section-card">
+                <h3>Theme color</h3>
+                <p className="settings-tab-description">Pick any color; it's adjusted to stay readable in light and dark themes.</p>
+                <PixelColorWheel
+                    value={settings.accentColor}
+                    onChange={(accentColor) => onChange({ ...settings, accentColor })}
+                />
             </div>
 
             <div className="settings-section-card settings-chat-width-card">
@@ -171,7 +221,19 @@ export function AppearanceTab({
                             })
                         }
                     />
-                    Close button minimizes app (desktop)
+                    Close button keeps app running in the tray (desktop)
+                </label>
+            ) : null}
+            {isDesktopRuntime && startAtLogin !== null ? (
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={startAtLogin}
+                        onChange={(event) => {
+                            void window.heorotDesktop?.setStartAtLogin?.(event.target.checked).then(setStartAtLogin);
+                        }}
+                    />
+                    Open in the background when you sign in to your computer (desktop)
                 </label>
             ) : null}
         </div>

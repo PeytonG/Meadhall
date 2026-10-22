@@ -5,8 +5,8 @@ import { RoomDialog } from "./RoomDialog";
 import {
     HEOROT_SPACE_CHILD_CHANNEL_TYPE_KEY,
     HEOROT_SPACE_CHILD_VOICE_KEY,
-    HEOROT_VOICE_CHANNEL_EVENT,
-    MATRIX_CALL_COMPAT_EVENT,
+    allowCallMemberships,
+    voiceChannelInitialState,
 } from "../../voice/voiceChannel";
 
 interface CreateRoomDialogProps {
@@ -99,24 +99,7 @@ export function CreateRoomDialog({
                 });
             }
             if (voiceChannel) {
-                initialState.push({
-                    type: HEOROT_VOICE_CHANNEL_EVENT,
-                    state_key: "",
-                    content: {
-                        enabled: true,
-                        version: 1,
-                        chat_suppressed: true,
-                    },
-                });
-                initialState.push({
-                    type: MATRIX_CALL_COMPAT_EVENT,
-                    state_key: "",
-                    content: {
-                        type: "voice",
-                        intent: "voice",
-                        chat_suppressed: true,
-                    },
-                });
+                initialState.push(...voiceChannelInitialState());
             }
 
             const options: Parameters<MatrixClient["createRoom"]>[0] = {
@@ -130,6 +113,9 @@ export function CreateRoomDialog({
             };
 
             const response = await client.createRoom(options);
+            if (voiceChannel) {
+                await allowCallMemberships(client, response.room_id, 0);
+            }
             if (spaceParentId) {
                 const viaServer = getViaServerFromUserId(client.getUserId());
                 const via = viaServer ? [viaServer] : undefined;

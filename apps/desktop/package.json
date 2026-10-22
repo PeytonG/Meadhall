@@ -2,8 +2,13 @@
   "name": "@heorot/desktop",
   "version": "0.1.0",
   "private": true,
-  "author": "Heorot",
-  "description": "Electron desktop wrapper for Heorot Web",
+  "author": {
+    "name": "Meadhall",
+    "email": "47164665+PeytonG@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/PeytonG/Meadhall",
+  "license": "AGPL-3.0-only",
+  "description": "Meadhall desktop app",
   "main": "dist/electron/main.js",
   "scripts": {
     "clean": "node ./scripts/clean.mjs",
@@ -25,10 +30,13 @@
     "dist:mac:universal:signed": "npm run build && electron-builder --config electron-builder.json --publish never -m dmg zip --universal"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5",
-    "concurrently": "^9.1.2",
-    "electron": "^34.2.0",
-    "electron-builder": "^26.0.12",
-    "typescript": "^5.7.3"
+    "@types/node": "^22.20.5",
+    "concurrently": "^10.0.6",
+    "electron": "^44.9.3",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

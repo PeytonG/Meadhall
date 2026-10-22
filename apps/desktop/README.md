@@ -1,6 +1,14 @@
-# Heorot Desktop
+# Meadhall Desktop
 
-Electron desktop wrapper for Heorot Web.
+Electron desktop wrapper for the Meadhall web app.
+
+Desktop extras:
+
+- **Tray icon.** With *Close button keeps app running in the tray* enabled (Appearance settings), closing the window hides it to the tray. Quit from the tray menu.
+- **Open at login.** Starts hidden in the tray. Uses login items on Windows/macOS and `~/.config/autostart/meadhall.desktop` on Linux.
+- **Auto-update.** Packaged builds check this fork's GitHub Releases, download in the background and offer *Restart to update*. Set `HEOROT_DISABLE_AUTO_UPDATE=1` to turn it off.
+
+Environment variables keep the `HEOROT_` prefix from upstream Heorot.
 
 ## Install
 

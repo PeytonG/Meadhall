@@ -1,0 +1,542 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/*
+ * Meadhall's pixel-art look, applied on top of every other stylesheet (imported last in App.tsx).
+ * Square corners everywhere, stepped "pixel" borders on panels, bevelled buttons and pixel fonts.
+ * Colors come from the theme tokens, so the accent picked on the pixel color wheel flows through.
+ */
+
+:root {
+    --font-pixel-body: "Pixelify Sans", "Segoe UI", system-ui, sans-serif;
+    --font-pixel-display: "Silkscreen", "Pixelify Sans", system-ui, sans-serif;
+    --pixel: 3px;
+    --pixel-border: var(--border);
+    --pixel-highlight: rgba(255, 255, 255, 0.07);
+    --pixel-shade: rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="light"] {
+    --pixel-border: #c9ccd3;
+    --pixel-highlight: rgba(255, 255, 255, 0.7);
+    --pixel-shade: rgba(0, 0, 0, 0.14);
+}
+
+html,
+body,
+#root,
+button,
+input,
+textarea,
+select {
+    font-family: var(--font-pixel-body);
+}
+
+/* No rounded corners anywhere: avatars, cards, buttons and inputs are all square pixels. */
+*,
+*::before,
+*::after {
+    border-radius: 0 !important;
+}
+
+h1,
+h2,
+h3,
+.settings-tab-title,
+.room-dialog-title,
+.login-mode-button,
+.rail-logo + *,
+.room-list-category-title,
+.room-list-section-title {
+    font-family: var(--font-pixel-display);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+img,
+canvas,
+.rail-icon-avatar,
+.login-brand img {
+    image-rendering: pixelated;
+}
+
+/* Stepped borders: a solid outline whose corners are notched out, like a pixel sprite frame. */
+.login-card,
+.settings-section-card,
+.room-dialog,
+.message-context-menu,
+.message-actions-bar,
+.desktop-update-banner,
+.pixel-color-picker {
+    border-color: transparent !important;
+    box-shadow:
+        0 calc(var(--pixel) * -1) 0 0 var(--pixel-border),
+        0 var(--pixel) 0 0 var(--pixel-border),
+        calc(var(--pixel) * -1) 0 0 0 var(--pixel-border),
+        var(--pixel) 0 0 0 var(--pixel-border),
+        inset 0 var(--pixel) 0 0 var(--pixel-highlight),
+        inset 0 calc(var(--pixel) * -1) 0 0 var(--pixel-shade);
+}
+
+/* Bevelled action buttons: light top-left edge, dark bottom-right edge; pressed buttons invert it.
+   Text-like buttons (names in the timeline, channel and member rows) stay flat. */
+.login-card button,
+.settings-button,
+.settings-theme-button,
+.room-dialog-button-primary,
+.room-dialog-button,
+.verification-primary,
+.emoji-upload-save,
+.desktop-update-banner button,
+.voice-room-audio-warning button,
+.rail-icon {
+    box-shadow:
+        inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--pixel-shade),
+        inset var(--pixel) var(--pixel) 0 0 var(--pixel-highlight);
+}
+
+/* `.login-card button` would otherwise give the inactive sign-in/register tab the solid accent fill. */
+.login-card .login-mode-button {
+    background: var(--bg-input);
+    color: var(--text-muted);
+}
+
+.login-card .login-mode-button.is-active {
+    background: var(--accent);
+    color: var(--on-primary);
+}
+
+:is(.login-card button, .settings-button, .settings-theme-button, .room-dialog-button-primary, .room-dialog-button,
+    .verification-primary, .emoji-upload-save, .desktop-update-banner button, .rail-icon):active:not(:disabled) {
+    box-shadow:
+        inset var(--pixel) var(--pixel) 0 0 var(--pixel-shade),
+        inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--pixel-highlight);
+    transform: translateY(1px);
+}
+
+input,
+textarea,
+select {
+    border-width: 2px !important;
+}
+
+:focus-visible {
+    outline: var(--pixel) solid var(--accent) !important;
+    outline-offset: 2px;
+}
+
+/* Chunky scrollbars. */
+* {
+    scrollbar-width: auto;
+    scrollbar-color: var(--accent) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border: 2px solid var(--bg-pane);
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.rail-logo {
+    box-shadow: none;
+}
+
+/* Pixel color wheel (Appearance settings). */
+.pixel-color-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+    background: var(--bg-card);
+}
+
+.pixel-color-wheel-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.pixel-color-wheel {
+    width: 228px;
+    height: 228px;
+    max-width: 100%;
+    cursor: crosshair;
+    touch-action: none;
+    image-rendering: pixelated;
+}
+
+.pixel-color-brightness {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-color-brightness-step,
+.pixel-color-swatch {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.pixel-color-brightness-step.is-active,
+.pixel-color-swatch.is-active {
+    outline: var(--pixel) solid var(--text-main);
+    outline-offset: 2px;
+}
+
+.pixel-color-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pixel-color-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pixel-color-controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pixel-color-controls input {
+    width: 96px;
+    padding: 6px 8px;
+    background: var(--bg-input);
+    border: 2px solid var(--pixel-border);
+    color: var(--text-main);
+    text-transform: lowercase;
+}
+
+.pixel-color-preview {
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    box-shadow: 0 0 0 var(--pixel) var(--pixel-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button:active:not(:disabled) {
+        transform: none;
+    }
+}
+
+/* Update download progress (desktop update banner), a chunky segmented bar. */
+.desktop-update-progress {
+    display: inline-block;
+    width: 120px;
+    height: 12px;
+    background: var(--bg-input);
+    box-shadow: 0 0 0 2px var(--pixel-border);
+}
+
+.desktop-update-progress span {
+    display: block;
+    height: 100%;
+    background: repeating-linear-gradient(90deg, var(--accent) 0 8px, transparent 8px 10px);
+    transition: width 200ms steps(6);
+}
+
+.settings-updates-status {
+    margin: 10px 0 14px;
+    color: var(--text-muted);
+}
+
+/* In-call microphone processing toggles (voice settings panel). */
+.voice-room-processing-toggles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 6px 14px;
+    margin: 10px 0;
+}
+
+/* Pixel sticker picker (composer) and stickers in the timeline. */
+.composer-sticker-anchor {
+    position: relative;
+    display: flex;
+}
+
+.composer-sticker-button img {
+    width: 22px;
+    height: 22px;
+    image-rendering: pixelated;
+}
+
+.sticker-picker {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    z-index: 40;
+    width: 304px;
+    padding: 10px;
+    background: var(--bg-card);
+    box-shadow:
+        0 calc(var(--pixel) * -1) 0 0 var(--pixel-border),
+        0 var(--pixel) 0 0 var(--pixel-border),
+        calc(var(--pixel) * -1) 0 0 0 var(--pixel-border),
+        var(--pixel) 0 0 0 var(--pixel-border);
+}
+
+.sticker-picker-title {
+    font-family: var(--font-pixel-display);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.sticker-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.sticker-picker-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.sticker-picker-item:hover:not(:disabled),
+.sticker-picker-item:focus-visible {
+    background: var(--bg-hover);
+}
+
+.sticker-picker-item img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.sticker-picker-error {
+    margin: 8px 0 0;
+    color: var(--danger);
+    font-size: 12px;
+}
+
+.timeline-image-wrap.timeline-sticker .timeline-image-button {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+}
+
+.timeline-image-wrap.timeline-sticker .timeline-image {
+    width: 128px;
+    height: 128px;
+    max-width: 128px;
+    object-fit: contain;
+    background: transparent;
+    border: 0;
+    image-rendering: pixelated;
+}
+
+/* Discord-style bottom of the channel pane: "Voice Connected" panel and the user panel with mic/deafen/settings. */
+.pixel-icon {
+    display: block;
+}
+
+.pixel-icon-slash {
+    fill: var(--danger);
+}
+
+.pane-bottom {
+    gap: 0;
+    padding: 0;
+    background: var(--bg-rail);
+}
+
+.pane-voice-dock {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 8px 8px 10px;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid var(--pixel-border);
+}
+
+.pane-voice-dock.is-connected,
+.pane-voice-dock.is-connecting {
+    background: transparent;
+    border-color: var(--pixel-border);
+}
+
+.pane-voice-pill {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.pane-voice-pill:hover {
+    background: transparent;
+}
+
+.pane-voice-pill:hover .pane-voice-pill-subtitle {
+    color: var(--text-main);
+    text-decoration: underline;
+}
+
+.pane-voice-pill-title {
+    font-family: var(--font-pixel-display);
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.pane-voice-dock.is-connected .pane-voice-pill-title {
+    color: var(--status-online);
+}
+
+.pane-voice-dock.is-connecting .pane-voice-pill-title {
+    color: var(--status-idle);
+}
+
+.pane-user-panel {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+}
+
+.pane-user-panel .pane-user-card {
+    flex: 1;
+    min-width: 0;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.pane-user-panel .pane-user-card:hover {
+    background: var(--bg-hover);
+}
+
+.pane-icon-button {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.pane-icon-button:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.pane-icon-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.pane-icon-button.is-muted {
+    color: var(--text-main);
+}
+
+.pane-voice-hangup:hover:not(:disabled) {
+    color: var(--danger);
+}
+
+/* Discord-style date divider between days in the timeline. */
+.timeline-day-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 16px 6px;
+    color: var(--text-muted);
+    font-family: var(--font-pixel-display);
+    font-size: 10px;
+}
+
+.timeline-day-divider::before,
+.timeline-day-divider::after {
+    content: "";
+    flex: 1;
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--pixel-border) 0 6px, transparent 6px 8px);
+}
+
+/* Discord-style server rail indicator: a pill on the left edge, short on hover and tall when selected. */
+.left-rail .rail-icon {
+    position: relative;
+    overflow: visible;
+}
+
+.left-rail .rail-icon::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    width: 4px;
+    height: 0;
+    background: var(--text-main);
+    transform: translateY(-50%);
+    transition: height 120ms steps(3);
+}
+
+.left-rail .rail-icon:hover::before {
+    height: 20px;
+}
+
+.left-rail .rail-icon.is-active::before {
+    height: 40px;
+}
+
+/* Members list sections ("Online — 3" / "Offline — 1"); offline members are dimmed, as in Discord. */
+.rs-members-group-title {
+    margin: 14px 8px 6px;
+    font-family: var(--font-pixel-display);
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.rs-members-group-title:first-child {
+    margin-top: 4px;
+}
+
+.rs-member-row.is-offline {
+    opacity: 0.5;
+}
+
+.rs-member-row.is-offline:hover {
+    opacity: 1;
+}
+
+/* Font setting (Appearance): "pixel" (default) keeps both pixel fonts; "mixed" keeps pixel headings with a
+   readable body font; "system" uses the system font throughout. Set as data-font on <html>. */
+[data-font="mixed"] {
+    --font-pixel-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+[data-font="system"] {
+    --font-pixel-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-pixel-display: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}

@@ -144,3 +144,18 @@ describe("settingsStore", () => {
         expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     });
 });
+
+describe("font setting", () => {
+    it("defaults to pixel fonts and rejects unknown values", () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ appearance: { fontStyle: "comic-sans" } }));
+        expect(loadUserLocalSettings().appearance.fontStyle).toBe("pixel");
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ appearance: { fontStyle: "mixed" } }));
+        expect(loadUserLocalSettings().appearance.fontStyle).toBe("mixed");
+    });
+
+    it("applies the font mode to the document", () => {
+        applyAppearanceTheme({ ...loadUserLocalSettings().appearance, fontStyle: "system" });
+        expect(document.documentElement.getAttribute("data-font")).toBe("system");
+    });
+});

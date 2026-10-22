@@ -10,9 +10,12 @@
     --bg-input: #0e0e10;
     --text-main: #e3e5e8;
     --text-muted: #949ba4;
-    --primary: #106328;
-    --accent: #106328;
-    --accent-soft: #1a7a35;
+    /* Bright purple default; replaced at runtime from the accent picked in Appearance (ui/theme/accentColor.ts). */
+    --primary: #a64dff;
+    --primary-rgb: 166, 77, 255;
+    --accent: #a64dff;
+    --accent-soft: #c182ff;
+    --on-primary: #14091f;
     --danger: #ed4245;
     --border: #25262a;
     --channel-encrypted: #6bd48c;
@@ -70,6 +73,32 @@ textarea {
     flex-direction: column;
     gap: 12px;
     background: var(--bg-app);
+}
+
+/* Sign-in screen: the mead hall artwork as a faint texture behind the card, with a glow in the accent color. */
+.login-view.has-backdrop {
+    background:
+        radial-gradient(ellipse at center, rgba(var(--primary-rgb), 0.16), transparent 60%),
+        linear-gradient(rgba(12, 10, 18, 0.86), rgba(12, 10, 18, 0.94)),
+        var(--login-backdrop) center / cover no-repeat,
+        var(--bg-app);
+    image-rendering: pixelated;
+}
+
+.login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.login-brand img {
+    width: 48px;
+    height: 48px;
+    image-rendering: pixelated;
+}
+
+.login-brand h1 {
+    margin: 0;
 }
 
 .loading-spinner {
@@ -140,7 +169,7 @@ textarea {
 
 .login-mode-button.is-active {
     border-color: var(--primary);
-    background: rgba(16, 99, 40, 0.2);
+    background: rgba(var(--primary-rgb), 0.2);
     color: var(--text-main);
 }
 
@@ -195,6 +224,7 @@ textarea {
     border-radius: 8px;
     padding: 10px 14px;
     background: var(--accent);
+    color: var(--on-primary);
     font-weight: 600;
     cursor: pointer;
 }
@@ -359,6 +389,40 @@ textarea {
     gap: 0;
 }
 
+.desktop-update-banner {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.desktop-update-banner button {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-hover);
+    cursor: pointer;
+}
+
+.desktop-update-banner .desktop-update-banner-primary {
+    background: var(--accent);
+    color: var(--on-primary);
+    border-color: var(--accent-soft);
+}
+
+.desktop-update-banner button:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
 .verification-gate-banner {
     padding: 20px 22px 18px;
     background: var(--bg-input);
@@ -447,7 +511,7 @@ textarea {
     align-self: flex-start;
     border: 1px solid var(--border);
     border-radius: 999px;
-    background: rgba(16, 99, 40, 0.2);
+    background: rgba(var(--primary-rgb), 0.2);
     color: var(--text-main);
     font-size: 12px;
     letter-spacing: 0.05em;
@@ -510,7 +574,7 @@ textarea {
 .verification-primary {
     border-color: var(--primary);
     background: var(--primary);
-    color: #ffffff;
+    color: var(--on-primary);
 }
 
 .verification-secondary {
@@ -639,8 +703,15 @@ textarea {
 }
 
 .rail-logo {
-    background: var(--primary);
+    background: transparent;
     color: var(--bg-app);
+}
+
+.rail-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
 }
 
 .rail-icon {
@@ -653,7 +724,7 @@ textarea {
 }
 
 .rail-icon.is-active {
-    background: rgba(16, 99, 40, 0.2);
+    background: rgba(var(--primary-rgb), 0.2);
     color: var(--text-main);
 }
 
@@ -675,7 +746,7 @@ textarea {
 
 .rail-create-space:hover:not(:disabled) {
     border-color: var(--primary);
-    background: rgba(16, 99, 40, 0.2);
+    background: rgba(var(--primary-rgb), 0.2);
     color: var(--text-main);
 }
 
@@ -846,7 +917,7 @@ textarea {
 
 .room-list-edit-button.is-active {
     border-color: var(--primary);
-    background: rgba(16, 99, 40, 0.2);
+    background: rgba(var(--primary-rgb), 0.2);
     color: var(--text-main);
 }
 
@@ -2114,7 +2185,7 @@ textarea {
 }
 
 .timeline-event-reply-target {
-    background: rgba(16, 99, 40, 0.16);
+    background: rgba(var(--primary-rgb), 0.16);
     border-radius: 10px;
 }
 
@@ -2991,7 +3062,7 @@ textarea {
 .emoji-upload-save {
     border-color: var(--primary);
     background: var(--primary);
-    color: #ffffff;
+    color: var(--on-primary);
 }
 
 .room-dialog-overlay {
@@ -3230,7 +3301,7 @@ textarea {
 .room-dialog-tab.is-active {
     border-color: var(--primary);
     background: var(--primary);
-    color: #ffffff;
+    color: var(--on-primary);
 }
 
 .room-dialog-tab:active {
@@ -3390,7 +3461,7 @@ textarea {
 .room-dialog-button-primary {
     border-color: var(--primary);
     background: var(--primary);
-    color: #ffffff;
+    color: var(--on-primary);
 }
 
 .room-dialog-button-secondary {
@@ -4449,7 +4520,7 @@ img.voice-ctrl-icon {
 }
 
 .toast-info {
-    border-color: rgba(16, 99, 40, 0.5);
+    border-color: rgba(var(--primary-rgb), 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {

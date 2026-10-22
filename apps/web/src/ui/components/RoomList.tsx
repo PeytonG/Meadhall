@@ -8,10 +8,16 @@ import {
     type MatrixEvent,
     type Room,
 } from "matrix-js-sdk/src/matrix";
+import { MatrixRTCSessionEvent } from "matrix-js-sdk/src/matrixrtc";
 
 import { memberAvatarSources, roomAvatarSources } from "../adapters/avatar";
 import { mediaFromMxc, thumbnailFromMxc } from "../adapters/media";
-import { fetchVoiceParticipants, isVoiceFeatureEnabled } from "../adapters/voiceAdapter";
+import {
+    discoverLiveKitTransport,
+    fetchVoiceParticipants,
+    getRtcVoiceParticipants,
+    isVoiceFeatureEnabled,
+} from "../adapters/voiceAdapter";
 import { useMatrix } from "../providers/MatrixProvider";
 import { isPresenceEnabledForClient } from "../presence/presenceConfig";
 import { toAvatarPresenceState } from "../presence/buildPresenceVm";
@@ -510,10 +516,14 @@ export function RoomList({
             loading = true;
             const next = new Map<string, VoicePresenceInfo>();
             let hadError = false;
+            const rtcTransport = await discoverLiveKitTransport(client, config).catch(() => null);
             await Promise.all(
                 voiceRooms.map(async (room) => {
                     try {
-                        const payload = await fetchVoiceParticipants(client, config, room.roomId);
+                        // MatrixRTC memberships are local room state (shared with Element Call); the relay is polled.
+                        const payload = rtcTransport
+                            ? getRtcVoiceParticipants(client, room)
+                            : await fetchVoiceParticipants(client, config, room.roomId);
                         const participantsByMatrixUserId = new Map<string, VoiceParticipantInfo>();
 
                         for (const participant of payload.participants) {
@@ -587,7 +597,7 @@ export function RoomList({
 
         void load();
 
-        const handleVisibilityChange = (): void => {
+        const refreshVoicePresenceNow = (): void => {
             if (cancelled) {
                 return;
             }
@@ -599,13 +609,20 @@ export function RoomList({
             void load();
         };
         if (hasDocument) {
-            document.addEventListener("visibilitychange", handleVisibilityChange);
+            document.addEventListener("visibilitychange", refreshVoicePresenceNow);
+        }
+        const rtcSessions = voiceRooms.map((room) => client.matrixRTC.getRoomSession(room));
+        for (const session of rtcSessions) {
+            session.on(MatrixRTCSessionEvent.MembershipsChanged, refreshVoicePresenceNow);
         }
 
         return () => {
             cancelled = true;
             if (hasDocument) {
-                document.removeEventListener("visibilitychange", handleVisibilityChange);
+                document.removeEventListener("visibilitychange", refreshVoicePresenceNow);
+            }
+            for (const session of rtcSessions) {
+                session.off(MatrixRTCSessionEvent.MembershipsChanged, refreshVoicePresenceNow);
             }
             if (timeoutId !== null) {
                 window.clearTimeout(timeoutId);

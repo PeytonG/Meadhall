@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+import { app, type BrowserWindow } from "electron";
+import { autoUpdater } from "electron-updater";
+
+// Updates are published as GitHub Releases (see "publish" in electron-builder.json). Nothing is downloaded until
+// the user clicks "Update now"; the update is then downloaded, installed and the app restarted.
+
+export type DesktopUpdateStatus =
+    | { state: "idle" }
+    | { state: "checking" }
+    | { state: "up-to-date"; currentVersion: string }
+    | { state: "available"; version: string }
+    | { state: "downloading"; version: string; percent: number }
+    | { state: "downloaded"; version: string }
+    | { state: "error"; message: string };
+
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const UPDATE_STATUS_CHANNEL = "heorot:updateStatus";
+
+let currentStatus: DesktopUpdateStatus = { state: "idle" };
+let updaterConfigured = false;
+let installWhenDownloaded: (() => void) | null = null;
+let publish: (status: DesktopUpdateStatus) => void = () => undefined;
+
+export function getUpdateStatus(): DesktopUpdateStatus {
+    return currentStatus;
+}
+
+export function isAutoUpdateSupported(): boolean {
+    return app.isPackaged && process.env.HEOROT_DISABLE_AUTO_UPDATE !== "1";
+}
+
+function install(beforeQuit: () => void): void {
+    beforeQuit();
+    // Silent so the assisted NSIS installer doesn't show its wizard; relaunch once installed.
+    autoUpdater.quitAndInstall(true, true);
+}
+
+export function configureAutoUpdater(getWindow: () => BrowserWindow | null): void {
+    if (updaterConfigured || !isAutoUpdateSupported()) {
+        return;
+    }
+    updaterConfigured = true;
+
+    publish = (status: DesktopUpdateStatus): void => {
+        currentStatus = status;
+        const window = getWindow();
+        if (window && !window.isDestroyed()) {
+            window.webContents.send(UPDATE_STATUS_CHANNEL, status);
+        }
+    };
+
+    autoUpdater.autoDownload = false;
+    // An update the user started downloading but didn't restart for still installs on the next quit.
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on("checking-for-update", () => publish({ state: "checking" }));
+    autoUpdater.on("update-not-available", () => publish({ state: "up-to-date", currentVersion: app.getVersion() }));
+    autoUpdater.on("update-available", (info) => publish({ state: "available", version: info.version }));
+    autoUpdater.on("download-progress", (progress) => {
+        const version = "version" in currentStatus ? currentStatus.version : "";
+        publish({ state: "downloading", version, percent: Math.round(progress.percent) });
+    });
+    autoUpdater.on("update-downloaded", (info) => {
+        publish({ state: "downloaded", version: info.version });
+        const pendingInstall = installWhenDownloaded;
+        installWhenDownloaded = null;
+        if (pendingInstall) {
+            install(pendingInstall);
+        }
+    });
+    autoUpdater.on("error", (error) => {
+        console.warn("[heorot-desktop] auto-update failed:", error);
+        installWhenDownloaded = null;
+        publish({ state: "error", message: error.message });
+    });
+
+    void checkForUpdates();
+    setInterval(() => void checkForUpdates(), UPDATE_CHECK_INTERVAL_MS).unref?.();
+}
+
+export async function checkForUpdates(): Promise<DesktopUpdateStatus> {
+    if (!updaterConfigured) {
+        return currentStatus;
+    }
+    // Don't interrupt a download or forget a ready update.
+    if (currentStatus.state === "downloading" || currentStatus.state === "downloaded") {
+        return currentStatus;
+    }
+    try {
+        await autoUpdater.checkForUpdates();
+    } catch {
+        // Reported through the "error" event.
+    }
+    return currentStatus;
+}
+
+// "Update now": downloads the update if needed, then installs it and restarts. beforeQuit runs only when the
+// install actually proceeds (e.g. to bypass close-to-tray).
+export function downloadAndInstallUpdate(beforeQuit: () => void): void {
+    if (currentStatus.state === "downloaded") {
+        install(beforeQuit);
+        return;
+    }
+    if (currentStatus.state !== "available" && currentStatus.state !== "error") {
+        return;
+    }
+    installWhenDownloaded = beforeQuit;
+    if (currentStatus.state === "available") {
+        publish({ state: "downloading", version: currentStatus.version, percent: 0 });
+    }
+    void autoUpdater.downloadUpdate().catch(() => undefined);
+}
