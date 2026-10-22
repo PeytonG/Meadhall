@@ -9,7 +9,7 @@
 | **Owner** | PeytonG |
 | **Upstream** | Fork of [Vitosicz/Heorot](https://github.com/Vitosicz/Heorot) (git remote `upstream`) |
 | **License** | AGPL-3.0 (inherited from Heorot and Element; cannot be changed) |
-| **Latest release** | `v0.1.0` (first release, 2026-10-22) |
+| **Latest release** | `v0.2.0` (2026-10-22; first release `v0.1.0`) |
 | **Last updated** | 2026-10-22 |
 
 > **Upkeep rule (from the owner):** update this file after every few completed tasks, before context runs low, and
@@ -248,6 +248,7 @@ unlimited power (`powerLevel === Infinity`).
 | Docs: README, self-hosting, CONTRIBUTING, SECURITY, NOTICE, templates | ✅ |
 | PR #3 merged to `main` (2026-10-22) | ✅ |
 | `v0.1.0` release (Windows, Linux, Android) | ✅ published: https://github.com/PeytonG/Meadhall/releases/tag/v0.1.0 |
+| `v0.2.0` release (Home, DM calls, voice changer, phone layout) | ✅ published: https://github.com/PeytonG/Meadhall/releases/tag/v0.2.0 (desktop files re-attached by hand, see Gotchas) |
 | Old GitHub fork `PeytonG/Heorot` deleted | ✅ (by the owner; the CLI lacks the `delete_repo` scope) |
 | Default server `https://elementprojectzkypg.duckdns.org`; registration-token field on sign-up | ✅ merged (PR #6) |
 | Fonts (Other = any installed font), round avatars, mute/deafen anytime, 120% volume, DM + group calls | ✅ merged (PR #6) |
