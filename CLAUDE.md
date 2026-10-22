@@ -9,7 +9,7 @@
 | **Owner** | PeytonG |
 | **Upstream** | Fork of [Vitosicz/Heorot](https://github.com/Vitosicz/Heorot) (git remote `upstream`) |
 | **License** | AGPL-3.0 (inherited from Heorot and Element; cannot be changed) |
-| **Latest release** | `v0.1.0` (first release, 2026-10-22) |
+| **Latest release** | `v0.2.0` (2026-10-22; first release `v0.1.0`) |
 | **Last updated** | 2026-10-22 |
 
 > **Upkeep rule (from the owner):** update this file after every few completed tasks, before context runs low, and
@@ -224,6 +224,7 @@ unlimited power (`powerLevel === Infinity`).
 | Boosted call audio is silent | Chromium outputs silence from `createMediaElementSource` on remote WebRTC audio; use `createMediaStreamSource(element.srcObject)` and keep the element playing (volume 0) |
 | Group-chat members can't join calls | `private_chat` preset leaves invitees at level 0; `allowCallMemberships(…, 0)` after creating DMs/groups |
 | Perl `s\|…\|…\|` edit lands at the top of a file | `\|` inside a `\|`-delimited pattern ends it early; use the Edit tool or another delimiter |
+| Release published without desktop files (v0.2.0) | electron-builder `--publish always` couldn't find the draft through the releases list and created its own drafts. Desktop jobs now build with `--publish never` and `gh release upload` to the tag's draft; the publish step refuses to publish unless every installer and `latest*.yml` is attached. v0.2.0 was repaired by hand from the workflow artifacts |
 | Sticker send "Failed to fetch" | Vite inlines <4 KB assets as `data:`; CSP blocks fetching them |
 | Electron 44 build errors on login items | `openAsHidden`/`wasOpenedAsHidden` removed; use `wasOpenedAtLogin` |
 | Electron binary missing after upgrade | `node node_modules/electron/install.js` in `apps/desktop` |
@@ -247,10 +248,11 @@ unlimited power (`powerLevel === Infinity`).
 | Docs: README, self-hosting, CONTRIBUTING, SECURITY, NOTICE, templates | ✅ |
 | PR #3 merged to `main` (2026-10-22) | ✅ |
 | `v0.1.0` release (Windows, Linux, Android) | ✅ published: https://github.com/PeytonG/Meadhall/releases/tag/v0.1.0 |
+| `v0.2.0` release (Home, DM calls, voice changer, phone layout) | ✅ published: https://github.com/PeytonG/Meadhall/releases/tag/v0.2.0 (desktop files re-attached by hand, see Gotchas) |
 | Old GitHub fork `PeytonG/Heorot` deleted | ✅ (by the owner; the CLI lacks the `delete_repo` scope) |
-| Default server `https://elementprojectzkypg.duckdns.org`; registration-token field on sign-up | ✅ (branch `fix/homeserver-discovery`) |
-| Fonts (Other = any installed font), round avatars, mute/deafen anytime, 120% volume, DM + group calls | ✅ (same branch) |
-| Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ (same branch; not yet pushed) |
+| Default server `https://elementprojectzkypg.duckdns.org`; registration-token field on sign-up | ✅ merged (PR #6) |
+| Fonts (Other = any installed font), round avatars, mute/deafen anytime, 120% volume, DM + group calls | ✅ merged (PR #6) |
+| Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ merged (PR #6) |
 
 ## 10. Open issues and roadmap
 
@@ -265,4 +267,4 @@ unlimited power (`powerLevel === Infinity`).
 
 | Date | Work |
 |---|---|
-| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. |
+| 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. PR #6 merged; `v0.2.0` released (desktop files re-attached after an electron-builder draft mix-up; release workflow fixed). |

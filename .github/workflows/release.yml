@@ -119,10 +119,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           # Unsigned builds: no code signing certificate is configured.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        # Never publish from electron-builder: it looks for the draft through the releases list, and when that
+        # list came back incomplete (v0.2.0) it created extra drafts and the published release had no desktop files.
+        # The upload step below targets the tag's draft the same way the Android job does.
         run: >-
           pnpm exec electron-builder --config electron-builder.json
           --config.extraMetadata.version=${{ needs.version.outputs.version }}
-          ${{ matrix.args }} --publish ${{ env.PUBLISH == 'true' && 'always' || 'never' }}
+          ${{ matrix.args }} --publish never
+      - name: Upload to the draft release
+        if: env.PUBLISH == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILES: ${{ matrix.files }}
+        run: |
+          # FILES holds glob patterns, one per line; unquoted expansion lets bash expand them.
+          # shellcheck disable=SC2086
+          gh release upload "${{ github.ref_name }}" $FILES --repo "$GITHUB_REPOSITORY" --clobber
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: meadhall-${{ matrix.name }}
@@ -210,6 +223,11 @@ jobs:
         run: |
           mkdir assets && cd assets
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "*.exe" --pattern "*.AppImage" --pattern "*.rpm" --pattern "*.apk"
+          # Refuse to publish an incomplete release (the desktop auto-updater needs latest*.yml too).
+          names=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          for pattern in '\.exe$' '\.exe\.blockmap$' '^latest\.yml$' '\.AppImage$' '\.rpm$' '^latest-linux\.yml$' '\.apk$'; do
+            grep -qE "$pattern" <<< "$names" || { echo "::error::Release $TAG is missing a file matching $pattern"; exit 1; }
+          done
           sha256sum * > SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
