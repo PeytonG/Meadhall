@@ -359,6 +359,39 @@ textarea {
     gap: 0;
 }
 
+.desktop-update-banner {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.desktop-update-banner button {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-hover);
+    cursor: pointer;
+}
+
+.desktop-update-banner .desktop-update-banner-primary {
+    background: var(--accent);
+    border-color: var(--accent-soft);
+}
+
+.desktop-update-banner button:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
 .verification-gate-banner {
     padding: 20px 22px 18px;
     background: var(--bg-input);

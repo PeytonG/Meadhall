@@ -1,4 +1,6 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+
+import type { DesktopUpdateStatus } from "./updater";
 
 export interface HeorotDesktopMediaAuthState {
     accessToken?: string;
@@ -16,6 +18,9 @@ export interface HeorotDesktopBridge {
     setPreferredDisplayMediaSource: (sourceId: string) => Promise<void>;
     getStartAtLogin: () => Promise<boolean>;
     setStartAtLogin: (enabled: boolean) => Promise<boolean>;
+    getUpdateStatus: () => Promise<DesktopUpdateStatus | null>;
+    onUpdateStatus: (listener: (status: DesktopUpdateStatus) => void) => () => void;
+    installUpdate: () => Promise<void>;
     platform: NodeJS.Platform;
     versions: {
         electron: string;
@@ -51,6 +56,19 @@ const bridge: HeorotDesktopBridge = {
     },
     setStartAtLogin: async (enabled: boolean): Promise<boolean> => {
         return (await ipcRenderer.invoke("heorot:setStartAtLogin", enabled)) === true;
+    },
+    getUpdateStatus: async (): Promise<DesktopUpdateStatus | null> => {
+        return (await ipcRenderer.invoke("heorot:getUpdateStatus")) as DesktopUpdateStatus | null;
+    },
+    onUpdateStatus: (listener: (status: DesktopUpdateStatus) => void): (() => void) => {
+        const handler = (_event: IpcRendererEvent, status: DesktopUpdateStatus): void => listener(status);
+        ipcRenderer.on("heorot:updateStatus", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:updateStatus", handler);
+        };
+    },
+    installUpdate: async (): Promise<void> => {
+        await ipcRenderer.invoke("heorot:installUpdate");
     },
     platform: process.platform,
     versions: {

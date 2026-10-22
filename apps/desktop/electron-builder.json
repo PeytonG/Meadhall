@@ -18,6 +18,14 @@
     "output": "dist-electron"
   },
   "icon": "assets/icon.png",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "PeytonG",
+      "repo": "Heorot",
+      "releaseType": "release"
+    }
+  ],
   "files": [
     "dist/electron/**/*",
     "web/**/*",

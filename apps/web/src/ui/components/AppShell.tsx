@@ -48,6 +48,7 @@ import { useElementLikeNotifications } from "../notifications/useElementLikeNoti
 import { buildMatrixToRoomPermalink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
+import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import {
     MATRIX_CALL_COMPAT_EVENT,
     HEOROT_VOICE_CHANNEL_EVENT,
@@ -1927,6 +1928,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     return (
         <div className={appShellClassName} style={appShellStyle}>
+            <DesktopUpdateBanner />
             <aside className="left-rail">
                 <div className="rail-logo">H</div>
                 <button

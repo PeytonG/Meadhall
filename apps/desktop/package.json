@@ -30,5 +30,8 @@
     "electron": "^34.2.0",
     "electron-builder": "^26.0.12",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }
