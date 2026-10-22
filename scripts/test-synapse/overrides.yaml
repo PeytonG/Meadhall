@@ -30,3 +30,6 @@ rc_invites:
   per_room: { per_second: 10000, burst_count: 10000 }
   per_user: { per_second: 10000, burst_count: 10000 }
   per_issuer: { per_second: 10000, burst_count: 10000 }
+
+# Lets the tests create server admins through /_synapse/admin/v1/register. Test-only secret, never reuse it.
+registration_shared_secret: "meadhall-test-only-shared-secret"

@@ -7,6 +7,9 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **Server admin panel** (Settings → Server admin, only for server admins): create and delete registration tokens
+  (invite codes, with use limits and expiry), create accounts, reset passwords, make admins and deactivate accounts:
+  no need for the separate Synapse admin page.
 - **Incoming calls ring.** When someone calls you in a DM or group chat, a "Bob is calling" card appears with Join and
   Dismiss, and an 8-bit Meadhall ringtone plays. Only the person being called hears it, never the caller. One-to-one
   calls also ring in Element.

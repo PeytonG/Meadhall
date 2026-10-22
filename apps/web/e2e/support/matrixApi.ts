@@ -157,3 +157,24 @@ export async function sendEvent(user: ApiUser, roomId: string, type: string, con
     );
     return body.event_id;
 }
+
+// A server admin, created with the test Synapse's shared secret (scripts/test-synapse/overrides.yaml).
+export async function registerAdmin(prefix: string): Promise<ApiUser> {
+    const { createHmac } = await import("node:crypto");
+    const secret = "meadhall-test-only-shared-secret";
+    const username = `${prefix}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
+    const password = `pw-${crypto.randomUUID()}`;
+    const url = `${SYNAPSE_URL}/_synapse/admin/v1/register`;
+    const { nonce } = (await (await fetch(url)).json()) as { nonce: string };
+    const mac = createHmac("sha1", secret).update(`${nonce}\0${username}\0${password}\0admin`).digest("hex");
+    const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nonce, username, password, admin: true, mac }),
+    });
+    if (!response.ok) {
+        throw new Error(`admin register failed: HTTP ${response.status} ${await response.text()}`);
+    }
+    const body = (await response.json()) as { user_id: string; access_token: string };
+    return { userId: body.user_id, username, password, accessToken: body.access_token };
+}
