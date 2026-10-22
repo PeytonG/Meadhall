@@ -167,8 +167,8 @@ Branch `fork/limitations-fixes`. PR to `main` at the end. `main` still holds the
       checkerboard is removed by generate-branding.mjs (corners verified alpha 0). Screenshots recaptured.
 11. ✅ README rewritten for everyone (badges, features, download/install table, first steps, dev/test table,
     known limitations, credits); docs/self-hosting.md (homeserver, web app, LiveKit + lk-jwt-service + well-known,
-    config reference); CONTRIBUTING.md; issue forms + PR template in .github/. Then: **open the PR to main**
-    (owner approved "PR at the end"); use `gh pr create` with a summary of all commits.
+    config reference); CONTRIBUTING.md; issue forms + PR template in .github/. **PR opened:**
+    https://github.com/PeytonG/Meadhall/pull/3 (fork/limitations-fixes -> main). Merging is the owner's call.
     - Release workflow is green (Windows/Linux/Android build-only run). CI green. Security green after the
       gitleaks false positive fix (`.gitleaksignore` holds one exact fingerprint).
     - No release tag pushed yet; ask the owner before tagging `v0.2.0`.
