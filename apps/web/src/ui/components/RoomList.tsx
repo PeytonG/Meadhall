@@ -39,6 +39,7 @@ import {
 } from "../stores/CategoryStore";
 import { isVoiceChannelRoom } from "../voice/voiceChannel";
 import { Avatar } from "./Avatar";
+import { SpeakingCampfire } from "./voice/PixelCampfire";
 import micMuteIcon from "./icons/mic-02.svg";
 import volumeMuteIcon from "./icons/volume-mute-02.svg";
 
@@ -1114,9 +1115,11 @@ export function RoomList({
                                             seed={participantUserId}
                                             userId={participantUserId}
                                         />
-                                        <span
-                                            className={`room-item-voice-speaking-ring${isSpeaking ? " is-speaking" : ""}`}
-                                            aria-hidden="true"
+                                        <SpeakingCampfire
+                                            client={client}
+                                            userId={participantUserId}
+                                            active={isSpeaking}
+                                            ringClassName="room-item-voice-speaking-ring"
                                         />
                                     </span>
                                     <span className="room-item-voice-name">{participantName}</span>

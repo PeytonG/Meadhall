@@ -6,6 +6,11 @@ Versions follow `vX.Y.Z`.
 
 ## Unreleased
 
+### New
+- **Speaking campfire.** While someone talks in a call, a pixel campfire burns around their picture instead of the
+  green ring. Pick your fire's color, or turn it off to keep the green ring, in Settings → Audio. Everyone in the
+  call sees each person's choice.
+
 ### Fixed
 - **Pictures show up again.** On servers that require signed media downloads (the Meadhall server does), pictures
   sent a few minutes after signing in appeared as broken images in the desktop app. The app now keeps its media

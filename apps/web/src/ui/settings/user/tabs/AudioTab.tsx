@@ -2,9 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Room } from "livekit-client";
 
 import { buildVoiceEffect, normalizeVoiceEffect, VOICE_EFFECTS, type VoiceEffectChain } from "../../../voice/voiceChanger";
+import type { MatrixClient } from "matrix-js-sdk/src/matrix";
+
 import type { AudioSettings } from "../settingsStore";
+import { CampfireSettings } from "./CampfireSettings";
 
 interface AudioTabProps {
+    client: MatrixClient;
     settings: AudioSettings;
     onChange: (settings: AudioSettings) => void;
 }
@@ -26,7 +30,7 @@ function buildMicConstraints(settings: AudioSettings): MediaTrackConstraints {
     return constraints;
 }
 
-export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElement {
+export function AudioTab({ client, settings, onChange }: AudioTabProps): React.ReactElement {
     const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
     const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -290,6 +294,8 @@ export function AudioTab({ settings, onChange }: AudioTabProps): React.ReactElem
                 />
                 Mic test loopback (play your microphone to selected output)
             </label>
+
+            <CampfireSettings client={client} />
 
             <div className="settings-section-card">
                 <h3>Voice changer</h3>

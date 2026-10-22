@@ -576,3 +576,69 @@ select {
     --font-pixel-body: var(--font-custom, system-ui, sans-serif);
     --font-pixel-display: var(--font-custom, system-ui, sans-serif);
 }
+
+/* Pixel campfire around a speaking person's avatar (components/voice/PixelCampfire.tsx). The fire's box is 24 cells
+   and the avatar 14 of them, so the fire is 24/14 of the avatar's size, shifted so the avatar sits in its ring. */
+.pixel-campfire {
+    position: absolute;
+    left: -35.7%;
+    top: -42.9%;
+    width: 171.4%;
+    height: 171.4%;
+    pointer-events: none;
+    image-rendering: pixelated;
+    opacity: 0;
+    transition: opacity 120ms steps(2);
+    z-index: 1;
+}
+
+.pixel-campfire.is-burning {
+    opacity: 1;
+}
+
+.pixel-campfire-frame {
+    opacity: 0;
+}
+
+.pixel-campfire.is-burning .pixel-campfire-frame {
+    animation: pixel-campfire-flicker 450ms steps(1) infinite;
+}
+
+.pixel-campfire.is-burning .pixel-campfire-frame-1 {
+    animation-delay: -150ms;
+}
+
+.pixel-campfire.is-burning .pixel-campfire-frame-2 {
+    animation-delay: -300ms;
+}
+
+@keyframes pixel-campfire-flicker {
+    0% {
+        opacity: 1;
+    }
+    33.34% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pixel-campfire.is-burning .pixel-campfire-frame {
+        animation: none;
+    }
+
+    .pixel-campfire.is-burning .pixel-campfire-frame-0 {
+        opacity: 1;
+    }
+}
+
+.voice-room-participant-avatar-wrap,
+.room-item-voice-avatar-wrap {
+    position: relative;
+    overflow: visible;
+}
+
+.voice-room-participant-avatar-wrap .avatar,
+.room-item-voice-avatar-wrap .avatar {
+    position: relative;
+    z-index: 2;
+}
