@@ -75,10 +75,11 @@ textarea {
     background: var(--bg-app);
 }
 
-/* Sign-in screen: the mead hall artwork behind the card, darkened so the card stays readable. */
+/* Sign-in screen: the mead hall artwork as a faint texture behind the card, with a glow in the accent color. */
 .login-view.has-backdrop {
     background:
-        linear-gradient(rgba(10, 8, 16, 0.55), rgba(10, 8, 16, 0.75)),
+        radial-gradient(ellipse at center, rgba(var(--primary-rgb), 0.16), transparent 60%),
+        linear-gradient(rgba(12, 10, 18, 0.86), rgba(12, 10, 18, 0.94)),
         var(--login-backdrop) center / cover no-repeat,
         var(--bg-app);
     image-rendering: pixelated;
