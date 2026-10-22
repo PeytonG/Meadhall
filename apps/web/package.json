@@ -10,7 +10,8 @@
     "typecheck": "node scripts/typecheck.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:smoke": "vitest run --config vitest.smoke.config.ts"
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@matrix-org/matrix-sdk-crypto-wasm": "^17.1.0",

@@ -1,0 +1,31 @@
+# Test-only overrides layered on Synapse's generated homeserver.yaml by scripts/test-synapse.mjs.
+# Open registration and no rate limits: never use these settings on a real server.
+enable_registration: true
+enable_registration_without_verification: true
+report_stats: false
+suppress_key_server_warning: true
+url_preview_enabled: false
+
+presence:
+  enabled: true
+
+# MatrixRTC memberships use delayed leave events (MSC4140) when the server supports them.
+max_event_delay_duration: 24h
+experimental_features:
+  msc4140_enabled: true
+
+rc_message: { per_second: 10000, burst_count: 10000 }
+rc_registration: { per_second: 10000, burst_count: 10000 }
+rc_room_creation: { per_second: 10000, burst_count: 10000 }
+rc_delayed_event_mgmt: { per_second: 10000, burst_count: 10000 }
+rc_login:
+  address: { per_second: 10000, burst_count: 10000 }
+  account: { per_second: 10000, burst_count: 10000 }
+  failed_attempts: { per_second: 10000, burst_count: 10000 }
+rc_joins:
+  local: { per_second: 10000, burst_count: 10000 }
+  remote: { per_second: 10000, burst_count: 10000 }
+rc_invites:
+  per_room: { per_second: 10000, burst_count: 10000 }
+  per_user: { per_second: 10000, burst_count: 10000 }
+  per_issuer: { per_second: 10000, burst_count: 10000 }
