@@ -24,21 +24,25 @@ test("the share picker shows a preview for each screen and window, grouped, and 
     if (process.env.PREVIEW_DIR) await page.screenshot({ path: `${process.env.PREVIEW_DIR}/screen-share-picker.png` });
 });
 
-for (const viewport of [
-    { width: 1920, height: 1080 },
-    { width: 1440, height: 900 },
-    { width: 1280, height: 640 },
-    { width: 900, height: 560 },
+for (const { viewport, streams } of [
+    { viewport: { width: 1920, height: 1080 }, streams: 2 },
+    { viewport: { width: 1440, height: 900 }, streams: 2 },
+    { viewport: { width: 1280, height: 640 }, streams: 2 },
+    { viewport: { width: 900, height: 560 }, streams: 2 },
+    { viewport: { width: 1440, height: 900 }, streams: 4 },
 ]) {
-    test(`the shared screens fit the window at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    test(`${streams} shared screens fit the window at ${viewport.width}x${viewport.height}`, async ({ page }) => {
         await page.setViewportSize(viewport);
-        await openHarness(page, "screenShareHarness.tsx");
+        await openHarness(page, "screenShareHarness.tsx", { harnessMode: "stage", streamCount: streams });
         const video = page.getByTestId("stage-video");
-        await expect(page.getByTestId("screen-share-tile")).toHaveCount(2);
+        await expect(page.getByTestId("screen-share-tile")).toHaveCount(streams);
         const box = (await video.boundingBox())!;
-        // Never taller than the window allows, keeps 16:9, and doesn't spill sideways.
+        // Never taller than the window allows, and doesn't spill sideways; each stream keeps 16:9 (no black bars).
         expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
-        expect(box.width / box.height).toBeCloseTo(16 / 9, 1);
+        for (const tile of await page.getByTestId("screen-share-tile").all()) {
+            const tileBox = (await tile.boundingBox())!;
+            expect(tileBox.width / tileBox.height).toBeCloseTo(16 / 9, 1);
+        }
         expect(box.x).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
         // Header controls stay inside the stage.

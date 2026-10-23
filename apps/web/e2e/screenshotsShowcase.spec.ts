@@ -16,6 +16,7 @@ import {
     uploadMedia,
 } from "./support/matrixApi";
 import { seedHall, type SeededHall } from "./support/seedHall";
+import { openHarness } from "./support/harness";
 import { signIn, waitForAppShell } from "./support/ui";
 
 test.skip(!process.env.CAPTURE_SCREENSHOTS, "Set CAPTURE_SCREENSHOTS=1 to capture README screenshots");
@@ -213,3 +214,74 @@ test("captures sign-up with a registration token and the admin panel", async ({ 
     await page.getByPlaceholder("Name or username").last().fill(admin.username);
     await capture(page, "admin-panel");
 });
+
+// In-call views (no call server needed: component harnesses with the real components and styles).
+test("captures the call screenshots", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 760 });
+    await openHarness(page, "soundboardHarness.tsx", { callTop: "0px", callHeight: "100vh" });
+    await expect(page.getByTestId("soundboard").getByRole("button", { name: /Custom sound 20/ })).toBeAttached();
+    await capture(page, "soundboard-call");
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openHarness(page, "screenShareHarness.tsx", { harnessMode: "picker" });
+    await expect(page.locator(".screen-share-source-preview img")).toHaveCount(5);
+    await capture(page, "screen-share-picker");
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openHarness(page, "screenShareHarness.tsx", { harnessMode: "stage" });
+    await expect.poll(() => page.locator("[data-testid=screen-share-tile] video").first().evaluate((video: HTMLVideoElement) => video.videoWidth)).toBeGreaterThan(0);
+    await capture(page, "screen-share");
+});
+
+test("captures sound trimming and banner cropping", async ({ page }) => {
+    const hall = await seedHall();
+    await signIn(page, hall.viewer);
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
+    await page.getByRole("button", { name: "Profile", exact: true }).click();
+    const details = page.getByTestId("profile-details");
+    await details.getByTestId("banner-input").setInputFiles({
+        name: "banner.webp",
+        mimeType: "image/webp",
+        buffer: fs.readFileSync(path.resolve(here, "../src/ui/assets/login-hall.webp")),
+    });
+    await expect(details.getByTestId("banner-preview").locator("img")).toBeVisible({ timeout: 15_000 });
+    await details.getByTestId("banner-zoom").fill("1.6");
+    await details.scrollIntoViewIfNeeded();
+    await capture(details, "banner-crop");
+
+    await page.getByRole("button", { name: "Audio", exact: true }).click();
+    const board = page.getByTestId("soundboard");
+    await board.getByRole("button", { name: /Add sound/ }).click();
+    await board.getByTestId("soundboard-file").setInputFiles({ name: "war-cry.wav", mimeType: "audio/wav", buffer: chirpWav(12) });
+    const trimmer = board.getByTestId("sound-trimmer");
+    await trimmer.getByLabel("Sound start").fill("2.5");
+    await trimmer.getByLabel("Sound end").fill("6");
+    await board.getByLabel("Sound name").fill("War cry");
+    await board.scrollIntoViewIfNeeded();
+    await capture(board.locator("xpath=ancestor::div[contains(@class,'settings-section-card')][1]"), "soundboard-trim");
+});
+
+// A 12-second "voice" with a swelling, wavering tone, so the trimmer's waveform has a shape.
+function chirpWav(seconds: number): Buffer {
+    const rate = 8000;
+    const samples = Math.round(seconds * rate);
+    const buffer = Buffer.alloc(44 + samples * 2);
+    buffer.write("RIFF", 0);
+    buffer.writeUInt32LE(36 + samples * 2, 4);
+    buffer.write("WAVEfmt ", 8);
+    buffer.writeUInt32LE(16, 16);
+    buffer.writeUInt16LE(1, 20);
+    buffer.writeUInt16LE(1, 22);
+    buffer.writeUInt32LE(rate, 24);
+    buffer.writeUInt32LE(rate * 2, 28);
+    buffer.writeUInt16LE(2, 32);
+    buffer.writeUInt16LE(16, 34);
+    buffer.write("data", 36);
+    buffer.writeUInt32LE(samples * 2, 40);
+    for (let index = 0; index < samples; index += 1) {
+        const t = index / rate;
+        const envelope = Math.abs(Math.sin(t * 1.3)) * (0.4 + 0.6 * Math.abs(Math.sin(t * 7)));
+        buffer.writeInt16LE(Math.round(Math.sin(2 * Math.PI * (220 + 60 * Math.sin(t)) * t) * envelope * 20000), 44 + index * 2);
+    }
+    return buffer;
+}

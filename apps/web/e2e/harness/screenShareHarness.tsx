@@ -4,7 +4,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
+import "./styles";
+
 import { ScreenSharePicker } from "../../src/ui/components/voice/ScreenSharePicker";
+import { stageGridStyle } from "../../src/ui/voice/stageGrid";
 
 // A fake desktop: a colored "screen" with a title bar, drawn on a canvas.
 function paint(canvas: HTMLCanvasElement, hue: number, label: string, frame = 0): void {
@@ -60,6 +63,13 @@ function StreamTile({ hue, label }: { hue: number; label: string }): React.React
 function Harness(): React.ReactElement {
     const [selected, setSelected] = React.useState<string | null>("window:1:0");
     const mode = (window as unknown as { harnessMode?: string }).harnessMode ?? "stage";
+    const streamCount = (window as unknown as { streamCount?: number }).streamCount ?? 2;
+    const streams = [
+        { hue: 20, label: "Wiglaf: BeamNG.drive" },
+        { hue: 210, label: "Beowulf: Entire screen" },
+        { hue: 130, label: "Hrothgar: Spreadsheet" },
+        { hue: 300, label: "Wealhtheow: Map" },
+    ].slice(0, streamCount);
     if (mode === "picker") {
         return (
             <div className="room-dialog-overlay" style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center" }}>
@@ -81,15 +91,16 @@ function Harness(): React.ReactElement {
                     <div className="voice-room-stage-header">
                         <h3>Screen share</h3>
                         <div className="voice-room-stage-header-actions">
-                            <span className="voice-room-stage-status">2 streams live</span>
+                            <span className="voice-room-stage-status">{streams.length} streams live</span>
                             <button type="button" className="voice-room-stage-audio-button">Mute audio</button>
                             <button type="button" className="voice-room-stage-fullscreen-button">Fullscreen</button>
                         </div>
                     </div>
-                    <div className="voice-room-stage-video-wrap" data-testid="stage-video">
+                    <div className="voice-room-stage-video-wrap is-grid" data-testid="stage-video" style={stageGridStyle(streams.length)}>
                         <div className="voice-room-stage-grid">
-                            <StreamTile hue={20} label="Wiglaf: BeamNG.drive" />
-                            <StreamTile hue={210} label="Beowulf: Entire screen" />
+                            {streams.map((stream) => (
+                                <StreamTile key={stream.label} hue={stream.hue} label={stream.label} />
+                            ))}
                         </div>
                     </div>
                     <div className="voice-room-stage-picker">

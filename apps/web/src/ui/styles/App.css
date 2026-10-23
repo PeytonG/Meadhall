@@ -3934,6 +3934,25 @@ img.voice-ctrl-icon {
     padding: 6px;
 }
 
+/* Several streams: tiles keep 16:9 and the grid takes the size that fits them (columns x rows), capped by height. */
+.voice-room-stage-video-wrap.is-grid {
+    aspect-ratio: auto;
+    width: min(100%, calc(var(--stage-max-height) * 16 / 9 * var(--stage-columns, 2) / var(--stage-rows, 1)));
+    background: transparent;
+    border: 0;
+}
+
+.voice-room-stage-video-wrap.is-grid .voice-room-stage-grid {
+    position: static;
+    grid-template-columns: repeat(var(--stage-columns, 2), minmax(0, 1fr));
+    grid-auto-rows: auto;
+    padding: 0;
+}
+
+.voice-room-stage-video-wrap.is-grid .voice-room-stage-tile {
+    aspect-ratio: 16 / 9;
+}
+
 .voice-room-stage-tile {
     position: relative;
     min-height: 0;

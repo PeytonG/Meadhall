@@ -4,6 +4,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
+import "./styles";
+
 import { SoundboardPanel } from "../../src/ui/components/voice/SoundboardPanel";
 
 const sounds = Array.from({ length: 20 }, (_, index) => ({

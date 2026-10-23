@@ -50,6 +50,7 @@ import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
 import { PixelIcon } from "../PixelIcon";
 import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
 import { ScreenSharePicker } from "./ScreenSharePicker";
+import { stageGridStyle } from "../../voice/stageGrid";
 import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
@@ -2332,7 +2333,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </div>
                         <div
                             ref={stageVideoWrapRef}
-                            className={`voice-room-stage-video-wrap${stageFullscreen ? " is-fullscreen" : ""}`}
+                            className={`voice-room-stage-video-wrap${stageFullscreen ? " is-fullscreen" : ""}${showScreenShareGrid ? " is-grid" : ""}`}
+                            style={showScreenShareGrid ? stageGridStyle(screenShareParticipants.length) : undefined}
                         >
                             {showScreenShareGrid ? (
                                 <div className="voice-room-stage-grid">
