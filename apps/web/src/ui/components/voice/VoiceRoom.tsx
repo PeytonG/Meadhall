@@ -51,7 +51,7 @@ import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
-import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
+import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
 
@@ -663,7 +663,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [soundboardOpen, setSoundboardOpen] = useState(false);
     // The soundboard's own audio track, published the first time a sound is played in this call.
-    const soundboardRef = useRef<{ player: SoundboardPlayer; published: boolean } | null>(null);
+    // The soundboard player for this call; sounds are mixed into the microphone (voiceChanger.ensureMicMixer).
+    const soundboardRef = useRef<{ player: SoundboardPlayer } | null>(null);
+    // Bumped when the mic gets Meadhall's processor, so the speaking indicator follows the processed (mixed) audio.
+    const [micProcessorRevision, setMicProcessorRevision] = useState(0);
     const [callAccessFixPending, setCallAccessFixPending] = useState(false);
     const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
@@ -814,7 +817,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         monitor.track(localSid, micTrack);
         return () => monitor.untrack(localSid);
-    }, [connectionState, micMuted, localAudioPublished]);
+    }, [connectionState, micMuted, localAudioPublished, micProcessorRevision]);
 
     // Voice changer: applied to the published mic as soon as there is one, and changed live mid-call.
     useEffect(() => {
@@ -826,7 +829,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         if (!track) {
             return;
         }
-        void applyVoiceEffect(track, audioSettings.voiceEffect).catch((effectError) => {
+        // Once the soundboard has been used, keep the processor even for "off": sounds are mixed in there.
+        void applyVoiceEffect(track, audioSettings.voiceEffect, soundboardRef.current !== null)
+            .then(() => setMicProcessorRevision((revision) => revision + 1))
+            .catch((effectError) => {
             setError(effectError instanceof Error ? `Voice changer: ${effectError.message}` : "Voice changer failed.");
         });
     }, [audioSettings.voiceEffect, connectionState, micMuted]);
@@ -2053,23 +2059,23 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     const connected = connectionState === ConnectionState.Connected;
 
+    useEffect(() => {
+        soundboardRef.current?.player.setVolume(audioSettings.soundboardVolume);
+    }, [audioSettings.soundboardVolume]);
     const playSoundboardSound = async (choice: SoundChoice): Promise<void> => {
         const room = roomRef.current;
         if (!room) return;
-        soundboardRef.current ??= { player: new SoundboardPlayer(), published: false };
-        const soundboard = soundboardRef.current;
-        if (!soundboard.published) {
-            soundboard.published = true;
-            try {
-                await room.localParticipant.publishTrack(soundboard.player.track, {
-                    name: "soundboard",
-                    source: Track.Source.Unknown,
-                });
-            } catch (publishError) {
-                soundboard.published = false;
-                throw publishError;
-            }
+        const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
+        if (micMuted || !micTrack) {
+            throw new Error("Unmute your microphone to play sounds: they're sent as part of your voice.");
         }
+        if (!soundboardRef.current) {
+            const context = await ensureMicMixer(micTrack, audioSettings.voiceEffect);
+            soundboardRef.current = { player: new SoundboardPlayer(context, soundboardBus(context)) };
+            setMicProcessorRevision((revision) => revision + 1);
+        }
+        const soundboard = soundboardRef.current;
+        soundboard.player.setVolume(audioSettings.soundboardVolume);
         soundboard.player.setHearOwnSounds(!audioMuted);
         const buffer =
             choice.kind === "builtin"
@@ -2522,6 +2528,21 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             </select>
                         </label>
                         <label className="settings-field">
+                            <span>Soundboard volume: {audioSettings.soundboardVolume}%</span>
+                            <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={audioSettings.soundboardVolume}
+                                aria-label="Soundboard volume"
+                                data-testid="call-soundboard-volume"
+                                onChange={(event) =>
+                                    onAudioSettingsChange({ ...audioSettings, soundboardVolume: Number(event.target.value) })
+                                }
+                            />
+                        </label>
+                        <label className="settings-field">
                             <span>Voice changer</span>
                             <select
                                 className="room-dialog-input"
@@ -2699,7 +2720,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             <span className="voice-ctrl-label">Sounds</span>
                         </button>
                         {soundboardOpen ? (
-                            <SoundboardPanel client={client} onPlay={playSoundboardSound} onClose={() => setSoundboardOpen(false)} />
+                            <SoundboardPanel
+                                client={client}
+                                onPlay={playSoundboardSound}
+                                onClose={() => setSoundboardOpen(false)}
+                                volume={audioSettings.soundboardVolume}
+                                onVolumeChange={(soundboardVolume) => onAudioSettingsChange({ ...audioSettings, soundboardVolume })}
+                            />
                         ) : null}
                     </div>
 

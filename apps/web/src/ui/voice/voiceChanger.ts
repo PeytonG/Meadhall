@@ -387,6 +387,19 @@ export function buildVoiceEffect(context: BaseAudioContext, effect: VoiceEffect)
     };
 }
 
+// The soundboard plays into this bus; every microphone processor on the context mixes it into what it sends, so
+// sounds go out as part of your voice (heard by everyone, and lighting up your speaking indicator).
+const soundboardBuses = new WeakMap<BaseAudioContext, GainNode>();
+
+export function soundboardBus(context: BaseAudioContext): GainNode {
+    let bus = soundboardBuses.get(context);
+    if (!bus) {
+        bus = context.createGain();
+        soundboardBuses.set(context, bus);
+    }
+    return bus;
+}
+
 // A livekit processor that runs the microphone through an effect before it is published. livekit re-runs
 // `restart` when the mic track is restarted (device or processing change), so the effect survives those.
 export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
@@ -394,9 +407,19 @@ export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor
     let source: MediaStreamAudioSourceNode | null = null;
     let destination: MediaStreamAudioDestinationNode | null = null;
 
+    let mixedBus: { bus: GainNode; destination: MediaStreamAudioDestinationNode } | null = null;
+
     const teardown = (): void => {
         chain?.dispose();
         source?.disconnect();
+        if (mixedBus) {
+            try {
+                mixedBus.bus.disconnect(mixedBus.destination);
+            } catch {
+                // Already disconnected.
+            }
+            mixedBus = null;
+        }
         chain = null;
         source = null;
         destination = null;
@@ -415,6 +438,9 @@ export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor
             chain = buildVoiceEffect(audioContext, effect);
             source.connect(chain.input);
             chain.output.connect(destination);
+            const bus = soundboardBus(audioContext);
+            bus.connect(destination);
+            mixedBus = { bus, destination };
             processor.processedTrack = destination.stream.getAudioTracks()[0];
         },
         restart: async (options) => {
@@ -430,10 +456,11 @@ export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor
 
 let processorContext: AudioContext | null = null;
 
-// Puts the effect on (or takes it off) a published microphone track, live: no rejoin needed.
-export async function applyVoiceEffect(track: LocalAudioTrack, effect: VoiceEffect): Promise<void> {
+// Puts the effect on (or takes it off) a published microphone track, live: no rejoin needed. With `keepMixer` the
+// processor stays even for "off" (a straight wire), because the soundboard is mixed in there.
+export async function applyVoiceEffect(track: LocalAudioTrack, effect: VoiceEffect, keepMixer = false): Promise<void> {
     const current = track.getProcessor()?.name;
-    if (effect === "off") {
+    if (effect === "off" && !keepMixer) {
         if (current?.startsWith("meadhall-voice-")) {
             await track.stopProcessor();
         }
@@ -445,4 +472,12 @@ export async function applyVoiceEffect(track: LocalAudioTrack, effect: VoiceEffe
     processorContext ??= new AudioContext();
     track.setAudioContext(processorContext);
     await track.setProcessor(createVoiceChangerProcessor(effect));
+}
+
+// Makes sure the microphone runs through Meadhall's processor so soundboard sounds can be mixed in, and returns
+// the audio context the soundboard should play on.
+export async function ensureMicMixer(track: LocalAudioTrack, effect: VoiceEffect): Promise<AudioContext> {
+    await applyVoiceEffect(track, effect, true);
+    if (processorContext?.state === "suspended") await processorContext.resume().catch(() => undefined);
+    return processorContext!;
 }

@@ -2,8 +2,9 @@
 // Soundboard: built-in sounds plus your own, played into a call for everyone (and for you).
 //
 // Your own sounds are uploaded to your homeserver's media repository and listed in your account data, so they
-// follow you to every device. In a call the soundboard publishes its own audio track next to the microphone: it
-// is heard even while you're muted, and other Matrix clients play it like any other audio.
+// follow you to every device. In a call, sounds are mixed into your microphone (voiceChanger.soundboardBus), so
+// they're heard as your voice and light up your speaking indicator; that also means they need your mic unmuted.
+// (An earlier version published a separate track, which LiveKit reported as "publishing silence" between sounds.)
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { mediaFromMxc } from "../../../core/media/media";
@@ -91,43 +92,45 @@ export async function decodeCustomSound(client: MatrixClient, sound: CustomSound
     return context.decodeAudioData((await download).slice(0));
 }
 
-// Plays sounds both to you and into a MediaStream that a call publishes as its own track.
+// Plays sounds to you and, in a call, into the microphone mix (`callBus`, see voiceChanger.soundboardBus), so they
+// go out as part of your voice. Volume is 0-100 (Settings → Audio, or the call settings).
 export class SoundboardPlayer {
     readonly context: AudioContext;
-    private readonly destination: MediaStreamAudioDestinationNode;
-    private readonly toCall: GainNode;
+    private readonly ownsContext: boolean;
+    private readonly volume: GainNode;
     private readonly toYou: GainNode;
 
-    constructor() {
-        this.context = new AudioContext();
-        this.destination = this.context.createMediaStreamDestination();
-        this.toCall = this.context.createGain();
-        this.toCall.gain.value = 0.8;
-        this.toCall.connect(this.destination);
+    constructor(context?: AudioContext, callBus?: AudioNode) {
+        this.ownsContext = !context;
+        this.context = context ?? new AudioContext();
+        this.volume = this.context.createGain();
+        this.volume.gain.value = 0.8;
+        if (callBus) this.volume.connect(callBus);
         this.toYou = this.context.createGain();
-        this.toYou.gain.value = 0.8;
+        this.volume.connect(this.toYou);
         this.toYou.connect(this.context.destination);
     }
 
-    get track(): MediaStreamTrack {
-        return this.destination.stream.getAudioTracks()[0];
+    setVolume(percent: number): void {
+        this.volume.gain.value = Math.max(0, Math.min(100, percent)) / 100;
     }
 
     // Deafened: you don't hear it, but the call still does.
     setHearOwnSounds(hear: boolean): void {
-        this.toYou.gain.value = hear ? 0.8 : 0;
+        this.toYou.gain.value = hear ? 1 : 0;
     }
 
     async play(buffer: AudioBuffer): Promise<void> {
         if (this.context.state === "suspended") await this.context.resume().catch(() => undefined);
         const source = this.context.createBufferSource();
         source.buffer = buffer;
-        source.connect(this.toCall);
-        source.connect(this.toYou);
+        source.connect(this.volume);
         source.start();
     }
 
     close(): void {
-        void this.context.close().catch(() => undefined);
+        this.volume.disconnect();
+        this.toYou.disconnect();
+        if (this.ownsContext) void this.context.close().catch(() => undefined);
     }
 }

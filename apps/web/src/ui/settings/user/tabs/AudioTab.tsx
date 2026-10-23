@@ -298,7 +298,11 @@ export function AudioTab({ client, settings, onChange }: AudioTabProps): React.R
 
             <CampfireSettings client={client} />
 
-            <SoundboardSettings client={client} />
+            <SoundboardSettings
+                client={client}
+                volume={settings.soundboardVolume}
+                onVolumeChange={(soundboardVolume) => onChange({ ...settings, soundboardVolume })}
+            />
 
             <div className="settings-section-card">
                 <h3>Voice changer</h3>

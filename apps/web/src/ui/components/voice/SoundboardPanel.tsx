@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The in-call soundboard: built-in sounds and your own, played for everyone in the call. Your own sounds are added
 // and removed here.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ClientEvent, type MatrixClient, type MatrixEvent } from "matrix-js-sdk/src/matrix";
 
 import { BUILTIN_SOUNDS } from "../../voice/soundboard/builtinSounds";
@@ -22,9 +22,12 @@ interface SoundboardPanelProps {
     // A popover in calls (closes on Escape or a click outside); without onClose it sits inline, as in Settings.
     onClose?: () => void;
     hint?: string;
+    // 0-100.
+    volume?: number;
+    onVolumeChange?: (volume: number) => void;
 }
 
-export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in the call hears these." }: SoundboardPanelProps): React.ReactElement {
+export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in the call hears these.", volume, onVolumeChange }: SoundboardPanelProps): React.ReactElement {
     const [custom, setCustom] = useState<CustomSound[]>(() => loadCustomSounds(client));
     const [adding, setAdding] = useState(false);
     const [file, setFile] = useState<File | null>(null);
@@ -33,6 +36,23 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const panelRef = useRef<HTMLDivElement | null>(null);
+    // In a call the panel opens upwards from its button: as tall as the space above it in the call view (it used
+    // to have a fixed cap and overflowed behind the view, hiding its first rows), scrolling beyond that.
+    const [maxHeight, setMaxHeight] = useState<number | null>(null);
+    useLayoutEffect(() => {
+        if (!onClose) return undefined;
+        const update = (): void => {
+            const panel = panelRef.current;
+            const anchor = panel?.parentElement;
+            const bounds = panel?.closest(".voice-room-panel");
+            if (!anchor || !bounds) return;
+            const space = anchor.getBoundingClientRect().top - bounds.getBoundingClientRect().top - 16;
+            setMaxHeight(Math.max(160, Math.floor(space)));
+        };
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, [onClose]);
 
     useEffect(() => {
         const onAccountData = (event: MatrixEvent): void => {
@@ -85,11 +105,26 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
     };
 
     return (
-        <div className={`soundboard-panel${onClose ? "" : " is-inline"}`} role={onClose ? "dialog" : "region"} aria-label="Soundboard" ref={panelRef} data-testid="soundboard">
+        <div className={`soundboard-panel${onClose ? "" : " is-inline"}`} role={onClose ? "dialog" : "region"} aria-label="Soundboard" ref={panelRef} data-testid="soundboard" style={maxHeight === null ? undefined : { maxHeight }}>
             <header className="soundboard-header">
                 {/* Inline (Settings), the surrounding card already has the title. */}
                 {onClose ? <h3>Soundboard</h3> : null}
                 <span>{hint}</span>
+                {onVolumeChange && volume !== undefined ? (
+                    <label className="soundboard-volume">
+                        <span>Volume {volume}%</span>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={volume}
+                            aria-label="Soundboard volume"
+                            data-testid="soundboard-volume"
+                            onChange={(event) => onVolumeChange(Number(event.target.value))}
+                        />
+                    </label>
+                ) : null}
             </header>
             <div className="soundboard-grid">
                 {BUILTIN_SOUNDS.map((sound) => (
