@@ -87,7 +87,8 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
     return (
         <div className={`soundboard-panel${onClose ? "" : " is-inline"}`} role={onClose ? "dialog" : "region"} aria-label="Soundboard" ref={panelRef} data-testid="soundboard">
             <header className="soundboard-header">
-                <h3>Soundboard</h3>
+                {/* Inline (Settings), the surrounding card already has the title. */}
+                {onClose ? <h3>Soundboard</h3> : null}
                 <span>{hint}</span>
             </header>
             <div className="soundboard-grid">

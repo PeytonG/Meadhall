@@ -211,3 +211,13 @@ export async function setProfileField(user: ApiUser, key: string, value: unknown
 export async function readAccountData(user: ApiUser, type: string): Promise<Record<string, unknown>> {
     return request(user, "GET", `/user/${encodeURIComponent(user.userId)}/account_data/${encodeURIComponent(type)}`);
 }
+
+export async function uploadMedia(user: ApiUser, data: Uint8Array, contentType: string, filename = "file"): Promise<string> {
+    const upload = await fetch(`${SYNAPSE_URL}/_matrix/media/v3/upload?filename=${encodeURIComponent(filename)}`, {
+        method: "POST",
+        headers: { "Content-Type": contentType, Authorization: `Bearer ${user.accessToken}` },
+        body: data,
+    });
+    if (!upload.ok) throw new Error(`Upload failed: HTTP ${upload.status} ${await upload.text()}`);
+    return ((await upload.json()) as { content_uri: string }).content_uri;
+}

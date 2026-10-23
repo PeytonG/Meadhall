@@ -65,7 +65,8 @@ select {
 .settings-members-avatar,
 .settings-chat-preview-avatar,
 .room-dialog-recipient-avatar,
-.room-dialog-autocomplete-avatar {
+.room-dialog-autocomplete-avatar,
+.voice-room-speaking-indicator {
     border-radius: 50% !important;
 }
 

@@ -7,6 +7,7 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **What's new:** after the desktop or phone app updates, a one-time window shows what changed in the new version.
 - **Multiple accounts:** sign in to more than one account (say one on matrix.org and one on your own server) from
   the user panel → **Add an account**, switch between them there, and keep getting notifications for all of them:
   clicking one switches to that account and opens the conversation. Signing out of one carries on as the other.
@@ -47,6 +48,8 @@ Versions follow `vX.Y.Z`.
 - The app connects to **matrix.org** by default again; type your own server's address to use it.
 
 ### Fixed
+- The speaking ring around a picture in calls is round again (it had turned square), and the soundboard in
+  Settings no longer shows its title twice.
 - **Your own profile picture shows in calls** (it was missing when you had a display name set, and before the call
   finished connecting).
 - **Transparent pictures stay transparent:** PNGs and GIFs no longer get a gray box behind them.

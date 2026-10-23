@@ -56,6 +56,7 @@ import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import { MobileUpdateBanner } from "./MobileUpdateBanner";
+import { WhatsNewDialog } from "./WhatsNewDialog";
 import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
@@ -2292,6 +2293,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
             <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
+            <WhatsNewDialog />
             {incomingCall ? (
                 <IncomingCallCard
                     client={client}

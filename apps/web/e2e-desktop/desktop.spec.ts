@@ -199,3 +199,23 @@ test("the game Steam is running is shared as Playing ..., and Privacy can turn i
         .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
         .toMatchObject({ activity: null });
 });
+
+test("after an update, What's new shows that release's notes once", async () => {
+    // This build runs as 0.1.0 (CHANGELOG has a v0.1.0 section); pretend the install last ran 0.0.9.
+    await window.evaluate(() => localStorage.setItem("meadhall.whats_new_seen_version", "0.0.9"));
+    await window.reload();
+    const dialog = window.getByTestId("whats-new");
+    const skip = window.getByRole("button", { name: "Skip for now" });
+    await expect(dialog.or(skip).first()).toBeVisible({ timeout: 60_000 });
+    if (await skip.isVisible()) await skip.click();
+    await expect(dialog).toBeVisible({ timeout: 30_000 });
+    await expect(dialog).toContainText("What's new in Meadhall 0.1.0");
+    await dialog.getByRole("button", { name: "Got it" }).click();
+    await expect(dialog).toBeHidden();
+    expect(await window.evaluate(() => localStorage.getItem("meadhall.whats_new_seen_version"))).toBe("0.1.0");
+
+    await window.reload();
+    await expect(window.getByTestId("rail-home").or(window.getByRole("button", { name: "Skip for now" })).first()).toBeVisible({ timeout: 60_000 });
+    await window.waitForTimeout(1500);
+    await expect(window.getByTestId("whats-new")).toHaveCount(0);
+});

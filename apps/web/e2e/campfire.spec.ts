@@ -22,6 +22,8 @@ test("the campfire can be turned off, and the choice is saved where others can r
 
     await card.getByTestId("campfire-toggle").uncheck();
     await expect(card.locator(".voice-room-speaking-indicator.is-speaking")).toBeVisible();
+    // Round like the profile picture it surrounds (the pixel style squares everything else).
+    await expect(card.locator(".voice-room-speaking-indicator")).toHaveCSS("border-top-left-radius", "50%");
     await expect.poll(() => readProfileField(bob, alice.userId, KEY).catch(() => null), { timeout: 15_000 }).toEqual({
         enabled: false,
         color: "#ff7a1a",
