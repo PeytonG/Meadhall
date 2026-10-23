@@ -418,7 +418,7 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ merged (PR #6) |
 | `v0.2.1` (picture fix, smooth screen share, campfire) | ✅ published |
 | `v0.3.0`: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ published (PR #9): https://github.com/PeytonG/Meadhall/releases/tag/v0.3.0 |
-| `v0.3.1`: the whole §10.1 backlog except building iOS (status, profiles, accounts, soundboard, effects, talk permissions, Steam, What's new, high contrast, README) | ✅ on branch `v0.3.1`; tests: 177 unit, 14 smoke, 8 integration, 53 E2E (incl. phones), 8 real-desktop |
+| `v0.3.1`: the whole §10.1 backlog except building iOS (status, profiles, accounts, soundboard, effects, talk permissions, Steam, What's new, high contrast, README) | ✅ on branch `v0.3.1`; tests: 177 unit, 14 smoke, 8 integration, 45 E2E (incl. Android and iPhone sizes), 7 real-desktop |
 
 ## 10. Open issues and roadmap
 
