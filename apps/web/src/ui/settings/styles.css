@@ -1445,3 +1445,11 @@
     gap: 8px;
     font-size: 12px;
 }
+
+.settings-inline-warning {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border: 1px solid var(--status-idle);
+    color: var(--text-main);
+    font-size: 13px;
+}

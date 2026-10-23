@@ -110,3 +110,44 @@ export function downloadAndInstallUpdate(beforeQuit: () => void): void {
     }
     void autoUpdater.downloadUpdate().catch(() => undefined);
 }
+
+// "Install an earlier version" (Settings → Updates): point the updater at that release's own update file
+// (latest.yml / latest-linux.yml, attached to every release) with downgrades allowed, then download, install and
+// restart as usual. Only plain x.y.z versions are accepted, and only from this project's GitHub releases.
+const RELEASES_DOWNLOAD = "https://github.com/PeytonG/Meadhall/releases/download";
+
+export function isValidReleaseVersion(version: unknown): version is string {
+    return typeof version === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(version);
+}
+
+export async function installVersion(version: unknown, beforeQuit: () => void): Promise<{ ok: boolean; message?: string }> {
+    if (!isValidReleaseVersion(version)) {
+        return { ok: false, message: "That isn't a Meadhall version." };
+    }
+    if (!updaterConfigured) {
+        return { ok: false, message: "Installing other versions works in the installed app only." };
+    }
+    if (currentStatus.state === "downloading") {
+        return { ok: false, message: "An update is already downloading." };
+    }
+    autoUpdater.allowDowngrade = true;
+    autoUpdater.setFeedURL({ provider: "generic", url: `${RELEASES_DOWNLOAD}/v${version}` });
+    try {
+        const result = await autoUpdater.checkForUpdates();
+        if (!result || result.updateInfo.version !== version) {
+            throw new Error(`Couldn't find Meadhall ${version}.`);
+        }
+        installWhenDownloaded = beforeQuit;
+        publish({ state: "downloading", version, percent: 0 });
+        await autoUpdater.downloadUpdate();
+        return { ok: true };
+    } catch (error) {
+        // Back to normal updates from the latest release.
+        autoUpdater.allowDowngrade = false;
+        autoUpdater.setFeedURL({ provider: "github", owner: "PeytonG", repo: "Meadhall" });
+        installWhenDownloaded = null;
+        const message = error instanceof Error ? error.message : String(error);
+        publish({ state: "error", message });
+        return { ok: false, message };
+    }
+}

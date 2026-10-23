@@ -284,3 +284,12 @@ test("the taskbar icon shows a red unread bubble in the top-right, and clears wh
     await expect(window.locator(".timeline").getByText("hello??")).toBeVisible();
     await expect.poll(async () => (await badge())?.count ?? -1, { timeout: 30_000 }).toBe(0);
 });
+
+test("installing another version only accepts real version numbers", async () => {
+    const attempt = (version: unknown) => window.evaluate((value) => window.heorotDesktop?.installVersion?.(value as string), version);
+    for (const bad of ["../../evil", "0.3.1; rm -rf /", "v0.3.1", "", 42]) {
+        expect(await attempt(bad)).toEqual({ ok: false, message: "That isn't a Meadhall version." });
+    }
+    // A real version is accepted; this unpackaged test build just can't install it.
+    expect(await attempt("0.3.1")).toEqual({ ok: false, message: "Installing other versions works in the installed app only." });
+});

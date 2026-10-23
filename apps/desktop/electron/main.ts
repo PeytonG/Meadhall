@@ -7,7 +7,7 @@ import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem
 import { configurePermissionHandlers } from "./permissions";
 import { currentActivity } from "./steamActivity";
 import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
-import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, isAutoUpdateSupported } from "./updater";
+import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, installVersion, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
 
 const APP_TITLE = "Meadhall";
@@ -573,6 +573,13 @@ function registerIpc(): void {
             isAppQuitting = true;
         });
     });
+
+    // Settings → Updates → "Install an earlier version" (the version is validated in updater.installVersion).
+    ipcMain.handle("heorot:installVersion", (_event, version: unknown) =>
+        installVersion(version, () => {
+            isAppQuitting = true;
+        }),
+    );
 }
 
 async function bootstrap(): Promise<void> {

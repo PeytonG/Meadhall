@@ -46,6 +46,7 @@ export interface HeorotDesktopBridge {
     onUpdateStatus?: (listener: (status: HeorotDesktopUpdateStatus) => void) => () => void;
     // Downloads the available update if needed, then installs it and restarts.
     installUpdate?: () => Promise<void>;
+    installVersion?: (version: string) => Promise<{ ok: boolean; message?: string }>;
     checkForUpdates?: () => Promise<HeorotDesktopUpdateStatus | null>;
     getAppVersion?: () => Promise<string>;
     platform?: string;
