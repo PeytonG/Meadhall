@@ -38,6 +38,7 @@ import { SettingsOverlay, type SettingsMode } from "../settings/SettingsOverlay"
 import {
     applyAppearanceTheme,
     loadUserLocalSettings,
+    withNotificationsOnOnce,
     saveUserLocalSettings,
     type UserLocalSettings,
 } from "../settings/user/settingsStore";
@@ -861,7 +862,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [joiningDiscoverableRoomId, setJoiningDiscoverableRoomId] = useState<string | null>(null);
     const [settingsState, setSettingsState] = useState<SettingsState | null>(null);
     const [pendingFocusRoomId, setPendingFocusRoomId] = useState<string | null>(null);
-    const [userSettings, setUserSettings] = useState<UserLocalSettings>(() => loadUserLocalSettings());
+    const [userSettings, setUserSettings] = useState<UserLocalSettings>(() => withNotificationsOnOnce(loadUserLocalSettings()));
     const [toast, setToast] = useState<ToastState | null>(null);
     const [voiceSessionRoomId, setVoiceSessionRoomId] = useState<string | null>(null);
     const [voiceSessionStatus, setVoiceSessionStatus] = useState<VoiceSessionStatus>("disconnected");

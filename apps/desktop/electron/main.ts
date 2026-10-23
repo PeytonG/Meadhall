@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, desktopCapturer, ipcMain, net, protocol, session } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, protocol, session } from "electron";
 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
@@ -434,6 +434,33 @@ function registerIpc(): void {
 
     ipcMain.handle("heorot:setCloseOnWindowCloseMinimize", (_event, enabled: unknown) => {
         closeOnWindowCloseMinimize = enabled !== false;
+    });
+
+    // Native OS notifications (Windows toasts, Linux libnotify): more reliable than the web Notification API in
+    // Electron. Clicking one restores the window and tells the app which conversation to open.
+    ipcMain.handle("heorot:showNotification", (event, payload: unknown) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        const value = payload as { title?: unknown; body?: unknown; roomId?: unknown; urgent?: unknown } | null;
+        if (!window || !value || typeof value.title !== "string" || !Notification.isSupported()) {
+            return false;
+        }
+        const notification = new Notification({
+            title: value.title.slice(0, 200),
+            body: typeof value.body === "string" ? value.body.slice(0, 1000) : "",
+            silent: true, // the app plays its own sounds
+            urgency: value.urgent === true ? "critical" : "normal",
+            timeoutType: value.urgent === true ? "never" : "default",
+        });
+        notification.on("click", () => {
+            if (window.isMinimized()) window.restore();
+            window.show();
+            window.focus();
+            if (typeof value.roomId === "string") {
+                window.webContents.send("heorot:notificationClicked", value.roomId);
+            }
+        });
+        notification.show();
+        return true;
     });
 
     // Clicking a notification brings the window back, even from the tray.

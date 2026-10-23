@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
-import { registerUser } from "../e2e/support/matrixApi";
+import { createRoom, joinRoom, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "desktop");
 const electronBinary = createRequire(path.join(desktopDir, "package.json"))("electron") as unknown as string;
@@ -53,9 +53,22 @@ function distance(a: [number, number, number], b: [number, number, number]): num
     return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
 }
 
-test("signs in and the window controls match the app in dark and light themes", async () => {
-    test.skip(process.platform !== "win32", "the window-controls overlay is drawn by Windows");
+let carolDm = "";
+let bob: ApiUser;
+
+// One signed-in app for all the checks: the user has two DMs (Carol's opens first, Bob's stays in the background).
+test.beforeAll(async () => {
     const user = await registerUser("desk");
+    bob = await registerUser("bob");
+    const carol = await registerUser("carol");
+    await setDisplayName(bob, "Bob");
+    const bobDm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [user.userId] });
+    carolDm = await createRoom(carol, { is_direct: true, preset: "trusted_private_chat", invite: [user.userId] });
+    for (const roomId of [bobDm, carolDm]) await joinRoom(user, roomId);
+    await setAccountData(user, "m.direct", { [bob.userId]: [bobDm], [carol.userId]: [carolDm] });
+    await sendMessage(carol, carolDm, "hi from carol");
+    (globalThis as unknown as { bobDm: string }).bobDm = bobDm;
+
     await window.getByRole("textbox", { name: "Homeserver" }).first().fill("http://localhost:8008");
     await window.getByLabel("Username or email").fill(user.username);
     await window.getByLabel("Password", { exact: true }).fill(user.password);
@@ -65,7 +78,10 @@ test("signs in and the window controls match the app in dark and light themes", 
     await expect(home.or(skip).first()).toBeVisible({ timeout: 60_000 });
     if (await skip.isVisible()) await skip.click();
     await expect(home).toBeVisible({ timeout: 60_000 });
+});
 
+test("the window controls match the app in dark and light themes", async () => {
+    test.skip(process.platform !== "win32", "the window-controls overlay is drawn by Windows");
     for (const theme of ["dark", "light"] as const) {
         await window.evaluate((theme) => {
             document.documentElement.setAttribute("data-theme", theme);
@@ -78,4 +94,28 @@ test("signs in and the window controls match the app in dark and light themes", 
         console.log(theme, "overlay", overlay, "app", app);
         expect(distance(overlay, app), `${theme}: overlay ${overlay} vs app ${app}`).toBeLessThanOrEqual(4); // the old fixed color (#121a23) was 9 off the dark theme
     }
+});
+
+test("messages raise native OS notifications (on by default), and clicking one opens the conversation", async () => {
+    // Record notifications in the main process instead of showing them.
+    await app.evaluate(({ Notification }) => {
+        const shown: Array<{ title: string; body: string }> = [];
+        (globalThis as unknown as { shownNotifications: typeof shown }).shownNotifications = shown;
+        (globalThis as unknown as { lastNotification: unknown }).lastNotification = null;
+        Notification.prototype.show = function show(this: InstanceType<typeof Notification>) {
+            shown.push({ title: this.title, body: this.body });
+            (globalThis as unknown as { lastNotification: unknown }).lastNotification = this;
+        };
+    });
+    await window.getByRole("region", { name: "Direct messages" }).getByText(/carol/i).click();
+    await expect(window.getByText("hi from carol")).toBeVisible();
+
+    await sendMessage(bob, (globalThis as unknown as { bobDm: string }).bobDm, "Fireside at sundown?");
+    await expect
+        .poll(() => app.evaluate(() => (globalThis as unknown as { shownNotifications: Array<{ title: string; body: string }> }).shownNotifications), { timeout: 20_000 })
+        .toContainEqual(expect.objectContaining({ body: "Fireside at sundown?" }));
+
+    await app.evaluate(() => (globalThis as unknown as { lastNotification: { emit: (name: string) => void } }).lastNotification.emit("click"));
+    await expect(window.getByText("Fireside at sundown?")).toBeVisible();
+    await expect(window.locator(".channel-header-title")).toContainText(/bob/i);
 });

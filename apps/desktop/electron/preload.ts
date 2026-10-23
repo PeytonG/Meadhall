@@ -15,6 +15,9 @@ export interface HeorotDesktopBridge {
     setCloseOnWindowCloseMinimize: (enabled: boolean) => Promise<void>;
     // Brings the window back (from the tray too), e.g. when a notification is clicked.
     showWindow: () => Promise<void>;
+    // Native OS notification; resolves false if the platform can't show one (then the web API is used).
+    showNotification: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
+    onNotificationClicked: (listener: (roomId: string) => void) => () => void;
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp: () => Promise<void>;
@@ -48,6 +51,16 @@ const bridge: HeorotDesktopBridge = {
     },
     setCloseOnWindowCloseMinimize: async (enabled: boolean): Promise<void> => {
         await ipcRenderer.invoke("heorot:setCloseOnWindowCloseMinimize", enabled);
+    },
+    showNotification: async (payload: { title: string; body: string; roomId?: string; urgent?: boolean }): Promise<boolean> => {
+        return (await ipcRenderer.invoke("heorot:showNotification", payload)) === true;
+    },
+    onNotificationClicked: (listener: (roomId: string) => void): (() => void) => {
+        const handler = (_event: IpcRendererEvent, roomId: string): void => listener(roomId);
+        ipcRenderer.on("heorot:notificationClicked", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:notificationClicked", handler);
+        };
     },
     showWindow: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:showWindow");

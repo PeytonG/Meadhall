@@ -227,3 +227,26 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     );
 }
 
+
+const NOTIFICATIONS_ON_MIGRATION_KEY = "heorot.notifications_default_on.v1";
+
+// Before v0.3.0 notifications defaulted to off, and that "off" was saved with everyone's settings, so the new
+// default never reached existing installs. The desktop and Android apps switch them on once; turning them off
+// afterwards sticks.
+export function withNotificationsOnOnce(settings: UserLocalSettings): UserLocalSettings {
+    if (typeof window === "undefined") {
+        return settings;
+    }
+    const isApp =
+        Boolean(window.heorotDesktop) ||
+        (window as unknown as { Capacitor?: { getPlatform?: () => string } }).Capacitor?.getPlatform?.() === "android";
+    try {
+        if (!isApp || window.localStorage.getItem(NOTIFICATIONS_ON_MIGRATION_KEY)) {
+            return settings;
+        }
+        window.localStorage.setItem(NOTIFICATIONS_ON_MIGRATION_KEY, "1");
+    } catch {
+        return settings;
+    }
+    return { ...settings, notifications: { ...settings.notifications, notificationsEnabled: true } };
+}

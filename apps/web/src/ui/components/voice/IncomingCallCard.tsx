@@ -28,7 +28,20 @@ export function IncomingCallCard({ client, call, speakerId, onJoin, onDismiss }:
 
     // In the background (another window, or the desktop app in the tray): an OS notification too.
     useEffect(() => {
-        if ((!document.hidden && document.hasFocus()) || typeof Notification === "undefined" || Notification.permission !== "granted") {
+        if (!document.hidden && document.hasFocus()) {
+            return undefined;
+        }
+        const desktopNotify = window.heorotDesktop?.showNotification;
+        if (desktopNotify) {
+            void desktopNotify({
+                title: `${callerName} is calling`,
+                body: isGroup ? `Call in ${room?.name ?? "a group chat"}` : "Open Meadhall to join",
+                roomId: call.roomId,
+                urgent: true,
+            });
+            return undefined;
+        }
+        if (typeof Notification === "undefined" || Notification.permission !== "granted") {
             return undefined;
         }
         const notification = new Notification(`${callerName} is calling`, {

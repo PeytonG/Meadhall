@@ -7,6 +7,8 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### Fixed
+- **Notifications show in the Windows and Linux apps.** They now use the system's own notifications, and are switched
+  on once for existing installs (an old "off" default had been saved with everyone's settings).
 - **Calls ring again.** In encrypted DMs (the default) the call notice arrives encrypted, so incoming calls never rang.
   The desktop app also plays the ringtone even if you haven't clicked in it yet (for example after starting at
   login).
