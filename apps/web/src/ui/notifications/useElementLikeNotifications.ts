@@ -152,7 +152,14 @@ export function useElementLikeNotifications({
     const onOpenRoomRef = useRef(onOpenRoom);
     onOpenRoomRef.current = onOpenRoom;
     // Desktop app: clicking a native notification opens its conversation.
-    useEffect(() => window.heorotDesktop?.onNotificationClicked?.((roomId) => onOpenRoomRef.current?.(roomId)), []);
+    // Notifications for other signed-in accounts carry "account:..." and are handled by useOtherAccountNotifications.
+    useEffect(
+        () =>
+            window.heorotDesktop?.onNotificationClicked?.((roomId) => {
+                if (!roomId.startsWith("account:")) onOpenRoomRef.current?.(roomId);
+            }),
+        [],
+    );
     const activeRoomIdRef = useRef(activeRoomId);
     const hasOpenDialogRef = useRef(hasOpenDialog);
     const pendingEncryptedEventIdsRef = useRef<string[]>([]);

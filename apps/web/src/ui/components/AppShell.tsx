@@ -56,6 +56,8 @@ import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import { MobileUpdateBanner } from "./MobileUpdateBanner";
+import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
+import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -2276,6 +2278,16 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         onOpenRoom: focusRoom,
     });
 
+    // Other accounts signed in on this device: listed in the status menu, and their notifications still arrive.
+    const storedAccounts = useStoredAccounts();
+    useOtherAccountNotifications(client, userSettings.notifications.notificationsEnabled);
+    // Arrived here by clicking another account's notification: open that conversation.
+    useEffect(() => {
+        const roomId = takePendingRoom();
+        if (roomId) focusRoom(roomId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     return (
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
@@ -2510,6 +2522,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 onChange={updateOwnStatus}
                                 onOpenSettings={() => openUserSettings("my-account")}
                                 onClose={() => setStatusMenuOpen(false)}
+                                accounts={storedAccounts}
+                                onSwitchAccount={(userId) => void switchAccount(client, userId)}
+                                onAddAccount={() => void addAccount(client)}
                             />
                         ) : null}
                         <button

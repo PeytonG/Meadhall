@@ -5460,3 +5460,27 @@ img.voice-ctrl-icon {
         display: block;
     }
 }
+
+/* Status menu: other signed-in accounts. */
+.status-menu-heading {
+    padding: 4px 10px 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.status-menu-account small {
+    overflow-wrap: anywhere;
+}
+
+/* Sign-in screen while adding another account. */
+.login-back-to-account {
+    align-self: flex-start;
+    margin-bottom: 8px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--accent-soft);
+    font: inherit;
+    cursor: pointer;
+}

@@ -7,6 +7,9 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **Multiple accounts:** sign in to more than one account (say one on matrix.org and one on your own server) from
+  the user panel → **Add an account**, switch between them there, and keep getting notifications for all of them:
+  clicking one switches to that account and opens the conversation. Signing out of one carries on as the other.
 - **High contrast theme** (Settings → Appearance) for people who find the other themes hard to see: black
   background, white text, bold outlines, a yellow focus ring, and your accent color brightened to stay readable.
 - **Phones: a send button** next to the emoji button, and **swipe** right to go back to your conversations (left to
