@@ -1717,6 +1717,20 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         );
     }, []);
 
+    // The desktop tray menu mirrors mute/deafen and status, and its choices act here.
+    useEffect(() => {
+        void window.heorotDesktop?.setTrayState?.({ muted: selfVoice.muted, deafened: selfVoice.deafened, status: ownStatus.state });
+    }, [ownStatus.state, selfVoice.deafened, selfVoice.muted]);
+    const trayActionRef = useRef<(action: { type: string; status?: string }) => void>(() => undefined);
+    trayActionRef.current = (action) => {
+        if (action.type === "toggleMute") toggleVoiceMicFromDock();
+        else if (action.type === "toggleDeafen") toggleVoiceAudioFromDock();
+        else if (action.type === "setStatus" && ["auto", "online", "idle", "dnd", "invisible"].includes(action.status ?? "")) {
+            setOwnStatus((current) => ({ ...current, state: action.status as OwnStatus["state"] }));
+        }
+    };
+    useEffect(() => window.heorotDesktop?.onTrayAction?.((action) => trayActionRef.current(action)), []);
+
     // Below 1100px the members/profile panel slides over the chat, so it only opens when asked for and closing it
     // there doesn't change the saved (desktop) panel choice.
     const isNarrowLayout = useMediaQuery("(max-width: 1100px)");

@@ -125,3 +125,49 @@ test("automatic Away can read how long the whole computer has been idle", async 
     expect(typeof idleSeconds).toBe("number");
     expect(idleSeconds).toBeGreaterThanOrEqual(0);
 });
+
+test("the tray menu mutes, deafens and sets your status, and follows changes made in the app", async () => {
+    test.skip(process.platform === "darwin", "macOS has no tray icon");
+    type MenuItem = { label: string; checked: boolean; click: () => void; submenu?: { items: MenuItem[] } };
+    const trayItems = (): Promise<Array<{ label: string; checked: boolean; submenu?: Array<{ label: string; checked: boolean }> }>> =>
+        app.evaluate(() =>
+            ((globalThis as unknown as { meadhallTrayMenu: { items: MenuItem[] } }).meadhallTrayMenu.items).map((item) => ({
+                label: item.label,
+                checked: item.checked,
+                submenu: item.submenu?.items.map((sub) => ({ label: sub.label, checked: sub.checked })),
+            })),
+        );
+    const clickTray = (label: string, sublabel?: string): Promise<void> =>
+        app.evaluate(
+            (_electron, { label, sublabel }) => {
+                const items = (globalThis as unknown as { meadhallTrayMenu: { items: MenuItem[] } }).meadhallTrayMenu.items;
+                const item = items.find((candidate) => candidate.label === label);
+                const target = sublabel ? item?.submenu?.items.find((candidate) => candidate.label === sublabel) : item;
+                if (!target) throw new Error(`no tray item ${label} ${sublabel ?? ""}`);
+                target.click();
+            },
+            { label, sublabel },
+        );
+
+    // Menu → app.
+    await clickTray("Mute");
+    await expect(window.getByTestId("self-mute")).toHaveAttribute("aria-pressed", "true");
+    await clickTray("Status", "Do Not Disturb");
+    await expect(window.locator(".pane-user-card .avatar-presence-dot")).toHaveClass(/is-dnd/);
+    await expect.poll(trayItems).toEqual(
+        expect.arrayContaining([
+            expect.objectContaining({ label: "Mute", checked: true }),
+            expect.objectContaining({ label: "Status", submenu: expect.arrayContaining([{ label: "Do Not Disturb", checked: true }]) }),
+        ]),
+    );
+
+    // App → menu.
+    await window.getByTestId("self-mute").click();
+    await window.getByTestId("self-deafen").click();
+    await expect.poll(trayItems).toEqual(
+        expect.arrayContaining([expect.objectContaining({ label: "Deafen", checked: true })]),
+    );
+    await window.getByTestId("self-deafen").click();
+    await clickTray("Status", "Automatic");
+    await expect(window.locator(".pane-user-card .avatar-presence-dot")).not.toHaveClass(/is-dnd/);
+});

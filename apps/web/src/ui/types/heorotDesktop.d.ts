@@ -26,6 +26,8 @@ export interface HeorotDesktopBridge {
     setCloseOnWindowCloseMinimize?: (enabled: boolean) => Promise<void>;
     showWindow?: () => Promise<void>;
     getSystemIdleSeconds?: () => Promise<number>;
+    setTrayState?: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
+    onTrayAction?: (listener: (action: { type: string; status?: string }) => void) => () => void;
     showNotification?: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
     onNotificationClicked?: (listener: (roomId: string) => void) => () => void;
     setTitleBarColors?: (colors: { color: string; symbolColor: string }) => Promise<void>;

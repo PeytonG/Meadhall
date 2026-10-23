@@ -5,7 +5,7 @@ import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, powerM
 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
-import { createTray, destroyTray, hasTray } from "./tray";
+import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
 import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
 
@@ -464,6 +464,17 @@ function registerIpc(): void {
     });
 
     // Clicking a notification brings the window back, even from the tray.
+    // The tray menu mirrors mute/deafen and status; the app reports them as they change.
+    ipcMain.handle("heorot:setTrayState", (_event, state: TrayState) => {
+        const statuses = ["auto", "online", "idle", "dnd", "invisible"];
+        setTrayState({
+            muted: state?.muted === true,
+            deafened: state?.deafened === true,
+            status: statuses.includes(state?.status) ? state.status : "auto",
+        });
+    });
+    ipcMain.handle("heorot:getTrayState", () => getTrayState());
+
     // For automatic Away: input anywhere on the computer counts, not just in Meadhall.
     ipcMain.handle("heorot:getSystemIdleSeconds", () => powerMonitor.getSystemIdleTime());
 
@@ -580,7 +591,11 @@ async function bootstrap(): Promise<void> {
     configureDisplayMediaCapture();
     registerIpc();
     if (process.platform !== "darwin") {
-        createTray(APP_TITLE, { showWindow: focusMainWindow, quit: quitApp });
+        createTray(APP_TITLE, {
+            showWindow: focusMainWindow,
+            quit: quitApp,
+            action: (action) => mainWindow?.webContents.send("heorot:trayAction", action),
+        });
     }
 
     mainWindow = createMainWindow(wasLaunchedHidden());

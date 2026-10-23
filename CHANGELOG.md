@@ -14,6 +14,8 @@ Versions follow `vX.Y.Z`.
 - **Set your status** from the user panel, like Discord: Online, Idle, Do Not Disturb, Invisible, and a custom status
   message. Do Not Disturb silences notifications and call ringing. Online status now works in the web and Android
   apps too, not only on desktop.
+- **Tray menu (Windows and Linux):** Mute, Deafen and your status (Automatic, Online, Away, Do Not Disturb,
+  Invisible) right from the tray icon; it stays in step with the app.
 - **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
   computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
 - **Profile banner, About me, email and links:** upload an image or GIF banner and add a bio, a public email and up to
