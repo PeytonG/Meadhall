@@ -26,7 +26,7 @@ test("a newer release shows an update notice with the APK, directions, and a swi
 
     const banner = page.getByTestId("mobile-update-banner");
     await expect(banner).toContainText("Meadhall 0.9.0 is available.");
-    await expect(banner.getByRole("link", { name: "Get the update" })).toHaveAttribute("href", /Meadhall-0\.9\.0\.ipa$/);
+    await expect(banner.getByRole("link", { name: "Open TestFlight" })).toHaveAttribute("href", "itms-beta://");
     if (process.env.PREVIEW_DIR) await page.screenshot({ path: `${process.env.PREVIEW_DIR}/mobile-update.png` });
 
     await banner.getByRole("button", { name: "How to install" }).click();

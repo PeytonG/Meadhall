@@ -4,6 +4,8 @@
 
 export const RELEASES_API = "https://api.github.com/repos/PeytonG/Meadhall/releases/latest";
 export const RELEASES_PAGE = "https://github.com/PeytonG/Meadhall/releases/latest";
+// The iOS app (Beta) is installed and updated through TestFlight, not from GitHub: this opens the TestFlight app.
+export const TESTFLIGHT_URL = "itms-beta://";
 const CACHE_KEY = "heorot.mobile_latest_release.v1";
 const NOTICE_KEY = "heorot.mobile_update_notice.v1";
 const DISMISSED_KEY = "heorot.mobile_update_dismissed.v1";
@@ -36,7 +38,7 @@ export function compareVersions(left: string, right: string): number {
 export interface LatestRelease {
     version: string;
     pageUrl: string;
-    // Direct download for this platform, when the release has one.
+    // Where to get it on this platform: the APK on Android; TestFlight on iOS.
     downloadUrl: string | null;
 }
 
@@ -58,7 +60,7 @@ export function parseRelease(release: GitHubRelease, platform: "android" | "ios"
     return {
         version: release.tag_name.replace(/^v/, ""),
         pageUrl: release.html_url && /^https:\/\/github\.com\//.test(release.html_url) ? release.html_url : RELEASES_PAGE,
-        downloadUrl: pick(platform === "android" ? /\.apk$/i : /\.ipa$/i),
+        downloadUrl: platform === "android" ? pick(/\.apk$/i) : TESTFLIGHT_URL,
     };
 }
 

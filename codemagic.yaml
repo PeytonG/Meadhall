@@ -6,14 +6,15 @@
 #   2. Teams → Integrations → App Store Connect: add an API key (the .p8 file, its Key ID and the Issuer ID) and
 #      name it "Meadhall App Store Connect" (or change `app_store_connect` below to the name you used).
 #   3. Create the app in App Store Connect with the bundle ID io.github.peytong.meadhall.
-# Then push a tag like v0.3.1: Codemagic builds a signed .ipa and uploads it to TestFlight.
+# Then push a tag like v0.3.1: Codemagic builds a signed .ipa and uploads it to TestFlight (iOS is in beta; it
+# isn't attached to the GitHub release, since iPhones can only install from the App Store or TestFlight).
 #
 # Notifications on iOS need Apple's push service (APNs) through a push gateway (Sygnal): iOS doesn't let apps poll
 # in the background the way Android's SyncService does. See CLAUDE.md §10.1 item 16.
 
 workflows:
   ios-testflight:
-    name: iOS → TestFlight
+    name: iOS (Beta) → TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:

@@ -48,7 +48,7 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 | 🐧 **Linux** (any distro) | `Meadhall-<version>-x86_64.AppImage` | `chmod +x Meadhall-*.AppImage`, then run it. |
 | 🎩 **Fedora / RHEL** | `Meadhall-<version>-x86_64.rpm` | `sudo dnf install ./Meadhall-*.rpm` |
 | 🤖 **Android** 7+ | `Meadhall-<version>-android.apk` | See [Installing on Android](#installing-on-android) below. |
-| 🍎 **iOS** | coming soon | See [iOS](#ios). |
+| 🍎 **iOS (Beta)** | TestFlight | Invite only for now: see [iOS (Beta)](#ios). |
 | 🌐 **Web** | — | Use a Meadhall someone hosts, or [host your own](docs/self-hosting.md). |
 
 - **Desktop apps update themselves:** a notice offers **Update now**, then a one-time **What's new** shows what changed.
@@ -71,11 +71,17 @@ notice with a download button when a new version is out.
 
 <a id="ios"></a>
 <details>
-<summary><b>🍎 iOS</b></summary>
+<summary><b>🍎 iOS (Beta)</b></summary>
 
-An iOS build is in the works (it needs Apple's signing and push notification services). Until then, use Meadhall on
-the web in Safari, or [Element](https://element.io) for iPhone: you'll be in the same servers and calls. When the
-iOS app is released, it will be on the releases page and through TestFlight.
+The iPhone app is in **beta** and still being tested. It's installed through Apple's **TestFlight** app rather than
+from the releases page: Apple only lets iPhones install apps from the App Store or TestFlight.
+
+1. Ask for an invite (open an issue or ask the maintainer), then install **TestFlight** from the App Store.
+2. Open the invite link on your iPhone and tap **Install**.
+3. Updates arrive in TestFlight: Meadhall also tells you when one is out, with a button that opens TestFlight.
+
+Notifications while the app is closed aren't available on iPhone yet. Until you have an invite, use Meadhall on the
+web in Safari, or [Element](https://element.io) for iPhone: you'll be in the same servers and calls.
 
 </details>
 
@@ -238,7 +244,7 @@ playwright test screenshots`.
 |---|---|
 | `apps/web` | The app: React 19, Vite, matrix-js-sdk, LiveKit |
 | `apps/desktop` | Electron wrapper: tray, updates, notifications, Steam activity |
-| `apps/mobile` | Android app (Capacitor) |
+| `apps/mobile` | Android and iOS (Beta) apps (Capacitor); iOS builds on Codemagic (`codemagic.yaml`) |
 | `branding/`, `scripts/` | Source artwork, icon and sticker generators, the test homeserver |
 | `CLAUDE.md` | Architecture notes, decisions and their reasons, for humans and AI agents |
 
@@ -253,11 +259,11 @@ builds Windows, Linux and Android and publishes them with checksums once every b
 - **Calls across homeservers:** Meadhall uses the voice server (SFU) of its own homeserver. Element users publishing
   on another homeserver's SFU can hear you, but you won't hear them yet.
 - **Voice needs UDP** access to LiveKit (or a TURN server).
-- The Windows app isn't code-signed yet, and there's **no iOS app** yet.
+- The Windows app isn't code-signed yet, and the **iOS app is a beta** (TestFlight invites, no notifications while closed).
 
 ## 🗺️ Roadmap
 
-- iOS app with notifications
+- iOS (Beta) → public release, with notifications
 - Calls across homeservers (multi-SFU)
 - Push notifications
 - More sticker packs, and sticker packs per server

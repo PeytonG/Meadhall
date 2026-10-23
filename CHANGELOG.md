@@ -4,7 +4,7 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
-## Unreleased
+## v0.3.1 (2026-10-23)
 
 ### New
 - **What's new:** after the desktop or phone app updates, a one-time window shows what changed in the new version.
@@ -24,8 +24,10 @@ Versions follow `vX.Y.Z`.
   Invisible) right from the tray icon; it stays in step with the app.
 - **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
   computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
-- **Update notice on Android (and iOS):** like the desktop app, phones tell you when a new version is out, with a
-  link to download it and step-by-step install directions (Settings → Updates, where the notice can be turned off).
+- **Update notice on Android (and iOS (Beta)):** like the desktop app, phones tell you when a new version is out,
+  with a link to download it (TestFlight on iPhone) and step-by-step install directions (Settings → Updates, where
+  the notice can be turned off).
+- **iOS app (Beta):** an iPhone version, installed through TestFlight by invitation while it's tested.
 - **Soundboard:** in a call, open **Sounds** to play a sound for everyone: 12 built-in 8-bit sounds (duck, fart,
   sword, air horn, ba dum tss, coin, bell, war horn, sad trombone, applause, crickets, level up) and up to 24 of your
   own (8 seconds, 1 MB each), managed and previewed in Settings → Audio. Your sounds follow your account.

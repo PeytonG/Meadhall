@@ -9,7 +9,7 @@
 | **Owner** | PeytonG |
 | **Upstream** | Fork of [Vitosicz/Heorot](https://github.com/Vitosicz/Heorot) (git remote `upstream`) |
 | **License** | AGPL-3.0 (inherited from Heorot and Element; cannot be changed) |
-| **Latest release** | `v0.3.0` (2026-10-23; first release `v0.1.0`) |
+| **Latest release** | `v0.3.1` (2026-10-23; first release `v0.1.0`) |
 | **Last updated** | 2026-10-23 |
 
 > **Upkeep rule (from the owner):** update this file after every few completed tasks, before context runs low, and
@@ -350,10 +350,13 @@ Not yet: Android's `SyncService` only covers the active account.
   The release workflow already refuses tags without a section, so release notes and What's new can't be skipped.
   Fresh installs see nothing; installs that predate the feature but had an account get the current notes.
 
-### 7.15 iOS (`apps/mobile/ios`, `codemagic.yaml`)
+### 7.15 iOS (Beta) (`apps/mobile/ios`, `codemagic.yaml`)
 Capacitor iOS with Swift Package Manager (no CocoaPods), built on Codemagic (`mac_mini_m2`) on `v*` tags, signed
 with an App Store Connect API key integration and uploaded to TestFlight. Icons come from `generate-branding.mjs`.
-**Never built yet**: needs the owner's Apple Developer account and the key in Codemagic. iOS can't poll in the
+**Never built yet**: needs the owner's Apple Developer account and the key in Codemagic. Label everything iOS
+**(Beta)** in user-facing text until the owner says otherwise (requested 2026-10-23). iOS builds are **not**
+attached to GitHub releases: iPhones only install from the App Store or TestFlight, so the in-app update notice on
+iOS opens TestFlight (`itms-beta://`) and README directs people to a TestFlight invite. iOS can't poll in the
 background, so notifications need APNs through Sygnal (a push gateway) on the server.
 
 ### 7.16 Accessibility
@@ -418,7 +421,7 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ merged (PR #6) |
 | `v0.2.1` (picture fix, smooth screen share, campfire) | ✅ published |
 | `v0.3.0`: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ published (PR #9): https://github.com/PeytonG/Meadhall/releases/tag/v0.3.0 |
-| `v0.3.1`: the whole §10.1 backlog except building iOS (status, profiles, accounts, soundboard, effects, talk permissions, Steam, What's new, high contrast, README) | ✅ on branch `v0.3.1`; tests: 177 unit, 14 smoke, 8 integration, 45 E2E (incl. Android and iPhone sizes), 7 real-desktop |
+| `v0.3.1`: the whole §10.1 backlog except building iOS (status, profiles, accounts, soundboard, effects, talk permissions, Steam, What's new, high contrast, README) | ✅ released (PR #10); tests: 177 unit, 14 smoke, 8 integration, 45 E2E (incl. Android and iPhone sizes), 7 real-desktop |
 
 ## 10. Open issues and roadmap
 
@@ -454,7 +457,7 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 13 | Full role editor | See + talk per channel, §7.6 |
 | 14 | More voice effects | 12 added (18 total), §7.13 |
 | 15 | Soundboard | §7.13 |
-| 16 | iOS | Project + Codemagic; not built yet, §7.15 |
+| 16 | iOS (Beta) | Project + Codemagic → TestFlight; not built yet, §7.15 |
 | 17 | Default homeserver matrix.org | `core/config/serverDefaults.ts` |
 | 18, 19 | README with screenshots; sign-up docs | README modelled on the owner's reference layout; `docs/SCREENSHOTS.md` |
 | 20, 21 | Phone swipe; send button | `AppShell` touch handler; `composer-send` |

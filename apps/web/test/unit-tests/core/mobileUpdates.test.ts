@@ -26,7 +26,8 @@ describe("mobile update checks", () => {
             pageUrl: "https://github.com/PeytonG/Meadhall/releases/tag/v0.3.1",
             downloadUrl: "https://example/release.apk",
         });
-        expect(parseRelease(release, "ios")?.downloadUrl).toBe("https://example/app.ipa");
+        // iOS (Beta) updates come through TestFlight, never a file from GitHub.
+        expect(parseRelease(release, "ios")?.downloadUrl).toBe("itms-beta://");
         expect(parseRelease({ ...release, draft: true }, "android")).toBeNull();
         expect(parseRelease({ ...release, prerelease: true }, "android")).toBeNull();
         expect(parseRelease({ ...release, html_url: "https://evil.example/" }, "android")?.pageUrl).toBe(RELEASES_PAGE);

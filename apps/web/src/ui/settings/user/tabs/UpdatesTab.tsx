@@ -49,7 +49,7 @@ function MobileUpdates(): React.ReactElement {
                 <div className="settings-theme-row">
                     {latest ? (
                         <a className="settings-button" href={latest.downloadUrl ?? latest.pageUrl} target="_blank" rel="noopener noreferrer">
-                            {updates.platform === "android" && latest.downloadUrl ? `Download APK ${latest.version}` : "Open the latest release"}
+                            {updates.platform === "ios" ? "Open TestFlight" : latest.downloadUrl ? `Download APK ${latest.version}` : "Open the latest release"}
                         </a>
                     ) : null}
                     <button type="button" className="settings-button settings-button-secondary" onClick={updates.check} disabled={updates.checking}>
@@ -77,8 +77,8 @@ function MobileUpdates(): React.ReactElement {
                     </ol>
                 ) : (
                     <ol className="settings-steps">
-                        <li>Open the latest release and download the <code>.ipa</code> file.</li>
-                        <li>Install it the same way you installed Meadhall (AltStore, Sideloadly or TestFlight if you were invited).</li>
+                        <li>The iOS app is in <strong>beta</strong> and comes through Apple&apos;s <strong>TestFlight</strong> app.</li>
+                        <li>Tap <strong>Open TestFlight</strong> above, then <strong>Update</strong> next to Meadhall.</li>
                         <li>Your messages, settings and sign-in stay as they are.</li>
                     </ol>
                 )}

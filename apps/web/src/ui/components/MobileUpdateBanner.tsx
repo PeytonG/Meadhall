@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { dismissedUpdateVersion, dismissUpdateVersion } from "../../core/updates/mobileUpdates";
 import { useMobileUpdates } from "../hooks/useMobileUpdates";
 
-// Android/iOS: a newer release is out. Phone apps are installed from the GitHub release by hand, so this links
-// there (Settings → Updates explains the steps and can turn this notice off).
+// Android/iOS: a newer release is out. Android installs it from the GitHub release by hand; iOS (Beta) through
+// TestFlight. Settings → Updates explains the steps and can turn this notice off.
 export function MobileUpdateBanner({ onOpenUpdateSettings }: { onOpenUpdateSettings: () => void }): React.ReactElement | null {
     const { supported, updateAvailable, latest, noticeEnabled, platform } = useMobileUpdates();
     const [dismissed, setDismissed] = useState(dismissedUpdateVersion);
@@ -21,7 +21,7 @@ export function MobileUpdateBanner({ onOpenUpdateSettings }: { onOpenUpdateSetti
                 target="_blank"
                 rel="noopener noreferrer"
             >
-                {platform === "android" && latest.downloadUrl ? "Download APK" : "Get the update"}
+                {platform === "ios" ? "Open TestFlight" : latest.downloadUrl ? "Download APK" : "Get the update"}
             </a>
             <button type="button" className="desktop-update-banner-dismiss" onClick={onOpenUpdateSettings}>
                 How to install
