@@ -339,7 +339,7 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 - iOS; code signing for Windows/macOS; optional FCM push for Android (needs the owner's Firebase project + Sygnal).
 - Notification taps on Android open the app but not yet the specific conversation (the intent carries `roomId`).
 
-### 10.1 Owner's backlog for the next version (requested 2026-10-23; start here)
+### 10.1 Owner's backlog: v0.3.1 (requested 2026-10-23; in progress)
 Work through these in small PRs, each with UI tests (§4). Notes are starting points, not decisions.
 
 **Bugs**
@@ -402,6 +402,17 @@ Work through these in small PRs, each with UI tests (§4). Notes are starting po
     (like the Discord app). Touch handlers on the phone layout (`mobilePane`), with the Back button behaviour kept.
 21. **Send button** in the composer on phones, next to the emoji (smile) button: phones have no Enter-to-send.
     Show it on touch/phone layouts (and when the composer has text or attachments).
+
+22. **UI testing on Android and iOS** too, not only desktop/web: phone-sized Playwright runs (touch, `isMobile`)
+    for every UI change, plus checks on a real device or emulator/simulator when available (Android emulator in CI;
+    iOS simulator on the macOS build host).
+23. **Mobile update notice:** Android/iOS show the same "Meadhall X is available" banner as desktop when a newer
+    GitHub release exists, linking to the latest release to download the APK (or the iOS build), with a Settings
+    toggle to turn the check off. README gets step-by-step download/install directions for the APK and for iOS.
+24. **DM list snippet:** under a person's name (all platforms), show a snippet of the last message after
+    "Direct message", next to the online/offline status.
+25. **Mobile presence icon:** people using Android/iOS show a pixel green phone as their status icon (instead of the
+    dot), unless they picked a status manually.
 
 **Presentation / defaults**
 17. **Default homeserver back to `https://matrix.org`** (owner: more presentable). Change `DEFAULT_HOMESERVER_URL`
