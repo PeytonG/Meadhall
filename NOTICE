@@ -37,6 +37,10 @@ Changes made in this fork (2026, by PeytonG; see the git history for detail):
   notifications for all; a soundboard with synthesized sounds and more voice
   effects; a high contrast theme; update notices on phones and "What's new" after
   updates; an iOS project (Capacitor) with a Codemagic build.
+- Soundboard mixed into the microphone, with volume and trimming; calls that
+  rejoin after drops and keep a call history; a taskbar unread badge; screen
+  share previews; banner cropping; Block / Ignore; installing earlier versions;
+  IPC sender validation in the desktop app.
 
 Files added by this fork carry an SPDX-License-Identifier: AGPL-3.0-only header.
 Third-party fonts: Pixelify Sans and Silkscreen, SIL Open Font License 1.1.
