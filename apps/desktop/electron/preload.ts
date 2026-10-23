@@ -2,6 +2,15 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
 import type { DesktopUpdateStatus } from "./updater";
 
+// A screen or window that can be shared, with a preview (PNG data URLs) to pick from.
+interface DesktopCaptureSource {
+    id: string;
+    name: string;
+    kind: "screen" | "window";
+    thumbnail: string | null;
+    icon: string | null;
+}
+
 export interface HeorotDesktopMediaAuthState {
     accessToken?: string;
     homeserverUrl?: string;
@@ -17,6 +26,8 @@ export interface HeorotDesktopBridge {
     showWindow: () => Promise<void>;
     // Seconds since the last keyboard or mouse input anywhere on the computer.
     getSystemIdleSeconds: () => Promise<number>;
+    // The taskbar icon with an unread bubble (icon is a PNG data URL drawn by the app; count 0 clears it).
+    setUnreadBadge: (badge: { count: number; icon: string | null }) => Promise<void>;
     // The game Steam is running, if any.
     getActivity: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
     // The tray menu's Mute / Deafen / Status: the app reports its state and handles the menu's choices.
@@ -28,7 +39,7 @@ export interface HeorotDesktopBridge {
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp: () => Promise<void>;
-    getDesktopCapturerSources: () => Promise<Array<{ id: string; name: string }>>;
+    getDesktopCapturerSources: () => Promise<DesktopCaptureSource[]>;
     setPreferredDisplayMediaSource: (sourceId: string) => Promise<void>;
     getStartAtLogin: () => Promise<boolean>;
     setStartAtLogin: (enabled: boolean) => Promise<boolean>;
@@ -36,6 +47,8 @@ export interface HeorotDesktopBridge {
     onUpdateStatus: (listener: (status: DesktopUpdateStatus) => void) => () => void;
     // Downloads the available update if needed, then installs it and restarts.
     installUpdate: () => Promise<void>;
+    // Downloads and installs a specific release (also older ones), then restarts.
+    installVersion: (version: string) => Promise<{ ok: boolean; message?: string }>;
     checkForUpdates: () => Promise<DesktopUpdateStatus | null>;
     getAppVersion: () => Promise<string>;
     platform: NodeJS.Platform;
@@ -74,6 +87,9 @@ const bridge: HeorotDesktopBridge = {
     },
     getSystemIdleSeconds: async (): Promise<number> => ipcRenderer.invoke("heorot:getSystemIdleSeconds"),
     getActivity: async (): Promise<{ name: string; appId: string; source: "steam" } | null> => ipcRenderer.invoke("heorot:getActivity"),
+    setUnreadBadge: async (badge: { count: number; icon: string | null }): Promise<void> => {
+        await ipcRenderer.invoke("heorot:setUnreadBadge", badge);
+    },
     setTrayState: async (state: { muted: boolean; deafened: boolean; status: string }): Promise<void> => {
         await ipcRenderer.invoke("heorot:setTrayState", state);
     },
@@ -90,8 +106,8 @@ const bridge: HeorotDesktopBridge = {
     quitApp: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:quitApp");
     },
-    getDesktopCapturerSources: async (): Promise<Array<{ id: string; name: string }>> => {
-        return (await ipcRenderer.invoke("heorot:getDesktopCapturerSources")) as Array<{ id: string; name: string }>;
+    getDesktopCapturerSources: async (): Promise<DesktopCaptureSource[]> => {
+        return (await ipcRenderer.invoke("heorot:getDesktopCapturerSources")) as DesktopCaptureSource[];
     },
     setPreferredDisplayMediaSource: async (sourceId: string): Promise<void> => {
         await ipcRenderer.invoke("heorot:setPreferredDisplayMediaSource", sourceId);
@@ -115,6 +131,8 @@ const bridge: HeorotDesktopBridge = {
     installUpdate: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:installUpdate");
     },
+    installVersion: async (version: string): Promise<{ ok: boolean; message?: string }> =>
+        (await ipcRenderer.invoke("heorot:installVersion", version)) as { ok: boolean; message?: string },
     checkForUpdates: async (): Promise<DesktopUpdateStatus | null> => {
         return (await ipcRenderer.invoke("heorot:checkForUpdates")) as DesktopUpdateStatus | null;
     },

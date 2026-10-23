@@ -49,6 +49,8 @@ export interface AudioSettings {
     micProfile: "speech" | "music";
     // Voice changer effect applied to the mic before sending (ui/voice/voiceChanger.ts).
     voiceEffect: VoiceEffect;
+    // Soundboard volume, 0-100 (what you and the call hear).
+    soundboardVolume: number;
 }
 
 export interface UserLocalSettings {
@@ -96,6 +98,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         voiceIsolationEnabled: true,
         micProfile: "speech",
         voiceEffect: "off",
+        soundboardVolume: 80,
     },
 };
 
@@ -181,6 +184,10 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             voiceIsolationEnabled: audio.voiceIsolationEnabled !== false,
             micProfile: audio.micProfile === "music" ? "music" : "speech",
             voiceEffect: normalizeVoiceEffect(audio.voiceEffect),
+            soundboardVolume:
+                typeof audio.soundboardVolume === "number" && Number.isFinite(audio.soundboardVolume)
+                    ? Math.max(0, Math.min(100, Math.round(audio.soundboardVolume)))
+                    : 80,
         },
     };
 }

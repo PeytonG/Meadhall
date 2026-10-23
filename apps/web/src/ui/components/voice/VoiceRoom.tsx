@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, us
 import {
     AudioPresets,
     ConnectionState,
+    DisconnectReason,
     Room,
     RoomEvent,
     Track,
@@ -48,10 +49,14 @@ import { VoiceActivityMonitor } from "../../voice/voiceActivity";
 import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
 import { PixelIcon } from "../PixelIcon";
 import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
+import { ScreenSharePicker } from "./ScreenSharePicker";
+import { stageGridStyle } from "../../voice/stageGrid";
+import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
-import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
+import { RECONNECT_DELAYS_MS, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
+import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
 
@@ -100,12 +105,25 @@ interface VoiceParticipantState {
     isScreenSharing: boolean;
 }
 
-interface DesktopCaptureSource {
-    id: string;
-    name: string;
-}
+type DesktopCaptureSource = HeorotDesktopCaptureSource;
 
 type VoiceDisconnectReason = "user_left" | "switch_room" | "component_unmount" | "join_failed" | "network_or_server";
+
+// Other people in the Matrix call (distinct users, any device), not counting us.
+function countOtherMembers(memberships: ReadonlyArray<{ sender?: string; userId?: string }>, ownUserId: string | null): number {
+    const users = new Set<string>();
+    for (const membership of memberships) {
+        const userId = membership.userId ?? membership.sender;
+        if (userId && userId !== ownUserId) users.add(userId);
+    }
+    return users.size;
+}
+
+function describeDisconnectReason(reason: DisconnectReason | undefined): string {
+    if (reason === undefined) return "no reason given";
+    const name = (DisconnectReason as unknown as Record<number, string> | undefined)?.[reason];
+    return name ? name.toLowerCase().replace(/_/g, " ") : `code ${reason}`;
+}
 
 const SPEAKING_LEVEL_THRESHOLD = 0.008;
 const SPEAKING_POLL_INTERVAL_MS = 120;
@@ -662,8 +680,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [soundboardOpen, setSoundboardOpen] = useState(false);
+    // People in the Matrix call other than us (MatrixRTC memberships), whichever call server they're on.
+    const [rtcOtherMembers, setRtcOtherMembers] = useState(0);
+    // Rejoining after an unexpected drop: how many tries so far, and the pending one.
+    const reconnectRef = useRef<{ attempts: number; timer: number | null }>({ attempts: 0, timer: null });
+    const joinVoiceRef = useRef<() => Promise<void>>(async () => undefined);
     // The soundboard's own audio track, published the first time a sound is played in this call.
-    const soundboardRef = useRef<{ player: SoundboardPlayer; published: boolean } | null>(null);
+    // The soundboard player for this call; sounds are mixed into the microphone (voiceChanger.ensureMicMixer).
+    const soundboardRef = useRef<{ player: SoundboardPlayer } | null>(null);
+    // Bumped when the mic gets Meadhall's processor, so the speaking indicator follows the processed (mixed) audio.
+    const [micProcessorRevision, setMicProcessorRevision] = useState(0);
     const [callAccessFixPending, setCallAccessFixPending] = useState(false);
     const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
@@ -814,7 +840,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         monitor.track(localSid, micTrack);
         return () => monitor.untrack(localSid);
-    }, [connectionState, micMuted, localAudioPublished]);
+    }, [connectionState, micMuted, localAudioPublished, micProcessorRevision]);
 
     // Voice changer: applied to the published mic as soon as there is one, and changed live mid-call.
     useEffect(() => {
@@ -826,7 +852,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         if (!track) {
             return;
         }
-        void applyVoiceEffect(track, audioSettings.voiceEffect).catch((effectError) => {
+        // Once the soundboard has been used, keep the processor even for "off": sounds are mixed in there.
+        void applyVoiceEffect(track, audioSettings.voiceEffect, soundboardRef.current !== null)
+            .then(() => setMicProcessorRevision((revision) => revision + 1))
+            .catch((effectError) => {
             setError(effectError instanceof Error ? `Voice changer: ${effectError.message}` : "Voice changer failed.");
         });
     }, [audioSettings.voiceEffect, connectionState, micMuted]);
@@ -1200,12 +1229,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 };
                 const onMembershipsChanged = (): void => {
                     rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
-                    runIfCurrentJoin(() => syncParticipants());
+                    runIfCurrentJoin(() => {
+                        setRtcOtherMembers(countOtherMembers(session.memberships, client.getUserId()));
+                        syncParticipants();
+                    });
                 };
                 // Without a membership the others neither see us nor send us media keys, so don't stay connected.
                 const onMembershipManagerError = (membershipError: unknown): void => {
                     runIfCurrentJoin(() => {
                         const reason = membershipError instanceof Error ? membershipError.message : "unknown error";
+                        logCallEvent("Left: call membership failed", reason);
                         void leaveVoice().then(() => setError(`Left the call: the call membership failed (${reason}).`));
                     });
                 };
@@ -1213,6 +1246,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 session.on(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
                 session.on(MatrixRTCSessionEvent.MembershipManagerError, onMembershipManagerError);
                 rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
+                setRtcOtherMembers(countOtherMembers(session.memberships, client.getUserId()));
                 rtcTeardownRef.current = () => {
                     session.off(MatrixRTCSessionEvent.EncryptionKeyChanged, onEncryptionKeyChanged);
                     session.off(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
@@ -1370,13 +1404,19 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     refreshAudioDiagnostics(room);
                 })
-                .on(RoomEvent.Disconnected, () => {
+                .on(RoomEvent.Disconnected, (serverReason?: DisconnectReason) => {
                     if (!isCurrentJoinRequest()) {
                         return;
                     }
                     const reason =
                         expectedDisconnectReasonByRoomIdRef.current.get(targetRoomId) ?? "network_or_server";
                     expectedDisconnectReasonByRoomIdRef.current.delete(targetRoomId);
+                    if (reason === "network_or_server") {
+                        // Not something we did: LiveKit had already tried to resume. Say why, and rejoin.
+                        const why = describeDisconnectReason(serverReason);
+                        logCallEvent("Dropped by the network or call server", why);
+                        scheduleReconnect(targetRoomId, why);
+                    }
                     setConnectionState(ConnectionState.Disconnected);
                     setMicMuted(true);
                     setAudioPlaybackBlocked(false);
@@ -1835,6 +1875,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const leaveVoice = async (): Promise<void> => {
+        // Leaving on purpose (or being made to) cancels any pending rejoin.
+        if (reconnectRef.current.timer !== null) window.clearTimeout(reconnectRef.current.timer);
+        reconnectRef.current = { attempts: 0, timer: null };
         joinAbortControllerRef.current?.abort();
         joinAbortControllerRef.current = null;
         joinRequestIdRef.current += 1;
@@ -2053,23 +2096,60 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     const connected = connectionState === ConnectionState.Connected;
 
+    useEffect(() => {
+        soundboardRef.current?.player.setVolume(audioSettings.soundboardVolume);
+    }, [audioSettings.soundboardVolume]);
+
+    joinVoiceRef.current = () => joinVoice();
+    // After an unexpected drop: rejoin a few times with growing waits, then stop and say so.
+    const scheduleReconnect = (roomId: string, why: string): void => {
+        const state = reconnectRef.current;
+        if (state.timer !== null) return;
+        const delay = RECONNECT_DELAYS_MS[state.attempts];
+        if (delay === undefined) {
+            logCallEvent("Gave up rejoining", why);
+            reconnectRef.current = { attempts: 0, timer: null };
+            setError(`Lost the call connection (${why}) and couldn't get back in. Join again when you're ready.`);
+            return;
+        }
+        state.attempts += 1;
+        setError(`Lost the call connection (${why}). Rejoining…`);
+        state.timer = window.setTimeout(() => {
+            state.timer = null;
+            logCallEvent("Rejoining", `attempt ${state.attempts} for ${roomId}`);
+            void joinVoiceRef.current();
+        }, delay);
+    };
+    // A connection that holds for 30 seconds counts as recovered: later drops get the full set of retries again.
+    useEffect(() => {
+        if (connectionState !== ConnectionState.Connected) return undefined;
+        logCallEvent("Connected", matrixRoomId);
+        if (reconnectRef.current.attempts > 0) setError(null);
+        const timer = window.setTimeout(() => {
+            reconnectRef.current.attempts = 0;
+        }, 30_000);
+        return () => window.clearTimeout(timer);
+    }, [connectionState, matrixRoomId]);
+    useEffect(
+        () => () => {
+            if (reconnectRef.current.timer !== null) window.clearTimeout(reconnectRef.current.timer);
+        },
+        [],
+    );
     const playSoundboardSound = async (choice: SoundChoice): Promise<void> => {
         const room = roomRef.current;
         if (!room) return;
-        soundboardRef.current ??= { player: new SoundboardPlayer(), published: false };
-        const soundboard = soundboardRef.current;
-        if (!soundboard.published) {
-            soundboard.published = true;
-            try {
-                await room.localParticipant.publishTrack(soundboard.player.track, {
-                    name: "soundboard",
-                    source: Track.Source.Unknown,
-                });
-            } catch (publishError) {
-                soundboard.published = false;
-                throw publishError;
-            }
+        const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
+        if (micMuted || !micTrack) {
+            throw new Error("Unmute your microphone to play sounds: they're sent as part of your voice.");
         }
+        if (!soundboardRef.current) {
+            const context = await ensureMicMixer(micTrack, audioSettings.voiceEffect);
+            soundboardRef.current = { player: new SoundboardPlayer(context, soundboardBus(context)) };
+            setMicProcessorRevision((revision) => revision + 1);
+        }
+        const soundboard = soundboardRef.current;
+        soundboard.player.setVolume(audioSettings.soundboardVolume);
         soundboard.player.setHearOwnSounds(!audioMuted);
         const buffer =
             choice.kind === "builtin"
@@ -2077,12 +2157,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 : await decodeCustomSound(client, choice.sound, soundboard.player.context);
         await soundboard.player.play(buffer);
     };
-    const othersInCall = participants.filter((participant) => !participant.isLocal).length;
+    // Others in the call: whoever we can see on the call server, or in the Matrix call (people on another
+    // homeserver's call server aren't visible to LiveKit here, and counting only those made calls with them
+    // "alone" and end after 5 minutes).
+    const othersInCall = Math.max(participants.filter((participant) => !participant.isLocal).length, rtcOtherMembers);
     const leaveVoiceRef = useRef(leaveVoice);
     leaveVoiceRef.current = leaveVoice;
     const aloneWatcherRef = useRef<AloneWatcher | null>(null);
     useEffect(() => {
         const watcher = createAloneWatcher(() => {
+            logCallEvent("Left: alone in the call for 5 minutes");
             void leaveVoiceRef.current().then(() => setError(ALONE_LEFT_MESSAGE));
         });
         aloneWatcherRef.current = watcher;
@@ -2249,7 +2333,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </div>
                         <div
                             ref={stageVideoWrapRef}
-                            className={`voice-room-stage-video-wrap${stageFullscreen ? " is-fullscreen" : ""}`}
+                            className={`voice-room-stage-video-wrap${stageFullscreen ? " is-fullscreen" : ""}${showScreenShareGrid ? " is-grid" : ""}`}
+                            style={showScreenShareGrid ? stageGridStyle(screenShareParticipants.length) : undefined}
                         >
                             {showScreenShareGrid ? (
                                 <div className="voice-room-stage-grid">
@@ -2521,6 +2606,32 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 ))}
                             </select>
                         </label>
+                        <details className="voice-call-log" data-testid="call-log">
+                            <summary>Call history (why calls ended)</summary>
+                            <pre>{formatCallLog(readCallLog().slice(-15)) || "Nothing yet."}</pre>
+                            <button
+                                type="button"
+                                className="settings-button settings-button-secondary"
+                                onClick={() => void navigator.clipboard?.writeText(formatCallLog(readCallLog()))}
+                            >
+                                Copy for a bug report
+                            </button>
+                        </details>
+                        <label className="settings-field">
+                            <span>Soundboard volume: {audioSettings.soundboardVolume}%</span>
+                            <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={audioSettings.soundboardVolume}
+                                aria-label="Soundboard volume"
+                                data-testid="call-soundboard-volume"
+                                onChange={(event) =>
+                                    onAudioSettingsChange({ ...audioSettings, soundboardVolume: Number(event.target.value) })
+                                }
+                            />
+                        </label>
                         <label className="settings-field">
                             <span>Voice changer</span>
                             <select
@@ -2699,7 +2810,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             <span className="voice-ctrl-label">Sounds</span>
                         </button>
                         {soundboardOpen ? (
-                            <SoundboardPanel client={client} onPlay={playSoundboardSound} onClose={() => setSoundboardOpen(false)} />
+                            <SoundboardPanel
+                                client={client}
+                                onPlay={playSoundboardSound}
+                                onClose={() => setSoundboardOpen(false)}
+                                volume={audioSettings.soundboardVolume}
+                                onVolumeChange={(soundboardVolume) => onAudioSettingsChange({ ...audioSettings, soundboardVolume })}
+                            />
                         ) : null}
                     </div>
 
@@ -2780,22 +2897,12 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     </>
                 }
             >
-                <div className="voice-room-capture-source-list">
-                    {desktopCaptureSources.map((source) => {
-                        const isSelected = source.id === selectedDesktopCaptureSourceId;
-                        return (
-                            <button
-                                key={source.id}
-                                type="button"
-                                className={`voice-room-capture-source-item${isSelected ? " is-selected" : ""}`}
-                                onClick={() => setSelectedDesktopCaptureSourceId(source.id)}
-                            >
-                                <span className="voice-room-capture-source-name">{source.name}</span>
-                                <span className="voice-room-capture-source-id">{source.id}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                <ScreenSharePicker
+                    sources={desktopCaptureSources}
+                    selectedId={selectedDesktopCaptureSourceId}
+                    onSelect={setSelectedDesktopCaptureSourceId}
+                    onConfirm={() => void confirmDesktopCaptureSourceSelection()}
+                />
             </RoomDialog>
         </section>
     );

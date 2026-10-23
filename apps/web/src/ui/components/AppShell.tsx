@@ -59,6 +59,7 @@ import { MobileUpdateBanner } from "./MobileUpdateBanner";
 import { WhatsNewDialog } from "./WhatsNewDialog";
 import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
+import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -2279,6 +2280,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         onOpenRoom: focusRoom,
     });
 
+    // Desktop: the unread count as a bubble on the taskbar icon.
+    useTaskbarBadge(client);
+
     // Other accounts signed in on this device: listed in the status menu, and their notifications still arrive.
     const storedAccounts = useStoredAccounts();
     useOtherAccountNotifications(client, userSettings.notifications.notificationsEnabled);
@@ -2291,22 +2295,6 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     return (
         <div className={appShellClassName} style={appShellStyle}>
-            <DesktopUpdateBanner />
-            <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
-            <WhatsNewDialog />
-            {incomingCall ? (
-                <IncomingCallCard
-                    client={client}
-                    call={incomingCall}
-                    speakerId={userSettings.audio.preferredAudioOutputId}
-                    onJoin={() => {
-                        const roomId = incomingCall.roomId;
-                        focusRoom(roomId);
-                        startCallInRoom(roomId);
-                    }}
-                    onDismiss={dismissIncomingCall}
-                />
-            ) : null}
             <aside className="left-rail">
                 {/* Discord-style Home: the app icon opens Direct Messages and Group Chats. */}
                 <button
@@ -2549,7 +2537,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             />
                             <span className="pane-user-meta">
                                 <span className="pane-user-name">{ownDisplayName}</span>
-                                <span className="pane-user-id">{ownStatus.text || ownUserId || "Unknown user"}</span>
+                                <span className="pane-user-id" data-testid="own-status-text">
+                                    {ownStatus.text || (activity && ownStatus.state !== "invisible" ? `Playing ${activity.name}` : ownUserId || "Unknown user")}
+                                </span>
                             </span>
                         </button>
                         <button
@@ -2904,6 +2894,24 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 }}
             />
             <Toast toast={toast} onClose={() => setToast(null)} />
+            {/* Overlays come last: on desktop, later elements win over the title-bar drag strip, so anything drawn
+                over it (the call card, banners) must follow the layout or its buttons would drag the window. */}
+            <DesktopUpdateBanner />
+            <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
+            <WhatsNewDialog />
+            {incomingCall ? (
+                <IncomingCallCard
+                    client={client}
+                    call={incomingCall}
+                    speakerId={userSettings.audio.preferredAudioOutputId}
+                    onJoin={() => {
+                        const roomId = incomingCall.roomId;
+                        focusRoom(roomId);
+                        startCallInRoom(roomId);
+                    }}
+                    onDismiss={dismissIncomingCall}
+                />
+            ) : null}
         </div>
     );
 }

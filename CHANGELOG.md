@@ -4,6 +4,49 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.3.2 (2026-10-23)
+
+### New
+- **Taskbar unread bubble (desktop):** a red bubble on Meadhall's taskbar icon shows how many notifications are
+  waiting (1-9, then 9+), like Discord.
+- **Screen share previews:** the "Choose stream source" window shows a preview of every screen and window (grouped
+  into Screens and Windows) before you stream.
+- **Trim sounds before adding them:** pick the part of a sound to keep (up to 8 seconds) on its waveform, with a
+  preview; long files no longer get refused.
+- **Soundboard volume:** in the call settings, the Sounds panel and Settings → Audio.
+- **Crop your profile banner:** the preview now matches the profile card exactly; drag to choose what shows and zoom
+  if the picture doesn't fill the space.
+- **Block / Ignore works:** blocking someone (from their profile) hides their messages and invites on all your
+  devices; unblock in Settings → Privacy.
+- **Install an earlier version (desktop):** Settings → Updates lets you go back to an earlier release if an update
+  causes trouble. Versions before 0.3.2 can't do this themselves, so going back to one means updating to the newest
+  version before you can choose another; Meadhall warns you first.
+- **Call history:** a call's settings show why calls ended (copyable for bug reports).
+
+### Changed
+- **Soundboard sounds play over your microphone**, so they light up your speaking indicator, and they need your mic
+  unmuted. This also removes the false "Local microphone is publishing silence" warning.
+- **Calls rejoin by themselves** after the network or call server drops them, and say why.
+- **"Playing ..." shows under your name** in the user panel, under names in the member list and on profiles, not just
+  in Direct Messages. With no custom status it's also your status text, so it reaches others right away.
+- **Statuses update faster** for others. (Matrix servers also limit how often a status can change; see the
+  self-hosting guide to loosen that on your server.)
+- **Screen sharing fits the window:** the shared screen no longer runs off the bottom, and several streams each keep
+  their shape side by side.
+- The soundboard in calls fits the call view and scrolls when it's full, keeping its title and volume in sight.
+
+### Fixed
+- **The incoming call box can be clicked in the desktop app** when you're in another chat (Join and Dismiss were
+  dragging the window instead).
+- **Calls with people on other servers** no longer end after 5 minutes as if you were alone.
+- **Meadhall's icon is back on the taskbar** (the window now sets it itself).
+- The newest message is marked read even if it arrives while an earlier one is being marked (the unread count could
+  stick until you scrolled).
+
+### Security
+- Fixed the open code-scanning alerts (a service-worker message check and a build-script race).
+- The desktop app only answers its own page: other pages can't use its desktop functions.
+
 ## v0.3.1 (2026-10-23)
 
 ### New

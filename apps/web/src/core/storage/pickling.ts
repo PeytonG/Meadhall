@@ -6,20 +6,11 @@ export interface EncryptedPickleKey {
     cryptoKey?: CryptoKey;
 }
 
-function getPickleAdditionalData(userId: string, deviceId: string): Uint8Array {
-    const additionalData = new Uint8Array(userId.length + deviceId.length + 1);
-
-    for (let index = 0; index < userId.length; index++) {
-        additionalData[index] = userId.charCodeAt(index);
-    }
-
-    additionalData[userId.length] = 124;
-
-    for (let index = 0; index < deviceId.length; index++) {
-        additionalData[userId.length + 1 + index] = deviceId.charCodeAt(index);
-    }
-
-    return additionalData;
+// "userId|deviceId" as bytes, each UTF-16 code unit truncated to a byte (Element's format; public/sw.js has the
+// same function and must match). Built without computed-index writes.
+export function getPickleAdditionalData(userId: string, deviceId: string): Uint8Array {
+    const joined = `${userId}|${deviceId}`;
+    return Uint8Array.from({ length: joined.length }, (_, index) => joined.charCodeAt(index));
 }
 
 export async function encryptPickleKey(

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
-import { canLogIn, createRoom, joinRoom, makeServerAdmin, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
+import { canLogIn, createRoom, joinRoom, makeServerAdmin, readPresence, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "desktop");
 const electronBinary = createRequire(path.join(desktopDir, "package.json"))("electron") as unknown as string;
@@ -65,6 +65,7 @@ function distance(a: [number, number, number], b: [number, number, number]): num
 
 let carolDm = "";
 let deskUser: ApiUser;
+let carolUser: ApiUser;
 let bob: ApiUser;
 
 // One signed-in app for all the checks: the user has two DMs (Carol's opens first, Bob's stays in the background).
@@ -73,6 +74,7 @@ test.beforeAll(async () => {
     deskUser = user;
     bob = await registerUser("bob");
     const carol = await registerUser("carol");
+    carolUser = carol;
     await setDisplayName(bob, "Bob");
     const bobDm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [user.userId] });
     carolDm = await createRoom(carol, { is_direct: true, preset: "trusted_private_chat", invite: [user.userId] });
@@ -186,7 +188,12 @@ test("the tray menu mutes, deafens and sets your status, and follows changes mad
 
 test("the game Steam is running is shared as Playing ..., and Privacy can turn it off", async () => {
     expect(await window.evaluate(() => window.heorotDesktop?.getActivity?.())).toEqual({ name: "Stardew Valley", appId: "413150", source: "steam" });
-    // Others read it from your profile.
+    // Under your own name in the user panel.
+    await expect(window.getByTestId("own-status-text")).toHaveText("Playing Stardew Valley", { timeout: 40_000 });
+    // Others get it in your presence (live over sync, and what Element shows) and your profile field.
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 20_000 })
+        .toBe("Playing Stardew Valley");
     await expect
         .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
         .toMatchObject({ activity: { name: "Stardew Valley" } });
@@ -198,6 +205,10 @@ test("the game Steam is running is shared as Playing ..., and Privacy can turn i
     await expect
         .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
         .toMatchObject({ activity: null });
+    await expect(window.getByTestId("own-status-text")).not.toContainText("Playing");
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 20_000 })
+        .toBe("");
 });
 
 test("after an update, What's new shows that release's notes once", async () => {
@@ -237,4 +248,65 @@ test("server admins can reset someone's password in the desktop app", async () =
     await expect(window.getByTestId("admin-revealed-password")).toHaveText("desktop-reset-789");
     expect(await canLogIn(bob.username, "desktop-reset-789")).toBe(true);
     await window.keyboard.press("Escape");
+});
+
+test("the taskbar icon shows a red unread bubble in the top-right, and clears when read", async () => {
+    type Badge = { count: number; icon: string | null } | undefined;
+    const badge = (): Promise<Badge> => app.evaluate(() => (globalThis as unknown as { meadhallUnreadBadge?: Badge }).meadhallUnreadBadge);
+    // Reading Bob's DM; Carol writes twice.
+    await window.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: /bob/i }).click();
+    await sendMessage(carolUser, carolDm, "are you there?");
+    await sendMessage(carolUser, carolDm, "hello??");
+    await expect.poll(async () => (await badge())?.count ?? 0, { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+
+    // The icon the window now uses: Meadhall's with a red bubble top-right, the bottom-left untouched.
+    const pixels = await app.evaluate(({ nativeImage }) => {
+        const icon = (globalThis as unknown as { meadhallUnreadBadge: { icon: string } }).meadhallUnreadBadge.icon;
+        const image = nativeImage.createFromDataURL(icon);
+        const { width } = image.getSize();
+        const bitmap = image.toBitmap(); // BGRA
+        const at = (x: number, y: number) => {
+            const offset = (y * width + x) * 4;
+            return [bitmap[offset + 2], bitmap[offset + 1], bitmap[offset]];
+        };
+        // Inside the bubble (centre 49,15; radius 15+) but left of the number.
+        return { size: width, topRight: at(37, 15), bottomLeft: at(8, width - 8) };
+    });
+    expect(pixels.size).toBe(64);
+    const [r, g, b] = pixels.topRight;
+    expect(r).toBeGreaterThan(200);
+    expect(g).toBeLessThan(100);
+    expect(b).toBeLessThan(100);
+    expect(pixels.bottomLeft).not.toEqual(pixels.topRight);
+
+    // Reading Carol's messages clears it.
+    await window.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: /carol/i }).click();
+    await expect(window.locator(".timeline").getByText("hello??")).toBeVisible();
+    await expect.poll(async () => (await badge())?.count ?? -1, { timeout: 30_000 }).toBe(0);
+});
+
+test("installing another version only accepts real version numbers", async () => {
+    const attempt = (version: unknown) => window.evaluate((value) => window.heorotDesktop?.installVersion?.(value as string), version);
+    for (const bad of ["../../evil", "0.3.1; rm -rf /", "v0.3.1", "", 42]) {
+        expect(await attempt(bad)).toEqual({ ok: false, message: "That isn't a Meadhall version." });
+    }
+    // A real version is accepted; this unpackaged test build just can't install it.
+    expect(await attempt("0.3.1")).toEqual({ ok: false, message: "Installing other versions works in the installed app only." });
+});
+
+test("desktop functions only answer Meadhall's own page", async () => {
+    // A page from somewhere else, given the app's own preload, must not be able to use them.
+    const preload = path.join(desktopDir, "dist", "electron", "preload.js");
+    const foreign = await app.evaluate(async ({ BrowserWindow }, preloadPath) => {
+        const other = new BrowserWindow({ show: false, webPreferences: { preload: preloadPath, contextIsolation: true, sandbox: true } });
+        await other.loadURL("data:text/html,<title>foreign</title>");
+        const result = await other.webContents.executeJavaScript(
+            "window.heorotDesktop ? window.heorotDesktop.getAppVersion().then(() => 'answered', (error) => 'refused: ' + error.message) : 'no bridge'",
+        );
+        other.destroy();
+        return result as string;
+    }, preload);
+    expect(foreign).toMatch(/^refused: .*not allowed from data:/);
+    // The app itself still works.
+    expect(await window.evaluate(() => window.heorotDesktop?.getAppVersion?.())).toMatch(/^\d+\.\d+\.\d+/);
 });

@@ -1,13 +1,13 @@
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, powerMonitor, protocol, session } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, nativeImage, type IpcMainInvokeEvent, net, Notification, powerMonitor, protocol, session } from "electron";
 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
 import { currentActivity } from "./steamActivity";
 import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
-import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, isAutoUpdateSupported } from "./updater";
+import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, installVersion, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
 
 const APP_TITLE = "Meadhall";
@@ -217,6 +217,10 @@ function resolvePreloadPath(): string {
     return path.join(__dirname, "preload.js");
 }
 
+function resolveAppIconPath(): string {
+    return path.join(app.getAppPath(), "assets", "icon.png");
+}
+
 function resolveRendererRootPath(): string {
     const appPath = app.getAppPath();
     const asarWebPath = path.join(appPath, "web");
@@ -335,6 +339,9 @@ function createMainWindow(startHidden = false): BrowserWindow {
         minWidth: 960,
         minHeight: 640,
         backgroundColor: WINDOW_BACKGROUND_COLOR,
+        // The window's own icon, for the taskbar and window switcher. Without it Windows falls back to whatever it
+        // can match the window to, and after some updates (or when started another way) the taskbar button was blank.
+        icon: resolveAppIconPath(),
         show: false,
         titleBarStyle: "hidden",
         titleBarOverlay: {
@@ -416,8 +423,26 @@ function quitApp(): void {
     app.quit();
 }
 
+// Every IPC handler checks the message came from Meadhall's own page (the app origin, or the dev server): only
+// that page should load with the preload, but if anything else ever did (a future web view, a navigation bug),
+// it mustn't be able to open links, show notifications, install versions and so on (Electron security checklist:
+// validate the sender of all IPC messages).
+function isFromApp(event: IpcMainInvokeEvent): boolean {
+    const url = event.senderFrame?.url ?? "";
+    return canNavigateInsideApp(url) && event.senderFrame === event.sender.mainFrame;
+}
+
+function handleFromApp(channel: string, listener: (event: IpcMainInvokeEvent, ...args: any[]) => unknown): void {
+    ipcMain.handle(channel, (event, ...args) => {
+        if (!isFromApp(event)) {
+            throw new Error(`${channel}: not allowed from ${event.senderFrame?.url ?? "an unknown page"}`);
+        }
+        return listener(event, ...args);
+    });
+}
+
 function registerIpc(): void {
-    ipcMain.handle("heorot:openExternal", async (_event, rawUrl: unknown) => {
+    handleFromApp("heorot:openExternal", async (_event, rawUrl: unknown) => {
         if (typeof rawUrl !== "string") {
             return;
         }
@@ -425,21 +450,21 @@ function registerIpc(): void {
         await openExternalSafely(rawUrl);
     });
 
-    ipcMain.handle("heorot:setMediaAuthState", (_event, rawState: unknown) => {
+    handleFromApp("heorot:setMediaAuthState", (_event, rawState: unknown) => {
         setMediaAuthState(rawState);
     });
 
-    ipcMain.handle("heorot:clearMediaAuthState", () => {
+    handleFromApp("heorot:clearMediaAuthState", () => {
         clearMediaAuthState();
     });
 
-    ipcMain.handle("heorot:setCloseOnWindowCloseMinimize", (_event, enabled: unknown) => {
+    handleFromApp("heorot:setCloseOnWindowCloseMinimize", (_event, enabled: unknown) => {
         closeOnWindowCloseMinimize = enabled !== false;
     });
 
     // Native OS notifications (Windows toasts, Linux libnotify): more reliable than the web Notification API in
     // Electron. Clicking one restores the window and tells the app which conversation to open.
-    ipcMain.handle("heorot:showNotification", (event, payload: unknown) => {
+    handleFromApp("heorot:showNotification", (event, payload: unknown) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         const value = payload as { title?: unknown; body?: unknown; roomId?: unknown; urgent?: unknown } | null;
         if (!window || !value || typeof value.title !== "string" || !Notification.isSupported()) {
@@ -464,9 +489,23 @@ function registerIpc(): void {
         return true;
     });
 
-    // Clicking a notification brings the window back, even from the tray.
+    // Taskbar badge: the app draws its icon with an unread bubble (top-right, like Discord); 0 restores the plain
+    // icon. The page's input is checked: a PNG data URL of sane size, and a count.
+    handleFromApp("heorot:setUnreadBadge", (event, payload: { count?: unknown; icon?: unknown }) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        const count = typeof payload?.count === "number" && Number.isFinite(payload.count) ? Math.max(0, Math.min(9999, Math.floor(payload.count))) : 0;
+        const icon = typeof payload?.icon === "string" && payload.icon.startsWith("data:image/png;base64,") && payload.icon.length < 400_000 ? payload.icon : null;
+        if (window && process.platform !== "darwin") {
+            const image = count > 0 && icon ? nativeImage.createFromDataURL(icon) : nativeImage.createFromPath(resolveAppIconPath());
+            if (!image.isEmpty()) window.setIcon(image);
+        }
+        // macOS dock and Linux launchers that support it (Unity/KDE).
+        app.setBadgeCount(count);
+        (globalThis as { meadhallUnreadBadge?: { count: number; icon: string | null } }).meadhallUnreadBadge = { count, icon: count > 0 ? icon : null };
+    });
+
     // The tray menu mirrors mute/deafen and status; the app reports them as they change.
-    ipcMain.handle("heorot:setTrayState", (_event, state: TrayState) => {
+    handleFromApp("heorot:setTrayState", (_event, state: TrayState) => {
         const statuses = ["auto", "online", "idle", "dnd", "invisible"];
         setTrayState({
             muted: state?.muted === true,
@@ -474,15 +513,16 @@ function registerIpc(): void {
             status: statuses.includes(state?.status) ? state.status : "auto",
         });
     });
-    ipcMain.handle("heorot:getTrayState", () => getTrayState());
+    handleFromApp("heorot:getTrayState", () => getTrayState());
 
     // "Playing ..." from Steam (the app polls this when sharing activity is on).
-    ipcMain.handle("heorot:getActivity", () => currentActivity());
+    handleFromApp("heorot:getActivity", () => currentActivity());
 
     // For automatic Away: input anywhere on the computer counts, not just in Meadhall.
-    ipcMain.handle("heorot:getSystemIdleSeconds", () => powerMonitor.getSystemIdleTime());
+    handleFromApp("heorot:getSystemIdleSeconds", () => powerMonitor.getSystemIdleTime());
 
-    ipcMain.handle("heorot:showWindow", (event) => {
+    // Clicking a notification brings the window back, even from the tray.
+    handleFromApp("heorot:showWindow", (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         if (!window) {
             return;
@@ -495,7 +535,7 @@ function registerIpc(): void {
     });
 
     // The app sends the colors behind the window controls whenever the theme or layout changes.
-    ipcMain.handle("heorot:setTitleBarColors", (event, colors: unknown) => {
+    handleFromApp("heorot:setTitleBarColors", (event, colors: unknown) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         const value = colors as { color?: unknown; symbolColor?: unknown } | null;
         const isHex = (candidate: unknown): candidate is string =>
@@ -509,44 +549,55 @@ function registerIpc(): void {
         window.setBackgroundColor(value.color);
     });
 
-    ipcMain.handle("heorot:getDesktopCapturerSources", async () => {
+    handleFromApp("heorot:getDesktopCapturerSources", async () => {
         const sources = await desktopCapturer.getSources({
             types: ["window", "screen"],
             fetchWindowIcons: true,
             thumbnailSize: { width: 320, height: 180 },
         });
+        // Small previews (and the app's icon for windows) so people can see what they're about to share.
         return sources.map((source) => ({
             id: source.id,
             name: source.name,
+            kind: source.id.startsWith("screen:") ? "screen" : "window",
+            thumbnail: source.thumbnail.isEmpty() ? null : source.thumbnail.toDataURL(),
+            icon: source.appIcon && !source.appIcon.isEmpty() ? source.appIcon.resize({ width: 32, height: 32 }).toDataURL() : null,
         }));
     });
 
-    ipcMain.handle("heorot:setPreferredDisplayMediaSource", (_event, sourceId: unknown) => {
+    handleFromApp("heorot:setPreferredDisplayMediaSource", (_event, sourceId: unknown) => {
         preferredDisplayMediaSourceId = typeof sourceId === "string" && sourceId.length > 0 ? sourceId : null;
     });
 
-    ipcMain.handle("heorot:quitApp", () => {
+    handleFromApp("heorot:quitApp", () => {
         quitApp();
     });
 
-    ipcMain.handle("heorot:getStartAtLogin", () => getStartAtLogin());
+    handleFromApp("heorot:getStartAtLogin", () => getStartAtLogin());
 
-    ipcMain.handle("heorot:setStartAtLogin", (_event, enabled: unknown) => {
+    handleFromApp("heorot:setStartAtLogin", (_event, enabled: unknown) => {
         setStartAtLogin(enabled === true);
         return getStartAtLogin();
     });
 
-    ipcMain.handle("heorot:getUpdateStatus", () => (isAutoUpdateSupported() ? getUpdateStatus() : null));
+    handleFromApp("heorot:getUpdateStatus", () => (isAutoUpdateSupported() ? getUpdateStatus() : null));
 
-    ipcMain.handle("heorot:checkForUpdates", () => (isAutoUpdateSupported() ? checkForUpdates() : null));
+    handleFromApp("heorot:checkForUpdates", () => (isAutoUpdateSupported() ? checkForUpdates() : null));
 
-    ipcMain.handle("heorot:getAppVersion", () => app.getVersion());
+    handleFromApp("heorot:getAppVersion", () => app.getVersion());
 
-    ipcMain.handle("heorot:installUpdate", () => {
+    handleFromApp("heorot:installUpdate", () => {
         downloadAndInstallUpdate(() => {
             isAppQuitting = true;
         });
     });
+
+    // Settings → Updates → "Install an earlier version" (the version is validated in updater.installVersion).
+    handleFromApp("heorot:installVersion", (_event, version: unknown) =>
+        installVersion(version, () => {
+            isAppQuitting = true;
+        }),
+    );
 }
 
 async function bootstrap(): Promise<void> {

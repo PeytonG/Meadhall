@@ -3,6 +3,7 @@ import React from "react";
 
 import { useDesktopUpdates } from "../../../hooks/useDesktopUpdates";
 import { useMobileUpdates } from "../../../hooks/useMobileUpdates";
+import { EarlierVersions } from "./EarlierVersions";
 import { RELEASES_PAGE } from "../../../../core/updates/mobileUpdates";
 import type { HeorotDesktopUpdateStatus } from "../../../types/heorotDesktop";
 
@@ -128,6 +129,8 @@ function DesktopUpdates(): React.ReactElement {
                     </button>
                 </div>
             </div>
+
+            <EarlierVersions currentVersion={appVersion} busy={busy} />
         </div>
     );
 }

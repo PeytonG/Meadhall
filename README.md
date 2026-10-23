@@ -96,7 +96,8 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
   and above **can talk** in. They're Matrix power levels, so the server enforces them, in Element too.
 - 🟢 **Status**: Online, Away, Do Not Disturb, Invisible and a custom status. You go Away after 10 minutes without
   input, people on the phone app show a 📱, and the desktop app shows **"Playing ..."** for games running in Steam.
-- 🪪 **Profiles** with a banner (image or GIF), About me, links, and the person's roles in every server you share.
+- 🪪 **Profiles** with a banner (image or GIF, cropped to fit), About me, links, and the person's roles in every server
+  you share. **Block** anyone from their profile.
 - 👥 **Multiple accounts**: sign in to accounts on different servers, switch from the user panel, and get
   notifications for all of them.
 - ↩️ Replies, edits, reactions, pins, read receipts, typing indicators, search and a member list.
@@ -107,8 +108,10 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
   8-bit ringtone.
 - 🔥 A pixel **campfire** burns around whoever is talking, in their color (or a simple ring, if you prefer).
 - 🎛️ A **voice changer** with 18 effects (Giant, Pixie, Robot, Dragon, Ghost, Cave, Underwater, Alien, Choir...).
-- 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own.
-- 🖥️ Screen sharing (several at once, side by side), per-person volume up to 120%, mute and deafen any time.
+- 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own (trim them to fit), played over your mic.
+- 🖥️ Screen sharing with **previews** of what you can share, several streams side by side, per-person volume up to 120%,
+  mute and deafen any time.
+- 🔁 Dropped calls **rejoin by themselves**, and a call history says why a call ended.
 
 **Pixel art**
 - 🎨 A hand-made pixel theme. The **pixel color wheel** recolors the whole app; dark, light and **high contrast** themes.
@@ -118,8 +121,9 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 - 🔒 End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery.
 - 🙈 No analytics, no telemetry. Run your own server or use any Matrix homeserver.
 - 🛡️ Server admins get an **admin panel**: invite tokens, new accounts, password resets.
-- 🔔 Notifications on desktop (from the tray too: Mute, Deafen and Status are in the tray menu) and on Android in the
-  background, with no Google account needed.
+- 🔔 Notifications on desktop (from the tray too: Mute, Deafen and Status are in the tray menu, and the taskbar icon
+  shows an unread bubble) and on Android in the background, with no Google account needed.
+- ⏪ Desktop apps can **go back to an earlier version** from Settings → Updates if an update causes trouble.
 
 <a id="screenshots"></a>
 
@@ -141,6 +145,22 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 <tr>
 <td><b>Speaking campfire:</b> flames while you talk, or a simple ring.</td>
 <td><b>Status:</b> custom status, Online, Away, Do Not Disturb, Invisible and your other accounts.</td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/soundboard-call.png"><img src="docs/screenshots/soundboard-call.png" alt="The soundboard in a call" /></a></td>
+<td><a href="docs/screenshots/screen-share.png"><img src="docs/screenshots/screen-share.png" alt="Two screen shares side by side" /></a></td>
+</tr>
+<tr>
+<td><b>Soundboard:</b> built-in 8-bit sounds and your own, played over your mic.</td>
+<td><b>Screen sharing:</b> several streams side by side, sized to fit the window.</td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/screen-share-picker.png"><img src="docs/screenshots/screen-share-picker.png" alt="Choosing what to share, with previews" /></a></td>
+<td><a href="docs/screenshots/soundboard-trim.png"><img src="docs/screenshots/soundboard-trim.png" alt="Trimming a sound" /></a></td>
+</tr>
+<tr>
+<td><b>Pick what to share</b> from previews of every screen and window.</td>
+<td><b>Trim your own sounds</b> to the part you want, up to 8 seconds.</td>
 </tr>
 <tr>
 <td><a href="docs/screenshots/roles-editor.png"><img src="docs/screenshots/roles-editor.png" alt="The roles editor" /></a></td>

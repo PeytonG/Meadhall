@@ -139,6 +139,9 @@ describe("voice room smoke", () => {
     let createdWorkers: Array<{ terminate: ReturnType<typeof vi.fn> }>;
     let micRestarts: ReturnType<typeof vi.fn>;
     let soundboardPlays: unknown[];
+    let soundboardPlayers: Array<{ context: unknown; callBus: unknown }>;
+    let soundboardVolumes: number[];
+    let ensureMicMixer: ReturnType<typeof vi.fn>;
 
     beforeEach(async () => {
         vi.resetModules();
@@ -177,6 +180,7 @@ describe("voice room smoke", () => {
         });
 
         vi.doMock("livekit-client", () => {
+            const DisconnectReason = { 0: "UNKNOWN_REASON", 3: "PARTICIPANT_REMOVED", 7: "SIGNAL_CLOSE", UNKNOWN_REASON: 0, PARTICIPANT_REMOVED: 3, SIGNAL_CLOSE: 7 };
             const ConnectionState = {
                 Disconnected: "disconnected",
                 Connecting: "connecting",
@@ -243,7 +247,19 @@ describe("voice room smoke", () => {
                                 this.localParticipant.trackPublications.delete(Track.Source.Microphone);
                                 return;
                             }
+                            const micTrack = {
+                                restartTrack: micRestarts,
+                                mediaStreamTrack: {
+                                    getSettings: () => ({
+                                        echoCancellation: true,
+                                        noiseSuppression: true,
+                                        autoGainControl: true,
+                                        voiceIsolation: true,
+                                    }),
+                                },
+                            };
                             this.localParticipant.trackPublications.set(Track.Source.Microphone, {
+                                audioTrack: micTrack,
                                 kind: Track.Kind.Audio,
                                 source: Track.Source.Microphone,
                                 track: {
@@ -334,6 +350,7 @@ describe("voice room smoke", () => {
                 Room,
                 RoomEvent,
                 ConnectionState,
+                DisconnectReason,
                 Track,
                 BaseKeyProvider,
                 createKeyMaterialFromBuffer: async (buffer: ArrayBuffer) => ({ importedBytes: new Uint8Array(buffer) }),
@@ -385,13 +402,30 @@ describe("voice room smoke", () => {
 
         // jsdom has no Web Audio: the soundboard player is faked (the real one is checked in Chromium, e2e/soundboard).
         soundboardPlays = [];
+        soundboardPlayers = [];
+        soundboardVolumes = [];
+        // The mic mixer needs Web Audio and a real LiveKit track; it's checked in Chromium (e2e/voiceEffects).
+        const mixerContext = { sampleRate: 48_000 };
+        ensureMicMixer = vi.fn(async () => mixerContext);
+        vi.doMock("../../../../src/ui/voice/voiceChanger", async () => ({
+            ...(await vi.importActual<typeof import("../../../../src/ui/voice/voiceChanger")>("../../../../src/ui/voice/voiceChanger")),
+            applyVoiceEffect: vi.fn(async () => undefined),
+            ensureMicMixer,
+            soundboardBus: vi.fn(() => "soundboard-bus"),
+        }));
         vi.doMock("../../../../src/ui/voice/soundboard/soundboard", async () => ({
             ...(await vi.importActual<typeof import("../../../../src/ui/voice/soundboard/soundboard")>(
                 "../../../../src/ui/voice/soundboard/soundboard",
             )),
             SoundboardPlayer: class {
-                public readonly context = { sampleRate: 48_000 };
-                public readonly track = { kind: "audio", id: "soundboard-track" };
+                public readonly context: { sampleRate: number };
+                public constructor(context: { sampleRate: number }, callBus: unknown) {
+                    this.context = context;
+                    soundboardPlayers.push({ context, callBus });
+                }
+                public setVolume(volume: number): void {
+                    soundboardVolumes.push(volume);
+                }
                 public setHearOwnSounds(): void {}
                 public async play(buffer: unknown): Promise<void> {
                     soundboardPlays.push(buffer);
@@ -542,7 +576,7 @@ describe("voice room smoke", () => {
         expect(container.querySelectorAll("[data-testid=screen-share-tile]")).toHaveLength(2);
     });
 
-    it("plays soundboard sounds into the call on their own track, published once", async () => {
+    async function joinWithSoundboard(): Promise<React.RefObject<VoiceRoomHandle | null>> {
         const ref = createRef<VoiceRoomHandle>();
         await act(async () => {
             root.render(
@@ -559,7 +593,7 @@ describe("voice room smoke", () => {
                     },
                     matrixRoomId: "!voice:example.org",
                     matrixRoom: null,
-                    audioSettings: createAudioSettings(),
+                    audioSettings: { ...createAudioSettings(), voiceEffect: "giant", soundboardVolume: 40 },
                     onAudioSettingsChange: () => undefined,
                 }),
             );
@@ -570,18 +604,46 @@ describe("voice room smoke", () => {
         await act(async () => {
             container.querySelector<HTMLButtonElement>("[data-testid=soundboard-toggle]")?.click();
         });
-        const duck = [...container.querySelectorAll<HTMLButtonElement>(".soundboard-sound")].find((button) => button.textContent?.includes("Duck"));
-        expect(duck).toBeTruthy();
-        for (let press = 0; press < 2; press += 1) {
-            await act(async () => {
-                duck?.click();
-                await new Promise((resolve) => setTimeout(resolve, 0));
-            });
-        }
-        const publishTrack = (createdRooms[0].localParticipant as unknown as { publishTrack: ReturnType<typeof vi.fn> }).publishTrack;
-        expect(publishTrack).toHaveBeenCalledTimes(1);
-        expect(publishTrack).toHaveBeenCalledWith({ kind: "audio", id: "soundboard-track" }, { name: "soundboard", source: "unknown" });
+        return ref;
+    }
+
+    async function pressSound(name: string): Promise<void> {
+        const button = [...container.querySelectorAll<HTMLButtonElement>(".soundboard-sound")].find((candidate) =>
+            candidate.textContent?.includes(name),
+        );
+        expect(button).toBeTruthy();
+        await act(async () => {
+            button?.click();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+    }
+
+    it("plays soundboard sounds over your microphone, at the soundboard volume", async () => {
+        await joinWithSoundboard();
+        await pressSound("Duck");
+        await pressSound("Duck");
+
+        // The mic is put through Meadhall's processor once (with your voice effect), and sounds play into its mix.
+        const micTrack = (createdRooms[0].localParticipant as unknown as { trackPublications: Map<string, { audioTrack: unknown }> })
+            .trackPublications.get("microphone")?.audioTrack;
+        expect(ensureMicMixer).toHaveBeenCalledTimes(1);
+        expect(ensureMicMixer).toHaveBeenCalledWith(micTrack, "giant");
+        expect(soundboardPlayers).toEqual([{ context: { sampleRate: 48_000 }, callBus: "soundboard-bus" }]);
         expect(soundboardPlays).toEqual([{ id: "duck" }, { id: "duck" }]);
+        expect(soundboardVolumes).toContain(40);
+        // No separate track any more (LiveKit reported it as "publishing silence").
+        const publishTrack = (createdRooms[0].localParticipant as unknown as { publishTrack: ReturnType<typeof vi.fn> }).publishTrack;
+        expect(publishTrack).not.toHaveBeenCalled();
+    });
+
+    it("asks you to unmute instead of playing while your mic is muted", async () => {
+        const ref = await joinWithSoundboard();
+        await act(async () => {
+            await ref.current?.toggleMute();
+        });
+        await pressSound("Duck");
+        expect(soundboardPlays).toEqual([]);
+        expect(container.textContent).toContain("Unmute your microphone to play sounds");
     });
 
     describe("MatrixRTC (Element Call compatible)", () => {
@@ -700,6 +762,63 @@ describe("voice room smoke", () => {
             } finally {
                 vi.useRealTimers();
             }
+        });
+
+        it("stays when the only other person is in the Matrix call on another server", async () => {
+            vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+            try {
+                // Bob is in the call (a MatrixRTC membership) but on his own homeserver's call server, so LiveKit here
+                // never sees him.
+                const session = createRtcSession([{ rtcBackendIdentity: "@bob:other.org:BOB", userId: "@bob:other.org" }]);
+                await renderAndJoin(createRtcClient(session, false));
+                await act(async () => {
+                    vi.advanceTimersByTime(10 * 60_000);
+                });
+                expect(createdRooms[0].state).toBe("connected");
+                expect(container.textContent).not.toContain("nobody else was in it");
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("rejoins by itself after the call server or network drops the call, and says why", async () => {
+            vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+            try {
+                const session = createRtcSession([{ rtcBackendIdentity: "@bob:example.org:BOB", userId: "@bob:example.org" }]);
+                await renderAndJoin(createRtcClient(session, false));
+                const first = createdRooms[0];
+                await act(async () => {
+                    first.state = "disconnected";
+                    first.emit(RoomEvent.Disconnected, 7);
+                });
+                expect(container.textContent).toContain("Lost the call connection (signal close). Rejoining");
+                await act(async () => {
+                    vi.advanceTimersByTime(2_000);
+                });
+                await act(async () => {
+                    await vi.runOnlyPendingTimersAsync();
+                });
+                expect(createdRooms.length).toBeGreaterThanOrEqual(2);
+                expect(createdRooms.at(-1)?.state).toBe("connected");
+                expect(JSON.parse(window.localStorage.getItem("meadhall.call_log.v1") ?? "[]")).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ event: "Dropped by the network or call server", detail: "signal close" }),
+                        expect.objectContaining({ event: "Rejoining" }),
+                    ]),
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("does not rejoin after you leave", async () => {
+            const session = createRtcSession();
+            const ref = await renderAndJoin(createRtcClient(session, false));
+            await act(async () => {
+                await ref.current?.leave();
+            });
+            expect(container.textContent).not.toContain("Rejoining");
+            expect(createdRooms).toHaveLength(1);
         });
 
         it("enables E2EE in encrypted rooms and hands media keys to LiveKit", async () => {

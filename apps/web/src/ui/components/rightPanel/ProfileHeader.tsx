@@ -4,6 +4,8 @@ import { Avatar } from "../Avatar";
 import type { PresenceVm } from "../../presence/buildPresenceVm";
 import { toAvatarPresenceState } from "../../presence/buildPresenceVm";
 import { PresenceText } from "../presence/PresenceText";
+import { BannerImage } from "./BannerImage";
+import { DEFAULT_BANNER_CROP, type BannerCrop } from "../../../core/profile/richProfile";
 
 interface ProfileHeaderProps {
     displayName: string;
@@ -11,6 +13,7 @@ interface ProfileHeaderProps {
     avatarSources: string[];
     // Their uploaded banner (image or GIF); otherwise a gradient from their user ID.
     bannerUrl?: string | null;
+    bannerCrop?: BannerCrop;
     presence: PresenceVm | null;
     onBack: () => void;
     onCopyMxid: () => Promise<void>;
@@ -32,6 +35,7 @@ export function ProfileHeader({
     userId,
     avatarSources,
     bannerUrl,
+    bannerCrop = DEFAULT_BANNER_CROP,
     presence,
     onBack,
     onCopyMxid,
@@ -79,7 +83,7 @@ export function ProfileHeader({
     return (
         <header className="rp-profile-hero">
             <div className="rp-profile-banner" style={bannerStyle} data-testid="profile-banner">
-                {bannerUrl ? <img className="rp-profile-banner-image" src={bannerUrl} alt="" /> : null}
+                {bannerUrl ? <BannerImage className="rp-profile-banner-image" url={bannerUrl} crop={bannerCrop} /> : null}
             </div>
             <button type="button" className="rp-profile-close" onClick={onBack} aria-label="Close profile">
                 x

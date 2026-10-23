@@ -7,6 +7,10 @@ export interface HeorotDesktopMediaAuthState {
 export interface HeorotDesktopCaptureSource {
     id: string;
     name: string;
+    // Older desktop apps send only id and name.
+    kind?: "screen" | "window";
+    thumbnail?: string | null;
+    icon?: string | null;
 }
 
 // Mirrors DesktopUpdateStatus in apps/desktop/electron/updater.ts.
@@ -27,6 +31,7 @@ export interface HeorotDesktopBridge {
     showWindow?: () => Promise<void>;
     getSystemIdleSeconds?: () => Promise<number>;
     getActivity?: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
+    setUnreadBadge?: (badge: { count: number; icon: string | null }) => Promise<void>;
     setTrayState?: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
     onTrayAction?: (listener: (action: { type: string; status?: string }) => void) => () => void;
     showNotification?: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
@@ -41,6 +46,7 @@ export interface HeorotDesktopBridge {
     onUpdateStatus?: (listener: (status: HeorotDesktopUpdateStatus) => void) => () => void;
     // Downloads the available update if needed, then installs it and restarts.
     installUpdate?: () => Promise<void>;
+    installVersion?: (version: string) => Promise<{ ok: boolean; message?: string }>;
     checkForUpdates?: () => Promise<HeorotDesktopUpdateStatus | null>;
     getAppVersion?: () => Promise<string>;
     platform?: string;

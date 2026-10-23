@@ -89,3 +89,69 @@ test("every voice effect changes the voice without silencing or blowing it up", 
         expect(Math.abs(result.frequency / (220 * factor) - 1), `${id}: ${result.frequency.toFixed(0)} Hz`).toBeLessThan(0.08);
     }
 });
+
+test("soundboard sounds are mixed into the processed microphone and count as you speaking", async ({ page }) => {
+    const load = async (file: string, names: string[]): Promise<string> => {
+        const fullPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), file);
+        const { code } = await transformWithEsbuild(fs.readFileSync(fullPath, "utf8"), fullPath, { loader: "ts", format: "esm" });
+        return `${code.replace(/^export /gm, "")}\nObject.assign(window, { ${names.join(", ")} });`;
+    };
+    await page.setContent("<!doctype html><title>mixer</title>");
+    // Separate scripts: each file is its own scope, like modules.
+    await page.addScriptTag({ content: `(() => {${await load("../src/ui/voice/voiceChanger.ts", ["createVoiceChangerProcessor", "soundboardBus"])}})();` });
+    await page.addScriptTag({ content: `(() => {${await load("../src/ui/voice/soundboard/builtinSounds.ts", ["renderBuiltinSound"])}})();` });
+    await page.addScriptTag({ content: `(() => {${await load("../src/ui/voice/voiceActivity.ts", ["VoiceActivityMonitor"])}})();` });
+
+    const result = await page.evaluate(async () => {
+        const w = window as unknown as {
+            createVoiceChangerProcessor: (effect: string) => {
+                init: (options: { track: MediaStreamTrack; audioContext: AudioContext }) => Promise<void>;
+                processedTrack?: MediaStreamTrack;
+            };
+            soundboardBus: (context: BaseAudioContext) => AudioNode;
+            renderBuiltinSound: (id: string, sampleRate: number) => Promise<AudioBuffer>;
+            VoiceActivityMonitor: new (onChange: () => void) => { track: (key: string, track: MediaStreamTrack) => void; isSpeaking: (key: string) => boolean };
+        };
+        const context = new AudioContext();
+        await context.resume();
+        // A silent microphone.
+        const silence = context.createConstantSource();
+        silence.offset.value = 0;
+        const micOut = context.createMediaStreamDestination();
+        silence.connect(micOut);
+        silence.start();
+        const processor = w.createVoiceChangerProcessor("off");
+        await processor.init({ track: micOut.stream.getAudioTracks()[0], audioContext: context });
+
+        // Measure what the call would receive, and run the speaking detector on it.
+        const analyser = context.createAnalyser();
+        context.createMediaStreamSource(new MediaStream([processor.processedTrack!])).connect(analyser);
+        const monitor = new w.VoiceActivityMonitor(() => undefined);
+        monitor.track("me", processor.processedTrack!);
+        const level = (): number => {
+            const samples = new Float32Array(analyser.fftSize);
+            analyser.getFloatTimeDomainData(samples);
+            return Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+        };
+        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        await wait(300);
+        const before = { level: level(), speaking: monitor.isSpeaking("me") };
+
+        const sound = context.createBufferSource();
+        sound.buffer = await w.renderBuiltinSound("airhorn", context.sampleRate);
+        sound.connect(w.soundboardBus(context));
+        sound.start();
+        let peak = 0;
+        let speaking = false;
+        for (let step = 0; step < 20; step += 1) {
+            await wait(50);
+            peak = Math.max(peak, level());
+            speaking ||= monitor.isSpeaking("me");
+        }
+        return { before, peak, speaking };
+    });
+    expect(result.before.level).toBeLessThan(0.001);
+    expect(result.before.speaking).toBe(false);
+    expect(result.peak).toBeGreaterThan(0.02);
+    expect(result.speaking).toBe(true);
+});

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { ABOUT_KEY, BANNER_KEY, EMAIL_KEY, LINKS_KEY, parseRichProfile, safeLinkUrl } from "../../../src/core/profile/richProfile";
+import { ABOUT_KEY, BANNER_CROP_KEY, BANNER_KEY, EMAIL_KEY, LINKS_KEY, parseBannerCrop, parseRichProfile, safeLinkUrl } from "../../../src/core/profile/richProfile";
 
 describe("rich profile", () => {
     it("only allows web links", () => {
@@ -27,6 +27,7 @@ describe("rich profile", () => {
             }),
         ).toEqual({
             bannerMxc: "mxc://example.org/banner",
+            bannerCrop: { x: 50, y: 50, zoom: 1 },
             about: "Skald of the hall",
             email: "beowulf@example.org",
             links: [
@@ -38,5 +39,11 @@ describe("rich profile", () => {
             bannerMxc: null,
             email: "",
         });
+    });
+
+    it("reads the banner crop, clamped, with a centred default", () => {
+        expect(parseRichProfile({ [BANNER_CROP_KEY]: { x: 20, y: 80, zoom: 2 } }).bannerCrop).toEqual({ x: 20, y: 80, zoom: 2 });
+        expect(parseBannerCrop({ x: -5, y: 500, zoom: 99 })).toEqual({ x: 0, y: 100, zoom: 4 });
+        expect(parseBannerCrop("nonsense")).toEqual({ x: 50, y: 50, zoom: 1 });
     });
 });

@@ -637,7 +637,8 @@ function extractMessageEvents(room: Room | null): MatrixEvent[] {
     }
 
     const liveEvents = room.getLiveTimeline()?.getEvents() ?? room.timeline;
-    return liveEvents.filter(isRenderableMessage);
+    // Blocked people: the server stops sending their events; also hide the ones already loaded.
+    return liveEvents.filter((event) => isRenderableMessage(event) && !room.client.isUserIgnored(event.getSender() ?? ""));
 }
 
 function formatTime(timestamp: number): string {
@@ -1264,6 +1265,8 @@ export function Timeline({
     const replyJumpResetTimeoutRef = useRef<number | null>(null);
     const lastReadEventIdByRoomRef = useRef<Map<string, string>>(new Map());
     const readMarkerInFlightByRoomRef = useRef<Set<string>>(new Set());
+    const markAgainAfterInFlightRef = useRef(false);
+    const markReadRef = useRef<() => Promise<void>>(async () => undefined);
 
     const refreshEvents = useCallback(() => {
         setEvents(extractMessageEvents(room));
@@ -1481,6 +1484,10 @@ export function Timeline({
         };
 
         const onAccountData = (event: MatrixEvent): void => {
+            if (event.getType() === EventType.IgnoredUserList) {
+                refreshEvents();
+                return;
+            }
             if (event.getType() !== PERSONAL_EMOJI_PACK_EVENT_TYPE) {
                 return;
             }
@@ -1911,6 +1918,9 @@ export function Timeline({
             return;
         }
         if (readMarkerInFlightByRoomRef.current.has(room.roomId)) {
+            // A newer message arrived while the previous marker was being sent: mark again once that finishes
+            // (skipping it left the newest message, and the unread badge, stuck until the next scroll).
+            markAgainAfterInFlightRef.current = true;
             return;
         }
 
@@ -1927,8 +1937,13 @@ export function Timeline({
             }
         } finally {
             readMarkerInFlightByRoomRef.current.delete(room.roomId);
+            if (markAgainAfterInFlightRef.current) {
+                markAgainAfterInFlightRef.current = false;
+                void markReadRef.current();
+            }
         }
     }, [client, events, room]);
+    markReadRef.current = markActiveRoomReadToLatest;
 
     useEffect(() => {
         const container = scrollContainerRef.current;

@@ -641,7 +641,7 @@
 }
 
 .rp-profile-banner {
-    height: 86px;
+    aspect-ratio: var(--profile-banner-aspect);
     margin: 0 -12px;
     border-radius: 12px 12px 0 0;
 }

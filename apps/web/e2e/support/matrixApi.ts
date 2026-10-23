@@ -196,8 +196,18 @@ export async function registerAdmin(prefix: string): Promise<ApiUser> {
     return { userId: session.user_id, username, password, accessToken: session.access_token };
 }
 
+// Synapse rate-limits presence changes (by default about one per 10 s): wait it out like the app does.
 export async function setPresence(user: ApiUser, presence: "online" | "unavailable" | "offline", statusMsg?: string): Promise<void> {
-    await request(user, "PUT", `/presence/${encodeURIComponent(user.userId)}/status`, { presence, ...(statusMsg ? { status_msg: statusMsg } : {}) });
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            await request(user, "PUT", `/presence/${encodeURIComponent(user.userId)}/status`, { presence, ...(statusMsg ? { status_msg: statusMsg } : {}) });
+            return;
+        } catch (error) {
+            const wait = /retry_after_ms":(\d+)/.exec(String(error))?.[1];
+            if (!wait || attempt >= 3) throw error;
+            await new Promise((resolve) => setTimeout(resolve, Number(wait) + 200));
+        }
+    }
 }
 
 export async function readPresence(user: ApiUser, userId: string): Promise<{ presence: string; status_msg?: string }> {
@@ -240,4 +250,13 @@ export async function canLogIn(username: string, password: string): Promise<bool
         body: JSON.stringify({ type: "m.login.password", identifier: { type: "m.id.user", user: username }, password }),
     });
     return response.ok;
+}
+
+export async function downloadMedia(user: ApiUser, mxc: string): Promise<Uint8Array> {
+    const [serverName, mediaId] = mxc.replace("mxc://", "").split("/");
+    const response = await fetch(`${SYNAPSE_URL}/_matrix/client/v1/media/download/${serverName}/${mediaId}`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
 }

@@ -25,12 +25,33 @@ role colors, with each person's status (the 📱 is someone on the phone app, re
 
 **Profiles:** a banner (image or GIF), About me, links, and the person's roles in every server you share.
 
+<a href="screenshots/banner-crop.png"><img src="screenshots/banner-crop.png" alt="Cropping the profile banner" width="700" /></a>
+
+**Banner cropping:** the preview is exactly the profile card's shape; drag the picture and zoom to choose what shows.
+
 <a href="screenshots/status-menu.png"><img src="screenshots/status-menu.png" alt="The status menu" width="900" /></a>
 
 **Status:** click your name in the bottom-left corner for a custom status, Online / Away / Do Not Disturb /
 Invisible, switching accounts, and adding another account.
 
 ## Voice
+
+<a href="screenshots/soundboard-call.png"><img src="screenshots/soundboard-call.png" alt="The soundboard in a call" width="800" /></a>
+
+**Soundboard in a call:** open **Sounds** in the call controls. Sounds play over your microphone, so everyone hears
+them and your speaking indicator lights up; the volume is right there. Lots of sounds scroll, with the title kept in view.
+
+<a href="screenshots/soundboard-trim.png"><img src="screenshots/soundboard-trim.png" alt="Trimming a sound" width="800" /></a>
+
+**Trimming a sound:** pick the part to keep on the waveform (up to 8 seconds) and preview it before saving.
+
+<a href="screenshots/screen-share-picker.png"><img src="screenshots/screen-share-picker.png" alt="Choosing what to share" width="800" /></a>
+
+**Choosing what to share:** previews of every screen and window, before you stream.
+
+<a href="screenshots/screen-share.png"><img src="screenshots/screen-share.png" alt="Two screen shares side by side" width="900" /></a>
+
+**Several streams at once** side by side, each keeping its shape and sized to fit the window. Click one to watch it large.
 
 <a href="screenshots/campfire.png"><img src="screenshots/campfire.png" alt="The speaking campfire on and off" width="800" /></a>
 

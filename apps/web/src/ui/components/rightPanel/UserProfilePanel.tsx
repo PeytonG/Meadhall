@@ -12,6 +12,7 @@ import { AboutCard } from "./cards/AboutCard";
 import { RolesCard } from "./cards/RolesCard";
 import { MediaCard } from "./cards/MediaCard";
 import { mutualServerRoles } from "./mutualServerRoles";
+import { useIgnoredUsers } from "../../hooks/useIgnoredUsers";
 import { LinksCard } from "./cards/LinksCard";
 import { parseRichProfile } from "../../../core/profile/richProfile";
 
@@ -156,6 +157,8 @@ export function UserProfilePanel({
         [client, userId],
     );
 
+    const { ignored, setIgnored } = useIgnoredUsers(client);
+    const isBlocked = ignored.includes(userId);
     const serverRoles = useMemo(() => mutualServerRoles(client, userId), [client, userId, room]);
 
     const openDm = useCallback(async (): Promise<void> => {
@@ -183,6 +186,7 @@ export function UserProfilePanel({
                 userId={userId}
                 avatarSources={avatarSources}
                 bannerUrl={rich.bannerMxc ? mediaFromMxc(client, rich.bannerMxc) : null}
+                bannerCrop={rich.bannerCrop}
                 presence={presenceEnabled ? presence : null}
                 onBack={onBack}
                 onMessage={canMessage ? openDm : undefined}
@@ -210,9 +214,25 @@ export function UserProfilePanel({
             <MediaCard title="Media" description="Recent images by this user will be shown here." />
 
             <section className="rp-card rp-footer-actions">
-                <button type="button" className="rp-row-button" disabled>
-                    Block / Ignore
-                </button>
+                {ownUserId !== userId ? (
+                    <button
+                        type="button"
+                        className={`rp-row-button${isBlocked ? "" : " is-danger"}`}
+                        data-testid="profile-block"
+                        onClick={() => {
+                            if (!isBlocked && !window.confirm(`Block ${displayName}? You won't see their messages or invites (until you unblock them in Settings → Privacy).`)) {
+                                return;
+                            }
+                            void setIgnored(userId, !isBlocked)
+                                .then(() => onToast?.({ type: "success", message: isBlocked ? `Unblocked ${displayName}.` : `Blocked ${displayName}.` }))
+                                .catch((error: unknown) =>
+                                    onToast?.({ type: "error", message: error instanceof Error ? error.message : "Couldn't update your block list." }),
+                                );
+                        }}
+                    >
+                        {isBlocked ? "Unblock" : "Block / Ignore"}
+                    </button>
+                ) : null}
                 <button type="button" className="rp-row-button" disabled>
                     Report
                 </button>

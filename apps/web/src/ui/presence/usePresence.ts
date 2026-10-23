@@ -45,10 +45,16 @@ export function usePresenceMap(
             setRevision((value) => value + 1);
         };
         const stopListening = onPublishedStatusChange(() => setRevision((value) => value + 1));
+        // Do Not Disturb can change without a presence change (Away → DND), so re-read now and then too (the cache
+        // makes this a no-op for anyone read within the last minute). Capped so a huge member list stays cheap.
+        const refreshTimer = window.setInterval(() => {
+            for (const userId of normalizedUserIds.slice(0, 50)) refreshPublishedStatus(client, userId);
+        }, 60_000);
 
         client.on(UserEvent.Presence, onPresenceUpdate as any);
         client.on(UserEvent.CurrentlyActive, onPresenceUpdate as any);
         return () => {
+            window.clearInterval(refreshTimer);
             stopListening();
             client.removeListener(UserEvent.Presence, onPresenceUpdate as any);
             client.removeListener(UserEvent.CurrentlyActive, onPresenceUpdate as any);

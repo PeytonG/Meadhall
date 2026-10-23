@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { transformWithEsbuild } from "vite";
 
-import { readAccountData, registerUser } from "./support/matrixApi";
+import { downloadMedia, readAccountData, registerUser } from "./support/matrixApi";
 import { signIn } from "./support/ui";
 
 const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../src/ui/voice/soundboard/builtinSounds.ts");
@@ -84,12 +84,29 @@ test("your own sounds are uploaded, saved to your account, previewed and removed
     const board = page.getByTestId("soundboard");
     await expect(board.getByRole("button", { name: /Air horn/ })).toBeVisible();
 
-    // Too long: refused before anything is uploaded.
+    // Too long: trim it. It starts as the first 8 seconds; pick 2 s to 4 s.
     await board.getByRole("button", { name: /Add sound/ }).click();
     await board.getByTestId("soundboard-file").setInputFiles({ name: "long.wav", mimeType: "audio/wav", buffer: wav(10) });
+    const trimmer = board.getByTestId("sound-trimmer");
+    await expect(trimmer.getByTestId("sound-trimmer-length")).toHaveText("8.0 s of 10.0 s (up to 8 s)");
+    await trimmer.getByLabel("Sound start").fill("2");
+    await trimmer.getByLabel("Sound end").fill("4");
+    await expect(trimmer.getByTestId("sound-trimmer-length")).toHaveText("2.0 s of 10.0 s (up to 8 s)");
+    if (process.env.PREVIEW_DIR) await board.screenshot({ path: `${process.env.PREVIEW_DIR}/soundboard-trim.png` });
+    await board.getByLabel("Sound name").fill("Clip");
     await board.getByRole("button", { name: "Save sound" }).click();
-    await expect(board.getByText("Sounds can be up to 8 seconds long.")).toBeVisible();
+    await expect(board.getByRole("button", { name: /Clip/ }).first()).toBeVisible();
+    // What was uploaded is the 2-second part, as a small WAV.
+    const clipMxc = ((await readAccountData(alice, "io.github.peytong.meadhall.soundboard")).sounds as Array<{ mxc: string }>)[0].mxc;
+    const clip = await downloadMedia(alice, clipMxc);
+    const view = new DataView(clip.buffer, clip.byteOffset, clip.byteLength);
+    const seconds = view.getUint32(40, true) / view.getUint32(28, true);
+    expect(seconds).toBeCloseTo(2, 1);
+    await board.getByRole("button", { name: /Clip/ }).first().hover();
+    await board.getByRole("button", { name: "Remove Clip" }).click();
+    await expect.poll(async () => (await readAccountData(alice, "io.github.peytong.meadhall.soundboard")).sounds).toEqual([]);
 
+    await board.getByRole("button", { name: /Add sound/ }).click();
     await board.getByTestId("soundboard-file").setInputFiles({ name: "horn.wav", mimeType: "audio/wav", buffer: wav(0.5) });
     await board.getByLabel("Sound emoji").fill("🎺");
     await board.getByLabel("Sound name").fill("Horn");

@@ -9,7 +9,7 @@
 | **Owner** | PeytonG |
 | **Upstream** | Fork of [Vitosicz/Heorot](https://github.com/Vitosicz/Heorot) (git remote `upstream`) |
 | **License** | AGPL-3.0 (inherited from Heorot and Element; cannot be changed) |
-| **Latest release** | `v0.3.1` (2026-10-23; first release `v0.1.0`) |
+| **Latest release** | `v0.3.2` (2026-10-23; first release `v0.1.0`) |
 | **Last updated** | 2026-10-23 |
 
 > **Upkeep rule (from the owner):** update this file after every few completed tasks, before context runs low, and
@@ -336,10 +336,20 @@ Not yet: Android's `SyncService` only covers the active account.
   changed, pitch effects within 8%).
 - Soundboard: 12 built-ins **synthesized** in an 8-bit style (`voice/soundboard/builtinSounds.ts`), so there are no
   sample files or licenses. Your own sounds (≤ 8 s, 1 MB, decodable) go to the media repo and are listed in account
-  data `io.github.peytong.meadhall.soundboard`. In a call they play on a **separate published audio track**
-  (`SoundboardPlayer`), not mixed into the mic as first planned: it's heard while muted, survives mic restarts and
-  voice effects, and other clients play it like any audio track. No cooldown yet.
-- Calls auto-leave after 5 minutes alone (`voice/aloneInCall.ts`) with a note saying why.
+  data `io.github.peytong.meadhall.soundboard`. In a call they are **mixed into the microphone**: they play into
+  `voiceChanger.soundboardBus(context)`, which Meadhall's mic processor (the voice changer's, kept as a straight wire
+  when there's no effect) mixes into what it sends. So sounds go out as your voice and light your speaking indicator
+  (the VAD follows the processed track). v0.3.1 published a separate track instead; LiveKit reported it as
+  "publishing silence" between sounds and it didn't count as talking, so v0.3.2 switched (owner's request). Needs an
+  unmuted mic. Volume 0-100 in audio settings. No cooldown yet.
+- Sounds are trimmed before upload (`voice/soundboard/trim.ts`, `SoundTrimmer`): 0.2-8 s chosen on a waveform,
+  re-encoded as mono 24 kHz WAV (keeps files small).
+- Calls auto-leave after 5 minutes alone (`voice/aloneInCall.ts`), counting MatrixRTC memberships too: people on another
+  homeserver's SFU are invisible to our LiveKit room, and counting only LiveKit made those calls end (owner's "calls
+  drop every few minutes"). Unexpected LiveKit disconnects now rejoin up to 3 times (`voice/callLog.ts`
+  `RECONNECT_DELAYS_MS`) and every join/drop/rejoin goes to a local call history shown in the call settings.
+- Screen share: the picker shows thumbnails/app icons from `desktopCapturer` (`ScreenSharePicker`); the stage caps its
+  height to the window (`--stage-max-height`) and several streams keep 16:9 in a grid sized by `stageGridStyle`.
 
 ### 7.14 Updates and "What's new"
 - Desktop updates itself (§7.4). Phones can't, so they check GitHub's latest release (cached 6 h for the anonymous
@@ -358,6 +368,19 @@ with an App Store Connect API key integration and uploaded to TestFlight. Icons 
 attached to GitHub releases: iPhones only install from the App Store or TestFlight, so the in-app update notice on
 iOS opens TestFlight (`itms-beta://`) and README directs people to a TestFlight invite. iOS can't poll in the
 background, so notifications need APNs through Sygnal (a push gateway) on the server.
+
+### 7.17 Desktop shell (v0.3.2)
+- **IPC sender check:** every handler is registered with `handleFromApp` (main.ts), which refuses messages not from the
+  app's main frame on its own origin. Add new handlers the same way, never with `ipcMain.handle` directly.
+- **Taskbar badge:** the renderer draws the icon with a red count bubble (`notifications/taskbarBadge.ts`, top-right
+  like Discord; Windows' own overlays only go bottom-right) and the main process sets it as the window icon
+  (`heorot:setUnreadBadge`, PNG data URL checked). The window also sets its plain icon explicitly (taskbar icon went
+  missing otherwise).
+- **Earlier versions:** `updater.installVersion` points electron-updater at `releases/download/vX.Y.Z` (generic provider,
+  that release's latest.yml) with `allowDowngrade`; only `x.y.z` strings are accepted. 0.3.2 is the first version that
+  can do this, which the UI warns about (`core/updates/releaseHistory.ts`).
+- **Overlays come last in AppShell:** Chromium resolves `-webkit-app-region` in document order, so anything drawn over
+  the title-bar strip (call card, banners) must be rendered after the layout as well as opting out with no-drag.
 
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
@@ -396,6 +419,8 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | Text selectors match twice after DM previews | The DM list repeats the latest message; scope message checks to `.timeline` and rows to `getByTestId("home-row")` |
 | Presence GET 403 / PUT 429 in tests | Synapse shows presence only between people sharing a room, and rate-limits writes; share a room, and expect delays |
 | Room v12 creator shows as level 0 | Creators aren't in `users` of power levels; use `room.getMember(id).powerLevel` |
+| A bug only reproduces after other tests ran | Run pairs with `-g "A|B"` to bisect; the badge test found a real read-marker race this way |
+| Harness page keeps globals between `openHarness` calls | `setContent` keeps the window object: pass every harness global explicitly |
 | Desktop test runs old code | The Electron app serves the copied web build: `pnpm --dir apps/desktop run build` after web changes |
 | Async "loop running" flag stuck forever | A loop that finishes synchronously clears the flag before `??=` assigns it; clear it in `.finally()` |
 | GitHub anchor links break on emoji headings | Put an explicit `<a id="..."></a>` before the heading and link to that |
@@ -470,9 +495,30 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 29 | What's new after updates | §7.14 |
 | — | Admin password reset broken on desktop (owner report) | `window.prompt` → form, §7.7 |
 
+### 10.2 Owner's v0.3.2 list (2026-10-23)
+| Request | What was found / done |
+|---|---|
+| Steam not showing under the name | Detection worked (checked against a real running game); it only displayed in others' DM rows. Now in the user panel, member list and profiles, and sent as presence status text |
+| Taskbar icon missing | Window never set an icon; set explicitly |
+| Soundboard "publishing silence", should play over mic and trigger speaking | Separate track replaced by mixing into the mic processor (§7.13) |
+| Incoming call box not clickable (desktop, other chat) | Drag strip over it won by document order; overlays moved after the layout (§7.17) |
+| Statuses slow | Profile fields re-read every minute, game in presence text; Synapse `rc_presence` limits ~1 change/10 s (self-hosting guide) |
+| GitHub security alerts | Three CodeQL alerts fixed; full audit: no vulnerable deps, sanitised HTML rendering, link schemes allow-listed, IPC sender check added |
+| Banner preview inaccurate, needs crop | Shared shape + `BannerImage`; crop (point + zoom) in `banner_crop` |
+| Screen share preview box, scaling | Picker thumbnails; stage capped to the window; 16:9 tiles |
+| Taskbar unread bubble (9+) | §7.17 |
+| Block / Ignore | `m.ignored_user_list` + timeline filter + Privacy list |
+| Soundboard volume | Audio setting, sliders in call settings / Sounds / Settings |
+| Soundboard overflowing | Panel sized to the space above its button, scrolls, sticky header |
+| Trim sounds | §7.13 |
+| Calls disconnect every few minutes | App causes fixed (alone timer ignored other servers; no rejoin); call history to trace server-side drops |
+| Install an earlier version, warn below 0.3.2 | §7.17 |
+| Screenshots of soundboard and calls | Component harnesses (`e2e/harness`, `openHarness`) render in-call UI without LiveKit |
+
 ## 11. Work log
 
 | Date | Work |
 |---|---|
 | 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. PR #6 merged; `v0.2.0` released (desktop files re-attached after an electron-builder draft mix-up; release workflow fixed). Then: v0.2.1 (pictures, screen share, campfire); CHANGELOG-driven release notes. Then v0.3.0 work: desktop drag-region fix + themed window controls, quieter campfire with local speech detection, people search, pixel emoji, incoming-call ringtone, roles/permissions, server admin panel, desktop + Android background notifications, much more UI testing (incl. a real Electron test). |
 | 2026-10-23 | v0.3.1 backlog (§10.1): ringtone and Windows notifications fixed; status/DND/Away, DM previews, phone icon; profiles (banner, bio, links, roles); talk permissions; tray menu; Steam activity; 12 voice effects; soundboard; several accounts; phone update notice and What's new; high contrast; iOS project; README overhaul with test-made screenshots; admin password reset fixed on desktop; status write races fixed. |
+| 2026-10-23 | v0.3.2 (§10.2): soundboard over the mic, volume, trimming and scrolling; call drops (alone timer, rejoin, call history); Steam display; status speed; call card clicks on desktop; taskbar icon and unread bubble; screen share previews and scaling; banner crop; Block / Ignore; earlier versions; CodeQL fixes and a security audit (IPC sender check); read-marker race; component harness for in-call tests and screenshots. |
