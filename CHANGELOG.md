@@ -21,6 +21,8 @@ Versions follow `vX.Y.Z`.
 - The app connects to **matrix.org** by default again; type your own server's address to use it.
 
 ### Fixed
+- **Your own profile picture shows in calls** (it was missing when you had a display name set, and before the call
+  finished connecting).
 - **Transparent pictures stay transparent:** PNGs and GIFs no longer get a gray box behind them.
 - **Notifications show in the Windows and Linux apps.** They now use the system's own notifications, and are switched
   on once for existing installs (an old "off" default had been saved with everyone's settings).

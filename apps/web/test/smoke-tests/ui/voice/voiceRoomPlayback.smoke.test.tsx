@@ -376,7 +376,8 @@ describe("voice room smoke", () => {
         }));
 
         vi.doMock("../../../../src/ui/components/Avatar", () => ({
-            Avatar: ({ name }: { name?: string }) => React.createElement("div", { "data-avatar": "1" }, name ?? ""),
+            Avatar: ({ name, src }: { name?: string; src?: string | null }) =>
+                React.createElement("div", { "data-avatar": "1", "data-src": src ?? "" }, name ?? ""),
         }));
 
         vi.doMock("../../../../src/ui/components/rooms/RoomDialog", () => ({
@@ -536,6 +537,39 @@ describe("voice room smoke", () => {
             );
             // Voice channels are persistent hangouts: joining never rings or notifies anyone.
             expect(session.joinRTCSession.mock.calls[0][3]).not.toHaveProperty("notificationType");
+        });
+
+        it("shows your own profile picture in the call, before your membership has synced", async () => {
+            const session = createRtcSession();
+            const client = createRtcClient(session, false);
+            client.getUser = () => ({ displayName: "Self", avatarUrl: "mxc://example.org/self" });
+            client.mxcUrlToHttp = (mxc: string) => `https://media.example.org/${mxc.slice("mxc://".length)}`;
+            await renderAndJoin(client);
+
+            const own = [...container.querySelectorAll(".voice-room-participant [data-avatar]")].find(
+                (node) => node.textContent === "Self",
+            );
+            expect(own?.getAttribute("data-src")).toBe("https://media.example.org/example.org/self");
+        });
+
+        it("leaves after five minutes alone in the call, and says why", async () => {
+            vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+            try {
+                const session = createRtcSession();
+                await renderAndJoin(createRtcClient(session, false));
+                expect(createdRooms[0].state).toBe("connected");
+
+                await act(async () => {
+                    vi.advanceTimersByTime(5 * 60_000);
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                });
+                expect(createdRooms[0].state).toBe("disconnected");
+                expect(container.textContent).toContain("nobody else was in it for 5 minutes");
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it("enables E2EE in encrypted rooms and hands media keys to LiveKit", async () => {

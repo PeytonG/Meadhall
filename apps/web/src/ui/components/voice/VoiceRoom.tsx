@@ -45,6 +45,7 @@ import { RoomDialog } from "../rooms/RoomDialog";
 import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } from "../../voice/volumeBoost";
 import { SpeakingCampfire } from "./PixelCampfire";
 import { VoiceActivityMonitor } from "../../voice/voiceActivity";
+import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
@@ -253,11 +254,13 @@ function getParticipantDisplayInfo(
     identity: string,
     matrixUserId: string | undefined,
     isLocal: boolean,
-    ownDisplayName?: string,
+    own?: { userId?: string; displayName?: string; avatarMxc?: string },
 ): { displayName: string; avatarMxc?: string; userId?: string } {
-    const userId = matrixUserId ?? parseMatrixUserIdFromIdentity(identity);
-    if (isLocal && ownDisplayName) {
-        return { displayName: ownDisplayName, userId };
+    // Your own tile: your profile, even before your call membership (which maps the LiveKit identity) has synced.
+    const userId = (isLocal ? own?.userId : undefined) ?? matrixUserId ?? parseMatrixUserIdFromIdentity(identity);
+    if (isLocal && own?.displayName) {
+        const avatarMxc = own.avatarMxc || (userId ? matrixRoom?.getMember(userId)?.getMxcAvatarUrl?.() : undefined) || undefined;
+        return { displayName: own.displayName, avatarMxc, userId };
     }
     if (!userId) {
         return { displayName: identity };
@@ -681,7 +684,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             next.push({
                 participant: room.localParticipant,
                 identity: room.localParticipant.identity,
-                matrixUserId: resolveParticipantMatrixUserId(room.localParticipant, rtcIdentityMap),
+                // Our own ID, even before our call membership (which maps hashed LiveKit identities) has synced.
+                matrixUserId: client.getUserId() ?? resolveParticipantMatrixUserId(room.localParticipant, rtcIdentityMap),
                 isLocal: true,
                 isSpeaking: isParticipantSpeaking(room.localParticipant),
                 isScreenSharing: isParticipantScreenSharing(room.localParticipant),
@@ -2012,6 +2016,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     const ownUser = ownUserId ? client.getUser(ownUserId) ?? undefined : undefined;
     const ownDisplayName = ownUser?.displayName ?? ownUserId ?? "You";
+    const ownProfile = { userId: ownUserId, displayName: ownDisplayName, avatarMxc: ownUser?.avatarUrl };
     const activeScreenShareParticipant = screenShareParticipants.find(
         (participant) => participant.identity === activeScreenShareIdentity,
     );
@@ -2045,7 +2050,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
               activeScreenShareParticipant.identity,
               activeScreenShareParticipant.matrixUserId,
               activeScreenShareParticipant.isLocal,
-              ownDisplayName,
+              ownProfile,
           ).displayName
         : null;
 
@@ -2169,7 +2174,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                         participant.identity,
                                         participant.matrixUserId,
                                         participant.isLocal,
-                                        ownDisplayName,
+                                        ownProfile,
                                     );
                                     const isActive = participant.identity === activeScreenShareIdentity;
                                     return (
@@ -2214,12 +2219,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 p.identity,
                                 p.matrixUserId,
                                 p.isLocal,
-                                ownDisplayName,
+                                ownProfile,
                             );
                             const isYou = p.isLocal || p.matrixUserId === ownUserId;
-                            const avatarSrc = info.avatarMxc
-                                ? (client.mxcUrlToHttp(info.avatarMxc, 240, 240, "crop") ?? null)
-                                : null;
+                            const avatarSources = info.avatarMxc
+                                ? [thumbnailFromMxc(client, info.avatarMxc, 240, 240, "crop"), mediaFromMxc(client, info.avatarMxc)].filter(
+                                      (url): url is string => Boolean(url),
+                                  )
+                                : [];
                             const participantVolumeKey = resolveVolumeParticipantKey(p.matrixUserId, p.identity);
                             const participantVolumePercent = getParticipantVolumePercent(participantVolumeKey);
                             return (
@@ -2231,7 +2238,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                         <Avatar
                                             className="voice-room-participant-avatar avatar"
                                             name={info.displayName}
-                                            src={avatarSrc}
+                                            src={avatarSources[0] ?? null}
+                                            sources={avatarSources}
                                             seed={info.userId}
                                             userId={info.userId}
                                         />
