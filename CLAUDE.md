@@ -9,7 +9,7 @@
 | **Owner** | PeytonG |
 | **Upstream** | Fork of [Vitosicz/Heorot](https://github.com/Vitosicz/Heorot) (git remote `upstream`) |
 | **License** | AGPL-3.0 (inherited from Heorot and Element; cannot be changed) |
-| **Latest release** | `v0.3.1` (2026-10-23; first release `v0.1.0`); `v0.3.2` in progress on `fix/v0.3.2` |
+| **Latest release** | `v0.3.2` (2026-10-23; first release `v0.1.0`) |
 | **Last updated** | 2026-10-23 |
 
 > **Upkeep rule (from the owner):** update this file after every few completed tasks, before context runs low, and
