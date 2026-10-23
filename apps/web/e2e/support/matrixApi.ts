@@ -251,3 +251,12 @@ export async function canLogIn(username: string, password: string): Promise<bool
     });
     return response.ok;
 }
+
+export async function downloadMedia(user: ApiUser, mxc: string): Promise<Uint8Array> {
+    const [serverName, mediaId] = mxc.replace("mxc://", "").split("/");
+    const response = await fetch(`${SYNAPSE_URL}/_matrix/client/v1/media/download/${serverName}/${mediaId}`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
+}

@@ -13,6 +13,8 @@ import {
     removeCustomSound,
     type CustomSound,
 } from "../../voice/soundboard/soundboard";
+import { decodeSoundFile, initialSelection, trimToWav } from "../../voice/soundboard/trim";
+import { SoundTrimmer } from "./SoundTrimmer";
 
 export type SoundChoice = { kind: "builtin"; id: string; name: string } | { kind: "custom"; sound: CustomSound };
 
@@ -31,6 +33,9 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
     const [custom, setCustom] = useState<CustomSound[]>(() => loadCustomSounds(client));
     const [adding, setAdding] = useState(false);
     const [file, setFile] = useState<File | null>(null);
+    // The chosen file, decoded for trimming, and the part of it to keep.
+    const [decoded, setDecoded] = useState<AudioBuffer | null>(null);
+    const [selection, setSelection] = useState({ start: 0, end: 0 });
     const [name, setName] = useState("");
     const [emoji, setEmoji] = useState("🔊");
     const [busy, setBusy] = useState(false);
@@ -86,15 +91,31 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
         void onPlay(choice).catch((playError: unknown) => setError(playError instanceof Error ? playError.message : "Couldn't play that sound."));
     };
 
+    const chooseFile = (chosen: File | null): void => {
+        setFile(chosen);
+        setDecoded(null);
+        setError(null);
+        if (!chosen) return;
+        void decodeSoundFile(chosen)
+            .then((buffer) => {
+                setDecoded(buffer);
+                setSelection(initialSelection(buffer.duration));
+            })
+            .catch((decodeError: unknown) => setError(decodeError instanceof Error ? decodeError.message : "Couldn't read that sound."));
+    };
+
     const save = async (): Promise<void> => {
-        if (!file) return;
+        if (!file || !decoded) return;
         setBusy(true);
         setError(null);
         try {
-            const sound = await addCustomSound(client, file, name, emoji);
+            // Always the trimmed part, re-encoded small (mono WAV), so long or high-quality files fit too.
+            const clip = await trimToWav(decoded, selection.start, selection.end, file.name);
+            const sound = await addCustomSound(client, clip, name || file.name.replace(/\.[^.]+$/, ""), emoji);
             setCustom((current) => [...current.filter((item) => item.id !== sound.id), sound]);
             setAdding(false);
             setFile(null);
+            setDecoded(null);
             setName("");
             setEmoji("🔊");
         } catch (saveError) {
@@ -171,14 +192,15 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
             {adding ? (
                 <div className="soundboard-add">
                     <label>
-                        <span>Sound file (up to 8 seconds, 1 MB)</span>
+                        <span>Sound file (you can trim it to up to 8 seconds next)</span>
                         <input
                             type="file"
                             accept="audio/*"
                             data-testid="soundboard-file"
-                            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                            onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
                         />
                     </label>
+                    {decoded ? <SoundTrimmer buffer={decoded} selection={selection} onChange={setSelection} /> : null}
                     <div className="soundboard-add-row">
                         <label>
                             <span>Emoji</span>
@@ -190,7 +212,7 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
                         </label>
                     </div>
                     <div className="soundboard-add-row">
-                        <button type="button" className="settings-button" disabled={!file || busy} onClick={() => void save()}>
+                        <button type="button" className="settings-button" disabled={!decoded || busy} onClick={() => void save()}>
                             {busy ? "Uploading..." : "Save sound"}
                         </button>
                         <button type="button" className="settings-button settings-button-secondary" onClick={() => setAdding(false)}>

@@ -5692,3 +5692,31 @@ img.voice-ctrl-icon {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* Trimming a new soundboard sound. */
+.sound-trimmer {
+    display: grid;
+    gap: 6px;
+}
+
+.sound-trimmer-wave {
+    width: 100%;
+    height: 56px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+}
+
+.sound-trimmer label {
+    display: grid;
+    grid-template-columns: 7.5em 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.sound-trimmer-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-muted);
+}
