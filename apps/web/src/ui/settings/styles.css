@@ -1,3 +1,49 @@
+/* High contrast: pure black and white, every text color at least 7:1 (WCAG AAA). */
+[data-theme="contrast"] {
+    color-scheme: dark;
+    --bg-app: #000000;
+    --bg-rail: #000000;
+    --bg-pane: #000000;
+    --bg-main: #000000;
+    --bg-card: #000000;
+    --bg-hover: #262626;
+    --bg-active: #3a3a3a;
+    --bg-input: #000000;
+    --text-main: #ffffff;
+    --text-muted: #e0e0e0;
+    --border: #ffffff;
+    --danger: #ff8080;
+    --channel-encrypted: #7dff9f;
+    --channel-encrypted-border: #7dff9f;
+    --channel-encrypted-bg: rgba(125, 255, 159, 0.2);
+    --channel-danger: #ff8080;
+    --channel-danger-hover-bg: rgba(255, 128, 128, 0.25);
+    --status-online: #5dff9d;
+    --status-idle: #ffd24d;
+    --status-dnd: #ff6b6b;
+    --status-offline: #c8c8c8;
+}
+
+/* Outlines on everything you can use, and a thick yellow ring on whatever has keyboard focus. */
+[data-theme="contrast"] :is(button, input, textarea, select, [role="button"]) {
+    border-color: #ffffff;
+}
+
+[data-theme="contrast"] :focus-visible {
+    outline: 3px solid #ffd24d !important;
+    outline-offset: 2px;
+}
+
+[data-theme="contrast"] a {
+    text-decoration: underline;
+}
+
+[data-theme="contrast"] :is(.room-item, .home-row, .settings-nav button).is-active,
+[data-theme="contrast"] :is(.room-item, .home-row)[aria-current="true"] {
+    outline: 2px solid #ffffff;
+    outline-offset: -2px;
+}
+
 [data-theme="light"] {
     color-scheme: light;
     /* Matches accentTokens(DEFAULT_ACCENT_COLOR, "light"); replaced at runtime. */

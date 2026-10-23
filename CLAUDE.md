@@ -420,6 +420,8 @@ Work through these in small PRs, each with UI tests (§4). Notes are starting po
     self-hosted server), switch between them from the user panel, and keep receiving notifications for all of them
     (each signed-in account keeps a light sync or `/notifications` poll; desktop and Android background notifiers
     must cover every account). Sessions are stored per account; signing out removes only that account.
+28. **High contrast theme** for low-vision users (requested 2026-10-22): `data-theme="contrast"`, all text 7:1
+    (WCAG AAA), audited by `e2e/contrast.spec.ts`.
 27. **Automatic Away:** with the Automatic status, show Away after 10 minutes without input and Online again on
     return (`presence/autoAway.ts`; the desktop app uses the OS idle time via `heorot:getSystemIdleSeconds`).
 

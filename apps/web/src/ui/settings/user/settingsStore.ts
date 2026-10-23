@@ -2,7 +2,8 @@ import { normalizeVoiceEffect, type VoiceEffect } from "../../voice/voiceChanger
 import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 
-export type AppTheme = "dark" | "light";
+// "contrast": high contrast for people who find the other themes hard to see (pure black, white text, bold outlines).
+export type AppTheme = "dark" | "light" | "contrast";
 // Pixel fonts everywhere, pixel headings with a readable body font, the system font throughout, or any installed
 // font ("custom", family in customFontFamily).
 export type FontStyle = "pixel" | "mixed" | "system" | "custom";
@@ -109,7 +110,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
     const privacy = isRecord(raw.privacy) ? raw.privacy : {};
     const audio = isRecord(raw.audio) ? raw.audio : {};
 
-    const theme = appearance.theme === "light" ? "light" : "dark";
+    const theme: AppTheme = appearance.theme === "light" || appearance.theme === "contrast" ? appearance.theme : "dark";
     const compactMode = appearance.compactMode === true;
     const showTimestamps = appearance.showTimestamps !== false;
     const closeOnWindowCloseMinimize = appearance.closeOnWindowCloseMinimize !== false;

@@ -14,6 +14,12 @@
     --pixel-shade: rgba(0, 0, 0, 0.32);
 }
 
+[data-theme="contrast"] {
+    --pixel-border: #ffffff;
+    --pixel-highlight: rgba(255, 255, 255, 0.25);
+    --pixel-shade: rgba(255, 255, 255, 0.25);
+}
+
 [data-theme="light"] {
     --pixel-border: #c9ccd3;
     --pixel-highlight: rgba(255, 255, 255, 0.7);

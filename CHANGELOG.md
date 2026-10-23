@@ -7,6 +7,8 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **High contrast theme** (Settings → Appearance) for people who find the other themes hard to see: black
+  background, white text, bold outlines, a yellow focus ring, and your accent color brightened to stay readable.
 - **Phones: a send button** next to the emoji button, and **swipe** right to go back to your conversations (left to
   return to the chat).
 - **Set your status** from the user panel, like Discord: Online, Idle, Do Not Disturb, Invisible, and a custom status

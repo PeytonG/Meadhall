@@ -36,6 +36,14 @@ describe("accentColor", () => {
         }
     });
 
+    it("brightens any accent to 7:1 on the high contrast theme's black", () => {
+        for (const accent of [DEFAULT_ACCENT_COLOR, "#000000", "#ffffff", "#ffff00", "#1a0040", "#0000ff"]) {
+            const tokens = accentTokens(accent, "contrast");
+            expect(contrastRatio(tokens["--primary"], "#000000"), accent).toBeGreaterThanOrEqual(7);
+            expect(contrastRatio(tokens["--primary"], tokens["--on-primary"]), `${accent} button text`).toBeGreaterThanOrEqual(4.5);
+        }
+    });
+
     it("leaves a readable accent untouched", () => {
         expect(accentTokens(DEFAULT_ACCENT_COLOR, "dark")["--primary"]).toBe(DEFAULT_ACCENT_COLOR);
         expect(accentTokens(DEFAULT_ACCENT_COLOR, "dark")["--primary-rgb"]).toBe("166, 77, 255");

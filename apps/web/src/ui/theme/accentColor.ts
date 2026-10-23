@@ -5,8 +5,9 @@ import type { AppTheme } from "../settings/user/settingsStore";
 export const DEFAULT_ACCENT_COLOR = "#a64dff";
 
 // Page backgrounds the accent has to stay readable against (see --bg-main in App.css / settings/styles.css).
-const BACKGROUND: Record<AppTheme, string> = { dark: "#1a1b1e", light: "#ffffff" };
-const MIN_CONTRAST_WITH_BACKGROUND = 3;
+const BACKGROUND: Record<AppTheme, string> = { dark: "#1a1b1e", light: "#ffffff", contrast: "#000000" };
+// WCAG: 3:1 for large text and UI parts; high contrast asks for the AAA 7:1.
+const MIN_CONTRAST_WITH_BACKGROUND: Record<AppTheme, number> = { dark: 3, light: 3, contrast: 7 };
 const DARK_TEXT = "#14091f";
 
 type Rgb = [number, number, number];
@@ -72,9 +73,9 @@ export function hexToHsv(hex: string): { hue: number; saturation: number; value:
 // The CSS custom properties for an accent color, adjusted so it stays readable on the theme's background.
 export function accentTokens(accentHex: string, theme: AppTheme): Record<string, string> {
     const background = BACKGROUND[theme];
-    const towards: Rgb = theme === "dark" ? [255, 255, 255] : [0, 0, 0];
+    const towards: Rgb = theme === "light" ? [0, 0, 0] : [255, 255, 255];
     let primary = toRgb(normalizeHexColor(accentHex) ?? DEFAULT_ACCENT_COLOR);
-    for (let step = 0; step < 20 && contrastRatio(toHex(primary), background) < MIN_CONTRAST_WITH_BACKGROUND; step += 1) {
+    for (let step = 0; step < 20 && contrastRatio(toHex(primary), background) < MIN_CONTRAST_WITH_BACKGROUND[theme]; step += 1) {
         primary = mix(primary, towards, 0.1);
     }
     const primaryHex = toHex(primary);
