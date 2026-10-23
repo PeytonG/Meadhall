@@ -18,6 +18,8 @@ Versions follow `vX.Y.Z`.
   Invisible) right from the tray icon; it stays in step with the app.
 - **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
   computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
+- **12 new voice changer effects:** Chipmunk, Dragon, Dwarf, Ghost, Cave, Underwater, Alien, Telephone, Megaphone,
+  Choir, Wobble and Bard.
 - **Profile banner, About me, email and links:** upload an image or GIF banner and add a bio, a public email and up to
   five links in Settings → Profile; they show on your profile card.
 - **Profiles show roles in mutual servers:** each server you share, by name, with the person's role chips in their

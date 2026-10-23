@@ -8,7 +8,26 @@
 // lines run half a cycle apart and cross-fade, and each is silent at its own jump.
 import type { AudioProcessorOptions, LocalAudioTrack, Track, TrackProcessor } from "livekit-client";
 
-export type VoiceEffect = "off" | "giant" | "pixie" | "robot" | "hall" | "radio" | "troll";
+export type VoiceEffect =
+    | "off"
+    | "giant"
+    | "pixie"
+    | "robot"
+    | "hall"
+    | "radio"
+    | "troll"
+    | "chipmunk"
+    | "dragon"
+    | "dwarf"
+    | "ghost"
+    | "cave"
+    | "underwater"
+    | "alien"
+    | "telephone"
+    | "megaphone"
+    | "choir"
+    | "wobble"
+    | "bard";
 
 export const VOICE_EFFECTS: ReadonlyArray<{ id: VoiceEffect; label: string; description: string }> = [
     { id: "off", label: "Off", description: "Your normal voice" },
@@ -18,6 +37,18 @@ export const VOICE_EFFECTS: ReadonlyArray<{ id: VoiceEffect; label: string; desc
     { id: "hall", label: "Great hall", description: "Echoes off stone walls" },
     { id: "radio", label: "Radio", description: "Thin, crackly walkie-talkie" },
     { id: "troll", label: "Troll", description: "Very deep and gravelly" },
+    { id: "chipmunk", label: "Chipmunk", description: "Tiny and very fast-sounding" },
+    { id: "dragon", label: "Dragon", description: "Huge, rumbling and fiery" },
+    { id: "dwarf", label: "Dwarf", description: "A bit deeper, warm and gruff" },
+    { id: "ghost", label: "Ghost", description: "Hollow, wavering and far away" },
+    { id: "cave", label: "Cave", description: "Echoes bouncing down a tunnel" },
+    { id: "underwater", label: "Underwater", description: "Muffled and bubbling" },
+    { id: "alien", label: "Alien", description: "Warbling signal from the stars" },
+    { id: "telephone", label: "Telephone", description: "Clean old phone line" },
+    { id: "megaphone", label: "Megaphone", description: "Loud, harsh and honky" },
+    { id: "choir", label: "Choir", description: "You, three times over" },
+    { id: "wobble", label: "Wobble", description: "Seasick vibrato" },
+    { id: "bard", label: "Bard", description: "Bright, with a little hall echo" },
 ];
 
 export function normalizeVoiceEffect(value: unknown): VoiceEffect {
@@ -33,6 +64,18 @@ export function pitchFactorFor(effect: VoiceEffect): number {
             return 1.5;
         case "troll":
             return 0.58;
+        case "chipmunk":
+            return 1.9;
+        case "dragon":
+            return 0.5;
+        case "dwarf":
+            return 0.86;
+        case "ghost":
+            return 1.08;
+        case "alien":
+            return 1.25;
+        case "bard":
+            return 1.06;
         default:
             return 1;
     }
@@ -102,6 +145,46 @@ function distortionCurve(amount: number): Float32Array<ArrayBuffer> {
         curve[index] = ((1 + amount) * x) / (1 + amount * Math.abs(x));
     }
     return curve;
+}
+
+// A delay whose time is swung by a sine: vibrato (pitch wobble) at `rate` Hz, `depth` seconds deep.
+function buildVibrato(context: BaseAudioContext, rate: number, depth: number, sources: AudioScheduledSourceNode[]): DelayNode {
+    const delay = context.createDelay(0.2);
+    delay.delayTime.value = depth * 1.5;
+    const lfo = context.createOscillator();
+    lfo.frequency.value = rate;
+    const lfoDepth = context.createGain();
+    lfoDepth.gain.value = depth;
+    lfo.connect(lfoDepth).connect(delay.delayTime);
+    lfo.start();
+    sources.push(lfo);
+    return delay;
+}
+
+// Echoes: each tap is a delay (seconds) at a level, darkened by a lowpass, added to the dry voice.
+function buildEchoes(context: BaseAudioContext, from: AudioNode, taps: Array<[number, number]>, cutoff: number): GainNode {
+    const mix = context.createGain();
+    from.connect(mix);
+    for (const [time, level] of taps) {
+        const delay = context.createDelay(2);
+        delay.delayTime.value = time;
+        const tone = context.createBiquadFilter();
+        tone.type = "lowpass";
+        tone.frequency.value = cutoff;
+        const gain = context.createGain();
+        gain.gain.value = level;
+        from.connect(delay).connect(tone).connect(gain).connect(mix);
+    }
+    return mix;
+}
+
+function filter(context: BaseAudioContext, type: BiquadFilterType, frequency: number, extra: { q?: number; gain?: number } = {}): BiquadFilterNode {
+    const node = context.createBiquadFilter();
+    node.type = type;
+    node.frequency.value = frequency;
+    if (extra.q !== undefined) node.Q.value = extra.q;
+    if (extra.gain !== undefined) node.gain.value = extra.gain;
+    return node;
 }
 
 // Builds the effect between `input` and `output`. "off" is a straight wire.
@@ -176,6 +259,110 @@ export function buildVoiceEffect(context: BaseAudioContext, effect: VoiceEffect)
             growl.curve = distortionCurve(6);
             tail.connect(growl);
             tail = growl;
+            break;
+        }
+        case "dragon": {
+            // Deep growl, a rumbling low shelf and a roaring echo.
+            const growl = context.createWaveShaper();
+            growl.curve = distortionCurve(14);
+            const rumble = filter(context, "lowshelf", 180, { gain: 8 });
+            const smooth = filter(context, "lowpass", 2400);
+            tail.connect(growl).connect(rumble).connect(smooth);
+            const roar = buildEchoes(context, smooth, [[0.09, 0.35]], 1500);
+            const level = context.createGain();
+            level.gain.value = 0.35;
+            roar.connect(level);
+            tail = level;
+            break;
+        }
+        case "dwarf": {
+            const warmth = filter(context, "lowshelf", 250, { gain: 5 });
+            const grit = context.createWaveShaper();
+            grit.curve = distortionCurve(2);
+            tail.connect(warmth).connect(grit);
+            tail = grit;
+            break;
+        }
+        case "ghost": {
+            const waver = buildVibrato(context, 3, 0.004, sources);
+            const thin = filter(context, "highpass", 350);
+            tail.connect(waver).connect(thin);
+            tail = buildEchoes(context, thin, [[0.31, 0.45], [0.62, 0.25], [0.93, 0.12]], 1800);
+            break;
+        }
+        case "cave": {
+            tail = buildEchoes(context, tail, [[0.12, 0.5], [0.27, 0.38], [0.45, 0.26], [0.7, 0.16]], 1400);
+            break;
+        }
+        case "underwater": {
+            const muffle = filter(context, "lowpass", 550, { q: 4 });
+            const bubble = buildVibrato(context, 7, 0.0025, sources);
+            tail.connect(muffle).connect(bubble);
+            const level = context.createGain();
+            level.gain.value = 1.6;
+            bubble.connect(level);
+            tail = level;
+            break;
+        }
+        case "alien": {
+            const warble = buildVibrato(context, 9, 0.0015, sources);
+            const modulated = context.createGain();
+            modulated.gain.value = 0.5;
+            const carrier = context.createOscillator();
+            carrier.frequency.value = 30;
+            const carrierDepth = context.createGain();
+            carrierDepth.gain.value = 0.5;
+            carrier.connect(carrierDepth).connect(modulated.gain);
+            carrier.start();
+            sources.push(carrier);
+            tail.connect(warble).connect(modulated);
+            tail = modulated;
+            break;
+        }
+        case "telephone": {
+            const band = [filter(context, "highpass", 300), filter(context, "highpass", 300), filter(context, "lowpass", 3400), filter(context, "lowpass", 3400)];
+            let node: AudioNode = tail;
+            for (const stage of band) node = node.connect(stage);
+            // The band-pass takes the low end with it; bring the level back up.
+            const level = context.createGain();
+            level.gain.value = 1.6;
+            tail = node.connect(level);
+            break;
+        }
+        case "megaphone": {
+            const highpass = filter(context, "highpass", 600);
+            const honk = filter(context, "peaking", 1600, { q: 1.2, gain: 10 });
+            const lowpass = filter(context, "lowpass", 4200);
+            const crunch = context.createWaveShaper();
+            crunch.curve = distortionCurve(30);
+            const level = context.createGain();
+            level.gain.value = 0.6;
+            tail.connect(highpass).connect(honk).connect(crunch).connect(lowpass).connect(level);
+            tail = level;
+            break;
+        }
+        case "choir": {
+            // Chorus: the voice plus two slightly detuned, slightly late copies.
+            const mix = context.createGain();
+            mix.gain.value = 0.6;
+            tail.connect(mix);
+            for (const [rate, depth] of [[0.8, 0.006], [1.3, 0.008]] as const) {
+                const voice = buildVibrato(context, rate, depth, sources);
+                tail.connect(voice).connect(mix);
+            }
+            tail = mix;
+            break;
+        }
+        case "wobble": {
+            const wobble = buildVibrato(context, 5.5, 0.003, sources);
+            tail.connect(wobble);
+            tail = wobble;
+            break;
+        }
+        case "bard": {
+            const sparkle = filter(context, "highshelf", 3000, { gain: 4 });
+            tail.connect(sparkle);
+            tail = buildEchoes(context, sparkle, [[0.16, 0.22], [0.32, 0.1]], 3500);
             break;
         }
         default:
