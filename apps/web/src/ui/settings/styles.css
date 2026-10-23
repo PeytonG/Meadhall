@@ -1378,3 +1378,11 @@
     font-size: 13px;
     line-height: 1.5;
 }
+
+/* Server admin: the password reset form under a user. */
+.admin-reset-form {
+    flex-basis: 100%;
+    display: grid;
+    gap: 8px;
+    padding: 10px 0 4px;
+}

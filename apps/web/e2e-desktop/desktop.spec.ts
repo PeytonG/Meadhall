@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
-import { createRoom, joinRoom, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
+import { canLogIn, createRoom, joinRoom, makeServerAdmin, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "desktop");
 const electronBinary = createRequire(path.join(desktopDir, "package.json"))("electron") as unknown as string;
@@ -218,4 +218,23 @@ test("after an update, What's new shows that release's notes once", async () => 
     await expect(window.getByTestId("rail-home").or(window.getByRole("button", { name: "Skip for now" })).first()).toBeVisible({ timeout: 60_000 });
     await window.waitForTimeout(1500);
     await expect(window.getByTestId("whats-new")).toHaveCount(0);
+});
+
+// Reported broken in the desktop app: it asked for the new password with window.prompt, which Electron lacks.
+test("server admins can reset someone's password in the desktop app", async () => {
+    await makeServerAdmin(deskUser);
+    await window.reload();
+    const skip = window.getByRole("button", { name: "Skip for now" });
+    await expect(window.getByTestId("rail-home").or(skip).first()).toBeVisible({ timeout: 60_000 });
+    if (await skip.isVisible()) await skip.click();
+    await window.getByRole("button", { name: "User settings", exact: true }).click();
+    await window.getByRole("button", { name: "Server admin", exact: true }).click();
+    await window.getByLabel("Search users").fill(bob.username);
+    const row = window.locator(`[data-user-id="${bob.userId}"]`);
+    await row.getByRole("button", { name: "Reset password" }).click();
+    await row.getByLabel(/New password/).fill("desktop-reset-789");
+    await row.getByRole("button", { name: "Set password", exact: true }).click();
+    await expect(window.getByTestId("admin-revealed-password")).toHaveText("desktop-reset-789");
+    expect(await canLogIn(bob.username, "desktop-reset-789")).toBe(true);
+    await window.keyboard.press("Escape");
 });

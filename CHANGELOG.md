@@ -48,6 +48,9 @@ Versions follow `vX.Y.Z`.
 - The app connects to **matrix.org** by default again; type your own server's address to use it.
 
 ### Fixed
+- **Resetting a password in the server admin panel works in the desktop app.** It asked for the new password in a
+  browser pop-up the desktop app doesn't have, so nothing happened; it's now a small form under the person.
+- Quick status changes (or a game starting right after one) no longer leave an older status showing to others.
 - The speaking ring around a picture in calls is round again (it had turned square), and the soundboard in
   Settings no longer shows its title twice.
 - **Your own profile picture shows in calls** (it was missing when you had a display name set, and before the call

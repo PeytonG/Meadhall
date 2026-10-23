@@ -145,6 +145,8 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
     const [users, setUsers] = useState<AdminUser[] | null>(null);
     const [newUser, setNewUser] = useState({ username: "", displayName: "", password: generatePassword() });
     const [reveal, setReveal] = useState<{ userId: string; password: string } | null>(null);
+    // The password reset form open under one user (an in-page form: the desktop app has no window.prompt).
+    const [resetting, setResetting] = useState<{ userId: string; password: string; logout: boolean } | null>(null);
     const ownUserId = client.getUserId();
 
     const reload = useCallback(async (term: string) => {
@@ -245,14 +247,12 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
                                     <button
                                         type="button"
                                         className="settings-button settings-button-secondary"
-                                        onClick={() => {
-                                            const password = window.prompt(`New password for ${user.name} (at least 8 characters):`, generatePassword());
-                                            if (!password || password.length < 8) return;
-                                            const logout = window.confirm("Also sign them out of every device?");
-                                            void act(() => resetUserPassword(client, user.name, password, logout), "Password reset.").then(() =>
-                                                setReveal({ userId: user.name, password }),
-                                            );
-                                        }}
+                                        aria-expanded={resetting?.userId === user.name}
+                                        onClick={() =>
+                                            setResetting((current) =>
+                                                current?.userId === user.name ? null : { userId: user.name, password: generatePassword(), logout: false },
+                                            )
+                                        }
                                     >
                                         Reset password
                                     </button>
@@ -278,6 +278,45 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
                                         </>
                                     ) : null}
                                 </>
+                            ) : null}
+                            {resetting?.userId === user.name ? (
+                                <form
+                                    className="admin-reset-form"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        const { password, logout } = resetting;
+                                        void act(() => resetUserPassword(client, user.name, password, logout), "Password reset.").then(() => {
+                                            setReveal({ userId: user.name, password });
+                                            setResetting(null);
+                                        });
+                                    }}
+                                >
+                                    <label className="settings-field">
+                                        New password (at least 8 characters)
+                                        <input
+                                            type="text"
+                                            value={resetting.password}
+                                            onChange={(event) => setResetting({ ...resetting, password: event.target.value })}
+                                            autoFocus
+                                        />
+                                    </label>
+                                    <label className="settings-toggle">
+                                        <input
+                                            type="checkbox"
+                                            checked={resetting.logout}
+                                            onChange={(event) => setResetting({ ...resetting, logout: event.target.checked })}
+                                        />
+                                        Also sign them out of every device
+                                    </label>
+                                    <div className="settings-actions-row">
+                                        <button type="submit" className="settings-button" disabled={resetting.password.length < 8}>
+                                            Set password
+                                        </button>
+                                        <button type="button" className="settings-button settings-button-secondary" onClick={() => setResetting(null)}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
                             ) : null}
                         </div>
                     ))

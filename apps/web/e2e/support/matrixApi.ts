@@ -221,3 +221,23 @@ export async function uploadMedia(user: ApiUser, data: Uint8Array, contentType: 
     if (!upload.ok) throw new Error(`Upload failed: HTTP ${upload.status} ${await upload.text()}`);
     return ((await upload.json()) as { content_uri: string }).content_uri;
 }
+
+// Makes an existing user a server admin (through the built-in admin).
+export async function makeServerAdmin(user: ApiUser): Promise<void> {
+    const admin = await login(TEST_ADMIN.username, TEST_ADMIN.password);
+    const response = await fetch(`${SYNAPSE_URL}/_synapse/admin/v1/users/${encodeURIComponent(user.userId)}/admin`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${admin.access_token}` },
+        body: JSON.stringify({ admin: true }),
+    });
+    if (!response.ok) throw new Error(`making admin failed: HTTP ${response.status} ${await response.text()}`);
+}
+
+export async function canLogIn(username: string, password: string): Promise<boolean> {
+    const response = await fetch(`${SYNAPSE_URL}/_matrix/client/v3/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "m.login.password", identifier: { type: "m.id.user", user: username }, password }),
+    });
+    return response.ok;
+}

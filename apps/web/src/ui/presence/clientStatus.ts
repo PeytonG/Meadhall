@@ -104,17 +104,33 @@ export async function applyOwnStatus(client: MatrixClient, own: OwnStatus, away 
     }
     const presence = matrixPresenceFor(own.state === "auto" && away ? "idle" : own.state);
     client.setSyncPresence(presence as never);
-    await sendPresence(client, { presence, status_msg: own.text.trim() });
     const published = publishedStatusFor(own, currentPlatform(), activity);
-    const key = JSON.stringify(published);
-    if (key !== lastPublished) {
-        lastPublished = key;
-        cache.set(client.getSafeUserId(), { status: published, fetchedAt: Date.now() });
-        notify();
-        await client.setExtendedProfileProperty(STATUS_PROFILE_KEY, published).catch(() => {
-            lastPublished = "";
-        });
-    }
+    cache.set(client.getSafeUserId(), { status: published, fetchedAt: Date.now() });
+    notify();
+    // Independent: presence can be waiting out a rate limit, which mustn't hold up the profile field.
+    await Promise.all([sendPresence(client, { presence, status_msg: own.text.trim() }), publishStatus(client, published)]);
+}
+
+// Profile writes are serialized too: two quick changes could otherwise land out of order and leave the older one
+// on the server while we believe the newer one was saved.
+let wantedPublished: string | null = null;
+let publishLoop: Promise<void> | null = null;
+
+function publishStatus(client: MatrixClient, published: PublishedStatus): Promise<void> {
+    wantedPublished = JSON.stringify(published);
+    publishLoop ??= (async () => {
+        for (let attempt = 0; wantedPublished !== null && wantedPublished !== lastPublished && attempt < 5; attempt += 1) {
+            const next = wantedPublished;
+            try {
+                await client.setExtendedProfileProperty(STATUS_PROFILE_KEY, JSON.parse(next) as PublishedStatus);
+                lastPublished = next;
+            } catch {
+                await new Promise((resolve) => setTimeout(resolve, 2_000));
+            }
+        }
+        publishLoop = null;
+    })();
+    return publishLoop;
 }
 
 // Others' published status, cached; refreshed when their presence changes (see usePresenceMap).
