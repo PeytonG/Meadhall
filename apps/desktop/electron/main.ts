@@ -217,6 +217,10 @@ function resolvePreloadPath(): string {
     return path.join(__dirname, "preload.js");
 }
 
+function resolveAppIconPath(): string {
+    return path.join(app.getAppPath(), "assets", "icon.png");
+}
+
 function resolveRendererRootPath(): string {
     const appPath = app.getAppPath();
     const asarWebPath = path.join(appPath, "web");
@@ -335,6 +339,9 @@ function createMainWindow(startHidden = false): BrowserWindow {
         minWidth: 960,
         minHeight: 640,
         backgroundColor: WINDOW_BACKGROUND_COLOR,
+        // The window's own icon, for the taskbar and window switcher. Without it Windows falls back to whatever it
+        // can match the window to, and after some updates (or when started another way) the taskbar button was blank.
+        icon: resolveAppIconPath(),
         show: false,
         titleBarStyle: "hidden",
         titleBarOverlay: {
