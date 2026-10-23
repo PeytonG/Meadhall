@@ -2801,8 +2801,8 @@ textarea {
     max-width: min(100%, 680px);
     max-height: 480px;
     border-radius: 10px;
-    border: 1px solid var(--bg-hover);
-    background: var(--bg-pane);
+    /* No frame or fill: transparent PNGs and GIFs show the chat behind them, like Discord. */
+    background: transparent;
     object-fit: contain;
 }
 
@@ -2954,8 +2954,7 @@ textarea {
     max-height: 92vh;
     object-fit: contain;
     border-radius: 12px;
-    border: 1px solid var(--bg-hover);
-    background: var(--bg-pane);
+    background: transparent;
     box-shadow: none;
     cursor: zoom-in;
     transform: scale(1);
