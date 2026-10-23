@@ -342,6 +342,9 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 ### 10.1 Owner's backlog: v0.3.1 (requested 2026-10-23; in progress)
 Work through these in small PRs, each with UI tests (§4). Notes are starting points, not decisions.
 
+**Progress (branch `v0.3.1`):** done: 1, 2, 3, 4, 5, 6, 8, 17, 20, 21, 24, 25, 27. Remaining: 7, 9–16, 18, 19, 22,
+23, 26.
+
 **Bugs**
 1. **Ringtone is broken.** Reproduce first (incoming call card, `voice/ringtone.ts`, `IncomingCallCard.tsx`). Likely
    suspects: AudioContext blocked by autoplay policy until a user gesture (desktop: allow via
@@ -417,6 +420,8 @@ Work through these in small PRs, each with UI tests (§4). Notes are starting po
     self-hosted server), switch between them from the user panel, and keep receiving notifications for all of them
     (each signed-in account keeps a light sync or `/notifications` poll; desktop and Android background notifiers
     must cover every account). Sessions are stored per account; signing out removes only that account.
+27. **Automatic Away:** with the Automatic status, show Away after 10 minutes without input and Online again on
+    return (`presence/autoAway.ts`; the desktop app uses the OS idle time via `heorot:getSystemIdleSeconds`).
 
 **Presentation / defaults**
 17. **Default homeserver back to `https://matrix.org`** (owner: more presentable). Change `DEFAULT_HOMESERVER_URL`
