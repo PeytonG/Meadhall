@@ -69,7 +69,7 @@ import {
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
 import { useRoomCalls } from "../hooks/useRoomCalls";
 import { useIncomingCall } from "../hooks/useIncomingCall";
-import { applyOwnStatus, currentPlatform, loadOwnStatus, type OwnStatus } from "../presence/clientStatus";
+import { applyOwnStatus, currentPlatform, loadOwnStatus, type OwnStatus, type PublishedActivity } from "../presence/clientStatus";
 import { startAwayTracker } from "../presence/autoAway";
 import { StatusMenu } from "./StatusMenu";
 import { IncomingCallCard } from "./voice/IncomingCallCard";
@@ -890,9 +890,35 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             systemIdleMs: desktopIdle ? async () => (await desktopIdle()) * 1000 : undefined,
         });
     }, [ownStatus.state]);
+    // Desktop: the game Steam is running, as "Playing ..." (Settings → Privacy can turn this off).
+    const [activity, setActivity] = useState<PublishedActivity | null>(null);
+    const shareActivity = userSettings.privacy.shareActivity;
     useEffect(() => {
-        void applyOwnStatus(client, ownStatus, autoAway);
-    }, [client, ownStatus, autoAway]);
+        const getActivity = window.heorotDesktop?.getActivity;
+        if (!getActivity || !shareActivity) {
+            setActivity(null);
+            return undefined;
+        }
+        let cancelled = false;
+        const poll = (): void => {
+            void getActivity()
+                .catch(() => null)
+                .then((found) => {
+                    if (cancelled) return;
+                    // Keep "since" while the same game keeps running.
+                    setActivity((current) => (found ? (current?.name === found.name ? current : { name: found.name, since: Date.now() }) : null));
+                });
+        };
+        poll();
+        const timer = window.setInterval(poll, 30_000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [shareActivity]);
+    useEffect(() => {
+        void applyOwnStatus(client, ownStatus, autoAway, activity);
+    }, [client, ownStatus, autoAway, activity]);
     const ownStatusDot =
         ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {

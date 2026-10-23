@@ -16,7 +16,11 @@ export interface PresenceSource {
     presence?: string | null;
     statusMessage?: string | null;
     // Meadhall's published status (clientStatus.ts): DND, and which app they're on.
-    published?: { state: "online" | "idle" | "dnd" | null; platform: "mobile" | "desktop" | "web" } | null;
+    published?: {
+        state: "online" | "idle" | "dnd" | null;
+        platform: "mobile" | "desktop" | "web";
+        activity?: { name: string; since: number } | null;
+    } | null;
     currentlyActive?: boolean | null;
     lastActiveAgo?: number | null;
 }
@@ -141,7 +145,14 @@ export function buildPresenceVm(source: PresenceSource | null | undefined): Pres
         }
     }
 
-    const statusText = typeof source?.statusMessage === "string" && source.statusMessage.trim() ? source.statusMessage.trim() : null;
+    // A custom status wins; otherwise what they're playing (only while they're around).
+    const activityName = state !== "offline" && state !== "unknown" ? published?.activity?.name ?? null : null;
+    const statusText =
+        typeof source?.statusMessage === "string" && source.statusMessage.trim()
+            ? source.statusMessage.trim()
+            : activityName
+              ? `Playing ${activityName}`
+              : null;
     return {
         state,
         primaryLabel: getPrimaryLabel(state),

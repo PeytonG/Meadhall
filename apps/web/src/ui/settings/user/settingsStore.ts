@@ -34,6 +34,8 @@ export interface NotificationsSettings {
 export interface PrivacySettings {
     showReadReceipts: boolean;
     allowDmsFromServerMembers: boolean;
+    // Desktop app: show the game you're playing (from Steam) as "Playing ..." to others.
+    shareActivity: boolean;
 }
 
 export interface AudioSettings {
@@ -82,6 +84,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
     privacy: {
         showReadReceipts: true,
         allowDmsFromServerMembers: true,
+        shareActivity: true,
     },
     audio: {
         preferredAudioInputId: "default",
@@ -160,6 +163,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
         privacy: {
             showReadReceipts: privacy.showReadReceipts !== false,
             allowDmsFromServerMembers: privacy.allowDmsFromServerMembers !== false,
+            shareActivity: privacy.shareActivity !== false,
         },
         audio: {
             preferredAudioInputId:

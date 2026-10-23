@@ -5,6 +5,7 @@ import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, powerM
 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
+import { currentActivity } from "./steamActivity";
 import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
 import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
@@ -474,6 +475,9 @@ function registerIpc(): void {
         });
     });
     ipcMain.handle("heorot:getTrayState", () => getTrayState());
+
+    // "Playing ..." from Steam (the app polls this when sharing activity is on).
+    ipcMain.handle("heorot:getActivity", () => currentActivity());
 
     // For automatic Away: input anywhere on the computer counts, not just in Meadhall.
     ipcMain.handle("heorot:getSystemIdleSeconds", () => powerMonitor.getSystemIdleTime());

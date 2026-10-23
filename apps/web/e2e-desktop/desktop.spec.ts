@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
-import { createRoom, joinRoom, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
+import { createRoom, joinRoom, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "desktop");
 const electronBinary = createRequire(path.join(desktopDir, "package.json"))("electron") as unknown as string;
@@ -18,7 +18,17 @@ let app: ElectronApplication;
 let window: Page;
 
 test.beforeAll(async () => {
-    const env = { ...process.env, MEADHALL_USER_DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "meadhall-desktop-test-")) };
+    // A fake Steam install running Stardew Valley, for "Playing ...".
+    const steamDir = fs.mkdtempSync(path.join(os.tmpdir(), "meadhall-steam-"));
+    fs.mkdirSync(path.join(steamDir, "steamapps"));
+    fs.writeFileSync(path.join(steamDir, "registry.vdf"), '"Registry" { "HKCU" { "Software" { "Valve" { "Steam" { "RunningAppID" "413150" } } } } }');
+    fs.writeFileSync(path.join(steamDir, "steamapps", "libraryfolders.vdf"), '"libraryfolders" { }');
+    fs.writeFileSync(path.join(steamDir, "steamapps", "appmanifest_413150.acf"), '"AppState" { "appid" "413150" "name" "Stardew Valley" }');
+    const env = {
+        ...process.env,
+        MEADHALL_USER_DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "meadhall-desktop-test-")),
+        MEADHALL_STEAM_DIR: steamDir,
+    };
     delete env.ELECTRON_RUN_AS_NODE;
     app = await electron.launch({ executablePath: electronBinary, args: [desktopDir], env });
     window = await app.firstWindow();
@@ -54,11 +64,13 @@ function distance(a: [number, number, number], b: [number, number, number]): num
 }
 
 let carolDm = "";
+let deskUser: ApiUser;
 let bob: ApiUser;
 
 // One signed-in app for all the checks: the user has two DMs (Carol's opens first, Bob's stays in the background).
 test.beforeAll(async () => {
     const user = await registerUser("desk");
+    deskUser = user;
     bob = await registerUser("bob");
     const carol = await registerUser("carol");
     await setDisplayName(bob, "Bob");
@@ -170,4 +182,20 @@ test("the tray menu mutes, deafens and sets your status, and follows changes mad
     await window.getByTestId("self-deafen").click();
     await clickTray("Status", "Automatic");
     await expect(window.locator(".pane-user-card .avatar-presence-dot")).not.toHaveClass(/is-dnd/);
+});
+
+test("the game Steam is running is shared as Playing ..., and Privacy can turn it off", async () => {
+    expect(await window.evaluate(() => window.heorotDesktop?.getActivity?.())).toEqual({ name: "Stardew Valley", appId: "413150", source: "steam" });
+    // Others read it from your profile.
+    await expect
+        .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
+        .toMatchObject({ activity: { name: "Stardew Valley" } });
+
+    await window.getByRole("button", { name: "User settings", exact: true }).click();
+    await window.getByRole("button", { name: "Privacy & Safety", exact: true }).click();
+    await window.getByTestId("share-activity").uncheck();
+    await window.keyboard.press("Escape");
+    await expect
+        .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
+        .toMatchObject({ activity: null });
 });

@@ -32,6 +32,18 @@ export function PrivacyTab({ settings, onChange }: PrivacyTabProps): React.React
                 />
                 Allow DMs from server members (stub)
             </label>
+
+            {window.heorotDesktop?.getActivity ? (
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={settings.shareActivity}
+                        onChange={(event) => onChange({ ...settings, shareActivity: event.target.checked })}
+                        data-testid="share-activity"
+                    />
+                    Show what I&apos;m playing (games running in Steam appear as &quot;Playing ...&quot; under your name)
+                </label>
+            ) : null}
         </div>
     );
 }

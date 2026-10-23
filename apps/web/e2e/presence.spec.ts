@@ -85,3 +85,18 @@ test("Automatic status goes Away after 10 minutes without input, and back to Onl
     await expect(dot).toHaveClass(/is-online/);
     await expect.poll(async () => (await readPresence(bob, alice.userId)).presence, { timeout: 30_000 }).toBe("online");
 });
+
+test("someone playing a game shows Playing ... in the DM list", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await setDisplayName(bob, "Bob");
+    const dm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [alice.userId] });
+    await joinRoom(alice, dm);
+    await setAccountData(alice, "m.direct", { [bob.userId]: [dm] });
+    await setProfileField(bob, STATUS_KEY, { state: null, platform: "desktop", activity: { name: "Stardew Valley", since: Date.now() } });
+    await setPresence(bob, "online");
+    await signIn(page, alice);
+
+    const row = page.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: "Bob" });
+    await expect(row).toContainText("Playing Stardew Valley", { timeout: 15_000 });
+});

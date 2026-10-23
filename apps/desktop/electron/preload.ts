@@ -17,6 +17,8 @@ export interface HeorotDesktopBridge {
     showWindow: () => Promise<void>;
     // Seconds since the last keyboard or mouse input anywhere on the computer.
     getSystemIdleSeconds: () => Promise<number>;
+    // The game Steam is running, if any.
+    getActivity: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
     // The tray menu's Mute / Deafen / Status: the app reports its state and handles the menu's choices.
     setTrayState: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
     onTrayAction: (listener: (action: { type: string; status?: string }) => void) => () => void;
@@ -71,6 +73,7 @@ const bridge: HeorotDesktopBridge = {
         await ipcRenderer.invoke("heorot:showWindow");
     },
     getSystemIdleSeconds: async (): Promise<number> => ipcRenderer.invoke("heorot:getSystemIdleSeconds"),
+    getActivity: async (): Promise<{ name: string; appId: string; source: "steam" } | null> => ipcRenderer.invoke("heorot:getActivity"),
     setTrayState: async (state: { muted: boolean; deafened: boolean; status: string }): Promise<void> => {
         await ipcRenderer.invoke("heorot:setTrayState", state);
     },

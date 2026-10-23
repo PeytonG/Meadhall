@@ -25,6 +25,13 @@ export interface PublishedStatus {
     // Only manual choices that should be visible (invisible is never published).
     state: "online" | "idle" | "dnd" | null;
     platform: "mobile" | "desktop" | "web";
+    // What they're playing (desktop app, from Steam), shown as "Playing ...". Never published while invisible.
+    activity?: PublishedActivity | null;
+}
+
+export interface PublishedActivity {
+    name: string;
+    since: number;
 }
 
 export const DEFAULT_OWN_STATUS: OwnStatus = { state: "auto", text: "" };
@@ -53,9 +60,9 @@ export function matrixPresenceFor(state: ChosenStatus): "online" | "unavailable"
     return state === "idle" || state === "dnd" ? "unavailable" : state === "invisible" ? "offline" : "online";
 }
 
-export function publishedStatusFor(own: OwnStatus, platform = currentPlatform()): PublishedStatus {
+export function publishedStatusFor(own: OwnStatus, platform = currentPlatform(), activity: PublishedActivity | null = null): PublishedStatus {
     const manual = own.state === "online" || own.state === "idle" || own.state === "dnd" ? own.state : null;
-    return { state: manual, platform };
+    return { state: manual, platform, activity: own.state === "invisible" ? null : activity };
 }
 
 let lastPublished = "";
@@ -89,7 +96,7 @@ function sendPresence(client: MatrixClient, body: PresenceBody): Promise<void> {
 
 // Applies your status everywhere: presence (and what /sync reports), status text, and the profile field.
 // `away` is automatic Away (no input for a while); it only affects the Automatic status and isn't saved.
-export async function applyOwnStatus(client: MatrixClient, own: OwnStatus, away = false): Promise<void> {
+export async function applyOwnStatus(client: MatrixClient, own: OwnStatus, away = false, activity: PublishedActivity | null = null): Promise<void> {
     try {
         window.localStorage.setItem(LOCAL_KEY, JSON.stringify(own));
     } catch {
@@ -98,7 +105,7 @@ export async function applyOwnStatus(client: MatrixClient, own: OwnStatus, away 
     const presence = matrixPresenceFor(own.state === "auto" && away ? "idle" : own.state);
     client.setSyncPresence(presence as never);
     await sendPresence(client, { presence, status_msg: own.text.trim() });
-    const published = publishedStatusFor(own);
+    const published = publishedStatusFor(own, currentPlatform(), activity);
     const key = JSON.stringify(published);
     if (key !== lastPublished) {
         lastPublished = key;
@@ -129,7 +136,12 @@ export function parsePublishedStatus(value: unknown): PublishedStatus | null {
     const record = value as Record<string, unknown>;
     const state = record.state === "online" || record.state === "idle" || record.state === "dnd" ? record.state : null;
     const platform = record.platform === "mobile" || record.platform === "desktop" ? record.platform : "web";
-    return { state, platform };
+    const activityRecord = record.activity && typeof record.activity === "object" ? (record.activity as Record<string, unknown>) : null;
+    const activity =
+        activityRecord && typeof activityRecord.name === "string" && activityRecord.name.trim()
+            ? { name: activityRecord.name.trim().slice(0, 128), since: typeof activityRecord.since === "number" ? activityRecord.since : 0 }
+            : null;
+    return { state, platform, activity };
 }
 
 export function cachedPublishedStatus(userId: string): PublishedStatus | null {
