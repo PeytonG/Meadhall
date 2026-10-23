@@ -1,3 +1,5 @@
 # Reviewed gitleaks false positives (one exact finding per line; never ignore whole rules).
 # localStorage item name "heorot.stickers.mxc.v1" in a constant then called UPLOAD_CACHE_KEY (renamed since).
 5947ee6fc74993deca03f2560c593d5bdd39f699:apps/web/src/ui/stickers/sendSticker.ts:generic-api-key:7
+# localStorage item name "heorot.notifications_default_on.v1" in NOTIFICATIONS_ON_MIGRATION_KEY (a flag name, not a secret).
+70917b10010cb680e10b57469f579252d30f713b:apps/web/src/ui/settings/user/settingsStore.ts:generic-api-key:231
