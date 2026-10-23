@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthType, MatrixError, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
+import { addingAccountFrom } from "../../core/storage/accounts";
+import { cancelAddingAccount } from "../accounts/accountSwitching";
 import type { MatrixCredentials } from "../../core/types/credentials";
 import { normalizeHomeserverUrl, resolveHomeserverBaseUrl } from "../adapters/loginAdapter";
 import {
@@ -47,6 +49,8 @@ export function LoginView({
     onLoginWithCredentials,
 }: LoginViewProps): React.ReactElement {
     const [mode, setMode] = useState<AuthMode>("sign_in");
+    // Adding another account: offer the way back to the one already signed in.
+    const [addingFrom] = useState(addingAccountFrom);
     const [homeserver, setHomeserver] = useState(defaultHomeserver);
 
     const [username, setUsername] = useState("");
@@ -319,6 +323,11 @@ export function LoginView({
     return (
         <div className="login-view has-backdrop" style={{ ["--login-backdrop" as string]: `url(${loginHall})` }}>
             <div className="login-card login-card-wide">
+                {addingFrom ? (
+                    <button type="button" className="login-back-to-account" onClick={() => void cancelAddingAccount()} data-testid="back-to-account">
+                        ← Back to {addingFrom}
+                    </button>
+                ) : null}
                 <div className="login-brand">
                     <img src={meadhallIcon} alt="" />
                     <h1>{brandName}</h1>

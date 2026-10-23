@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { UserEvent, type MatrixClient, type User } from "matrix-js-sdk/src/matrix";
 
 import { buildPresenceVm, type PresenceVm } from "./buildPresenceVm";
+import { cachedPublishedStatus, onPublishedStatusChange, refreshPublishedStatus } from "./clientStatus";
 
 function sanitizeUserIds(userIds: string[]): string[] {
     const unique = new Set<string>();
@@ -32,17 +33,23 @@ export function usePresenceMap(
         }
 
         const trackedUsers = new Set(normalizedUserIds);
+        for (const userId of normalizedUserIds) {
+            refreshPublishedStatus(client, userId);
+        }
         const onPresenceUpdate = (_event: unknown, user: User): void => {
             if (!user?.userId || !trackedUsers.has(user.userId)) {
                 return;
             }
-
+            // A presence change may come with a new DND/mobile status: re-read it.
+            refreshPublishedStatus(client, user.userId, true);
             setRevision((value) => value + 1);
         };
+        const stopListening = onPublishedStatusChange(() => setRevision((value) => value + 1));
 
         client.on(UserEvent.Presence, onPresenceUpdate as any);
         client.on(UserEvent.CurrentlyActive, onPresenceUpdate as any);
         return () => {
+            stopListening();
             client.removeListener(UserEvent.Presence, onPresenceUpdate as any);
             client.removeListener(UserEvent.CurrentlyActive, onPresenceUpdate as any);
         };
@@ -62,6 +69,8 @@ export function usePresenceMap(
                     presence: user?.presence,
                     currentlyActive: user?.currentlyActive,
                     lastActiveAgo: user?.lastActiveAgo,
+                    statusMessage: user?.presenceStatusMsg,
+                    published: cachedPublishedStatus(userId),
                 }),
             );
         }

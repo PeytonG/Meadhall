@@ -15,7 +15,7 @@ const picture = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.m
 
 async function openSettingsTab(page: Page, tab: string): Promise<void> {
     if (!(await page.locator(".settings-overlay").isVisible())) {
-        await page.locator(".pane-user-card").click();
+        await page.getByRole("button", { name: "User settings", exact: true }).click();
     }
     await page.getByRole("button", { name: tab, exact: true }).click();
 }
@@ -214,7 +214,7 @@ test("the image viewer closes from the backdrop, the X and Escape; settings clos
     await page.keyboard.press("Escape");
     await expect(viewer).toBeHidden();
 
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await expect(page.locator(".settings-overlay")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.locator(".settings-overlay")).toBeHidden();
@@ -262,4 +262,15 @@ test("emoji are pixel art by default, and the Appearance toggle turns that off",
     await toggle.uncheck();
     await page.keyboard.press("Escape");
     expect(await emoji.evaluate((element) => getComputedStyle(element).filter)).toBe("none");
+});
+
+test("desktop keeps Enter-to-send without a send button", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await createSpaceWithChannel(bob, alice, { space: "Hall", channel: "general" });
+    await signIn(page, alice);
+    await page.getByTitle("Hall").click();
+    await page.getByText("#general", { exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "Open emoji picker" })).toBeVisible();
+    await expect(page.getByTestId("composer-send")).toBeHidden();
 });

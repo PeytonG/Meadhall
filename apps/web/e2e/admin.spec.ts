@@ -20,7 +20,7 @@ async function tokenValid(token: string): Promise<boolean> {
 }
 
 async function openAdmin(page: Page): Promise<void> {
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await page.getByRole("button", { name: "Server admin", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Server admin" })).toBeVisible();
 }
@@ -28,7 +28,7 @@ async function openAdmin(page: Page): Promise<void> {
 test("people who aren't server admins don't get the admin tab", async ({ page }) => {
     const alice = await registerUser("alice");
     await signIn(page, alice);
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await expect(page.getByRole("button", { name: "Appearance", exact: true })).toBeVisible();
     await page.waitForTimeout(1_500); // the admin check has had time to answer
     await expect(page.getByRole("button", { name: "Server admin", exact: true })).toHaveCount(0);
@@ -72,15 +72,11 @@ test("admins create accounts, reset passwords, grant admin and deactivate", asyn
     await users.getByLabel("Search users").fill("Made Here");
     const row = users.locator(`[data-user-id^="@${username}:"]`);
     await expect(row).toBeVisible();
-    // Two dialogs in a row: the new password, then "sign out everywhere?".
-    const answers = ["second-password-456", ""];
-    const answer = (dialog: import("@playwright/test").Dialog): void => {
-        const next = answers.shift();
-        void (dialog.type() === "prompt" ? dialog.accept(next) : dialog.accept());
-        if (answers.length === 0) page.off("dialog", answer);
-    };
-    page.on("dialog", answer);
+    // An in-page form (browser prompts don't exist in the desktop app).
     await row.getByRole("button", { name: "Reset password" }).click();
+    await row.getByLabel(/New password/).fill("second-password-456");
+    await row.getByLabel("Also sign them out of every device").check();
+    await row.getByRole("button", { name: "Set password", exact: true }).click();
     await expect(page.getByTestId("admin-revealed-password")).toHaveText("second-password-456");
     expect(await canLogIn(username, "first-password-123")).toBe(false);
     expect(await canLogIn(username, "second-password-456")).toBe(true);

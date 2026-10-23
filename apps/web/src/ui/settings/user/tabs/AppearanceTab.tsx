@@ -72,7 +72,20 @@ export function AppearanceTab({
                     >
                         Light
                     </button>
+                    <button
+                        type="button"
+                        className={`settings-theme-button${settings.theme === "contrast" ? " is-active" : ""}`}
+                        onClick={() => onChange({ ...settings, theme: "contrast" })}
+                    >
+                        High contrast
+                    </button>
                 </div>
+                {settings.theme === "contrast" ? (
+                    <p className="settings-field-help">
+                        Black background, white text and bold outlines. Your accent color is brightened until it is easy
+                        to read.
+                    </p>
+                ) : null}
             </div>
 
             <FontPicker settings={settings} onChange={onChange} />

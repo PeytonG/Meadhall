@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { PixelIcon } from "./PixelIcon";
 
 import { getAvatarColor } from "../utils/avatarColor";
 import type { PresenceState } from "../presence/buildPresenceVm";
@@ -10,7 +11,8 @@ interface AvatarProps {
     className: string;
     seed?: string;
     userId?: string;
-    presenceState?: Exclude<PresenceState, "unknown"> | null;
+    // "mobile": online on the Android/iOS app, drawn as a green pixel phone.
+    presenceState?: Exclude<PresenceState, "unknown"> | "mobile" | null;
 }
 
 function getLocalpartFromUserId(userId?: string): string {
@@ -87,7 +89,13 @@ export function Avatar({ name, src, sources, className, seed, userId, presenceSt
                     <span className="avatar-fallback">{initials}</span>
                 )}
             </span>
-            {presenceState ? <span className={`avatar-presence-dot is-${presenceState}`} /> : null}
+            {presenceState === "mobile" ? (
+                <span className="avatar-presence-dot is-mobile" title="On mobile">
+                    <PixelIcon name="mobile" size={10} />
+                </span>
+            ) : presenceState ? (
+                <span className={`avatar-presence-dot is-${presenceState}`} />
+            ) : null}
         </span>
     );
 }

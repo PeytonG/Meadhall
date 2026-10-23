@@ -1,3 +1,4 @@
+import { isDoNotDisturb } from "../presence/clientStatus";
 import { useEffect, useRef } from "react";
 import {
     ClientEvent,
@@ -150,6 +151,15 @@ export function useElementLikeNotifications({
     const settingsRef = useRef(settings);
     const onOpenRoomRef = useRef(onOpenRoom);
     onOpenRoomRef.current = onOpenRoom;
+    // Desktop app: clicking a native notification opens its conversation.
+    // Notifications for other signed-in accounts carry "account:..." and are handled by useOtherAccountNotifications.
+    useEffect(
+        () =>
+            window.heorotDesktop?.onNotificationClicked?.((roomId) => {
+                if (!roomId.startsWith("account:")) onOpenRoomRef.current?.(roomId);
+            }),
+        [],
+    );
     const activeRoomIdRef = useRef(activeRoomId);
     const hasOpenDialogRef = useRef(hasOpenDialog);
     const pendingEncryptedEventIdsRef = useRef<string[]>([]);
@@ -254,10 +264,11 @@ export function useElementLikeNotifications({
             if (!settingsRef.current.notificationsEnabled) {
                 return;
             }
-            if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+            const desktopNotify = window.heorotDesktop?.showNotification;
+            if (!desktopNotify && (typeof Notification === "undefined" || Notification.permission !== "granted")) {
                 return;
             }
-            if (localNotificationsAreSilenced(client)) {
+            if (localNotificationsAreSilenced(client) || isDoNotDisturb()) {
                 return;
             }
 
@@ -278,6 +289,13 @@ export function useElementLikeNotifications({
 
             if (!settingsRef.current.notificationBodyEnabled) {
                 message = "";
+            }
+
+            if (desktopNotify) {
+                // Desktop app: a native OS notification (reliable on Windows and Linux); clicks come back through
+                // onNotificationClicked below.
+                void desktopNotify({ title, body: message, roomId: room.roomId });
+                return;
             }
 
             const avatarUrl = buildAvatarUrl(client, event);
@@ -305,7 +323,7 @@ export function useElementLikeNotifications({
             if (!settingsRef.current.audioNotificationsEnabled) {
                 return;
             }
-            if (localNotificationsAreSilenced(client)) {
+            if (localNotificationsAreSilenced(client) || isDoNotDisturb()) {
                 return;
             }
             await playNotificationSound(settingsRef.current.customMessageSoundDataUrl);

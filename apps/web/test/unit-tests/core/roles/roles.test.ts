@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { allowedViewers, applyRolesToPowerLevels, memberRank, parseRoles, type Role } from "../../../../src/core/roles/roles";
+import { allowedViewers, applyRolesToPowerLevels, memberRank, parseChannelTalk, parseRoles, type Role } from "../../../../src/core/roles/roles";
 
 const roles: Role[] = parseRoles({
     roles: [
@@ -71,5 +71,28 @@ describe("roles", () => {
         ]);
         expect(allowedViewers(null, assignments)).toBeNull();
         expect([...allowedViewers(["mod"], assignments)!]).toEqual(["@alice:hs"]);
+    });
+
+    it("limits talking in a channel to a role and those ranked above it, and opens it again for everyone", () => {
+        const input = { current: basePowerLevels, roles, assignments: new Map(), ownLevel: 100, scope: "channel" as const };
+        expect(applyRolesToPowerLevels({ ...input, talkRank: 50 })).toMatchObject({ events_default: 50 });
+        expect(applyRolesToPowerLevels({ ...input, talkRank: 50 }).events).not.toHaveProperty(["org.matrix.msc3401.call.member"]);
+        // Voice channels: joining the call is talking too.
+        expect(applyRolesToPowerLevels({ ...input, talkRank: 10, voiceChannel: true })).toMatchObject({
+            events_default: 10,
+            events: { "org.matrix.msc3401.call.member": 10 },
+        });
+        expect(applyRolesToPowerLevels({ ...input, talkRank: 0 })).toMatchObject({ events_default: 0 });
+        // Never above your own level, and untouched when no choice was made.
+        expect(applyRolesToPowerLevels({ ...input, ownLevel: 30, talkRank: 50 })).toMatchObject({ events_default: 29 });
+        expect(applyRolesToPowerLevels(input)).not.toHaveProperty("events_default");
+        expect(applyRolesToPowerLevels({ ...input, scope: "space", talkRank: 50 })).not.toHaveProperty("events_default");
+    });
+
+    it("reads who may talk, ignoring unknown roles", () => {
+        expect(parseChannelTalk({ talk: "mod" }, roles)).toBe("mod");
+        expect(parseChannelTalk({ talk: "everyone" }, roles)).toBe("everyone");
+        expect(parseChannelTalk({ talk: "gone" }, roles)).toBeNull();
+        expect(parseChannelTalk({ roles: ["mod"] }, roles)).toBeNull();
     });
 });

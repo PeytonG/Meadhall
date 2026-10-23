@@ -3,6 +3,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { createRoom, joinRoom, registerUser, sendEvent, setAccountData, setDisplayName, type ApiUser } from "./support/matrixApi";
+import { startEncryptingClient } from "./support/cryptoClient";
 import { signIn } from "./support/ui";
 
 // Counts oscillators started and audio contexts closed, to tell whether the ringtone is playing.
@@ -77,4 +78,37 @@ test("your own call notification doesn't ring for you", async ({ page }) => {
     await ring(alice, dm);
     await page.waitForTimeout(4_000);
     await expect(page.getByTestId("incoming-call")).toHaveCount(0);
+});
+
+test("a call in an encrypted DM rings too (the notification arrives encrypted)", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await setDisplayName(bob, "Bob");
+    const dm = await createRoom(bob, {
+        is_direct: true,
+        preset: "trusted_private_chat",
+        invite: [alice.userId],
+        initial_state: [{ type: "m.room.encryption", state_key: "", content: { algorithm: "m.megolm.v1.aes-sha2" } }],
+    });
+    await joinRoom(alice, dm);
+    await setAccountData(alice, "m.direct", { [bob.userId]: [dm] });
+    await signIn(page, alice);
+
+    const bobClient = await startEncryptingClient(bob);
+    try {
+        // Bob's client encrypts for Alice's signed-in device.
+        await expect.poll(() => bobClient.getRoom(dm)?.hasEncryptionStateEvent() ?? false, { timeout: 15_000 }).toBe(true);
+        const related = await bobClient.sendTextMessage(dm, "calling you");
+        await bobClient.sendEvent(dm, "org.matrix.msc4075.rtc.notification" as never, {
+            "m.mentions": { user_ids: [], room: true },
+            notification_type: "ring",
+            "m.relates_to": { rel_type: "m.reference", event_id: related.event_id },
+            sender_ts: Date.now(),
+            lifetime: 30_000,
+        } as never);
+        await expect(page.getByTestId("incoming-call")).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByTestId("incoming-call")).toContainText("Bob");
+    } finally {
+        bobClient.stopClient();
+    }
 });

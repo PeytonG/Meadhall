@@ -15,6 +15,16 @@ export interface HeorotDesktopBridge {
     setCloseOnWindowCloseMinimize: (enabled: boolean) => Promise<void>;
     // Brings the window back (from the tray too), e.g. when a notification is clicked.
     showWindow: () => Promise<void>;
+    // Seconds since the last keyboard or mouse input anywhere on the computer.
+    getSystemIdleSeconds: () => Promise<number>;
+    // The game Steam is running, if any.
+    getActivity: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
+    // The tray menu's Mute / Deafen / Status: the app reports its state and handles the menu's choices.
+    setTrayState: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
+    onTrayAction: (listener: (action: { type: string; status?: string }) => void) => () => void;
+    // Native OS notification; resolves false if the platform can't show one (then the web API is used).
+    showNotification: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
+    onNotificationClicked: (listener: (roomId: string) => void) => () => void;
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp: () => Promise<void>;
@@ -49,8 +59,30 @@ const bridge: HeorotDesktopBridge = {
     setCloseOnWindowCloseMinimize: async (enabled: boolean): Promise<void> => {
         await ipcRenderer.invoke("heorot:setCloseOnWindowCloseMinimize", enabled);
     },
+    showNotification: async (payload: { title: string; body: string; roomId?: string; urgent?: boolean }): Promise<boolean> => {
+        return (await ipcRenderer.invoke("heorot:showNotification", payload)) === true;
+    },
+    onNotificationClicked: (listener: (roomId: string) => void): (() => void) => {
+        const handler = (_event: IpcRendererEvent, roomId: string): void => listener(roomId);
+        ipcRenderer.on("heorot:notificationClicked", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:notificationClicked", handler);
+        };
+    },
     showWindow: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:showWindow");
+    },
+    getSystemIdleSeconds: async (): Promise<number> => ipcRenderer.invoke("heorot:getSystemIdleSeconds"),
+    getActivity: async (): Promise<{ name: string; appId: string; source: "steam" } | null> => ipcRenderer.invoke("heorot:getActivity"),
+    setTrayState: async (state: { muted: boolean; deafened: boolean; status: string }): Promise<void> => {
+        await ipcRenderer.invoke("heorot:setTrayState", state);
+    },
+    onTrayAction: (listener: (action: { type: string; status?: string }) => void): (() => void) => {
+        const handler = (_event: unknown, action: { type: string; status?: string }): void => listener(action);
+        ipcRenderer.on("heorot:trayAction", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:trayAction", handler);
+        };
     },
     setTitleBarColors: async (colors: { color: string; symbolColor: string }): Promise<void> => {
         await ipcRenderer.invoke("heorot:setTitleBarColors", colors);

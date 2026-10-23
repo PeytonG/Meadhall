@@ -138,6 +138,7 @@ describe("voice room smoke", () => {
     };
     let createdWorkers: Array<{ terminate: ReturnType<typeof vi.fn> }>;
     let micRestarts: ReturnType<typeof vi.fn>;
+    let soundboardPlays: unknown[];
 
     beforeEach(async () => {
         vi.resetModules();
@@ -210,6 +211,7 @@ describe("voice room smoke", () => {
                     Microphone: "microphone",
                     ScreenShare: "screen_share",
                     ScreenShareAudio: "screen_share_audio",
+                    Unknown: "unknown",
                 },
             };
 
@@ -258,6 +260,7 @@ describe("voice room smoke", () => {
                             });
                         }),
                         setScreenShareEnabled: async () => undefined,
+                        publishTrack: vi.fn(async () => ({})),
                     };
 
                     for (const seed of seededRemotePublications) {
@@ -376,7 +379,31 @@ describe("voice room smoke", () => {
         }));
 
         vi.doMock("../../../../src/ui/components/Avatar", () => ({
-            Avatar: ({ name }: { name?: string }) => React.createElement("div", { "data-avatar": "1" }, name ?? ""),
+            Avatar: ({ name, src }: { name?: string; src?: string | null }) =>
+                React.createElement("div", { "data-avatar": "1", "data-src": src ?? "" }, name ?? ""),
+        }));
+
+        // jsdom has no Web Audio: the soundboard player is faked (the real one is checked in Chromium, e2e/soundboard).
+        soundboardPlays = [];
+        vi.doMock("../../../../src/ui/voice/soundboard/soundboard", async () => ({
+            ...(await vi.importActual<typeof import("../../../../src/ui/voice/soundboard/soundboard")>(
+                "../../../../src/ui/voice/soundboard/soundboard",
+            )),
+            SoundboardPlayer: class {
+                public readonly context = { sampleRate: 48_000 };
+                public readonly track = { kind: "audio", id: "soundboard-track" };
+                public setHearOwnSounds(): void {}
+                public async play(buffer: unknown): Promise<void> {
+                    soundboardPlays.push(buffer);
+                }
+                public close(): void {}
+            },
+        }));
+        vi.doMock("../../../../src/ui/voice/soundboard/builtinSounds", async () => ({
+            ...(await vi.importActual<typeof import("../../../../src/ui/voice/soundboard/builtinSounds")>(
+                "../../../../src/ui/voice/soundboard/builtinSounds",
+            )),
+            renderBuiltinSound: vi.fn(async (id: string) => ({ id })),
         }));
 
         vi.doMock("../../../../src/ui/components/rooms/RoomDialog", () => ({
@@ -451,6 +478,110 @@ describe("voice room smoke", () => {
         expect(attachedSids).toContain("aud-late");
         expect(playAttempts).toContain("aud-late");
         expect(voiceAdapterMocks.fetchLiveKitToken).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows two screen shares side by side, and one large when picked", async () => {
+        const attached: string[] = [];
+        const screenShare = (owner: string): FakePublication =>
+            ({
+                kind: "video",
+                source: "screen_share",
+                isSubscribed: true,
+                trackSid: `screen-${owner}`,
+                track: createAudioTrack(`screen-${owner}`),
+                videoTrack: {
+                    attach: () => attached.push(owner),
+                    detach: () => [],
+                },
+                setSubscribed: vi.fn(),
+            }) as unknown as FakePublication;
+        seededRemotePublications.push(
+            { participantIdentity: "@alice:example.org::a", participantSid: "remote-a", publication: screenShare("alice") },
+            { participantIdentity: "@bob:example.org::b", participantSid: "remote-b", publication: screenShare("bob") },
+        );
+        const ref = createRef<VoiceRoomHandle>();
+        await act(async () => {
+            root.render(
+                React.createElement(VoiceRoom, {
+                    ref,
+                    client: {
+                        getUserId: () => "@self:example.org",
+                        getUser: () => ({ displayName: "Self" }),
+                        mxcUrlToHttp: () => null,
+                        getRoom: () => null,
+                    },
+                    matrixRoomId: "!voice:example.org",
+                    matrixRoom: null,
+                    audioSettings: createAudioSettings(),
+                    onAudioSettingsChange: () => undefined,
+                }),
+            );
+        });
+        await act(async () => {
+            await ref.current?.join();
+        });
+
+        const tiles = container.querySelectorAll<HTMLButtonElement>("[data-testid=screen-share-tile]");
+        expect(tiles).toHaveLength(2);
+        expect(attached).toEqual(expect.arrayContaining(["alice", "bob"]));
+        expect(container.textContent).toContain("2 streams live");
+
+        await act(async () => {
+            tiles[1].click();
+        });
+        expect(container.querySelectorAll("[data-testid=screen-share-tile]")).toHaveLength(0);
+        expect(container.querySelectorAll(".voice-room-stage-video")).toHaveLength(1);
+        expect(container.textContent).toContain("is live");
+
+        const showAll = [...container.querySelectorAll<HTMLButtonElement>(".voice-room-stage-picker-button")].find(
+            (button) => button.textContent === "Show all",
+        );
+        await act(async () => {
+            showAll?.click();
+        });
+        expect(container.querySelectorAll("[data-testid=screen-share-tile]")).toHaveLength(2);
+    });
+
+    it("plays soundboard sounds into the call on their own track, published once", async () => {
+        const ref = createRef<VoiceRoomHandle>();
+        await act(async () => {
+            root.render(
+                React.createElement(VoiceRoom, {
+                    ref,
+                    client: {
+                        getUserId: () => "@self:example.org",
+                        getUser: () => ({ displayName: "Self" }),
+                        getAccountData: () => undefined,
+                        on: () => undefined,
+                        off: () => undefined,
+                        mxcUrlToHttp: () => null,
+                        getRoom: () => null,
+                    },
+                    matrixRoomId: "!voice:example.org",
+                    matrixRoom: null,
+                    audioSettings: createAudioSettings(),
+                    onAudioSettingsChange: () => undefined,
+                }),
+            );
+        });
+        await act(async () => {
+            await ref.current?.join();
+        });
+        await act(async () => {
+            container.querySelector<HTMLButtonElement>("[data-testid=soundboard-toggle]")?.click();
+        });
+        const duck = [...container.querySelectorAll<HTMLButtonElement>(".soundboard-sound")].find((button) => button.textContent?.includes("Duck"));
+        expect(duck).toBeTruthy();
+        for (let press = 0; press < 2; press += 1) {
+            await act(async () => {
+                duck?.click();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+            });
+        }
+        const publishTrack = (createdRooms[0].localParticipant as unknown as { publishTrack: ReturnType<typeof vi.fn> }).publishTrack;
+        expect(publishTrack).toHaveBeenCalledTimes(1);
+        expect(publishTrack).toHaveBeenCalledWith({ kind: "audio", id: "soundboard-track" }, { name: "soundboard", source: "unknown" });
+        expect(soundboardPlays).toEqual([{ id: "duck" }, { id: "duck" }]);
     });
 
     describe("MatrixRTC (Element Call compatible)", () => {
@@ -536,6 +667,39 @@ describe("voice room smoke", () => {
             );
             // Voice channels are persistent hangouts: joining never rings or notifies anyone.
             expect(session.joinRTCSession.mock.calls[0][3]).not.toHaveProperty("notificationType");
+        });
+
+        it("shows your own profile picture in the call, before your membership has synced", async () => {
+            const session = createRtcSession();
+            const client = createRtcClient(session, false);
+            client.getUser = () => ({ displayName: "Self", avatarUrl: "mxc://example.org/self" });
+            client.mxcUrlToHttp = (mxc: string) => `https://media.example.org/${mxc.slice("mxc://".length)}`;
+            await renderAndJoin(client);
+
+            const own = [...container.querySelectorAll(".voice-room-participant [data-avatar]")].find(
+                (node) => node.textContent === "Self",
+            );
+            expect(own?.getAttribute("data-src")).toBe("https://media.example.org/example.org/self");
+        });
+
+        it("leaves after five minutes alone in the call, and says why", async () => {
+            vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+            try {
+                const session = createRtcSession();
+                await renderAndJoin(createRtcClient(session, false));
+                expect(createdRooms[0].state).toBe("connected");
+
+                await act(async () => {
+                    vi.advanceTimersByTime(5 * 60_000);
+                });
+                await act(async () => {
+                    await Promise.resolve();
+                });
+                expect(createdRooms[0].state).toBe("disconnected");
+                expect(container.textContent).toContain("nobody else was in it for 5 minutes");
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it("enables E2EE in encrypted rooms and hands media keys to LiveKit", async () => {

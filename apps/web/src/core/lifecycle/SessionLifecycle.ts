@@ -5,10 +5,13 @@ import { MatrixClientManager } from "../client/MatrixClientManager";
 import { createMatrixClient } from "../client/createMatrixClient";
 import { SSO_HOMESERVER_URL_KEY, SSO_ID_SERVER_URL_KEY, SSO_IDP_ID_KEY, WebPlatform } from "../platform/WebPlatform";
 import { CORE_SESSION_STORAGE_KEYS, getStoredSessionVars, persistCredentials } from "../storage/sessionStore";
-import { idbClear } from "../storage/storageAccess";
+import { idbDelete } from "../storage/storageAccess";
+import { storeNames } from "../storage/accounts";
 import {
     ACCESS_TOKEN_IV,
+    ACCESS_TOKEN_STORAGE_KEY,
     REFRESH_TOKEN_IV,
+    REFRESH_TOKEN_STORAGE_KEY,
     persistAccessTokenInStorage,
     persistRefreshTokenInStorage,
     tryDecryptToken,
@@ -284,19 +287,27 @@ export class SessionLifecycle {
             };
         };
     }
+    // Clears the active account only: other signed-in accounts (core/storage/accounts.ts) keep their sessions,
+    // pickle keys and databases.
     public async clearStorage(): Promise<void> {
+        const userId = typeof window !== "undefined" ? window.localStorage.getItem("mx_user_id") : null;
+        const deviceId = typeof window !== "undefined" ? window.localStorage.getItem("mx_device_id") : null;
         if (typeof window !== "undefined") {
             clearStorageKeys(window.localStorage, CORE_STORAGE_KEYS_TO_CLEAR);
             clearStorageKeys(window.sessionStorage, CORE_STORAGE_KEYS_TO_CLEAR);
         }
 
-        await Promise.allSettled([idbClear("account"), idbClear("pickleKey")]);
+        await Promise.allSettled([
+            idbDelete("account", ACCESS_TOKEN_STORAGE_KEY),
+            idbDelete("account", REFRESH_TOKEN_STORAGE_KEY),
+            ...(userId && deviceId ? [this.platform.destroyPickleKey(userId, deviceId)] : []),
+        ]);
 
         const cleanupClient = createMatrixClient({
             baseUrl: "",
         });
 
-        await cleanupClient.clearStores();
+        await cleanupClient.clearStores({ cryptoDatabasePrefix: storeNames().crypto });
     }
 }
 

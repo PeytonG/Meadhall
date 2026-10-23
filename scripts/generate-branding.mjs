@@ -113,3 +113,16 @@ for (const folder of fs.readdirSync(splashDir).filter((name) => name.startsWith(
         .toFile(splash);
 }
 console.log("wrote Android launcher icons and splash screens");
+
+// iOS (Capacitor) app icon and splash screens. The App Store refuses icons with transparency, so the 1024px icon
+// is flattened onto the same background as Android's.
+const ios = (relative) => out(`apps/mobile/ios/App/App/Assets.xcassets/${relative}`);
+await sharp(icon).resize(1024, 1024).flatten({ background: ANDROID_BACKGROUND }).png().toFile(ios("AppIcon.appiconset/AppIcon-512@2x.png"));
+for (const name of ["splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"]) {
+    const artwork = await sharp(icon).resize(820, 820).png().toBuffer();
+    await sharp({ create: { width: 2732, height: 2732, channels: 4, background: ANDROID_BACKGROUND } })
+        .composite([{ input: artwork, gravity: "center" }])
+        .png()
+        .toFile(ios(`Splash.imageset/${name}`));
+}
+console.log("wrote the iOS app icon and splash screens");

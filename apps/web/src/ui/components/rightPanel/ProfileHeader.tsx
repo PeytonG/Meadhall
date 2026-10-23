@@ -9,6 +9,8 @@ interface ProfileHeaderProps {
     displayName: string;
     userId: string;
     avatarSources: string[];
+    // Their uploaded banner (image or GIF); otherwise a gradient from their user ID.
+    bannerUrl?: string | null;
     presence: PresenceVm | null;
     onBack: () => void;
     onCopyMxid: () => Promise<void>;
@@ -29,6 +31,7 @@ export function ProfileHeader({
     displayName,
     userId,
     avatarSources,
+    bannerUrl,
     presence,
     onBack,
     onCopyMxid,
@@ -75,7 +78,9 @@ export function ProfileHeader({
 
     return (
         <header className="rp-profile-hero">
-            <div className="rp-profile-banner" style={bannerStyle} />
+            <div className="rp-profile-banner" style={bannerStyle} data-testid="profile-banner">
+                {bannerUrl ? <img className="rp-profile-banner-image" src={bannerUrl} alt="" /> : null}
+            </div>
             <button type="button" className="rp-profile-close" onClick={onBack} aria-label="Close profile">
                 x
             </button>

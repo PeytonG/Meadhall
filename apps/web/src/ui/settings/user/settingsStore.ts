@@ -2,7 +2,8 @@ import { normalizeVoiceEffect, type VoiceEffect } from "../../voice/voiceChanger
 import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 
-export type AppTheme = "dark" | "light";
+// "contrast": high contrast for people who find the other themes hard to see (pure black, white text, bold outlines).
+export type AppTheme = "dark" | "light" | "contrast";
 // Pixel fonts everywhere, pixel headings with a readable body font, the system font throughout, or any installed
 // font ("custom", family in customFontFamily).
 export type FontStyle = "pixel" | "mixed" | "system" | "custom";
@@ -33,6 +34,8 @@ export interface NotificationsSettings {
 export interface PrivacySettings {
     showReadReceipts: boolean;
     allowDmsFromServerMembers: boolean;
+    // Desktop app: show the game you're playing (from Steam) as "Playing ..." to others.
+    shareActivity: boolean;
 }
 
 export interface AudioSettings {
@@ -81,6 +84,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
     privacy: {
         showReadReceipts: true,
         allowDmsFromServerMembers: true,
+        shareActivity: true,
     },
     audio: {
         preferredAudioInputId: "default",
@@ -109,7 +113,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
     const privacy = isRecord(raw.privacy) ? raw.privacy : {};
     const audio = isRecord(raw.audio) ? raw.audio : {};
 
-    const theme = appearance.theme === "light" ? "light" : "dark";
+    const theme: AppTheme = appearance.theme === "light" || appearance.theme === "contrast" ? appearance.theme : "dark";
     const compactMode = appearance.compactMode === true;
     const showTimestamps = appearance.showTimestamps !== false;
     const closeOnWindowCloseMinimize = appearance.closeOnWindowCloseMinimize !== false;
@@ -159,6 +163,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
         privacy: {
             showReadReceipts: privacy.showReadReceipts !== false,
             allowDmsFromServerMembers: privacy.allowDmsFromServerMembers !== false,
+            shareActivity: privacy.shareActivity !== false,
         },
         audio: {
             preferredAudioInputId:
@@ -227,3 +232,26 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     );
 }
 
+
+const NOTIFICATIONS_ON_MIGRATION_KEY = "heorot.notifications_default_on.v1";
+
+// Before v0.3.0 notifications defaulted to off, and that "off" was saved with everyone's settings, so the new
+// default never reached existing installs. The desktop and Android apps switch them on once; turning them off
+// afterwards sticks.
+export function withNotificationsOnOnce(settings: UserLocalSettings): UserLocalSettings {
+    if (typeof window === "undefined") {
+        return settings;
+    }
+    const isApp =
+        Boolean(window.heorotDesktop) ||
+        (window as unknown as { Capacitor?: { getPlatform?: () => string } }).Capacitor?.getPlatform?.() === "android";
+    try {
+        if (!isApp || window.localStorage.getItem(NOTIFICATIONS_ON_MIGRATION_KEY)) {
+            return settings;
+        }
+        window.localStorage.setItem(NOTIFICATIONS_ON_MIGRATION_KEY, "1");
+    } catch {
+        return settings;
+    }
+    return { ...settings, notifications: { ...settings.notifications, notificationsEnabled: true } };
+}

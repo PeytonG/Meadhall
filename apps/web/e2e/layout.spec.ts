@@ -54,14 +54,14 @@ test("phone layout shows one screen at a time", async ({ page }) => {
     await expect(back).toBeHidden();
 
     await page.getByRole("region", { name: "Group chats" }).getByText("Shieldwall").click();
-    await expect(page.getByText("Who's bringing the shields tonight?")).toBeVisible();
+    await expect(page.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeVisible();
     await expect(page.getByTestId("rail-home")).toBeHidden();
     // The members panel only opens when asked for, so the chat isn't covered.
     await expect(page.locator(".right-panel")).toHaveCount(0);
 
     await back.click();
     await expect(page.getByTestId("rail-home")).toBeVisible();
-    await expect(page.getByText("Who's bringing the shields tonight?")).toBeHidden();
+    await expect(page.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeHidden();
 });
 
 test("the phone's Back button returns from a chat to the list", async ({ page }) => {
@@ -70,8 +70,8 @@ test("the phone's Back button returns from a chat to the list", async ({ page })
     await signIn(page, viewer);
 
     await page.getByRole("region", { name: "Group chats" }).getByText("Shieldwall").click();
-    await expect(page.getByText("Who's bringing the shields tonight?")).toBeVisible();
+    await expect(page.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeVisible();
     await page.goBack();
     await expect(page.getByTestId("rail-home")).toBeVisible();
-    await expect(page.getByText("Who's bringing the shields tonight?")).toBeHidden();
+    await expect(page.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeHidden();
 });

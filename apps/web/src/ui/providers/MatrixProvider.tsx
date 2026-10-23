@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { GeneratedSecretStorageKey } from "matrix-js-sdk/src/crypto-api";
 import { MatrixClient as MatrixClientSdk, MatrixError, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
+import { activateNextAccount, finishAddingAccount } from "../../core/storage/accounts";
 import { bootstrapCore } from "../../bootstrap";
 import type { CoreContext } from "../../core/CoreContext";
 import { getDeviceDisplayName } from "../../core/config/branding";
@@ -601,6 +602,7 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
                 }
 
                 await waitForClientReady(client);
+                finishAddingAccount();
                 if (!credentials.guest) {
                     setMustVerifyFlag();
                 }
@@ -904,6 +906,11 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
         try {
             await state.core.session.logout(true);
             clearPendingSetupKey();
+            // Another account still signed in on this device: carry on as that one.
+            if (await activateNextAccount()) {
+                window.location.reload();
+                return;
+            }
             dispatch({ type: "set_client", client: null });
             dispatch({ type: "set_local_device_verified", verified: false });
             dispatch({ type: "set_status", status: "login_required", error: null });

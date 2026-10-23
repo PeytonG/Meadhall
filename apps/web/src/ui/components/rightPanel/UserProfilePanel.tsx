@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { EventType, type MatrixClient, type MatrixEvent, type Room, type RoomMember } from "matrix-js-sdk/src/matrix";
+import { type MatrixClient, type MatrixEvent, type Room, type RoomMember } from "matrix-js-sdk/src/matrix";
 
 import { createOrReuseDirectChat, getDirectRoomIds } from "../../adapters/dmAdapter";
 import { mediaFromMxc, thumbnailFromMxc } from "../../adapters/media";
@@ -11,6 +11,9 @@ import { ProfileHeader } from "./ProfileHeader";
 import { AboutCard } from "./cards/AboutCard";
 import { RolesCard } from "./cards/RolesCard";
 import { MediaCard } from "./cards/MediaCard";
+import { mutualServerRoles } from "./mutualServerRoles";
+import { LinksCard } from "./cards/LinksCard";
+import { parseRichProfile } from "../../../core/profile/richProfile";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -28,36 +31,6 @@ interface UserProfileData {
     avatar_url?: string;
     bio?: string;
     about?: string;
-}
-
-function getUserPowerLevel(room: Room | null, userId: string): number {
-    if (!room) {
-        return 0;
-    }
-
-    const powerLevelsEvent = room.currentState.getStateEvents(EventType.RoomPowerLevels, "");
-    const content = (powerLevelsEvent?.getContent() ?? {}) as {
-        users?: Record<string, number>;
-        users_default?: number;
-    };
-
-    const users = content.users ?? {};
-    const directLevel = users[userId];
-    if (typeof directLevel === "number" && Number.isFinite(directLevel)) {
-        return directLevel;
-    }
-
-    return typeof content.users_default === "number" && Number.isFinite(content.users_default) ? content.users_default : 0;
-}
-
-function getRoleInfo(powerLevel: number): { label: string; badgeClass: string } {
-    if (powerLevel >= 100) {
-        return { label: "Admin", badgeClass: "is-admin" };
-    }
-    if (powerLevel >= 50) {
-        return { label: "Mod", badgeClass: "is-mod" };
-    }
-    return { label: "Member", badgeClass: "is-member" };
 }
 
 function getMemberSince(member: RoomMember | null): string | null {
@@ -93,7 +66,6 @@ async function copyText(value: string): Promise<void> {
 export function UserProfilePanel({
     client,
     room,
-    activeSpaceRoom,
     userId,
     onBack,
     onOpenRoom,
@@ -108,8 +80,6 @@ export function UserProfilePanel({
 
     const member = room.getMember(userId);
     const ownUserId = client.getUserId() ?? "";
-    const powerLevelRoom = activeSpaceRoom ?? room;
-    const role = getRoleInfo(getUserPowerLevel(powerLevelRoom, userId));
     const directRoomIds = getDirectRoomIds(client);
     const isCurrentRoomDmWithUser = directRoomIds.has(room.roomId) && Boolean(room.getMember(userId));
     const canMessage = !isCurrentRoomDmWithUser && ownUserId !== userId;
@@ -159,7 +129,11 @@ export function UserProfilePanel({
         [client, memberSources, profileAvatarMxc],
     );
 
+    const rich = useMemo(() => parseRichProfile(profile as Record<string, unknown> | null), [profile]);
     const aboutText = useMemo(() => {
+        if (rich.about.trim().length > 0) {
+            return rich.about;
+        }
         if (typeof profile?.about === "string" && profile.about.trim().length > 0) {
             return profile.about;
         }
@@ -167,7 +141,7 @@ export function UserProfilePanel({
             return profile.bio;
         }
         return "";
-    }, [profile?.about, profile?.bio]);
+    }, [profile?.about, profile?.bio, rich.about]);
 
     const memberSince = getMemberSince(member);
     const aboutBody = memberSince ? `${aboutText || "No bio set"}\n\nMember since ${memberSince}` : aboutText;
@@ -181,6 +155,8 @@ export function UserProfilePanel({
                 .length,
         [client, userId],
     );
+
+    const serverRoles = useMemo(() => mutualServerRoles(client, userId), [client, userId, room]);
 
     const openDm = useCallback(async (): Promise<void> => {
         if (!canMessage) {
@@ -206,6 +182,7 @@ export function UserProfilePanel({
                 displayName={displayName}
                 userId={userId}
                 avatarSources={avatarSources}
+                bannerUrl={rich.bannerMxc ? mediaFromMxc(client, rich.bannerMxc) : null}
                 presence={presenceEnabled ? presence : null}
                 onBack={onBack}
                 onMessage={canMessage ? openDm : undefined}
@@ -226,7 +203,9 @@ export function UserProfilePanel({
                 emptyText={loadingProfile ? "Loading profile..." : "No bio set."}
             />
 
-            <RolesCard roleLabel={role.label} roleBadgeClass={role.badgeClass} mutualRoomsCount={mutualRoomsCount} />
+            {rich.email || rich.links.length > 0 ? <LinksCard email={rich.email} links={rich.links} /> : null}
+
+            <RolesCard servers={serverRoles} mutualRoomsCount={mutualRoomsCount} />
 
             <MediaCard title="Media" description="Recent images by this user will be shown here." />
 

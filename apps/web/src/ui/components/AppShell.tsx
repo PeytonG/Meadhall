@@ -38,6 +38,7 @@ import { SettingsOverlay, type SettingsMode } from "../settings/SettingsOverlay"
 import {
     applyAppearanceTheme,
     loadUserLocalSettings,
+    withNotificationsOnOnce,
     saveUserLocalSettings,
     type UserLocalSettings,
 } from "../settings/user/settingsStore";
@@ -54,6 +55,10 @@ import { buildMatrixToRoomPermalink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
+import { MobileUpdateBanner } from "./MobileUpdateBanner";
+import { WhatsNewDialog } from "./WhatsNewDialog";
+import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
+import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -67,6 +72,9 @@ import {
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
 import { useRoomCalls } from "../hooks/useRoomCalls";
 import { useIncomingCall } from "../hooks/useIncomingCall";
+import { applyOwnStatus, currentPlatform, loadOwnStatus, type OwnStatus, type PublishedActivity } from "../presence/clientStatus";
+import { startAwayTracker } from "../presence/autoAway";
+import { StatusMenu } from "./StatusMenu";
 import { IncomingCallCard } from "./voice/IncomingCallCard";
 import {
     loadSelfVoiceState,
@@ -861,7 +869,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [joiningDiscoverableRoomId, setJoiningDiscoverableRoomId] = useState<string | null>(null);
     const [settingsState, setSettingsState] = useState<SettingsState | null>(null);
     const [pendingFocusRoomId, setPendingFocusRoomId] = useState<string | null>(null);
-    const [userSettings, setUserSettings] = useState<UserLocalSettings>(() => loadUserLocalSettings());
+    const [userSettings, setUserSettings] = useState<UserLocalSettings>(() => withNotificationsOnOnce(loadUserLocalSettings()));
     const [toast, setToast] = useState<ToastState | null>(null);
     const [voiceSessionRoomId, setVoiceSessionRoomId] = useState<string | null>(null);
     const [voiceSessionStatus, setVoiceSessionStatus] = useState<VoiceSessionStatus>("disconnected");
@@ -870,6 +878,52 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const voiceControlStateRef = useRef<VoiceControlState>(DEFAULT_VOICE_CONTROL_STATE);
     const pendingVoiceControlTargetRef = useRef<{ micMuted: boolean; audioMuted: boolean } | null>(null);
     const [selfVoice, setSelfVoice] = useState<SelfVoiceState>(() => loadSelfVoiceState());
+    // Your status (user panel menu): presence, custom text, DND. Applied on start and whenever it changes.
+    const [ownStatus, setOwnStatus] = useState<OwnStatus>(() => loadOwnStatus());
+    const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+    const updateOwnStatus = useCallback((next: OwnStatus) => setOwnStatus(next), []);
+    const [autoAway, setAutoAway] = useState(false);
+    useEffect(() => {
+        if (ownStatus.state !== "auto") {
+            setAutoAway(false);
+            return undefined;
+        }
+        const desktopIdle = window.heorotDesktop?.getSystemIdleSeconds;
+        return startAwayTracker(setAutoAway, {
+            systemIdleMs: desktopIdle ? async () => (await desktopIdle()) * 1000 : undefined,
+        });
+    }, [ownStatus.state]);
+    // Desktop: the game Steam is running, as "Playing ..." (Settings → Privacy can turn this off).
+    const [activity, setActivity] = useState<PublishedActivity | null>(null);
+    const shareActivity = userSettings.privacy.shareActivity;
+    useEffect(() => {
+        const getActivity = window.heorotDesktop?.getActivity;
+        if (!getActivity || !shareActivity) {
+            setActivity(null);
+            return undefined;
+        }
+        let cancelled = false;
+        const poll = (): void => {
+            void getActivity()
+                .catch(() => null)
+                .then((found) => {
+                    if (cancelled) return;
+                    // Keep "since" while the same game keeps running.
+                    setActivity((current) => (found ? (current?.name === found.name ? current : { name: found.name, since: Date.now() }) : null));
+                });
+        };
+        poll();
+        const timer = window.setInterval(poll, 30_000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [shareActivity]);
+    useEffect(() => {
+        void applyOwnStatus(client, ownStatus, autoAway, activity);
+    }, [client, ownStatus, autoAway, activity]);
+    const ownStatusDot =
+        ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {
         saveSelfVoiceState(selfVoice);
     }, [selfVoice]);
@@ -1693,6 +1747,20 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         );
     }, []);
 
+    // The desktop tray menu mirrors mute/deafen and status, and its choices act here.
+    useEffect(() => {
+        void window.heorotDesktop?.setTrayState?.({ muted: selfVoice.muted, deafened: selfVoice.deafened, status: ownStatus.state });
+    }, [ownStatus.state, selfVoice.deafened, selfVoice.muted]);
+    const trayActionRef = useRef<(action: { type: string; status?: string }) => void>(() => undefined);
+    trayActionRef.current = (action) => {
+        if (action.type === "toggleMute") toggleVoiceMicFromDock();
+        else if (action.type === "toggleDeafen") toggleVoiceAudioFromDock();
+        else if (action.type === "setStatus" && ["auto", "online", "idle", "dnd", "invisible"].includes(action.status ?? "")) {
+            setOwnStatus((current) => ({ ...current, state: action.status as OwnStatus["state"] }));
+        }
+    };
+    useEffect(() => window.heorotDesktop?.onTrayAction?.((action) => trayActionRef.current(action)), []);
+
     // Below 1100px the members/profile panel slides over the chat, so it only opens when asked for and closing it
     // there doesn't change the saved (desktop) panel choice.
     const isNarrowLayout = useMediaQuery("(max-width: 1100px)");
@@ -1742,6 +1810,43 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
         setMobilePane("list");
     }, []);
+
+    // Phones: swipe right in a chat to go back to the list (Direct Messages / channels), swipe left from the list to
+    // return to the open chat, like the Discord app.
+    useEffect(() => {
+        if (!isPhoneLayout) {
+            return undefined;
+        }
+        let start: { x: number; y: number; at: number } | null = null;
+        const onStart = (event: TouchEvent): void => {
+            const target = event.target as HTMLElement | null;
+            const ignored = target?.closest("input, textarea, [contenteditable=\"true\"], .settings-nav, .pixel-color-wheel, .voice-room-panel");
+            start = event.touches.length === 1 && !ignored ? { x: event.touches[0].clientX, y: event.touches[0].clientY, at: Date.now() } : null;
+        };
+        const onEnd = (event: TouchEvent): void => {
+            if (!start || event.changedTouches.length === 0) {
+                return;
+            }
+            const dx = event.changedTouches[0].clientX - start.x;
+            const dy = event.changedTouches[0].clientY - start.y;
+            const quick = Date.now() - start.at < 600;
+            start = null;
+            if (!quick || Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) {
+                return;
+            }
+            if (dx > 0 && mobilePane === "chat") {
+                goBackToList();
+            } else if (dx < 0 && mobilePane === "list" && activeRoomId) {
+                setMobilePane("chat");
+            }
+        };
+        window.addEventListener("touchstart", onStart, { passive: true });
+        window.addEventListener("touchend", onEnd, { passive: true });
+        return () => {
+            window.removeEventListener("touchstart", onStart);
+            window.removeEventListener("touchend", onEnd);
+        };
+    }, [activeRoomId, goBackToList, isPhoneLayout, mobilePane]);
 
     const selectUserAndOpenPanel = useCallback(
         (userId: string): void => {
@@ -2174,9 +2279,21 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         onOpenRoom: focusRoom,
     });
 
+    // Other accounts signed in on this device: listed in the status menu, and their notifications still arrive.
+    const storedAccounts = useStoredAccounts();
+    useOtherAccountNotifications(client, userSettings.notifications.notificationsEnabled);
+    // Arrived here by clicking another account's notification: open that conversation.
+    useEffect(() => {
+        const roomId = takePendingRoom();
+        if (roomId) focusRoom(roomId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     return (
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
+            <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
+            <WhatsNewDialog />
             {incomingCall ? (
                 <IncomingCallCard
                     client={client}
@@ -2401,11 +2518,25 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     ) : null}
                     {/* Discord-style user panel: profile plus mic, deafen and settings */}
                     <div className="pane-user-panel">
+                        {statusMenuOpen ? (
+                            <StatusMenu
+                                status={ownStatus}
+                                onChange={updateOwnStatus}
+                                onOpenSettings={() => openUserSettings("my-account")}
+                                onClose={() => setStatusMenuOpen(false)}
+                                accounts={storedAccounts}
+                                onSwitchAccount={(userId) => void switchAccount(client, userId)}
+                                onAddAccount={() => void addAccount(client)}
+                            />
+                        ) : null}
                         <button
                             type="button"
                             className="pane-user-card"
-                            onClick={() => openUserSettings("my-account")}
-                            title="Open user settings"
+                            onClick={() => setStatusMenuOpen((open) => !open)}
+                            title="Set your status"
+                            aria-haspopup="menu"
+                            aria-expanded={statusMenuOpen}
+                            data-testid="user-card"
                         >
                             <Avatar
                                 className="pane-user-avatar"
@@ -2414,10 +2545,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 sources={ownAvatarSources}
                                 seed={ownUserId || undefined}
                                 userId={ownUserId || undefined}
+                                presenceState={ownStatusDot}
                             />
                             <span className="pane-user-meta">
                                 <span className="pane-user-name">{ownDisplayName}</span>
-                                <span className="pane-user-id">{ownUserId || "Unknown user"}</span>
+                                <span className="pane-user-id">{ownStatus.text || ownUserId || "Unknown user"}</span>
                             </span>
                         </button>
                         <button

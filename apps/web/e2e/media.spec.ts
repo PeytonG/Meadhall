@@ -22,6 +22,11 @@ async function sendPictureAndExpectItToLoad(page: Page, placeholder: RegExp): Pr
     const image = page.locator(".timeline-image").last();
     await expect(image).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth), { timeout: 30_000 }).toBeGreaterThan(0);
+    // No fill behind pictures, so transparent PNGs and GIFs show the chat behind them (in the chat and the viewer).
+    await expect(image).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await image.click();
+    await expect(page.locator(".timeline-lightbox-image")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await page.keyboard.press("Escape");
 }
 
 test("pictures sent to a channel load", async ({ page }) => {

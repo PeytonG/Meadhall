@@ -64,6 +64,23 @@ export async function tryDecryptToken(
     return decryptedToken;
 }
 
+// A token as it is stored: encrypted with the pickle key when there is one.
+export async function encryptToken(
+    token: string,
+    pickleKey: string | undefined,
+    tokenName: string,
+): Promise<AESEncryptedSecretStoragePayload | string> {
+    if (!pickleKey) {
+        return token;
+    }
+    const encryptionKey = await pickleKeyToAesKey(pickleKey);
+    try {
+        return await encryptAESSecretStorageItem(token, encryptionKey, tokenName);
+    } finally {
+        encryptionKey.fill(0);
+    }
+}
+
 export async function persistTokenInStorage(
     storageKey: string,
     tokenName: string,

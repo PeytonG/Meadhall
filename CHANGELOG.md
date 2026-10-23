@@ -4,6 +4,66 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.3.1 (2026-10-23)
+
+### New
+- **What's new:** after the desktop or phone app updates, a one-time window shows what changed in the new version.
+- **Multiple accounts:** sign in to more than one account (say one on matrix.org and one on your own server) from
+  the user panel → **Add an account**, switch between them there, and keep getting notifications for all of them:
+  clicking one switches to that account and opens the conversation. Signing out of one carries on as the other.
+- **High contrast theme** (Settings → Appearance) for people who find the other themes hard to see: black
+  background, white text, bold outlines, a yellow focus ring, and your accent color brightened to stay readable.
+- **Phones: a send button** next to the emoji button, and **swipe** right to go back to your conversations (left to
+  return to the chat).
+- **Set your status** from the user panel, like Discord: Online, Idle, Do Not Disturb, Invisible, and a custom status
+  message. Do Not Disturb silences notifications and call ringing. Online status now works in the web and Android
+  apps too, not only on desktop.
+- **"Playing ..." from Steam (desktop app):** the game Steam is running shows under your name, like Discord. It is
+  read from Steam's own files on your computer (no Steam login or API key); turn it off in Settings → Privacy.
+- **Tray menu (Windows and Linux):** Mute, Deafen and your status (Automatic, Online, Away, Do Not Disturb,
+  Invisible) right from the tray icon; it stays in step with the app.
+- **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
+  computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
+- **Update notice on Android (and iOS (Beta)):** like the desktop app, phones tell you when a new version is out,
+  with a link to download it (TestFlight on iPhone) and step-by-step install directions (Settings → Updates, where
+  the notice can be turned off).
+- **iOS app (Beta):** an iPhone version, installed through TestFlight by invitation while it's tested.
+- **Soundboard:** in a call, open **Sounds** to play a sound for everyone: 12 built-in 8-bit sounds (duck, fart,
+  sword, air horn, ba dum tss, coin, bell, war horn, sad trombone, applause, crickets, level up) and up to 24 of your
+  own (8 seconds, 1 MB each), managed and previewed in Settings → Audio. Your sounds follow your account.
+- **12 new voice changer effects:** Chipmunk, Dragon, Dwarf, Ghost, Cave, Underwater, Alien, Telephone, Megaphone,
+  Choir, Wobble and Bard.
+- **Profile banner, About me, email and links:** upload an image or GIF banner and add a bio, a public email and up to
+  five links in Settings → Profile; they show on your profile card.
+- **Roles decide who can talk:** in Server Settings → Members, each channel now has **Can talk** (everyone, or a role
+  and every role above it) next to **Can see**. In voice channels it also decides who can join the call. The server
+  enforces it, so it holds in Element too.
+- **Profiles show roles in mutual servers:** each server you share, by name, with the person's role chips in their
+  colors (or Admin / Moderator on servers without Meadhall roles).
+- **Direct Messages show the latest message** under each name, next to their status.
+- People on the **phone app** show a green phone instead of the online dot, unless they picked a status.
+- **Two screen shares at once show side by side**; click one to watch it large, and "Show all" to go back.
+- **Calls end themselves after 5 minutes alone**, with a note saying why, so a forgotten call doesn't keep your
+  microphone open.
+
+### Changed
+- The app connects to **matrix.org** by default again; type your own server's address to use it.
+
+### Fixed
+- **Resetting a password in the server admin panel works in the desktop app.** It asked for the new password in a
+  browser pop-up the desktop app doesn't have, so nothing happened; it's now a small form under the person.
+- Quick status changes (or a game starting right after one) no longer leave an older status showing to others.
+- The speaking ring around a picture in calls is round again (it had turned square), and the soundboard in
+  Settings no longer shows its title twice.
+- **Your own profile picture shows in calls** (it was missing when you had a display name set, and before the call
+  finished connecting).
+- **Transparent pictures stay transparent:** PNGs and GIFs no longer get a gray box behind them.
+- **Notifications show in the Windows and Linux apps.** They now use the system's own notifications, and are switched
+  on once for existing installs (an old "off" default had been saved with everyone's settings).
+- **Calls ring again.** In encrypted DMs (the default) the call notice arrives encrypted, so incoming calls never rang.
+  The desktop app also plays the ringtone even if you haven't clicked in it yet (for example after starting at
+  login).
+
 ## v0.3.0 (2026-10-23)
 
 ### New

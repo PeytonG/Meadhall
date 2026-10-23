@@ -6,10 +6,21 @@ export interface PresenceVm {
     secondaryLabel: string | null;
     isCurrentlyActive: boolean;
     lastActiveAgo: number | null;
+    // The custom status text people type (Matrix status_msg).
+    statusText?: string | null;
+    // On the Android/iOS app and online without a manually picked status: shown as a green phone.
+    onMobile?: boolean;
 }
 
 export interface PresenceSource {
     presence?: string | null;
+    statusMessage?: string | null;
+    // Meadhall's published status (clientStatus.ts): DND, and which app they're on.
+    published?: {
+        state: "online" | "idle" | "dnd" | null;
+        platform: "mobile" | "desktop" | "web";
+        activity?: { name: string; since: number } | null;
+    } | null;
     currentlyActive?: boolean | null;
     lastActiveAgo?: number | null;
 }
@@ -33,7 +44,7 @@ function getPrimaryLabel(state: PresenceState): string {
         case "online":
             return "Online";
         case "idle":
-            return "Idle";
+            return "Away";
         case "dnd":
             return "Do Not Disturb";
         case "offline":
@@ -103,7 +114,11 @@ function mapPresenceState(rawPresence: string | null | undefined): PresenceState
 }
 
 export function buildPresenceVm(source: PresenceSource | null | undefined): PresenceVm {
-    const state = mapPresenceState(source?.presence ?? null);
+    const matrixState = mapPresenceState(source?.presence ?? null);
+    const published = source?.published ?? null;
+    // DND can't be a Matrix presence (Synapse rejects "busy"), so it comes from the published status, as long as
+    // they're not offline.
+    const state: PresenceState = published?.state === "dnd" && matrixState !== "offline" && matrixState !== "unknown" ? "dnd" : matrixState;
     const isCurrentlyActive = source?.currentlyActive === true;
     const lastActiveAgo = normalizeLastActiveAgo(source?.lastActiveAgo ?? null);
     let secondaryLabel: string | null = null;
@@ -130,12 +145,22 @@ export function buildPresenceVm(source: PresenceSource | null | undefined): Pres
         }
     }
 
+    // A custom status wins; otherwise what they're playing (only while they're around).
+    const activityName = state !== "offline" && state !== "unknown" ? published?.activity?.name ?? null : null;
+    const statusText =
+        typeof source?.statusMessage === "string" && source.statusMessage.trim()
+            ? source.statusMessage.trim()
+            : activityName
+              ? `Playing ${activityName}`
+              : null;
     return {
         state,
         primaryLabel: getPrimaryLabel(state),
         secondaryLabel,
         isCurrentlyActive,
         lastActiveAgo,
+        statusText,
+        onMobile: state === "online" && published?.platform === "mobile" && published.state === null,
     };
 }
 
@@ -161,9 +186,12 @@ export function getPresenceSortRank(presence: PresenceVm | null | undefined): nu
 
 export function toAvatarPresenceState(
     presence: PresenceVm | null | undefined,
-): Exclude<PresenceState, "unknown"> | null {
+): Exclude<PresenceState, "unknown"> | "mobile" | null {
     if (!presence) {
         return null;
+    }
+    if (presence.onMobile) {
+        return "mobile";
     }
 
     switch (presence.state) {

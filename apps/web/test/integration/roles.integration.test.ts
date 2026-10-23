@@ -3,7 +3,7 @@
 import { EventType, Preset, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import { describe, expect, it } from "vitest";
 
-import { saveRoles, setChannelViewRoles, setMemberRoles } from "../../src/core/roles/applyRoles";
+import { saveRoles, setChannelTalkRole, setChannelViewRoles, setMemberRoles } from "../../src/core/roles/applyRoles";
 import type { Role } from "../../src/core/roles/roles";
 import { registerUser, startClient, waitFor } from "./support/synapse";
 
@@ -61,6 +61,15 @@ describe("roles against Synapse", () => {
         // The server lets Bob (Moderator) kick, and not Carol (Member).
         await expect(carol.kick(spaceId, daveUser.userId, "test")).rejects.toMatchObject({ httpStatus: 403 });
         await expect(bob.kick(spaceId, daveUser.userId, "test")).resolves.toBeDefined();
+
+        // Only Moderators and above may talk: the server refuses Carol's messages and accepts Bob's. Then everyone again.
+        await setChannelTalkRole(owner, space, room(owner, channelId), "mod");
+        await waitFor(() => (room(carol, channelId).currentState.getStateEvents(EventType.RoomPowerLevels, "")?.getContent().events_default === 50) || undefined, "talk limit reaches carol");
+        await expect(carol.sendTextMessage(channelId, "can I speak?")).rejects.toMatchObject({ httpStatus: 403 });
+        await expect(bob.sendTextMessage(channelId, "I can")).resolves.toBeDefined();
+        await setChannelTalkRole(owner, space, room(owner, channelId), "everyone");
+        await waitFor(() => (room(carol, channelId).currentState.getStateEvents(EventType.RoomPowerLevels, "")?.getContent().events_default === 0) || undefined, "talk opened");
+        await expect(carol.sendTextMessage(channelId, "now I can")).resolves.toBeDefined();
 
         // Make the channel private to Moderators: Carol is removed and can't rejoin; Bob stays.
         await setChannelViewRoles(owner, space, room(owner, channelId), ["mod"]);

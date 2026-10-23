@@ -11,6 +11,7 @@ import { logger } from "matrix-js-sdk/src/logger";
 import type { MatrixClientAssignOpts, MatrixCredentials } from "../types/credentials";
 import { createMatrixClient } from "./createMatrixClient";
 import { coreCryptoCallbacks } from "./cryptoCallbacks";
+import { storeNames } from "../storage/accounts";
 
 export interface MatrixClientManagerOptions {
     initialSyncLimit?: number;
@@ -130,6 +131,7 @@ export class MatrixClientManager {
         }
 
         await this.matrixClient.initRustCrypto({
+            cryptoDatabasePrefix: storeNames().crypto,
             storageKey: assignOpts.rustCryptoStoreKey,
             storagePassword: assignOpts.rustCryptoStorePassword,
         });

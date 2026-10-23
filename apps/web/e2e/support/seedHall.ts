@@ -19,6 +19,8 @@ import {
 
 export interface SeededHall {
     viewer: ApiUser;
+    // Everyone in the hall; Hrothgar owns the space.
+    users: { hrothgar: ApiUser; beowulf: ApiUser; wealhtheow: ApiUser; wiglaf: ApiUser };
     spaceId: string;
     generalId: string;
     dmId: string;
@@ -101,5 +103,5 @@ export async function seedHall(): Promise<SeededHall> {
     await sendMessage(wealhtheow, groupId, "Who's bringing the shields tonight?");
     await setAccountData(beowulf, "m.direct", { [hrothgar.userId]: [dmId], [wealhtheow.userId]: [groupId], [wiglaf.userId]: [groupId] });
 
-    return { viewer: beowulf, spaceId, generalId, dmId, groupId };
+    return { viewer: beowulf, users: { hrothgar, beowulf, wealhtheow, wiglaf }, spaceId, generalId, dmId, groupId };
 }

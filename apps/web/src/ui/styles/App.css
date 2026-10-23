@@ -2801,8 +2801,8 @@ textarea {
     max-width: min(100%, 680px);
     max-height: 480px;
     border-radius: 10px;
-    border: 1px solid var(--bg-hover);
-    background: var(--bg-pane);
+    /* No frame or fill: transparent PNGs and GIFs show the chat behind them, like Discord. */
+    background: transparent;
     object-fit: contain;
 }
 
@@ -2954,8 +2954,7 @@ textarea {
     max-height: 92vh;
     object-fit: contain;
     border-radius: 12px;
-    border: 1px solid var(--bg-hover);
-    background: var(--bg-pane);
+    background: transparent;
     box-shadow: none;
     cursor: zoom-in;
     transform: scale(1);
@@ -3913,6 +3912,43 @@ img.voice-ctrl-icon {
     object-fit: contain;
     display: block;
     background: #000000;
+}
+
+/* Several streams at once: side by side, each keeping its shape. */
+.voice-room-stage-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 6px;
+    padding: 6px;
+}
+
+.voice-room-stage-tile {
+    position: relative;
+    min-height: 0;
+    border: 1px solid rgba(143, 187, 207, 0.25);
+    border-radius: 8px;
+    padding: 0;
+    overflow: hidden;
+    background: #000000;
+    cursor: zoom-in;
+}
+
+.voice-room-stage-tile:hover {
+    border-color: var(--accent);
+}
+
+.voice-room-stage-tile-name {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #ffffff;
+    font-size: 12px;
 }
 
 .voice-room-stage-empty {
@@ -5186,4 +5222,337 @@ img.voice-ctrl-icon {
     .incoming-call-card {
         animation: none;
     }
+}
+
+/* Status menu (user panel), like Discord's. */
+.pane-user-panel {
+    position: relative;
+}
+
+.status-menu {
+    position: absolute;
+    left: 8px;
+    bottom: calc(100% + 6px);
+    z-index: 60;
+    width: min(290px, calc(100vw - 24px));
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg-pane);
+    border: 2px solid var(--border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.status-menu-text {
+    display: grid;
+    gap: 4px;
+    padding: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.status-menu-text input {
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+}
+
+.status-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.status-menu-item:hover,
+.status-menu-item.is-active {
+    background: var(--bg-hover);
+}
+
+.status-menu-label {
+    display: flex;
+    flex-direction: column;
+}
+
+.status-menu-label small {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.status-menu-dot {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border-radius: 50% !important;
+    background: var(--status-online);
+}
+
+.status-menu-dot.is-auto {
+    background: linear-gradient(90deg, var(--status-online) 50%, var(--status-idle, #faa61a) 50%);
+}
+
+.status-menu-dot.is-idle {
+    background: var(--status-idle, #faa61a);
+}
+
+.status-menu-dot.is-dnd {
+    background: var(--status-dnd, #ed4245);
+}
+
+.status-menu-dot.is-invisible {
+    background: var(--status-offline);
+}
+
+.status-menu-divider {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border);
+}
+
+/* Soundboard: opens above its button in the call controls. */
+.voice-soundboard-anchor {
+    position: relative;
+    display: inline-flex;
+}
+
+.soundboard-panel {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    width: min(380px, calc(100vw - 32px));
+    max-height: min(420px, 70vh);
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-pane);
+    color: var(--text-main);
+    display: grid;
+    gap: 10px;
+    text-align: left;
+}
+
+.soundboard-header {
+    display: grid;
+    gap: 2px;
+}
+
+.soundboard-header h3 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.soundboard-header span {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.soundboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+}
+
+.soundboard-sound-wrap {
+    position: relative;
+    display: grid;
+}
+
+.soundboard-sound {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.soundboard-sound:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.soundboard-sound.is-add {
+    border-style: dashed;
+    color: var(--text-muted);
+}
+
+.soundboard-emoji {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.soundboard-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: var(--bg-pane);
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: none;
+}
+
+.soundboard-sound-wrap:hover .soundboard-remove,
+.soundboard-remove:focus-visible {
+    display: block;
+}
+
+.soundboard-add {
+    display: grid;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.soundboard-add label {
+    display: grid;
+    gap: 4px;
+}
+
+.soundboard-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: end;
+}
+
+.soundboard-add-row label:first-child input {
+    width: 56px;
+}
+
+.soundboard-add-row label:last-child {
+    flex: 1;
+}
+
+.soundboard-panel.is-inline {
+    position: static;
+    transform: none;
+    width: auto;
+    max-height: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+@media (hover: none) {
+    .soundboard-remove {
+        display: block;
+    }
+}
+
+/* Status menu: other signed-in accounts. */
+.status-menu-heading {
+    padding: 4px 10px 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.status-menu-account small {
+    overflow-wrap: anywhere;
+}
+
+/* Sign-in screen while adding another account. */
+.login-back-to-account {
+    align-self: flex-start;
+    margin-bottom: 8px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--accent-soft);
+    font: inherit;
+    cursor: pointer;
+}
+
+/* What's new: once after an update. */
+.whats-new-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.whats-new {
+    width: min(620px, 100%);
+    max-height: min(80vh, 760px);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    background: var(--bg-pane);
+    color: var(--text-main);
+}
+
+.whats-new header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.whats-new h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.whats-new-close {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.whats-new-body {
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.whats-new-body h3 {
+    margin: 12px 0 4px;
+    color: var(--accent-soft);
+}
+
+.whats-new-body h4 {
+    margin: 12px 0 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.whats-new-body ul {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 6px;
+}
+
+.whats-new > .settings-button {
+    justify-self: end;
 }

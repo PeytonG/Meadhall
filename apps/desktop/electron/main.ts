@@ -1,11 +1,12 @@
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, desktopCapturer, ipcMain, net, protocol, session } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, powerMonitor, protocol, session } from "electron";
 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
-import { createTray, destroyTray, hasTray } from "./tray";
+import { currentActivity } from "./steamActivity";
+import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
 import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
 
@@ -343,6 +344,9 @@ function createMainWindow(startHidden = false): BrowserWindow {
         },
         webPreferences: {
             preload: resolvePreloadPath(),
+            // Incoming-call ringtones and message sounds must play even before anyone has clicked in the window
+            // (e.g. the app started hidden at login).
+            autoplayPolicy: "no-user-gesture-required",
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
@@ -433,7 +437,51 @@ function registerIpc(): void {
         closeOnWindowCloseMinimize = enabled !== false;
     });
 
+    // Native OS notifications (Windows toasts, Linux libnotify): more reliable than the web Notification API in
+    // Electron. Clicking one restores the window and tells the app which conversation to open.
+    ipcMain.handle("heorot:showNotification", (event, payload: unknown) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        const value = payload as { title?: unknown; body?: unknown; roomId?: unknown; urgent?: unknown } | null;
+        if (!window || !value || typeof value.title !== "string" || !Notification.isSupported()) {
+            return false;
+        }
+        const notification = new Notification({
+            title: value.title.slice(0, 200),
+            body: typeof value.body === "string" ? value.body.slice(0, 1000) : "",
+            silent: true, // the app plays its own sounds
+            urgency: value.urgent === true ? "critical" : "normal",
+            timeoutType: value.urgent === true ? "never" : "default",
+        });
+        notification.on("click", () => {
+            if (window.isMinimized()) window.restore();
+            window.show();
+            window.focus();
+            if (typeof value.roomId === "string") {
+                window.webContents.send("heorot:notificationClicked", value.roomId);
+            }
+        });
+        notification.show();
+        return true;
+    });
+
     // Clicking a notification brings the window back, even from the tray.
+    // The tray menu mirrors mute/deafen and status; the app reports them as they change.
+    ipcMain.handle("heorot:setTrayState", (_event, state: TrayState) => {
+        const statuses = ["auto", "online", "idle", "dnd", "invisible"];
+        setTrayState({
+            muted: state?.muted === true,
+            deafened: state?.deafened === true,
+            status: statuses.includes(state?.status) ? state.status : "auto",
+        });
+    });
+    ipcMain.handle("heorot:getTrayState", () => getTrayState());
+
+    // "Playing ..." from Steam (the app polls this when sharing activity is on).
+    ipcMain.handle("heorot:getActivity", () => currentActivity());
+
+    // For automatic Away: input anywhere on the computer counts, not just in Meadhall.
+    ipcMain.handle("heorot:getSystemIdleSeconds", () => powerMonitor.getSystemIdleTime());
+
     ipcMain.handle("heorot:showWindow", (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         if (!window) {
@@ -547,7 +595,11 @@ async function bootstrap(): Promise<void> {
     configureDisplayMediaCapture();
     registerIpc();
     if (process.platform !== "darwin") {
-        createTray(APP_TITLE, { showWindow: focusMainWindow, quit: quitApp });
+        createTray(APP_TITLE, {
+            showWindow: focusMainWindow,
+            quit: quitApp,
+            action: (action) => mainWindow?.webContents.send("heorot:trayAction", action),
+        });
     }
 
     mainWindow = createMainWindow(wasLaunchedHidden());

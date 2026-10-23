@@ -3,7 +3,7 @@
 // notification (Meadhall and Element both do). Rings until you join or dismiss it, the call empties, or the
 // notification's lifetime runs out. Old notifications replayed at startup never ring.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EventType, RoomEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk/src/matrix";
+import { EventType, MatrixEventEvent, RoomEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk/src/matrix";
 
 const DEFAULT_LIFETIME_MS = 30_000;
 const MAX_LIFETIME_MS = 90_000;
@@ -47,9 +47,9 @@ export function useIncomingCall(options: {
 
     useEffect(() => {
         const ownUserId = client.getUserId();
-        const onTimeline = (event: MatrixEvent, room: Room | undefined, toStartOfTimeline: boolean | undefined): void => {
+        const consider = (event: MatrixEvent, room: Room | null | undefined): void => {
             const type = event.getType();
-            if (toStartOfTimeline || !room || (type !== EventType.RTCNotification && type !== EventType.CallNotify)) {
+            if (!room || (type !== EventType.RTCNotification && type !== EventType.CallNotify)) {
                 return;
             }
             const callerId = event.getSender();
@@ -63,9 +63,21 @@ export function useIncomingCall(options: {
             }
             setIncoming({ roomId: room.roomId, callerId, expiresAt, eventId });
         };
+        const onTimeline = (event: MatrixEvent, room: Room | undefined, toStartOfTimeline: boolean | undefined): void => {
+            if (!toStartOfTimeline) {
+                consider(event, room);
+            }
+        };
+        // In encrypted rooms (DMs by default) the notification arrives as m.room.encrypted and only gets its real
+        // type once decrypted, after the timeline event has fired.
+        const onDecrypted = (event: MatrixEvent): void => {
+            consider(event, client.getRoom(event.getRoomId() ?? ""));
+        };
         client.on(RoomEvent.Timeline, onTimeline);
+        client.on(MatrixEventEvent.Decrypted, onDecrypted);
         return () => {
             client.removeListener(RoomEvent.Timeline, onTimeline);
+            client.removeListener(MatrixEventEvent.Decrypted, onDecrypted);
         };
     }, [client]);
 

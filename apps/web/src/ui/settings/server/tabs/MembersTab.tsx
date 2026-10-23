@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { EventType, RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 
-import { readAssignments, readChannelView, readRoles, saveRoles, setChannelViewRoles, setMemberRoles } from "../../../../core/roles/applyRoles";
+import { readAssignments, readChannelTalk, readChannelView, readRoles, saveRoles, setChannelTalkRole, setChannelViewRoles, setMemberRoles } from "../../../../core/roles/applyRoles";
 import { MEMBER_ROLES_EVENT, newRoleId, PERMISSIONS, ROLES_EVENT, type Permission, type Role } from "../../../../core/roles/roles";
 import { memberAvatarSources } from "../../../adapters/avatar";
 import { Avatar } from "../../../components/Avatar";
@@ -270,12 +270,41 @@ export function MembersTab({ client, spaceRoom, channels, onToast }: MembersTabP
             {roles.length > 0 ? (
                 <div className="settings-section-card" data-testid="channel-access-section">
                     <h3>Channel access</h3>
-                    <p className="settings-tab-description">Pick roles to make a channel private to them. No roles = everyone.</p>
+                    <p className="settings-tab-description">
+                        <strong>Can see:</strong> pick roles to make a channel private to them (no roles = everyone).{" "}
+                        <strong>Can talk:</strong> who may send messages, and in voice channels join the call: everyone,
+                        or a role and every role ranked above it. The server enforces both, in every Matrix app.
+                    </p>
                     {channels.map((channel) => {
                         const view = readChannelView(channel, roles);
+                        const talk = readChannelTalk(channel, roles);
                         return (
                             <div key={channel.roomId} className="roles-channel-row" data-channel-id={channel.roomId}>
                                 <span className="roles-channel-name">#{channel.name}</span>
+                                <label className="roles-channel-talk">
+                                    <span>Can talk</span>
+                                    <select
+                                        aria-label={`Who can talk in #${channel.name}`}
+                                        value={talk ?? "everyone"}
+                                        disabled={!canManage || busy}
+                                        onChange={(event) => {
+                                            const next = event.target.value;
+                                            const role = roles.find((candidate) => candidate.id === next);
+                                            void run(
+                                                () => setChannelTalkRole(client, spaceRoom, channel, next),
+                                                role ? `Only ${role.name} and above can talk in #${channel.name}.` : `Everyone can talk in #${channel.name}.`,
+                                            );
+                                        }}
+                                    >
+                                        <option value="everyone">Everyone</option>
+                                        {roles.map((role) => (
+                                            <option key={role.id} value={role.id}>
+                                                {role.name} and above
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <span className="roles-channel-see">Can see</span>
                                 <span className="roles-channel-roles">
                                     {roles.map((role) => {
                                         const checked = view?.includes(role.id) ?? false;

@@ -5,6 +5,7 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import { memberAvatarSources } from "../../adapters/avatar";
 import type { IncomingCall } from "../../hooks/useIncomingCall";
 import { startRinging } from "../../voice/ringtone";
+import { isDoNotDisturb } from "../../presence/clientStatus";
 import { Avatar } from "../Avatar";
 import { PixelIcon } from "../PixelIcon";
 
@@ -24,11 +25,25 @@ export function IncomingCallCard({ client, call, speakerId, onJoin, onDismiss }:
     const isGroup = Boolean(room && room.getJoinedMemberCount() > 2);
     const avatarSources = memberAvatarSources(client, member, 96, "crop");
 
-    useEffect(() => startRinging(speakerId), [call.eventId, speakerId]);
+    // Do Not Disturb: the card still shows, but nothing rings.
+    useEffect(() => (isDoNotDisturb() ? undefined : startRinging(speakerId)), [call.eventId, speakerId]);
 
     // In the background (another window, or the desktop app in the tray): an OS notification too.
     useEffect(() => {
-        if ((!document.hidden && document.hasFocus()) || typeof Notification === "undefined" || Notification.permission !== "granted") {
+        if ((!document.hidden && document.hasFocus()) || isDoNotDisturb()) {
+            return undefined;
+        }
+        const desktopNotify = window.heorotDesktop?.showNotification;
+        if (desktopNotify) {
+            void desktopNotify({
+                title: `${callerName} is calling`,
+                body: isGroup ? `Call in ${room?.name ?? "a group chat"}` : "Open Meadhall to join",
+                roomId: call.roomId,
+                urgent: true,
+            });
+            return undefined;
+        }
+        if (typeof Notification === "undefined" || Notification.permission !== "granted") {
             return undefined;
         }
         const notification = new Notification(`${callerName} is calling`, {

@@ -1,5 +1,7 @@
 import React from "react";
 
+import { PixelIcon } from "../PixelIcon";
+
 interface ComposerBarProps {
     disabled: boolean;
     dragActive: boolean;
@@ -20,6 +22,9 @@ interface ComposerBarProps {
     onToggleEmoji: () => void;
     emojiPicker: React.ReactNode;
     stickerControl?: React.ReactNode;
+    // Phones have no Enter-to-send: a send button next to the emoji button (shown on touch/phone layouts by CSS).
+    onSend?: () => void;
+    canSend?: boolean;
 }
 
 export function ComposerBar({
@@ -42,6 +47,8 @@ export function ComposerBar({
     onToggleEmoji,
     emojiPicker,
     stickerControl,
+    onSend,
+    canSend = false,
 }: ComposerBarProps): React.ReactElement {
     return (
         <div className="composer-bar">
@@ -93,6 +100,20 @@ export function ComposerBar({
                         </button>
                         {emojiPicker}
                     </div>
+                    {onSend ? (
+                        <button
+                            type="button"
+                            className="composer-action-button composer-send-button"
+                            onMouseDown={(event) => event.preventDefault()} // keep the keyboard open
+                            onClick={onSend}
+                            disabled={disabled || !canSend}
+                            aria-label="Send message"
+                            title="Send"
+                            data-testid="composer-send"
+                        >
+                            <PixelIcon name="send" size={18} />
+                        </button>
+                    ) : null}
                 </div>
             </div>
         </div>

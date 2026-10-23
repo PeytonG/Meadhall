@@ -9,6 +9,8 @@
     createClient,
 } from "matrix-js-sdk/src/matrix";
 
+import { storeNames } from "../storage/accounts";
+
 let indexedDBFactory: IDBFactory | undefined;
 try {
     indexedDBFactory = window.indexedDB;
@@ -22,11 +24,13 @@ export function createMatrixClient(opts: ICreateClientOpts): MatrixClient {
     const storeOpts: Partial<ICreateClientOpts> = {
         useAuthorizationHeader: true,
     };
+    // Each signed-in account has its own databases (core/storage/accounts.ts).
+    const names = storeNames();
 
     if (indexedDBFactory && localStorageRef) {
         storeOpts.store = new IndexedDBStore({
             indexedDB: indexedDBFactory,
-            dbName: "riot-web-sync",
+            dbName: names.sync,
             localStorage: localStorageRef,
         });
     } else if (localStorageRef) {
@@ -34,7 +38,7 @@ export function createMatrixClient(opts: ICreateClientOpts): MatrixClient {
     }
 
     if (indexedDBFactory) {
-        storeOpts.cryptoStore = new IndexedDBCryptoStore(indexedDBFactory, "matrix-js-sdk:crypto");
+        storeOpts.cryptoStore = new IndexedDBCryptoStore(indexedDBFactory, names.legacyCrypto);
     } else if (localStorageRef) {
         storeOpts.cryptoStore = new LocalStorageCryptoStore(localStorageRef);
     } else {

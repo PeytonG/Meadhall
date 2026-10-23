@@ -45,6 +45,12 @@ import { RoomDialog } from "../rooms/RoomDialog";
 import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } from "../../voice/volumeBoost";
 import { SpeakingCampfire } from "./PixelCampfire";
 import { VoiceActivityMonitor } from "../../voice/voiceActivity";
+import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
+import { PixelIcon } from "../PixelIcon";
+import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
+import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
+import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
+import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
@@ -252,11 +258,13 @@ function getParticipantDisplayInfo(
     identity: string,
     matrixUserId: string | undefined,
     isLocal: boolean,
-    ownDisplayName?: string,
+    own?: { userId?: string; displayName?: string; avatarMxc?: string },
 ): { displayName: string; avatarMxc?: string; userId?: string } {
-    const userId = matrixUserId ?? parseMatrixUserIdFromIdentity(identity);
-    if (isLocal && ownDisplayName) {
-        return { displayName: ownDisplayName, userId };
+    // Your own tile: your profile, even before your call membership (which maps the LiveKit identity) has synced.
+    const userId = (isLocal ? own?.userId : undefined) ?? matrixUserId ?? parseMatrixUserIdFromIdentity(identity);
+    if (isLocal && own?.displayName) {
+        const avatarMxc = own.avatarMxc || (userId ? matrixRoom?.getMember(userId)?.getMxcAvatarUrl?.() : undefined) || undefined;
+        return { displayName: own.displayName, avatarMxc, userId };
     }
     if (!userId) {
         return { displayName: identity };
@@ -265,6 +273,44 @@ function getParticipantDisplayInfo(
     const displayName = member?.rawDisplayName || member?.name || userId;
     const avatarMxc = member?.getMxcAvatarUrl?.() ?? undefined;
     return { displayName, avatarMxc, userId };
+}
+
+type ScreenShareVideoTrack = { attach: (element: HTMLVideoElement) => unknown; detach: (element: HTMLVideoElement) => unknown };
+
+// One stream in the side-by-side view shown when several people share at once; click to watch it large.
+function ScreenShareTile({
+    identity,
+    label,
+    getPublication,
+    trackRevision,
+    onFocus,
+}: {
+    identity: string;
+    label: string;
+    getPublication: (identity: string) => { videoTrack?: ScreenShareVideoTrack } | undefined;
+    trackRevision: number;
+    onFocus: () => void;
+}): React.ReactElement {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    useEffect(() => {
+        const video = videoRef.current;
+        const track = getPublication(identity)?.videoTrack;
+        if (!video || !track) {
+            return undefined;
+        }
+        track.attach(video);
+        return () => {
+            track.detach(video);
+            video.srcObject = null;
+        };
+    }, [getPublication, identity, trackRevision]);
+    return (
+        <button type="button" className="voice-room-stage-tile" onClick={onFocus} title={`Watch ${label}`} data-testid="screen-share-tile">
+            {/* Muted: screen audio plays through its own audio element. */}
+            <video ref={videoRef} className="voice-room-stage-video" autoPlay playsInline muted />
+            <span className="voice-room-stage-tile-name">{label}</span>
+        </button>
+    );
 }
 
 function isParticipantScreenSharing(participant: Participant | LocalParticipant): boolean {
@@ -602,6 +648,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [micTrackSettingsSummary, setMicTrackSettingsSummary] = useState<string | null>(null);
     const [localScreenSharing, setLocalScreenSharing] = useState(false);
     const [activeScreenShareIdentity, setActiveScreenShareIdentity] = useState<string | null>(null);
+    // With several people sharing, show every stream side by side until one is picked.
+    const [screenShareGridView, setScreenShareGridView] = useState(true);
     const [screenShareQualityProfileId, setScreenShareQualityProfileId] = useState<ScreenShareQualityProfileId>(
         DEFAULT_SCREEN_SHARE_QUALITY_PROFILE_ID,
     );
@@ -613,6 +661,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [selectedDesktopCaptureSourceId, setSelectedDesktopCaptureSourceId] = useState<string | null>(null);
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [soundboardOpen, setSoundboardOpen] = useState(false);
+    // The soundboard's own audio track, published the first time a sound is played in this call.
+    const soundboardRef = useRef<{ player: SoundboardPlayer; published: boolean } | null>(null);
     const [callAccessFixPending, setCallAccessFixPending] = useState(false);
     const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
@@ -680,7 +731,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             next.push({
                 participant: room.localParticipant,
                 identity: room.localParticipant.identity,
-                matrixUserId: resolveParticipantMatrixUserId(room.localParticipant, rtcIdentityMap),
+                // Our own ID, even before our call membership (which maps hashed LiveKit identities) has synced.
+                matrixUserId: client.getUserId() ?? resolveParticipantMatrixUserId(room.localParticipant, rtcIdentityMap),
                 isLocal: true,
                 isSpeaking: isParticipantSpeaking(room.localParticipant),
                 isScreenSharing: isParticipantScreenSharing(room.localParticipant),
@@ -943,6 +995,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
     }, [activeScreenShareIdentity, screenShareParticipants]);
 
+    const showScreenShareGrid = screenShareParticipants.length > 1 && screenShareGridView;
+    useEffect(() => {
+        if (screenShareParticipants.length <= 1) {
+            setScreenShareGridView(true);
+        }
+    }, [screenShareParticipants.length]);
+
     useEffect(() => {
         const stageVideo = screenShareVideoRef.current;
         if (!stageVideo) {
@@ -968,7 +1027,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             videoTrack.detach(stageVideo);
             stageVideo.srcObject = null;
         };
-    }, [activeScreenShareIdentity, audioMuted, connectionState, getScreenShareVideoPublicationForIdentity, screenShareTrackRevision]);
+    }, [
+        activeScreenShareIdentity,
+        audioMuted,
+        connectionState,
+        getScreenShareVideoPublicationForIdentity,
+        screenShareTrackRevision,
+        showScreenShareGrid,
+    ]);
 
     useEffect(() => {
         for (const [sid, audioElement] of remoteAudioElementsByTrackSidRef.current.entries()) {
@@ -1792,6 +1858,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         clearRemoteAudioElements();
         clearScreenSharePreview();
+        soundboardRef.current?.player.close();
+        soundboardRef.current = null;
+        setSoundboardOpen(false);
         setConnectionState(ConnectionState.Disconnected);
         setParticipants([]);
         setMicMuted(true);
@@ -1983,6 +2052,48 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const connected = connectionState === ConnectionState.Connected;
+
+    const playSoundboardSound = async (choice: SoundChoice): Promise<void> => {
+        const room = roomRef.current;
+        if (!room) return;
+        soundboardRef.current ??= { player: new SoundboardPlayer(), published: false };
+        const soundboard = soundboardRef.current;
+        if (!soundboard.published) {
+            soundboard.published = true;
+            try {
+                await room.localParticipant.publishTrack(soundboard.player.track, {
+                    name: "soundboard",
+                    source: Track.Source.Unknown,
+                });
+            } catch (publishError) {
+                soundboard.published = false;
+                throw publishError;
+            }
+        }
+        soundboard.player.setHearOwnSounds(!audioMuted);
+        const buffer =
+            choice.kind === "builtin"
+                ? await renderBuiltinSound(choice.id, soundboard.player.context.sampleRate)
+                : await decodeCustomSound(client, choice.sound, soundboard.player.context);
+        await soundboard.player.play(buffer);
+    };
+    const othersInCall = participants.filter((participant) => !participant.isLocal).length;
+    const leaveVoiceRef = useRef(leaveVoice);
+    leaveVoiceRef.current = leaveVoice;
+    const aloneWatcherRef = useRef<AloneWatcher | null>(null);
+    useEffect(() => {
+        const watcher = createAloneWatcher(() => {
+            void leaveVoiceRef.current().then(() => setError(ALONE_LEFT_MESSAGE));
+        });
+        aloneWatcherRef.current = watcher;
+        return () => {
+            watcher.dispose();
+            aloneWatcherRef.current = null;
+        };
+    }, []);
+    useEffect(() => {
+        aloneWatcherRef.current?.update(connected, othersInCall);
+    }, [connected, othersInCall]);
     // Voice channels created before call memberships were allowed: offer whoever can edit power levels a fix.
     const callAccessRoom = connected && voiceBackendRef.current === "matrixrtc" ? client.getRoom(matrixRoomId) : null;
     const showCallAccessFix =
@@ -1994,6 +2105,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     const ownUser = ownUserId ? client.getUser(ownUserId) ?? undefined : undefined;
     const ownDisplayName = ownUser?.displayName ?? ownUserId ?? "You";
+    const ownProfile = { userId: ownUserId, displayName: ownDisplayName, avatarMxc: ownUser?.avatarUrl };
     const activeScreenShareParticipant = screenShareParticipants.find(
         (participant) => participant.identity === activeScreenShareIdentity,
     );
@@ -2027,7 +2139,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
               activeScreenShareParticipant.identity,
               activeScreenShareParticipant.matrixUserId,
               activeScreenShareParticipant.isLocal,
-              ownDisplayName,
+              ownProfile,
           ).displayName
         : null;
 
@@ -2090,7 +2202,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             <h3>Screen share</h3>
                             <div className="voice-room-stage-header-actions">
                                 <span className="voice-room-stage-status">
-                                    {activeScreenShareParticipant
+                                    {showScreenShareGrid
+                                        ? `${screenShareParticipants.length} streams live`
+                                        : activeScreenShareParticipant
                                         ? `${
                                               activeScreenShareParticipant.isLocal ||
                                               activeScreenShareParticipant.matrixUserId === ownUserId
@@ -2137,7 +2251,33 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             ref={stageVideoWrapRef}
                             className={`voice-room-stage-video-wrap${stageFullscreen ? " is-fullscreen" : ""}`}
                         >
-                            {activeScreenShareParticipant ? (
+                            {showScreenShareGrid ? (
+                                <div className="voice-room-stage-grid">
+                                    {screenShareParticipants.map((participant) => (
+                                        <ScreenShareTile
+                                            key={`screen-share-tile-${participant.identity}`}
+                                            identity={participant.identity}
+                                            label={
+                                                participant.isLocal || participant.matrixUserId === ownUserId
+                                                    ? "You"
+                                                    : getParticipantDisplayInfo(
+                                                          matrixRoom,
+                                                          participant.identity,
+                                                          participant.matrixUserId,
+                                                          participant.isLocal,
+                                                          ownProfile,
+                                                      ).displayName
+                                            }
+                                            getPublication={getScreenShareVideoPublicationForIdentity}
+                                            trackRevision={screenShareTrackRevision}
+                                            onFocus={() => {
+                                                setActiveScreenShareIdentity(participant.identity);
+                                                setScreenShareGridView(false);
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            ) : activeScreenShareParticipant ? (
                                 <video ref={screenShareVideoRef} className="voice-room-stage-video" autoPlay playsInline />
                             ) : (
                                 <div className="voice-room-stage-empty">Preparing screen share...</div>
@@ -2145,21 +2285,31 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </div>
                         {screenShareParticipants.length > 1 ? (
                             <div className="voice-room-stage-picker">
+                                <button
+                                    type="button"
+                                    className={`voice-room-stage-picker-button${showScreenShareGrid ? " is-active" : ""}`}
+                                    onClick={() => setScreenShareGridView(true)}
+                                >
+                                    Show all
+                                </button>
                                 {screenShareParticipants.map((participant) => {
                                     const info = getParticipantDisplayInfo(
                                         matrixRoom,
                                         participant.identity,
                                         participant.matrixUserId,
                                         participant.isLocal,
-                                        ownDisplayName,
+                                        ownProfile,
                                     );
-                                    const isActive = participant.identity === activeScreenShareIdentity;
+                                    const isActive = !showScreenShareGrid && participant.identity === activeScreenShareIdentity;
                                     return (
                                         <button
                                             key={`screen-share-${participant.identity}`}
                                             type="button"
                                             className={`voice-room-stage-picker-button${isActive ? " is-active" : ""}`}
-                                            onClick={() => setActiveScreenShareIdentity(participant.identity)}
+                                            onClick={() => {
+                                                setActiveScreenShareIdentity(participant.identity);
+                                                setScreenShareGridView(false);
+                                            }}
                                         >
                                             {participant.isLocal || participant.matrixUserId === ownUserId
                                                 ? "You"
@@ -2196,12 +2346,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 p.identity,
                                 p.matrixUserId,
                                 p.isLocal,
-                                ownDisplayName,
+                                ownProfile,
                             );
                             const isYou = p.isLocal || p.matrixUserId === ownUserId;
-                            const avatarSrc = info.avatarMxc
-                                ? (client.mxcUrlToHttp(info.avatarMxc, 240, 240, "crop") ?? null)
-                                : null;
+                            const avatarSources = info.avatarMxc
+                                ? [thumbnailFromMxc(client, info.avatarMxc, 240, 240, "crop"), mediaFromMxc(client, info.avatarMxc)].filter(
+                                      (url): url is string => Boolean(url),
+                                  )
+                                : [];
                             const participantVolumeKey = resolveVolumeParticipantKey(p.matrixUserId, p.identity);
                             const participantVolumePercent = getParticipantVolumePercent(participantVolumeKey);
                             return (
@@ -2213,7 +2365,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                         <Avatar
                                             className="voice-room-participant-avatar avatar"
                                             name={info.displayName}
-                                            src={avatarSrc}
+                                            src={avatarSources[0] ?? null}
+                                            sources={avatarSources}
                                             seed={info.userId}
                                             userId={info.userId}
                                         />
@@ -2530,6 +2683,25 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </svg>
                         <span className="voice-ctrl-label">{localScreenSharing ? "Stop" : "Share"}</span>
                     </button>
+
+                    {/* Soundboard */}
+                    <div className="voice-soundboard-anchor">
+                        <button
+                            type="button"
+                            className={`voice-ctrl-btn${soundboardOpen ? " is-active" : ""}`}
+                            onClick={() => setSoundboardOpen((open) => !open)}
+                            title="Soundboard"
+                            aria-pressed={soundboardOpen}
+                            data-soundboard-toggle
+                            data-testid="soundboard-toggle"
+                        >
+                            <span className="voice-ctrl-icon"><PixelIcon name="soundboard" size={20} /></span>
+                            <span className="voice-ctrl-label">Sounds</span>
+                        </button>
+                        {soundboardOpen ? (
+                            <SoundboardPanel client={client} onPlay={playSoundboardSound} onClose={() => setSoundboardOpen(false)} />
+                        ) : null}
+                    </div>
 
                     {/* Deafen */}
                     <button
