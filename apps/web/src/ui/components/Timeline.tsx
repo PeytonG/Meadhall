@@ -1265,6 +1265,8 @@ export function Timeline({
     const replyJumpResetTimeoutRef = useRef<number | null>(null);
     const lastReadEventIdByRoomRef = useRef<Map<string, string>>(new Map());
     const readMarkerInFlightByRoomRef = useRef<Set<string>>(new Set());
+    const markAgainAfterInFlightRef = useRef(false);
+    const markReadRef = useRef<() => Promise<void>>(async () => undefined);
 
     const refreshEvents = useCallback(() => {
         setEvents(extractMessageEvents(room));
@@ -1916,6 +1918,9 @@ export function Timeline({
             return;
         }
         if (readMarkerInFlightByRoomRef.current.has(room.roomId)) {
+            // A newer message arrived while the previous marker was being sent: mark again once that finishes
+            // (skipping it left the newest message, and the unread badge, stuck until the next scroll).
+            markAgainAfterInFlightRef.current = true;
             return;
         }
 
@@ -1932,8 +1937,13 @@ export function Timeline({
             }
         } finally {
             readMarkerInFlightByRoomRef.current.delete(room.roomId);
+            if (markAgainAfterInFlightRef.current) {
+                markAgainAfterInFlightRef.current = false;
+                void markReadRef.current();
+            }
         }
     }, [client, events, room]);
+    markReadRef.current = markActiveRoomReadToLatest;
 
     useEffect(() => {
         const container = scrollContainerRef.current;
