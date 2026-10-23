@@ -293,3 +293,20 @@ test("installing another version only accepts real version numbers", async () =>
     // A real version is accepted; this unpackaged test build just can't install it.
     expect(await attempt("0.3.1")).toEqual({ ok: false, message: "Installing other versions works in the installed app only." });
 });
+
+test("desktop functions only answer Meadhall's own page", async () => {
+    // A page from somewhere else, given the app's own preload, must not be able to use them.
+    const preload = path.join(desktopDir, "dist", "electron", "preload.js");
+    const foreign = await app.evaluate(async ({ BrowserWindow }, preloadPath) => {
+        const other = new BrowserWindow({ show: false, webPreferences: { preload: preloadPath, contextIsolation: true, sandbox: true } });
+        await other.loadURL("data:text/html,<title>foreign</title>");
+        const result = await other.webContents.executeJavaScript(
+            "window.heorotDesktop ? window.heorotDesktop.getAppVersion().then(() => 'answered', (error) => 'refused: ' + error.message) : 'no bridge'",
+        );
+        other.destroy();
+        return result as string;
+    }, preload);
+    expect(foreign).toMatch(/^refused: .*not allowed from data:/);
+    // The app itself still works.
+    expect(await window.evaluate(() => window.heorotDesktop?.getAppVersion?.())).toMatch(/^\d+\.\d+\.\d+/);
+});
