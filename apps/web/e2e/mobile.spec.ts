@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { createRoom, joinRoom, readMessages, registerUser, sendMessage, setAccountData } from "./support/matrixApi";
 import { signIn } from "./support/ui";
 
-test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+// Runs on the phone projects in playwright.config.ts (Android and iPhone sizes, touch).
 
 // A real touch swipe (touchstart -> moves -> touchend) through the browser's input pipeline.
 async function swipe(page: Page, fromX: number, toX: number, y = 420): Promise<void> {

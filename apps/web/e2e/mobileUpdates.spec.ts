@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 import { registerUser } from "./support/matrixApi";
 import { signIn } from "./support/ui";
 
-test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+// Runs on the phone projects in playwright.config.ts (Android and iPhone sizes, touch).
 
 test("a newer release shows an update notice with the APK, directions, and a switch to turn it off", async ({ page }) => {
     const alice = await registerUser("alice");
