@@ -12,6 +12,8 @@ Versions follow `vX.Y.Z`.
 - **Set your status** from the user panel, like Discord: Online, Idle, Do Not Disturb, Invisible, and a custom status
   message. Do Not Disturb silences notifications and call ringing. Online status now works in the web and Android
   apps too, not only on desktop.
+- **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
+  computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
 - **Direct Messages show the latest message** under each name, next to their status.
 - People on the **phone app** show a green phone instead of the online dot, unless they picked a status.
 - **Two screen shares at once show side by side**; click one to watch it large, and "Show all" to go back.

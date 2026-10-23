@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, protocol, session } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, powerMonitor, protocol, session } from "electron";
 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
@@ -464,6 +464,9 @@ function registerIpc(): void {
     });
 
     // Clicking a notification brings the window back, even from the tray.
+    // For automatic Away: input anywhere on the computer counts, not just in Meadhall.
+    ipcMain.handle("heorot:getSystemIdleSeconds", () => powerMonitor.getSystemIdleTime());
+
     ipcMain.handle("heorot:showWindow", (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         if (!window) {

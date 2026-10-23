@@ -69,6 +69,7 @@ import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery
 import { useRoomCalls } from "../hooks/useRoomCalls";
 import { useIncomingCall } from "../hooks/useIncomingCall";
 import { applyOwnStatus, currentPlatform, loadOwnStatus, type OwnStatus } from "../presence/clientStatus";
+import { startAwayTracker } from "../presence/autoAway";
 import { StatusMenu } from "./StatusMenu";
 import { IncomingCallCard } from "./voice/IncomingCallCard";
 import {
@@ -877,11 +878,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [ownStatus, setOwnStatus] = useState<OwnStatus>(() => loadOwnStatus());
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const updateOwnStatus = useCallback((next: OwnStatus) => setOwnStatus(next), []);
+    const [autoAway, setAutoAway] = useState(false);
     useEffect(() => {
-        void applyOwnStatus(client, ownStatus);
-    }, [client, ownStatus]);
+        if (ownStatus.state !== "auto") {
+            setAutoAway(false);
+            return undefined;
+        }
+        const desktopIdle = window.heorotDesktop?.getSystemIdleSeconds;
+        return startAwayTracker(setAutoAway, {
+            systemIdleMs: desktopIdle ? async () => (await desktopIdle()) * 1000 : undefined,
+        });
+    }, [ownStatus.state]);
+    useEffect(() => {
+        void applyOwnStatus(client, ownStatus, autoAway);
+    }, [client, ownStatus, autoAway]);
     const ownStatusDot =
-        ownStatus.state === "idle" ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
+        ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {
         saveSelfVoiceState(selfVoice);
     }, [selfVoice]);

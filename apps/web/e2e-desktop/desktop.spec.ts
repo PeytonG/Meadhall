@@ -107,8 +107,8 @@ test("messages raise native OS notifications (on by default), and clicking one o
             (globalThis as unknown as { lastNotification: unknown }).lastNotification = this;
         };
     });
-    await window.getByRole("region", { name: "Direct messages" }).getByText(/carol/i).click();
-    await expect(window.getByText("hi from carol")).toBeVisible();
+    await window.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: /carol/i }).click();
+    await expect(window.locator(".timeline").getByText("hi from carol")).toBeVisible();
 
     await sendMessage(bob, (globalThis as unknown as { bobDm: string }).bobDm, "Fireside at sundown?");
     await expect
@@ -116,6 +116,12 @@ test("messages raise native OS notifications (on by default), and clicking one o
         .toContainEqual(expect.objectContaining({ body: "Fireside at sundown?" }));
 
     await app.evaluate(() => (globalThis as unknown as { lastNotification: { emit: (name: string) => void } }).lastNotification.emit("click"));
-    await expect(window.getByText("Fireside at sundown?")).toBeVisible();
+    await expect(window.locator(".timeline").getByText("Fireside at sundown?")).toBeVisible();
     await expect(window.locator(".channel-header-title")).toContainText(/bob/i);
+});
+
+test("automatic Away can read how long the whole computer has been idle", async () => {
+    const idleSeconds = await window.evaluate(() => window.heorotDesktop?.getSystemIdleSeconds?.());
+    expect(typeof idleSeconds).toBe("number");
+    expect(idleSeconds).toBeGreaterThanOrEqual(0);
 });

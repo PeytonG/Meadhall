@@ -65,3 +65,23 @@ test("the DM list shows status and the latest message, and a phone for people on
     await page.getByPlaceholder(/^Message /).press("Enter");
     await expect(row).toContainText("You: On my way");
 });
+
+test("Automatic status goes Away after 10 minutes without input, and back to Online on return", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    const hall = await createRoom(bob, { name: "Hall", invite: [alice.userId] });
+    await joinRoom(alice, hall);
+    await page.clock.install();
+    await signIn(page, alice);
+    const dot = page.locator(".pane-user-card .avatar-presence-dot");
+    await expect(dot).toHaveClass(/is-online/);
+
+    await page.clock.fastForward("10:30");
+    await expect(dot).toHaveClass(/is-idle/);
+    await expect.poll(async () => (await readPresence(bob, alice.userId)).presence, { timeout: 30_000 }).toBe("unavailable");
+
+    await page.mouse.move(200, 200);
+    await page.mouse.move(260, 240);
+    await expect(dot).toHaveClass(/is-online/);
+    await expect.poll(async () => (await readPresence(bob, alice.userId)).presence, { timeout: 30_000 }).toBe("online");
+});

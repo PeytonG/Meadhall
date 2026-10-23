@@ -88,13 +88,14 @@ function sendPresence(client: MatrixClient, body: PresenceBody): Promise<void> {
 }
 
 // Applies your status everywhere: presence (and what /sync reports), status text, and the profile field.
-export async function applyOwnStatus(client: MatrixClient, own: OwnStatus): Promise<void> {
+// `away` is automatic Away (no input for a while); it only affects the Automatic status and isn't saved.
+export async function applyOwnStatus(client: MatrixClient, own: OwnStatus, away = false): Promise<void> {
     try {
         window.localStorage.setItem(LOCAL_KEY, JSON.stringify(own));
     } catch {
         // Remembered for this session only.
     }
-    const presence = matrixPresenceFor(own.state);
+    const presence = matrixPresenceFor(own.state === "auto" && away ? "idle" : own.state);
     client.setSyncPresence(presence as never);
     await sendPresence(client, { presence, status_msg: own.text.trim() });
     const published = publishedStatusFor(own);

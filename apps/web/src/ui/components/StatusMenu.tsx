@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// The user panel's status menu, like Discord's: Online / Idle / Do Not Disturb / Invisible and a custom status.
+// The user panel's status menu, like Discord's: Online / Away / Do Not Disturb / Invisible and a custom status.
 import React, { useEffect, useRef, useState } from "react";
 
 import type { ChosenStatus, OwnStatus } from "../presence/clientStatus";
 
 const CHOICES: ReadonlyArray<{ state: ChosenStatus; label: string; hint: string }> = [
-    { state: "auto", label: "Automatic", hint: "Online, or Idle when you step away" },
+    { state: "auto", label: "Automatic", hint: "Online, or Away after 10 minutes without input" },
     { state: "online", label: "Online", hint: "Always show as online" },
-    { state: "idle", label: "Idle", hint: "Away from the keyboard" },
+    { state: "idle", label: "Away", hint: "Always show as away" },
     { state: "dnd", label: "Do Not Disturb", hint: "Mutes your notifications and call ringing" },
     { state: "invisible", label: "Invisible", hint: "Appear offline, still use Meadhall" },
 ];

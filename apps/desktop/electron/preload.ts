@@ -15,6 +15,8 @@ export interface HeorotDesktopBridge {
     setCloseOnWindowCloseMinimize: (enabled: boolean) => Promise<void>;
     // Brings the window back (from the tray too), e.g. when a notification is clicked.
     showWindow: () => Promise<void>;
+    // Seconds since the last keyboard or mouse input anywhere on the computer.
+    getSystemIdleSeconds: () => Promise<number>;
     // Native OS notification; resolves false if the platform can't show one (then the web API is used).
     showNotification: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
     onNotificationClicked: (listener: (roomId: string) => void) => () => void;
@@ -65,6 +67,7 @@ const bridge: HeorotDesktopBridge = {
     showWindow: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:showWindow");
     },
+    getSystemIdleSeconds: async (): Promise<number> => ipcRenderer.invoke("heorot:getSystemIdleSeconds"),
     setTitleBarColors: async (colors: { color: string; symbolColor: string }): Promise<void> => {
         await ipcRenderer.invoke("heorot:setTitleBarColors", colors);
     },

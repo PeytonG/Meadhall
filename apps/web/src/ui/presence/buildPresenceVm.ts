@@ -40,7 +40,7 @@ function getPrimaryLabel(state: PresenceState): string {
         case "online":
             return "Online";
         case "idle":
-            return "Idle";
+            return "Away";
         case "dnd":
             return "Do Not Disturb";
         case "offline":
