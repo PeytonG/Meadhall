@@ -4790,7 +4790,7 @@ img.voice-ctrl-icon {
 
 /* Anything drawn over a strip (dialogs, the image viewer, menus, toasts) must opt out explicitly, or the part
    covering the strip drags the window instead of taking clicks. Headers inside them opt back in above. */
-.app-shell.is-desktop-runtime :is(.settings-overlay, .room-dialog-overlay, .emoji-upload-overlay, .verification-dialog-overlay, .timeline-lightbox, [role="dialog"], [role="menu"], .toast) {
+.app-shell.is-desktop-runtime :is(.settings-overlay, .room-dialog-overlay, .emoji-upload-overlay, .verification-dialog-overlay, .timeline-lightbox, [role="dialog"], [role="alertdialog"], [role="menu"], [role="status"], [role="alert"], .toast, .incoming-call-card, .desktop-update-banner, .whats-new-overlay) {
     -webkit-app-region: no-drag;
 }
 

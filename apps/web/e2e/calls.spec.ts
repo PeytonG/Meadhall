@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { createRoom, joinRoom, registerUser, sendEvent, setAccountData, setDisplayName, type ApiUser } from "./support/matrixApi";
 import { startEncryptingClient } from "./support/cryptoClient";
+import { emulateWindowsDesktopApp, isWindowDragRegionAt, samplePoints } from "./support/desktop";
 import { signIn } from "./support/ui";
 
 // Counts oscillators started and audio contexts closed, to tell whether the ringtone is playing.
@@ -111,4 +112,34 @@ test("a call in an encrypted DM rings too (the notification arrives encrypted)",
     } finally {
         bobClient.stopClient();
     }
+});
+
+// Reported on desktop: with another chat open, the call card's Join and Dismiss did nothing. The card sits over the
+// title-bar strip, which drags the window; clicks there were moving the window instead.
+test("on desktop, the incoming call card's buttons take clicks (not the window drag strip)", async ({ page }) => {
+    await emulateWindowsDesktopApp(page);
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    const carol = await registerUser("carol");
+    await setDisplayName(bob, "Bob");
+    await setDisplayName(carol, "Carol");
+    const dm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [alice.userId] });
+    const other = await createRoom(carol, { is_direct: true, preset: "trusted_private_chat", invite: [alice.userId] });
+    await joinRoom(alice, dm);
+    await joinRoom(alice, other);
+    await setAccountData(alice, "m.direct", { [bob.userId]: [dm], [carol.userId]: [other] });
+    await signIn(page, alice);
+    // In a different conversation when the call comes in.
+    await page.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: "Carol" }).click();
+
+    await ring(bob, dm);
+    const card = page.getByTestId("incoming-call");
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    for (const selector of ['[data-testid="incoming-call"] .incoming-call-join', '[data-testid="incoming-call"] .incoming-call-dismiss']) {
+        for (const point of await samplePoints(page, selector)) {
+            expect(await isWindowDragRegionAt(page, point.x, point.y), `${selector} at ${point.x},${point.y}`).toBe(false);
+        }
+    }
+    await card.getByRole("button", { name: "Dismiss call" }).click();
+    await expect(card).toBeHidden();
 });

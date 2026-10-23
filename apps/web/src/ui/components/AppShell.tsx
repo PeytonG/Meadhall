@@ -2291,22 +2291,6 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     return (
         <div className={appShellClassName} style={appShellStyle}>
-            <DesktopUpdateBanner />
-            <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
-            <WhatsNewDialog />
-            {incomingCall ? (
-                <IncomingCallCard
-                    client={client}
-                    call={incomingCall}
-                    speakerId={userSettings.audio.preferredAudioOutputId}
-                    onJoin={() => {
-                        const roomId = incomingCall.roomId;
-                        focusRoom(roomId);
-                        startCallInRoom(roomId);
-                    }}
-                    onDismiss={dismissIncomingCall}
-                />
-            ) : null}
             <aside className="left-rail">
                 {/* Discord-style Home: the app icon opens Direct Messages and Group Chats. */}
                 <button
@@ -2906,6 +2890,24 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 }}
             />
             <Toast toast={toast} onClose={() => setToast(null)} />
+            {/* Overlays come last: on desktop, later elements win over the title-bar drag strip, so anything drawn
+                over it (the call card, banners) must follow the layout or its buttons would drag the window. */}
+            <DesktopUpdateBanner />
+            <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
+            <WhatsNewDialog />
+            {incomingCall ? (
+                <IncomingCallCard
+                    client={client}
+                    call={incomingCall}
+                    speakerId={userSettings.audio.preferredAudioOutputId}
+                    onJoin={() => {
+                        const roomId = incomingCall.roomId;
+                        focusRoom(roomId);
+                        startCallInRoom(roomId);
+                    }}
+                    onDismiss={dismissIncomingCall}
+                />
+            ) : null}
         </div>
     );
 }
