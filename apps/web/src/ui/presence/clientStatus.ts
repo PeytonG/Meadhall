@@ -76,6 +76,9 @@ let presenceLoop: Promise<void> | null = null;
 
 function sendPresence(client: MatrixClient, body: PresenceBody): Promise<void> {
     wantedPresence = body;
+    // Cleared in finally (always asynchronously), never from inside the loop: a loop with nothing to send would
+    // otherwise clear it before it was even assigned, and no later change would ever be sent.
+    let gaveUp = false;
     presenceLoop ??= (async () => {
         for (let attempt = 0; wantedPresence && attempt < 10; attempt += 1) {
             const next = wantedPresence;
@@ -84,13 +87,25 @@ function sendPresence(client: MatrixClient, body: PresenceBody): Promise<void> {
                 await client.setPresence(next);
                 sentPresence = JSON.stringify(next);
             } catch (error) {
-                const retryAfter = (error as { getRetryAfterMs?: () => number | null }).getRetryAfterMs?.();
-                if (retryAfter === undefined) break; // not a rate limit; try again on the next change
-                await new Promise((resolve) => setTimeout(resolve, Math.min(retryAfter ?? 2_000, 30_000)));
+                const limited = error as { isRateLimitError?: () => boolean; getRetryAfterMs?: () => number | null };
+                if (!limited.isRateLimitError?.()) {
+                    gaveUp = true; // not a rate limit; try again on the next change
+                    break;
+                }
+                let retryAfter = 2_000;
+                try {
+                    retryAfter = limited.getRetryAfterMs?.() ?? retryAfter;
+                } catch {
+                    // A malformed Retry-After: keep the default.
+                }
+                await new Promise((resolve) => setTimeout(resolve, Math.min(retryAfter, 30_000)));
             }
         }
+    })().finally(() => {
         presenceLoop = null;
-    })();
+        // A change that arrived as the loop was finishing.
+        if (!gaveUp && wantedPresence && JSON.stringify(wantedPresence) !== sentPresence) void sendPresence(client, wantedPresence);
+    });
     return presenceLoop;
 }
 
@@ -118,6 +133,7 @@ let publishLoop: Promise<void> | null = null;
 
 function publishStatus(client: MatrixClient, published: PublishedStatus): Promise<void> {
     wantedPublished = JSON.stringify(published);
+    let failures = 0;
     publishLoop ??= (async () => {
         for (let attempt = 0; wantedPublished !== null && wantedPublished !== lastPublished && attempt < 5; attempt += 1) {
             const next = wantedPublished;
@@ -125,11 +141,17 @@ function publishStatus(client: MatrixClient, published: PublishedStatus): Promis
                 await client.setExtendedProfileProperty(STATUS_PROFILE_KEY, JSON.parse(next) as PublishedStatus);
                 lastPublished = next;
             } catch {
+                failures += 1;
                 await new Promise((resolve) => setTimeout(resolve, 2_000));
             }
         }
+    })().finally(() => {
         publishLoop = null;
-    })();
+        // A change that arrived as the loop was finishing.
+        if (failures < 5 && wantedPublished !== null && wantedPublished !== lastPublished) {
+            void publishStatus(client, JSON.parse(wantedPublished) as PublishedStatus);
+        }
+    });
     return publishLoop;
 }
 
