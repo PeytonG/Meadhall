@@ -1,3 +1,4 @@
+import { isDoNotDisturb } from "../presence/clientStatus";
 import { useEffect, useRef } from "react";
 import {
     ClientEvent,
@@ -260,7 +261,7 @@ export function useElementLikeNotifications({
             if (!desktopNotify && (typeof Notification === "undefined" || Notification.permission !== "granted")) {
                 return;
             }
-            if (localNotificationsAreSilenced(client)) {
+            if (localNotificationsAreSilenced(client) || isDoNotDisturb()) {
                 return;
             }
 
@@ -315,7 +316,7 @@ export function useElementLikeNotifications({
             if (!settingsRef.current.audioNotificationsEnabled) {
                 return;
             }
-            if (localNotificationsAreSilenced(client)) {
+            if (localNotificationsAreSilenced(client) || isDoNotDisturb()) {
                 return;
             }
             await playNotificationSound(settingsRef.current.customMessageSoundDataUrl);

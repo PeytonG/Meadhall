@@ -30,7 +30,7 @@ for (const [label, viewport] of [
         await signIn(page, viewer);
         await shot(page, `${label}-1-home`);
 
-        await page.locator(".pane-user-card").click();
+        await page.getByRole("button", { name: "User settings", exact: true }).click();
         await page.getByRole("button", { name: "Appearance", exact: true }).click();
         await page.getByRole("button", { name: "Other", exact: true }).click();
         await shot(page, `${label}-4-fonts`);
@@ -40,7 +40,7 @@ for (const [label, viewport] of [
         await page.keyboard.press("Escape");
 
         await page.getByText("Shieldwall").first().click();
-        await expect(page.getByText("Who's bringing the shields tonight?")).toBeVisible();
+        await expect(page.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeVisible();
         await shot(page, `${label}-2-group`);
 
         if (label === "phone") {

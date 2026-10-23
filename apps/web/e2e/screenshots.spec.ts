@@ -30,7 +30,7 @@ test("captures README screenshots", async ({ page }) => {
     const { viewer } = await seedHall();
     await signIn(page, viewer);
     await page.getByRole("region", { name: "Group chats" }).getByText("Shieldwall").click();
-    await expect(page.getByText("Who's bringing the shields tonight?")).toBeVisible();
+    await expect(page.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeVisible();
     await capture(page, "home-dark");
 
     await page.getByTitle("The Mead Hall").click();
@@ -38,7 +38,7 @@ test("captures README screenshots", async ({ page }) => {
     await expect(page.getByText("Then it's settled: Fireside at sundown.")).toBeVisible();
     await capture(page, "chat-dark");
 
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await page.getByRole("button", { name: "Appearance", exact: true }).click();
     const colorCard = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Theme color" }) });
     await colorCard.scrollIntoViewIfNeeded();
@@ -69,7 +69,7 @@ test("captures the phone screenshot", async ({ page, browser }) => {
     await phone.waitForTimeout(500);
     const list = (await phone.screenshot()).toString("base64");
     await phone.getByRole("region", { name: "Group chats" }).getByText("Shieldwall").click();
-    await expect(phone.getByText("Who's bringing the shields tonight?")).toBeVisible();
+    await expect(phone.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeVisible();
     await phone.waitForTimeout(500);
     const chat = (await phone.screenshot()).toString("base64");
     await phone.close();

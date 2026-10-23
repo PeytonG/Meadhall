@@ -52,13 +52,6 @@ function getConfiguredHomeserverOrigin(config: CoreConfig | null): string | null
     return typeof baseUrl === "string" ? normalizeOrigin(baseUrl) : null;
 }
 
-function isDesktopRuntime(): boolean {
-    if (typeof window === "undefined") {
-        return false;
-    }
-    return Boolean(window.heorotDesktop);
-}
-
 function buildDefaultEnabledOrigins(config: CoreConfig | null, currentHomeserverOrigin: string | null): Set<string> {
     const defaults = new Set<string>();
     for (const origin of LOCAL_DEV_ORIGINS) {
@@ -90,10 +83,10 @@ function getClientHomeserverOrigin(client: MatrixClient | null): string | null {
     return normalizeOrigin(viaGetter ?? client.baseUrl ?? null);
 }
 
+// Presence (online/idle/DND, custom status, the mobile phone icon) shows on every platform; a server can be opted
+// out with enable_presence_by_hs_url in config.json. (It used to be desktop-only, so web and Android never showed
+// anyone's status.)
 export function isPresenceEnabledForClient(config: CoreConfig | null, client: MatrixClient | null): boolean {
-    if (!isDesktopRuntime()) {
-        return false;
-    }
 
     const currentHomeserverOrigin = getClientHomeserverOrigin(client);
     if (!currentHomeserverOrigin) {

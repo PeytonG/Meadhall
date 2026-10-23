@@ -653,3 +653,21 @@ select {
 :root[data-pixel-emoji="on"] :is(.composer-emoji-item, .reaction-picker-item, .timeline-jumbo-emoji) .unicode-emoji {
     filter: url(#meadhall-pixel-emoji-big);
 }
+
+/* On mobile: a green pixel phone instead of the round online dot (Avatar presenceState "mobile"). */
+.avatar-presence-dot.is-mobile {
+    border-radius: 0 !important;
+    border: 0;
+    background: var(--avatar-presence-ring-color);
+    color: var(--status-online);
+    width: calc(var(--avatar-presence-size) + 4px);
+    height: calc(var(--avatar-presence-size) + 6px);
+    display: grid;
+    place-items: center;
+    padding: 1px;
+}
+
+.avatar-presence-dot.is-mobile svg {
+    width: 100%;
+    height: 100%;
+}

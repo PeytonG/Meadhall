@@ -11,6 +11,7 @@ import { usePresenceMap } from "../presence/usePresence";
 import { useMatrix } from "../providers/MatrixProvider";
 import { Avatar } from "./Avatar";
 import { PixelIcon } from "./PixelIcon";
+import { lastMessageSnippet } from "./lastMessageSnippet";
 import { getServerUnreadCount } from "./RoomList";
 
 interface HomeSidebarProps {
@@ -137,15 +138,15 @@ export function HomeSidebar({
             const call = callSubtitle(room);
             const invite = room.getMyMembership() === "invite";
             const memberCount = otherMembers(room, ownUserId).length + 1;
-            const subtitle =
-                call ??
-                (invite
-                    ? "Invite: open to accept"
-                    : kind === "group"
-                      ? `${memberCount} members`
-                      : presenceEnabled && presence
-                        ? presence.primaryLabel
-                        : "Direct message");
+            // Status first (their custom status, presence, or member count), then the latest message.
+            const status =
+                kind === "group"
+                    ? `${memberCount} members`
+                    : presenceEnabled && presence
+                      ? presence.statusText ?? presence.primaryLabel
+                      : "Direct message";
+            const snippet = invite ? null : lastMessageSnippet(room, ownUserId, { showSender: kind === "group" });
+            const subtitle = call ?? (invite ? "Invite: open to accept" : snippet ? `${status} · ${snippet}` : status);
             return (
                 <HomeRow
                     key={room.roomId}

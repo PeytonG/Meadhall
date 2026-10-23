@@ -5187,3 +5187,99 @@ img.voice-ctrl-icon {
         animation: none;
     }
 }
+
+/* Status menu (user panel), like Discord's. */
+.pane-user-panel {
+    position: relative;
+}
+
+.status-menu {
+    position: absolute;
+    left: 8px;
+    bottom: calc(100% + 6px);
+    z-index: 60;
+    width: min(290px, calc(100vw - 24px));
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg-pane);
+    border: 2px solid var(--border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.status-menu-text {
+    display: grid;
+    gap: 4px;
+    padding: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.status-menu-text input {
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+}
+
+.status-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.status-menu-item:hover,
+.status-menu-item.is-active {
+    background: var(--bg-hover);
+}
+
+.status-menu-label {
+    display: flex;
+    flex-direction: column;
+}
+
+.status-menu-label small {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.status-menu-dot {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border-radius: 50% !important;
+    background: var(--status-online);
+}
+
+.status-menu-dot.is-auto {
+    background: linear-gradient(90deg, var(--status-online) 50%, var(--status-idle, #faa61a) 50%);
+}
+
+.status-menu-dot.is-idle {
+    background: var(--status-idle, #faa61a);
+}
+
+.status-menu-dot.is-dnd {
+    background: var(--status-dnd, #ed4245);
+}
+
+.status-menu-dot.is-invisible {
+    background: var(--status-offline);
+}
+
+.status-menu-divider {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border);
+}

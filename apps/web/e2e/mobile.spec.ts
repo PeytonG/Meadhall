@@ -28,7 +28,7 @@ async function openDmWithMessage(page: Page): Promise<{ dm: string; aliceId: str
     await sendMessage(bob, dm, "hello from bob");
     await signIn(page, alice);
     await page.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").first().tap();
-    await expect(page.getByText("hello from bob")).toBeVisible();
+    await expect(page.locator(".timeline").getByText("hello from bob")).toBeVisible();
     return { dm, aliceId: alice.userId, bob };
 }
 
@@ -55,10 +55,10 @@ test("swiping right goes back to the list, swiping left returns to the chat", as
     await openDmWithMessage(page);
     await swipe(page, 60, 320);
     await expect(page.getByTestId("rail-home")).toBeVisible();
-    await expect(page.getByText("hello from bob")).toBeHidden();
+    await expect(page.locator(".timeline").getByText("hello from bob")).toBeHidden();
 
     await swipe(page, 330, 60);
-    await expect(page.getByText("hello from bob")).toBeVisible();
+    await expect(page.locator(".timeline").getByText("hello from bob")).toBeVisible();
     await expect(page.getByTestId("rail-home")).toBeHidden();
 
     // A vertical scroll isn't a swipe.
@@ -66,5 +66,5 @@ test("swiping right goes back to the list, swiping left returns to the chat", as
     await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 200, y: 600, id: 1 }] });
     await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 260, y: 250, id: 1 }] });
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await expect(page.getByText("hello from bob")).toBeVisible();
+    await expect(page.locator(".timeline").getByText("hello from bob")).toBeVisible();
 });

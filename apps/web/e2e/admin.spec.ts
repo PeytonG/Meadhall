@@ -20,7 +20,7 @@ async function tokenValid(token: string): Promise<boolean> {
 }
 
 async function openAdmin(page: Page): Promise<void> {
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await page.getByRole("button", { name: "Server admin", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Server admin" })).toBeVisible();
 }
@@ -28,7 +28,7 @@ async function openAdmin(page: Page): Promise<void> {
 test("people who aren't server admins don't get the admin tab", async ({ page }) => {
     const alice = await registerUser("alice");
     await signIn(page, alice);
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await expect(page.getByRole("button", { name: "Appearance", exact: true })).toBeVisible();
     await page.waitForTimeout(1_500); // the admin check has had time to answer
     await expect(page.getByRole("button", { name: "Server admin", exact: true })).toHaveCount(0);

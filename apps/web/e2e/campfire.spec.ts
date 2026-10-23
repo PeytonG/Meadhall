@@ -11,7 +11,7 @@ test("the campfire can be turned off, and the choice is saved where others can r
     const alice = await registerUser("alice");
     const bob = await registerUser("bob");
     await signIn(page, alice);
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await page.getByRole("button", { name: "Audio", exact: true }).click();
 
     const card = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Speaking campfire" }) });

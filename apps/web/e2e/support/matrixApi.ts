@@ -195,3 +195,15 @@ export async function registerAdmin(prefix: string): Promise<ApiUser> {
     const session = await login(username, password);
     return { userId: session.user_id, username, password, accessToken: session.access_token };
 }
+
+export async function setPresence(user: ApiUser, presence: "online" | "unavailable" | "offline", statusMsg?: string): Promise<void> {
+    await request(user, "PUT", `/presence/${encodeURIComponent(user.userId)}/status`, { presence, ...(statusMsg ? { status_msg: statusMsg } : {}) });
+}
+
+export async function readPresence(user: ApiUser, userId: string): Promise<{ presence: string; status_msg?: string }> {
+    return request(user, "GET", `/presence/${encodeURIComponent(userId)}/status`);
+}
+
+export async function setProfileField(user: ApiUser, key: string, value: unknown): Promise<void> {
+    await request(user, "PUT", `/profile/${encodeURIComponent(user.userId)}/${encodeURIComponent(key)}`, { [key]: value });
+}

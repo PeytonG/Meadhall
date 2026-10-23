@@ -33,8 +33,8 @@ test("a message in another conversation notifies, and clicking the notification 
     await setAccountData(alice, "m.direct", { [bob.userId]: [dmBob], [carol.userId]: [dmCarol] });
     await sendMessage(carol, dmCarol, "hello from carol");
     await signIn(page, alice);
-    await page.getByRole("region", { name: "Direct messages" }).getByText(/carol/i).click();
-    await expect(page.getByText("hello from carol")).toBeVisible();
+    await page.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: /carol/i }).click();
+    await expect(page.locator(".timeline").getByText("hello from carol")).toBeVisible();
 
     await sendMessage(bob, dmBob, "Fireside at sundown?");
     await expect
@@ -45,6 +45,6 @@ test("a message in another conversation notifies, and clicking the notification 
         const shown = (window as unknown as { shownNotifications: Array<{ body: string; click: () => void }> }).shownNotifications;
         shown.find((n) => n.body.includes("Fireside"))?.click();
     });
-    await expect(page.getByText("Fireside at sundown?")).toBeVisible();
+    await expect(page.locator(".timeline").getByText("Fireside at sundown?")).toBeVisible();
     await expect(page.locator(".channel-header-title")).toContainText(/bob/i);
 });

@@ -15,7 +15,7 @@ const picture = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.m
 
 async function openSettingsTab(page: Page, tab: string): Promise<void> {
     if (!(await page.locator(".settings-overlay").isVisible())) {
-        await page.locator(".pane-user-card").click();
+        await page.getByRole("button", { name: "User settings", exact: true }).click();
     }
     await page.getByRole("button", { name: tab, exact: true }).click();
 }
@@ -214,7 +214,7 @@ test("the image viewer closes from the backdrop, the X and Escape; settings clos
     await page.keyboard.press("Escape");
     await expect(viewer).toBeHidden();
 
-    await page.locator(".pane-user-card").click();
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
     await expect(page.locator(".settings-overlay")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.locator(".settings-overlay")).toBeHidden();

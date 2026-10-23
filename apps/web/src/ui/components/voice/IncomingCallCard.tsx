@@ -5,6 +5,7 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import { memberAvatarSources } from "../../adapters/avatar";
 import type { IncomingCall } from "../../hooks/useIncomingCall";
 import { startRinging } from "../../voice/ringtone";
+import { isDoNotDisturb } from "../../presence/clientStatus";
 import { Avatar } from "../Avatar";
 import { PixelIcon } from "../PixelIcon";
 
@@ -24,11 +25,12 @@ export function IncomingCallCard({ client, call, speakerId, onJoin, onDismiss }:
     const isGroup = Boolean(room && room.getJoinedMemberCount() > 2);
     const avatarSources = memberAvatarSources(client, member, 96, "crop");
 
-    useEffect(() => startRinging(speakerId), [call.eventId, speakerId]);
+    // Do Not Disturb: the card still shows, but nothing rings.
+    useEffect(() => (isDoNotDisturb() ? undefined : startRinging(speakerId)), [call.eventId, speakerId]);
 
     // In the background (another window, or the desktop app in the tray): an OS notification too.
     useEffect(() => {
-        if (!document.hidden && document.hasFocus()) {
+        if ((!document.hidden && document.hasFocus()) || isDoNotDisturb()) {
             return undefined;
         }
         const desktopNotify = window.heorotDesktop?.showNotification;

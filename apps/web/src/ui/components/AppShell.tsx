@@ -68,6 +68,8 @@ import {
 import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery";
 import { useRoomCalls } from "../hooks/useRoomCalls";
 import { useIncomingCall } from "../hooks/useIncomingCall";
+import { applyOwnStatus, currentPlatform, loadOwnStatus, type OwnStatus } from "../presence/clientStatus";
+import { StatusMenu } from "./StatusMenu";
 import { IncomingCallCard } from "./voice/IncomingCallCard";
 import {
     loadSelfVoiceState,
@@ -871,6 +873,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const voiceControlStateRef = useRef<VoiceControlState>(DEFAULT_VOICE_CONTROL_STATE);
     const pendingVoiceControlTargetRef = useRef<{ micMuted: boolean; audioMuted: boolean } | null>(null);
     const [selfVoice, setSelfVoice] = useState<SelfVoiceState>(() => loadSelfVoiceState());
+    // Your status (user panel menu): presence, custom text, DND. Applied on start and whenever it changes.
+    const [ownStatus, setOwnStatus] = useState<OwnStatus>(() => loadOwnStatus());
+    const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+    const updateOwnStatus = useCallback((next: OwnStatus) => setOwnStatus(next), []);
+    useEffect(() => {
+        void applyOwnStatus(client, ownStatus);
+    }, [client, ownStatus]);
+    const ownStatusDot =
+        ownStatus.state === "idle" ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {
         saveSelfVoiceState(selfVoice);
     }, [selfVoice]);
@@ -2439,11 +2450,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     ) : null}
                     {/* Discord-style user panel: profile plus mic, deafen and settings */}
                     <div className="pane-user-panel">
+                        {statusMenuOpen ? (
+                            <StatusMenu
+                                status={ownStatus}
+                                onChange={updateOwnStatus}
+                                onOpenSettings={() => openUserSettings("my-account")}
+                                onClose={() => setStatusMenuOpen(false)}
+                            />
+                        ) : null}
                         <button
                             type="button"
                             className="pane-user-card"
-                            onClick={() => openUserSettings("my-account")}
-                            title="Open user settings"
+                            onClick={() => setStatusMenuOpen((open) => !open)}
+                            title="Set your status"
+                            aria-haspopup="menu"
+                            aria-expanded={statusMenuOpen}
+                            data-testid="user-card"
                         >
                             <Avatar
                                 className="pane-user-avatar"
@@ -2452,10 +2474,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 sources={ownAvatarSources}
                                 seed={ownUserId || undefined}
                                 userId={ownUserId || undefined}
+                                presenceState={ownStatusDot}
                             />
                             <span className="pane-user-meta">
                                 <span className="pane-user-name">{ownDisplayName}</span>
-                                <span className="pane-user-id">{ownUserId || "Unknown user"}</span>
+                                <span className="pane-user-id">{ownStatus.text || ownUserId || "Unknown user"}</span>
                             </span>
                         </button>
                         <button

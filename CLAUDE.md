@@ -413,6 +413,10 @@ Work through these in small PRs, each with UI tests (§4). Notes are starting po
     "Direct message", next to the online/offline status.
 25. **Mobile presence icon:** people using Android/iOS show a pixel green phone as their status icon (instead of the
     dot), unless they picked a status manually.
+26. **Multiple accounts / switch user:** sign in to several accounts at once (e.g. one on matrix.org and one on a
+    self-hosted server), switch between them from the user panel, and keep receiving notifications for all of them
+    (each signed-in account keeps a light sync or `/notifications` poll; desktop and Android background notifiers
+    must cover every account). Sessions are stored per account; signing out removes only that account.
 
 **Presentation / defaults**
 17. **Default homeserver back to `https://matrix.org`** (owner: more presentable). Change `DEFAULT_HOMESERVER_URL`

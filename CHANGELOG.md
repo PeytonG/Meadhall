@@ -9,6 +9,11 @@ Versions follow `vX.Y.Z`.
 ### New
 - **Phones: a send button** next to the emoji button, and **swipe** right to go back to your conversations (left to
   return to the chat).
+- **Set your status** from the user panel, like Discord: Online, Idle, Do Not Disturb, Invisible, and a custom status
+  message. Do Not Disturb silences notifications and call ringing. Online status now works in the web and Android
+  apps too, not only on desktop.
+- **Direct Messages show the latest message** under each name, next to their status.
+- People on the **phone app** show a green phone instead of the online dot, unless they picked a status.
 
 ### Changed
 - The app connects to **matrix.org** by default again; type your own server's address to use it.
