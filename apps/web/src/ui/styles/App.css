@@ -3813,6 +3813,7 @@ img.voice-ctrl-icon {
 
 .voice-room-stage-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
@@ -3820,8 +3821,10 @@ img.voice-ctrl-icon {
 
 .voice-room-stage-header-actions {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+    min-width: 0;
 }
 
 .voice-room-stage-header h3 {
@@ -3884,9 +3887,13 @@ img.voice-ctrl-icon {
     border-color: var(--accent);
 }
 
+/* 16:9, as wide as the panel allows but never taller than the window leaves room for (the header, the
+   participants strip and the controls), so the shared screen and everyone in the call fit on screen together. */
 .voice-room-stage-video-wrap {
+    --stage-max-height: max(200px, calc(100dvh - 300px));
     position: relative;
-    width: 100%;
+    width: min(100%, calc(var(--stage-max-height) * 16 / 9));
+    margin-inline: auto;
     aspect-ratio: 16 / 9;
     border-radius: 10px;
     overflow: hidden;
@@ -5603,4 +5610,83 @@ img.voice-ctrl-icon {
     font-size: 12px;
     margin-top: 2px;
     overflow-wrap: anywhere;
+}
+
+/* Screen share picker: a preview of every screen and window. */
+.screen-share-picker {
+    display: grid;
+    gap: 14px;
+}
+
+.screen-share-section h4 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.screen-share-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+    gap: 10px;
+}
+
+.screen-share-source {
+    display: grid;
+    gap: 6px;
+    padding: 6px;
+    border: 2px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.screen-share-source:hover {
+    border-color: var(--accent-soft);
+}
+
+.screen-share-source.is-selected {
+    border-color: var(--primary);
+    background: var(--bg-active);
+}
+
+.screen-share-source-preview {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 9;
+    background: #000000;
+    overflow: hidden;
+}
+
+.screen-share-source-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.screen-share-source-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.screen-share-source-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 12px;
+}
+
+.screen-share-source-icon {
+    width: 16px;
+    height: 16px;
+    flex: none;
+}
+
+.screen-share-source-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

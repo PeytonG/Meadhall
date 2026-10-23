@@ -522,9 +522,13 @@ function registerIpc(): void {
             fetchWindowIcons: true,
             thumbnailSize: { width: 320, height: 180 },
         });
+        // Small previews (and the app's icon for windows) so people can see what they're about to share.
         return sources.map((source) => ({
             id: source.id,
             name: source.name,
+            kind: source.id.startsWith("screen:") ? "screen" : "window",
+            thumbnail: source.thumbnail.isEmpty() ? null : source.thumbnail.toDataURL(),
+            icon: source.appIcon && !source.appIcon.isEmpty() ? source.appIcon.resize({ width: 32, height: 32 }).toDataURL() : null,
         }));
     });
 

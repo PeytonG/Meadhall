@@ -49,6 +49,8 @@ import { VoiceActivityMonitor } from "../../voice/voiceActivity";
 import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
 import { PixelIcon } from "../PixelIcon";
 import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
+import { ScreenSharePicker } from "./ScreenSharePicker";
+import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
@@ -102,10 +104,7 @@ interface VoiceParticipantState {
     isScreenSharing: boolean;
 }
 
-interface DesktopCaptureSource {
-    id: string;
-    name: string;
-}
+type DesktopCaptureSource = HeorotDesktopCaptureSource;
 
 type VoiceDisconnectReason = "user_left" | "switch_room" | "component_unmount" | "join_failed" | "network_or_server";
 
@@ -2896,22 +2895,12 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     </>
                 }
             >
-                <div className="voice-room-capture-source-list">
-                    {desktopCaptureSources.map((source) => {
-                        const isSelected = source.id === selectedDesktopCaptureSourceId;
-                        return (
-                            <button
-                                key={source.id}
-                                type="button"
-                                className={`voice-room-capture-source-item${isSelected ? " is-selected" : ""}`}
-                                onClick={() => setSelectedDesktopCaptureSourceId(source.id)}
-                            >
-                                <span className="voice-room-capture-source-name">{source.name}</span>
-                                <span className="voice-room-capture-source-id">{source.id}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                <ScreenSharePicker
+                    sources={desktopCaptureSources}
+                    selectedId={selectedDesktopCaptureSourceId}
+                    onSelect={setSelectedDesktopCaptureSourceId}
+                    onConfirm={() => void confirmDesktopCaptureSourceSelection()}
+                />
             </RoomDialog>
         </section>
     );

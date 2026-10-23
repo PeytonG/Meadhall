@@ -2,6 +2,15 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
 import type { DesktopUpdateStatus } from "./updater";
 
+// A screen or window that can be shared, with a preview (PNG data URLs) to pick from.
+interface DesktopCaptureSource {
+    id: string;
+    name: string;
+    kind: "screen" | "window";
+    thumbnail: string | null;
+    icon: string | null;
+}
+
 export interface HeorotDesktopMediaAuthState {
     accessToken?: string;
     homeserverUrl?: string;
@@ -28,7 +37,7 @@ export interface HeorotDesktopBridge {
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp: () => Promise<void>;
-    getDesktopCapturerSources: () => Promise<Array<{ id: string; name: string }>>;
+    getDesktopCapturerSources: () => Promise<DesktopCaptureSource[]>;
     setPreferredDisplayMediaSource: (sourceId: string) => Promise<void>;
     getStartAtLogin: () => Promise<boolean>;
     setStartAtLogin: (enabled: boolean) => Promise<boolean>;
@@ -90,8 +99,8 @@ const bridge: HeorotDesktopBridge = {
     quitApp: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:quitApp");
     },
-    getDesktopCapturerSources: async (): Promise<Array<{ id: string; name: string }>> => {
-        return (await ipcRenderer.invoke("heorot:getDesktopCapturerSources")) as Array<{ id: string; name: string }>;
+    getDesktopCapturerSources: async (): Promise<DesktopCaptureSource[]> => {
+        return (await ipcRenderer.invoke("heorot:getDesktopCapturerSources")) as DesktopCaptureSource[];
     },
     setPreferredDisplayMediaSource: async (sourceId: string): Promise<void> => {
         await ipcRenderer.invoke("heorot:setPreferredDisplayMediaSource", sourceId);

@@ -7,6 +7,10 @@ export interface HeorotDesktopMediaAuthState {
 export interface HeorotDesktopCaptureSource {
     id: string;
     name: string;
+    // Older desktop apps send only id and name.
+    kind?: "screen" | "window";
+    thumbnail?: string | null;
+    icon?: string | null;
 }
 
 // Mirrors DesktopUpdateStatus in apps/desktop/electron/updater.ts.
