@@ -3,12 +3,15 @@
 // some roles). Runs in the app of whoever edits the roles; they need the right to change power levels.
 import { EventType, JoinRule, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 
+import { CHANNEL_ACCESS_EVENT, isVoiceChannelRoom } from "../voice/voiceChannel";
+
 import {
     allowedViewers,
     applyRolesToPowerLevels,
     CHANNEL_VIEW_EVENT,
     MEMBER_ROLES_EVENT,
     memberRolesKey,
+    parseChannelTalk,
     parseChannelView,
     parseMemberRoles,
     parseRoles,
@@ -38,6 +41,17 @@ export function readChannelView(channel: Room, roles: Role[]): string[] | null {
     return parseChannelView(channel.currentState.getStateEvents(CHANNEL_VIEW_EVENT, "")?.getContent(), roles);
 }
 
+export function readChannelTalk(channel: Room, roles: Role[]): string | "everyone" | null {
+    return parseChannelTalk(channel.currentState.getStateEvents(CHANNEL_VIEW_EVENT, "")?.getContent(), roles);
+}
+
+function talkRankFor(channel: Room, roles: Role[]): number | undefined {
+    const talk = readChannelTalk(channel, roles);
+    if (talk === null) return undefined;
+    if (talk === "everyone") return 0;
+    return roles.find((role) => role.id === talk)?.rank;
+}
+
 function ownLevel(client: MatrixClient, room: Room): number {
     const level = room.getMember(client.getSafeUserId())?.powerLevel ?? 0;
     return Number.isFinite(level) ? level : 1000;
@@ -54,6 +68,8 @@ function untouchable(room: Room): Set<string> {
 }
 
 async function applyPowerLevels(client: MatrixClient, room: Room, roles: Role[], assignments: Map<string, string[]>, scope: "space" | "channel"): Promise<void> {
+    const talkRank = scope === "channel" ? talkRankFor(room, roles) : undefined;
+    const voiceChannel = scope === "channel" && isVoiceChannelRoom(room);
     if (!room.currentState.maySendStateEvent(EventType.RoomPowerLevels, client.getSafeUserId())) {
         return;
     }
@@ -65,10 +81,20 @@ async function applyPowerLevels(client: MatrixClient, room: Room, roles: Role[],
         ownLevel: ownLevel(client, room),
         protectedUsers: untouchable(room),
         scope,
+        talkRank,
+        voiceChannel,
     });
     if (JSON.stringify(next) !== JSON.stringify(current)) {
         // Wait for the echo, so the next change starts from these levels rather than stale ones.
         await sendAndWait(client, room, EventType.RoomPowerLevels, next, "");
+    }
+    // Voice channels record the level calls are meant for, so the "allow members to join calls" check agrees.
+    if (voiceChannel && talkRank !== undefined) {
+        const level = typeof next.events_default === "number" ? next.events_default : 0;
+        const access = room.currentState.getStateEvents(CHANNEL_ACCESS_EVENT, "")?.getContent() ?? {};
+        if (access.min_power_level !== level && room.currentState.maySendStateEvent(CHANNEL_ACCESS_EVENT, client.getSafeUserId())) {
+            await sendAndWait(client, room, CHANNEL_ACCESS_EVENT, { ...access, min_power_level: level }, "");
+        }
     }
 }
 
@@ -129,8 +155,21 @@ export async function setMemberRoles(client: MatrixClient, space: Room, channels
     await syncRoles(client, space, channels);
 }
 
+function channelAccessContent(channel: Room): Record<string, unknown> {
+    return { ...(channel.currentState.getStateEvents(CHANNEL_VIEW_EVENT, "")?.getContent() ?? {}) };
+}
+
 export async function setChannelViewRoles(client: MatrixClient, space: Room, channel: Room, roleIds: string[] | null): Promise<void> {
-    await sendAndWait(client, channel, CHANNEL_VIEW_EVENT, roleIds === null ? {} : { roles: roleIds }, "");
+    const content = channelAccessContent(channel);
+    if (roleIds === null) delete content.roles;
+    else content.roles = roleIds;
+    await sendAndWait(client, channel, CHANNEL_VIEW_EVENT, content, "");
+    await syncRoles(client, space, [channel]);
+}
+
+// Who may talk: a role ID (that role and every role ranked above it) or "everyone".
+export async function setChannelTalkRole(client: MatrixClient, space: Room, channel: Room, talk: string): Promise<void> {
+    await sendAndWait(client, channel, CHANNEL_VIEW_EVENT, { ...channelAccessContent(channel), talk }, "");
     await syncRoles(client, space, [channel]);
 }
 

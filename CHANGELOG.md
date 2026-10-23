@@ -27,6 +27,9 @@ Versions follow `vX.Y.Z`.
   Choir, Wobble and Bard.
 - **Profile banner, About me, email and links:** upload an image or GIF banner and add a bio, a public email and up to
   five links in Settings → Profile; they show on your profile card.
+- **Roles decide who can talk:** in Server Settings → Members, each channel now has **Can talk** (everyone, or a role
+  and every role above it) next to **Can see**. In voice channels it also decides who can join the call. The server
+  enforces it, so it holds in Element too.
 - **Profiles show roles in mutual servers:** each server you share, by name, with the person's role chips in their
   colors (or Admin / Moderator on servers without Meadhall roles).
 - **Direct Messages show the latest message** under each name, next to their status.

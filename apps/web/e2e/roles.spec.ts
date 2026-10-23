@@ -2,7 +2,7 @@
 // Server Settings -> Members & roles: create a role, give it to someone, and it reaches the server as power levels.
 import { expect, test } from "@playwright/test";
 
-import { createSpaceWithChannel, readState, registerUser } from "./support/matrixApi";
+import { createSpaceWithChannel, readState, registerUser, sendMessage, sendState } from "./support/matrixApi";
 import { signIn } from "./support/ui";
 
 test("owners create roles in the member browser and give them to members", async ({ page }) => {
@@ -38,4 +38,31 @@ test("owners create roles in the member browser and give them to members", async
     await expect
         .poll(async () => (await readState(owner, channelId, "m.room.power_levels")).kick, { timeout: 15_000 })
         .toBe(50);
+});
+
+test("Can talk limits a channel to a role and above, enforced by the server", async ({ page }) => {
+    const owner = await registerUser("owner");
+    const bob = await registerUser("bob");
+    const { spaceId, channelId } = await createSpaceWithChannel(owner, bob, { space: "Hall", channel: "announcements" });
+    await sendState(owner, spaceId, "io.github.peytong.meadhall.roles", "", {
+        roles: [{ id: "thane", name: "Thane", color: "#e67e22", rank: 50, permissions: [] }],
+    });
+    await signIn(page, owner);
+    await page.getByTitle("Hall").click();
+    await page.getByRole("button", { name: "Server", exact: true }).click();
+    await page.getByRole("button", { name: "Members", exact: true }).click();
+
+    const access = page.getByTestId("channel-access-section");
+    await access.getByRole("combobox", { name: "Who can talk in #announcements" }).selectOption({ label: "Thane and above" });
+    await expect(page.getByText("Only Thane and above can talk in #announcements.")).toBeVisible({ timeout: 15_000 });
+    if (process.env.PREVIEW_DIR) {
+        await access.screenshot({ path: `${process.env.PREVIEW_DIR}/channel-access.png` });
+    }
+    await expect.poll(async () => (await readState(owner, channelId, "m.room.power_levels")).events_default, { timeout: 15_000 }).toBe(50);
+    // Bob has no role: the server refuses his message.
+    await expect(sendMessage(bob, channelId, "may I?")).rejects.toThrow(/403/);
+
+    await access.getByRole("combobox", { name: "Who can talk in #announcements" }).selectOption({ label: "Everyone" });
+    await expect.poll(async () => (await readState(owner, channelId, "m.room.power_levels")).events_default, { timeout: 15_000 }).toBe(0);
+    await expect(sendMessage(bob, channelId, "thanks")).resolves.toBeUndefined();
 });

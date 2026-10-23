@@ -21,7 +21,9 @@ export function memberRolesKey(userId: string): string {
 export function userIdFromMemberRolesKey(stateKey: string): string | null {
     return stateKey.startsWith("user:@") ? stateKey.slice("user:".length) : null;
 }
-export const CHANNEL_VIEW_EVENT = "io.github.peytong.meadhall.channel_view"; // channel, state_key ""
+export const CHANNEL_VIEW_EVENT = "io.github.peytong.meadhall.channel_view"; // channel, state_key "": {roles?, talk?}
+// MatrixRTC call memberships (see core/voice/voiceChannel.ts).
+const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
 
 export type Permission =
     | "manage_server"
@@ -97,6 +99,19 @@ export function parseChannelView(content: unknown, roles: Role[]): string[] | nu
     return content.roles.filter((id): id is string => typeof id === "string" && known.has(id));
 }
 
+// Who may talk in a channel (send messages; in voice channels also join the call): a role and everyone ranked at
+// or above it, or "everyone". null = Meadhall leaves the channel's levels as they are. Ranked, rather than an exact
+// set of roles like "see", because Matrix decides it with one threshold per room that the server enforces.
+export function parseChannelTalk(content: unknown, roles: Role[]): string | "everyone" | null {
+    if (!isObject(content) || typeof content.talk !== "string") {
+        return null;
+    }
+    if (content.talk === "everyone") {
+        return "everyone";
+    }
+    return roles.some((role) => role.id === content.talk) ? content.talk : null;
+}
+
 export function memberRank(roleIds: string[], roles: Role[]): number {
     return roles.filter((role) => roleIds.includes(role.id)).reduce((highest, role) => Math.max(highest, role.rank), 0);
 }
@@ -156,11 +171,15 @@ export interface ApplyInput {
     // Users never changed (e.g. room creators in room version 12, who have unlimited power).
     protectedUsers?: ReadonlySet<string>;
     scope: "space" | "channel";
+    // Channels only: the rank needed to talk (0 = everyone; undefined = leave as is), and whether it's a voice
+    // channel (joining the call counts as talking there).
+    talkRank?: number;
+    voiceChannel?: boolean;
 }
 
 // The power levels a room should have for the roles. Untouched: anyone at 100+, anyone at or above you, and
 // permissions no role grants (they keep the room's existing minimums).
-export function applyRolesToPowerLevels({ current, roles, assignments, ownLevel, protectedUsers, scope }: ApplyInput): PowerLevels {
+export function applyRolesToPowerLevels({ current, roles, assignments, ownLevel, protectedUsers, scope, talkRank, voiceChannel }: ApplyInput): PowerLevels {
     const next: PowerLevels = { ...current };
     const users = isObject(current.users) ? { ...(current.users as Record<string, number>) } : {};
     const ceiling = Math.min(MAX_RANK, ownLevel - 1);
@@ -188,6 +207,14 @@ export function applyRolesToPowerLevels({ current, roles, assignments, ownLevel,
         const minimum = Math.min(ceiling, Math.min(...granting.map((role) => role.rank)));
         for (const key of keys[permission.id]) {
             setKey(next, key, minimum);
+        }
+    }
+
+    if (scope === "channel" && talkRank !== undefined) {
+        const level = Math.max(0, Math.min(ceiling, talkRank));
+        next.events_default = level;
+        if (voiceChannel) {
+            setKey(next, `events.${CALL_MEMBER_EVENT}`, level);
         }
     }
     return next;

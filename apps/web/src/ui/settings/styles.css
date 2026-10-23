@@ -1292,6 +1292,26 @@
     font-weight: 700;
 }
 
+.roles-channel-talk {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.roles-channel-talk select {
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-main);
+    padding: 3px 6px;
+    font: inherit;
+}
+
+.roles-channel-see {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
 .roles-channel-roles {
     display: flex;
     flex-wrap: wrap;
