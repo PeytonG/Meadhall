@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
-import { canLogIn, createRoom, joinRoom, makeServerAdmin, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
+import { canLogIn, createRoom, joinRoom, makeServerAdmin, readPresence, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "desktop");
 const electronBinary = createRequire(path.join(desktopDir, "package.json"))("electron") as unknown as string;
@@ -186,7 +186,12 @@ test("the tray menu mutes, deafens and sets your status, and follows changes mad
 
 test("the game Steam is running is shared as Playing ..., and Privacy can turn it off", async () => {
     expect(await window.evaluate(() => window.heorotDesktop?.getActivity?.())).toEqual({ name: "Stardew Valley", appId: "413150", source: "steam" });
-    // Others read it from your profile.
+    // Under your own name in the user panel.
+    await expect(window.getByTestId("own-status-text")).toHaveText("Playing Stardew Valley", { timeout: 40_000 });
+    // Others get it in your presence (live over sync, and what Element shows) and your profile field.
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 20_000 })
+        .toBe("Playing Stardew Valley");
     await expect
         .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
         .toMatchObject({ activity: { name: "Stardew Valley" } });
@@ -198,6 +203,10 @@ test("the game Steam is running is shared as Playing ..., and Privacy can turn i
     await expect
         .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
         .toMatchObject({ activity: null });
+    await expect(window.getByTestId("own-status-text")).not.toContainText("Playing");
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 20_000 })
+        .toBe("");
 });
 
 test("after an update, What's new shows that release's notes once", async () => {

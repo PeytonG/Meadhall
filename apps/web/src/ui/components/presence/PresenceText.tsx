@@ -17,6 +17,11 @@ export function PresenceText({ presence, className }: PresenceTextProps): React.
         <div className={classes.join(" ")}>
             <span className={`presence-text-primary is-${presence.state}`}>{presence.primaryLabel}</span>
             {presence.secondaryLabel ? <span className="presence-text-secondary">{presence.secondaryLabel}</span> : null}
+            {presence.statusText ? (
+                <span className="presence-text-status" data-testid="presence-status-text">
+                    {presence.statusText}
+                </span>
+            ) : null}
         </div>
     );
 }

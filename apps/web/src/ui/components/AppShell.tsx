@@ -2549,7 +2549,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             />
                             <span className="pane-user-meta">
                                 <span className="pane-user-name">{ownDisplayName}</span>
-                                <span className="pane-user-id">{ownStatus.text || ownUserId || "Unknown user"}</span>
+                                <span className="pane-user-id" data-testid="own-status-text">
+                                    {ownStatus.text || (activity && ownStatus.state !== "invisible" ? `Playing ${activity.name}` : ownUserId || "Unknown user")}
+                                </span>
                             </span>
                         </button>
                         <button

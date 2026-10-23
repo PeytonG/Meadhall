@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 
 import {
     createRoom,
+    createSpaceWithChannel,
     joinRoom,
     readPresence,
     readProfileField,
@@ -99,4 +100,45 @@ test("someone playing a game shows Playing ... in the DM list", async ({ page })
 
     const row = page.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: "Bob" });
     await expect(row).toContainText("Playing Stardew Valley", { timeout: 15_000 });
+});
+
+test("what someone is playing shows under their name in the member list and on their profile", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await setDisplayName(bob, "Bob");
+    const { spaceId, channelId } = await createSpaceWithChannel(bob, alice, { space: "Hall", channel: "general" });
+    void spaceId;
+    await sendMessage(bob, channelId, "brb, one more race");
+    // As Meadhall publishes it: presence text plus the profile field.
+    await setProfileField(bob, STATUS_KEY, { state: null, platform: "desktop", activity: { name: "BeamNG.drive", since: Date.now() } });
+    await setPresence(bob, "online", "Playing BeamNG.drive");
+    await signIn(page, alice);
+    await page.getByTitle("Hall").click();
+    await page.getByText("#general", { exact: true }).first().click();
+
+    const bobRow = page.locator(".rs-member-row", { hasText: "Bob" }).first();
+    await expect(bobRow.locator(".rs-member-id")).toHaveText("Playing BeamNG.drive", { timeout: 15_000 });
+    await page.locator(".timeline").getByText("Bob", { exact: true }).first().click();
+    await expect(page.getByTestId("presence-status-text").first()).toHaveText("Playing BeamNG.drive");
+});
+
+test("status changes reach other people within seconds", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await setDisplayName(bob, "Bob");
+    const dm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [alice.userId] });
+    await joinRoom(alice, dm);
+    await setAccountData(alice, "m.direct", { [bob.userId]: [dm] });
+    await setPresence(bob, "online");
+    await signIn(page, alice);
+    const row = page.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: "Bob" });
+    await expect(row.locator(".avatar-presence-dot")).toHaveClass(/is-online/, { timeout: 15_000 });
+
+    // Bob goes Do Not Disturb with a status, as Meadhall does it (timed from when the server accepted it).
+    await setProfileField(bob, STATUS_KEY, { state: "dnd", platform: "desktop" });
+    await setPresence(bob, "unavailable", "In a meeting");
+    const started = Date.now();
+    await expect(row).toContainText("In a meeting", { timeout: 10_000 });
+    await expect(row.locator(".avatar-presence-dot")).toHaveClass(/is-dnd/, { timeout: 10_000 });
+    expect(Date.now() - started).toBeLessThan(10_000);
 });

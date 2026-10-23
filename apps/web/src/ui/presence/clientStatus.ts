@@ -12,7 +12,8 @@ import { isAndroidApp } from "../../core/platform/android";
 
 export const STATUS_PROFILE_KEY = "io.github.peytong.meadhall.status";
 const LOCAL_KEY = "heorot.own_status.v1";
-const CACHE_MS = 5 * 60_000;
+// Others' Do Not Disturb / device are re-read at least this often (presence changes trigger an immediate re-read).
+const CACHE_MS = 60_000;
 
 export type ChosenStatus = "auto" | "online" | "idle" | "dnd" | "invisible";
 
@@ -123,7 +124,10 @@ export async function applyOwnStatus(client: MatrixClient, own: OwnStatus, away 
     cache.set(client.getSafeUserId(), { status: published, fetchedAt: Date.now() });
     notify();
     // Independent: presence can be waiting out a rate limit, which mustn't hold up the profile field.
-    await Promise.all([sendPresence(client, { presence, status_msg: own.text.trim() }), publishStatus(client, published)]);
+    // With no custom status, what you're playing is the status text: it arrives over sync right away (the profile
+    // field is only re-read now and then), and Element shows it too.
+    const statusText = own.text.trim() || (published.activity ? `Playing ${published.activity.name}` : "");
+    await Promise.all([sendPresence(client, { presence, status_msg: statusText }), publishStatus(client, published)]);
 }
 
 // Profile writes are serialized too: two quick changes could otherwise land out of order and leave the older one

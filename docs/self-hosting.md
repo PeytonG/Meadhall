@@ -26,6 +26,23 @@ rc_delayed_event_mgmt:
   burst_count: 20
 ```
 
+**Status updates:** Synapse's default presence rate limit allows about one status change per user every 10
+seconds, so a second quick change (say Away, then Do Not Disturb) reaches others several seconds late. Meadhall
+waits and retries; to make status changes feel instant, loosen it:
+
+```yaml
+# homeserver.yaml
+rc_presence:
+  per_user:
+    per_second: 1
+    burst_count: 5
+```
+
+**Calls dropping:** if calls end unexpectedly, open the call's settings (the gear in the call) → **Call history**: it
+shows why each call ended (for example `signal close` or `participant removed` from LiveKit). Meadhall rejoins by
+itself after a drop; repeated drops with the same reason usually point at the LiveKit server, its TURN/UDP ports, or
+a proxy timing out long-lived WebSocket connections (set the proxy's read timeout to an hour or more for LiveKit).
+
 Check the [Element Call self-hosting guide](https://github.com/element-hq/element-call/blob/livekit/docs/self-hosting.md)
 for the current list of recommended Synapse settings; Meadhall's calls need the same ones.
 

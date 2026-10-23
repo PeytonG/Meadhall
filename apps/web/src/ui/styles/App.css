@@ -5590,3 +5590,17 @@ img.voice-ctrl-icon {
     padding: 8px;
     color: var(--text-muted);
 }
+
+/* Status text (custom status or "Playing ...") under names. */
+.rs-member-id.is-status,
+.presence-text-status {
+    color: var(--text-main);
+    opacity: 0.85;
+}
+
+.presence-text-status {
+    display: block;
+    font-size: 12px;
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}

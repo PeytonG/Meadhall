@@ -177,7 +177,10 @@ export function MembersPanel({
                                 <span className="rs-member-name" style={role ? { color: role.color } : undefined}>
                                     {displayName}
                                 </span>
-                                <span className="rs-member-id">{member.userId}</span>
+                                {/* Like Discord: their status (or what they're playing) under the name, else the user ID. */}
+                                <span className={`rs-member-id${presence?.statusText ? " is-status" : ""}`} title={member.userId}>
+                                    {presence?.statusText ?? member.userId}
+                                </span>
                             </span>
                             <span className="rs-member-badge">{roleLabel}</span>
                         </button>
