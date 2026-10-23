@@ -207,3 +207,7 @@ export async function readPresence(user: ApiUser, userId: string): Promise<{ pre
 export async function setProfileField(user: ApiUser, key: string, value: unknown): Promise<void> {
     await request(user, "PUT", `/profile/${encodeURIComponent(user.userId)}/${encodeURIComponent(key)}`, { [key]: value });
 }
+
+export async function readAccountData(user: ApiUser, type: string): Promise<Record<string, unknown>> {
+    return request(user, "GET", `/user/${encodeURIComponent(user.userId)}/account_data/${encodeURIComponent(type)}`);
+}

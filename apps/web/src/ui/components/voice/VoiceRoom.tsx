@@ -46,6 +46,10 @@ import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } f
 import { SpeakingCampfire } from "./PixelCampfire";
 import { VoiceActivityMonitor } from "../../voice/voiceActivity";
 import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
+import { PixelIcon } from "../PixelIcon";
+import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
+import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
+import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
@@ -657,6 +661,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [selectedDesktopCaptureSourceId, setSelectedDesktopCaptureSourceId] = useState<string | null>(null);
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [soundboardOpen, setSoundboardOpen] = useState(false);
+    // The soundboard's own audio track, published the first time a sound is played in this call.
+    const soundboardRef = useRef<{ player: SoundboardPlayer; published: boolean } | null>(null);
     const [callAccessFixPending, setCallAccessFixPending] = useState(false);
     const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
@@ -1851,6 +1858,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         clearRemoteAudioElements();
         clearScreenSharePreview();
+        soundboardRef.current?.player.close();
+        soundboardRef.current = null;
+        setSoundboardOpen(false);
         setConnectionState(ConnectionState.Disconnected);
         setParticipants([]);
         setMicMuted(true);
@@ -2042,6 +2052,31 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const connected = connectionState === ConnectionState.Connected;
+
+    const playSoundboardSound = async (choice: SoundChoice): Promise<void> => {
+        const room = roomRef.current;
+        if (!room) return;
+        soundboardRef.current ??= { player: new SoundboardPlayer(), published: false };
+        const soundboard = soundboardRef.current;
+        if (!soundboard.published) {
+            soundboard.published = true;
+            try {
+                await room.localParticipant.publishTrack(soundboard.player.track, {
+                    name: "soundboard",
+                    source: Track.Source.Unknown,
+                });
+            } catch (publishError) {
+                soundboard.published = false;
+                throw publishError;
+            }
+        }
+        soundboard.player.setHearOwnSounds(!audioMuted);
+        const buffer =
+            choice.kind === "builtin"
+                ? await renderBuiltinSound(choice.id, soundboard.player.context.sampleRate)
+                : await decodeCustomSound(client, choice.sound, soundboard.player.context);
+        await soundboard.player.play(buffer);
+    };
     const othersInCall = participants.filter((participant) => !participant.isLocal).length;
     const leaveVoiceRef = useRef(leaveVoice);
     leaveVoiceRef.current = leaveVoice;
@@ -2648,6 +2683,25 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </svg>
                         <span className="voice-ctrl-label">{localScreenSharing ? "Stop" : "Share"}</span>
                     </button>
+
+                    {/* Soundboard */}
+                    <div className="voice-soundboard-anchor">
+                        <button
+                            type="button"
+                            className={`voice-ctrl-btn${soundboardOpen ? " is-active" : ""}`}
+                            onClick={() => setSoundboardOpen((open) => !open)}
+                            title="Soundboard"
+                            aria-pressed={soundboardOpen}
+                            data-soundboard-toggle
+                            data-testid="soundboard-toggle"
+                        >
+                            <span className="voice-ctrl-icon"><PixelIcon name="soundboard" size={20} /></span>
+                            <span className="voice-ctrl-label">Sounds</span>
+                        </button>
+                        {soundboardOpen ? (
+                            <SoundboardPanel client={client} onPlay={playSoundboardSound} onClose={() => setSoundboardOpen(false)} />
+                        ) : null}
+                    </div>
 
                     {/* Deafen */}
                     <button

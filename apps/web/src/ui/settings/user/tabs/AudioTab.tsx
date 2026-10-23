@@ -6,6 +6,7 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import type { AudioSettings } from "../settingsStore";
 import { CampfireSettings } from "./CampfireSettings";
+import { SoundboardSettings } from "./SoundboardSettings";
 
 interface AudioTabProps {
     client: MatrixClient;
@@ -296,6 +297,8 @@ export function AudioTab({ client, settings, onChange }: AudioTabProps): React.R
             </label>
 
             <CampfireSettings client={client} />
+
+            <SoundboardSettings client={client} />
 
             <div className="settings-section-card">
                 <h3>Voice changer</h3>
