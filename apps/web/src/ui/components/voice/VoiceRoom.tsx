@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, us
 import {
     AudioPresets,
     ConnectionState,
+    DisconnectReason,
     Room,
     RoomEvent,
     Track,
@@ -51,6 +52,7 @@ import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
+import { RECONNECT_DELAYS_MS, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
 import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
@@ -106,6 +108,22 @@ interface DesktopCaptureSource {
 }
 
 type VoiceDisconnectReason = "user_left" | "switch_room" | "component_unmount" | "join_failed" | "network_or_server";
+
+// Other people in the Matrix call (distinct users, any device), not counting us.
+function countOtherMembers(memberships: ReadonlyArray<{ sender?: string; userId?: string }>, ownUserId: string | null): number {
+    const users = new Set<string>();
+    for (const membership of memberships) {
+        const userId = membership.userId ?? membership.sender;
+        if (userId && userId !== ownUserId) users.add(userId);
+    }
+    return users.size;
+}
+
+function describeDisconnectReason(reason: DisconnectReason | undefined): string {
+    if (reason === undefined) return "no reason given";
+    const name = (DisconnectReason as unknown as Record<number, string> | undefined)?.[reason];
+    return name ? name.toLowerCase().replace(/_/g, " ") : `code ${reason}`;
+}
 
 const SPEAKING_LEVEL_THRESHOLD = 0.008;
 const SPEAKING_POLL_INTERVAL_MS = 120;
@@ -662,6 +680,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [soundboardOpen, setSoundboardOpen] = useState(false);
+    // People in the Matrix call other than us (MatrixRTC memberships), whichever call server they're on.
+    const [rtcOtherMembers, setRtcOtherMembers] = useState(0);
+    // Rejoining after an unexpected drop: how many tries so far, and the pending one.
+    const reconnectRef = useRef<{ attempts: number; timer: number | null }>({ attempts: 0, timer: null });
+    const joinVoiceRef = useRef<() => Promise<void>>(async () => undefined);
     // The soundboard's own audio track, published the first time a sound is played in this call.
     // The soundboard player for this call; sounds are mixed into the microphone (voiceChanger.ensureMicMixer).
     const soundboardRef = useRef<{ player: SoundboardPlayer } | null>(null);
@@ -1206,12 +1229,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 };
                 const onMembershipsChanged = (): void => {
                     rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
-                    runIfCurrentJoin(() => syncParticipants());
+                    runIfCurrentJoin(() => {
+                        setRtcOtherMembers(countOtherMembers(session.memberships, client.getUserId()));
+                        syncParticipants();
+                    });
                 };
                 // Without a membership the others neither see us nor send us media keys, so don't stay connected.
                 const onMembershipManagerError = (membershipError: unknown): void => {
                     runIfCurrentJoin(() => {
                         const reason = membershipError instanceof Error ? membershipError.message : "unknown error";
+                        logCallEvent("Left: call membership failed", reason);
                         void leaveVoice().then(() => setError(`Left the call: the call membership failed (${reason}).`));
                     });
                 };
@@ -1219,6 +1246,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 session.on(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
                 session.on(MatrixRTCSessionEvent.MembershipManagerError, onMembershipManagerError);
                 rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
+                setRtcOtherMembers(countOtherMembers(session.memberships, client.getUserId()));
                 rtcTeardownRef.current = () => {
                     session.off(MatrixRTCSessionEvent.EncryptionKeyChanged, onEncryptionKeyChanged);
                     session.off(MatrixRTCSessionEvent.MembershipsChanged, onMembershipsChanged);
@@ -1376,13 +1404,19 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     refreshAudioDiagnostics(room);
                 })
-                .on(RoomEvent.Disconnected, () => {
+                .on(RoomEvent.Disconnected, (serverReason?: DisconnectReason) => {
                     if (!isCurrentJoinRequest()) {
                         return;
                     }
                     const reason =
                         expectedDisconnectReasonByRoomIdRef.current.get(targetRoomId) ?? "network_or_server";
                     expectedDisconnectReasonByRoomIdRef.current.delete(targetRoomId);
+                    if (reason === "network_or_server") {
+                        // Not something we did: LiveKit had already tried to resume. Say why, and rejoin.
+                        const why = describeDisconnectReason(serverReason);
+                        logCallEvent("Dropped by the network or call server", why);
+                        scheduleReconnect(targetRoomId, why);
+                    }
                     setConnectionState(ConnectionState.Disconnected);
                     setMicMuted(true);
                     setAudioPlaybackBlocked(false);
@@ -1841,6 +1875,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const leaveVoice = async (): Promise<void> => {
+        // Leaving on purpose (or being made to) cancels any pending rejoin.
+        if (reconnectRef.current.timer !== null) window.clearTimeout(reconnectRef.current.timer);
+        reconnectRef.current = { attempts: 0, timer: null };
         joinAbortControllerRef.current?.abort();
         joinAbortControllerRef.current = null;
         joinRequestIdRef.current += 1;
@@ -2062,6 +2099,43 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     useEffect(() => {
         soundboardRef.current?.player.setVolume(audioSettings.soundboardVolume);
     }, [audioSettings.soundboardVolume]);
+
+    joinVoiceRef.current = () => joinVoice();
+    // After an unexpected drop: rejoin a few times with growing waits, then stop and say so.
+    const scheduleReconnect = (roomId: string, why: string): void => {
+        const state = reconnectRef.current;
+        if (state.timer !== null) return;
+        const delay = RECONNECT_DELAYS_MS[state.attempts];
+        if (delay === undefined) {
+            logCallEvent("Gave up rejoining", why);
+            reconnectRef.current = { attempts: 0, timer: null };
+            setError(`Lost the call connection (${why}) and couldn't get back in. Join again when you're ready.`);
+            return;
+        }
+        state.attempts += 1;
+        setError(`Lost the call connection (${why}). Rejoining…`);
+        state.timer = window.setTimeout(() => {
+            state.timer = null;
+            logCallEvent("Rejoining", `attempt ${state.attempts} for ${roomId}`);
+            void joinVoiceRef.current();
+        }, delay);
+    };
+    // A connection that holds for 30 seconds counts as recovered: later drops get the full set of retries again.
+    useEffect(() => {
+        if (connectionState !== ConnectionState.Connected) return undefined;
+        logCallEvent("Connected", matrixRoomId);
+        if (reconnectRef.current.attempts > 0) setError(null);
+        const timer = window.setTimeout(() => {
+            reconnectRef.current.attempts = 0;
+        }, 30_000);
+        return () => window.clearTimeout(timer);
+    }, [connectionState, matrixRoomId]);
+    useEffect(
+        () => () => {
+            if (reconnectRef.current.timer !== null) window.clearTimeout(reconnectRef.current.timer);
+        },
+        [],
+    );
     const playSoundboardSound = async (choice: SoundChoice): Promise<void> => {
         const room = roomRef.current;
         if (!room) return;
@@ -2083,12 +2157,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 : await decodeCustomSound(client, choice.sound, soundboard.player.context);
         await soundboard.player.play(buffer);
     };
-    const othersInCall = participants.filter((participant) => !participant.isLocal).length;
+    // Others in the call: whoever we can see on the call server, or in the Matrix call (people on another
+    // homeserver's call server aren't visible to LiveKit here, and counting only those made calls with them
+    // "alone" and end after 5 minutes).
+    const othersInCall = Math.max(participants.filter((participant) => !participant.isLocal).length, rtcOtherMembers);
     const leaveVoiceRef = useRef(leaveVoice);
     leaveVoiceRef.current = leaveVoice;
     const aloneWatcherRef = useRef<AloneWatcher | null>(null);
     useEffect(() => {
         const watcher = createAloneWatcher(() => {
+            logCallEvent("Left: alone in the call for 5 minutes");
             void leaveVoiceRef.current().then(() => setError(ALONE_LEFT_MESSAGE));
         });
         aloneWatcherRef.current = watcher;
@@ -2527,6 +2605,17 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 ))}
                             </select>
                         </label>
+                        <details className="voice-call-log" data-testid="call-log">
+                            <summary>Call history (why calls ended)</summary>
+                            <pre>{formatCallLog(readCallLog().slice(-15)) || "Nothing yet."}</pre>
+                            <button
+                                type="button"
+                                className="settings-button settings-button-secondary"
+                                onClick={() => void navigator.clipboard?.writeText(formatCallLog(readCallLog()))}
+                            >
+                                Copy for a bug report
+                            </button>
+                        </details>
                         <label className="settings-field">
                             <span>Soundboard volume: {audioSettings.soundboardVolume}%</span>
                             <input

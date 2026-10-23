@@ -5575,3 +5575,18 @@ img.voice-ctrl-icon {
     padding: 12px 0 8px;
     background: var(--bg-pane);
 }
+
+.voice-call-log {
+    grid-column: 1 / -1;
+    font-size: 12px;
+}
+
+.voice-call-log pre {
+    max-height: 160px;
+    overflow: auto;
+    white-space: pre-wrap;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    padding: 8px;
+    color: var(--text-muted);
+}

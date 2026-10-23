@@ -180,6 +180,7 @@ describe("voice room smoke", () => {
         });
 
         vi.doMock("livekit-client", () => {
+            const DisconnectReason = { 0: "UNKNOWN_REASON", 3: "PARTICIPANT_REMOVED", 7: "SIGNAL_CLOSE", UNKNOWN_REASON: 0, PARTICIPANT_REMOVED: 3, SIGNAL_CLOSE: 7 };
             const ConnectionState = {
                 Disconnected: "disconnected",
                 Connecting: "connecting",
@@ -349,6 +350,7 @@ describe("voice room smoke", () => {
                 Room,
                 RoomEvent,
                 ConnectionState,
+                DisconnectReason,
                 Track,
                 BaseKeyProvider,
                 createKeyMaterialFromBuffer: async (buffer: ArrayBuffer) => ({ importedBytes: new Uint8Array(buffer) }),
@@ -760,6 +762,63 @@ describe("voice room smoke", () => {
             } finally {
                 vi.useRealTimers();
             }
+        });
+
+        it("stays when the only other person is in the Matrix call on another server", async () => {
+            vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+            try {
+                // Bob is in the call (a MatrixRTC membership) but on his own homeserver's call server, so LiveKit here
+                // never sees him.
+                const session = createRtcSession([{ rtcBackendIdentity: "@bob:other.org:BOB", userId: "@bob:other.org" }]);
+                await renderAndJoin(createRtcClient(session, false));
+                await act(async () => {
+                    vi.advanceTimersByTime(10 * 60_000);
+                });
+                expect(createdRooms[0].state).toBe("connected");
+                expect(container.textContent).not.toContain("nobody else was in it");
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("rejoins by itself after the call server or network drops the call, and says why", async () => {
+            vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+            try {
+                const session = createRtcSession([{ rtcBackendIdentity: "@bob:example.org:BOB", userId: "@bob:example.org" }]);
+                await renderAndJoin(createRtcClient(session, false));
+                const first = createdRooms[0];
+                await act(async () => {
+                    first.state = "disconnected";
+                    first.emit(RoomEvent.Disconnected, 7);
+                });
+                expect(container.textContent).toContain("Lost the call connection (signal close). Rejoining");
+                await act(async () => {
+                    vi.advanceTimersByTime(2_000);
+                });
+                await act(async () => {
+                    await vi.runOnlyPendingTimersAsync();
+                });
+                expect(createdRooms.length).toBeGreaterThanOrEqual(2);
+                expect(createdRooms.at(-1)?.state).toBe("connected");
+                expect(JSON.parse(window.localStorage.getItem("meadhall.call_log.v1") ?? "[]")).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ event: "Dropped by the network or call server", detail: "signal close" }),
+                        expect.objectContaining({ event: "Rejoining" }),
+                    ]),
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("does not rejoin after you leave", async () => {
+            const session = createRtcSession();
+            const ref = await renderAndJoin(createRtcClient(session, false));
+            await act(async () => {
+                await ref.current?.leave();
+            });
+            expect(container.textContent).not.toContain("Rejoining");
+            expect(createdRooms).toHaveLength(1);
         });
 
         it("enables E2EE in encrypted rooms and hands media keys to LiveKit", async () => {
