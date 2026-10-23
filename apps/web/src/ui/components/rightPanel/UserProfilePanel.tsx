@@ -186,6 +186,7 @@ export function UserProfilePanel({
                 userId={userId}
                 avatarSources={avatarSources}
                 bannerUrl={rich.bannerMxc ? mediaFromMxc(client, rich.bannerMxc) : null}
+                bannerCrop={rich.bannerCrop}
                 presence={presenceEnabled ? presence : null}
                 onBack={onBack}
                 onMessage={canMessage ? openDm : undefined}

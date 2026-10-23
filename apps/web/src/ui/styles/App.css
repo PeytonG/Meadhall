@@ -1,5 +1,7 @@
 :root {
     color-scheme: dark;
+    /* Profile banners: the card and the settings preview share this shape, so the preview is exact. */
+    --profile-banner-aspect: 10 / 3;
     --bg-app: #0e0e10;
     --bg-rail: #0a0a0c;
     --bg-pane: #141418;

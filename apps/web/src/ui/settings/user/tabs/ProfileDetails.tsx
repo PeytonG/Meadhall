@@ -4,11 +4,14 @@ import React, { useEffect, useRef, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { mediaFromMxc } from "../../../adapters/media";
+import { BannerImage } from "../../../components/rightPanel/BannerImage";
 import type { ToastState } from "../../../components/Toast";
 import {
     ABOUT_KEY,
     ABOUT_MAX_LENGTH,
+    BANNER_CROP_KEY,
     BANNER_KEY,
+    DEFAULT_BANNER_CROP,
     EMAIL_KEY,
     EMPTY_RICH_PROFILE,
     LINKS_KEY,
@@ -62,7 +65,8 @@ export function ProfileDetails({ client, onToast }: ProfileDetailsProps): React.
         setError(null);
         try {
             const upload = await client.uploadContent(file, { includeFilename: true, type: file.type, name: file.name });
-            setDraft((current) => ({ ...current, bannerMxc: upload.content_uri }));
+            // A new picture starts centred and unzoomed.
+            setDraft((current) => ({ ...current, bannerMxc: upload.content_uri, bannerCrop: DEFAULT_BANNER_CROP }));
         } catch (uploadError) {
             setError(uploadError instanceof Error ? uploadError.message : "Failed to upload the banner.");
         } finally {
@@ -80,6 +84,7 @@ export function ProfileDetails({ client, onToast }: ProfileDetailsProps): React.
         .map((link) => ({ label: link.label || new URL(link.url).hostname, url: link.url }));
     const changed =
         draft.bannerMxc !== saved.bannerMxc ||
+        JSON.stringify(draft.bannerCrop) !== JSON.stringify(saved.bannerCrop) ||
         draft.about.trim() !== saved.about ||
         draft.email.trim() !== saved.email ||
         JSON.stringify(nextLinks) !== JSON.stringify(saved.links);
@@ -92,10 +97,13 @@ export function ProfileDetails({ client, onToast }: ProfileDetailsProps): React.
             empty ? client.deleteExtendedProfileProperty(key) : client.setExtendedProfileProperty(key, value);
         try {
             if (draft.bannerMxc !== saved.bannerMxc) await write(BANNER_KEY, draft.bannerMxc, !draft.bannerMxc);
+            if (JSON.stringify(draft.bannerCrop) !== JSON.stringify(saved.bannerCrop)) {
+                await write(BANNER_CROP_KEY, draft.bannerCrop, false);
+            }
             if (draft.about.trim() !== saved.about) await write(ABOUT_KEY, draft.about.trim(), !draft.about.trim());
             if (draft.email.trim() !== saved.email) await write(EMAIL_KEY, draft.email.trim(), !draft.email.trim());
             if (JSON.stringify(nextLinks) !== JSON.stringify(saved.links)) await write(LINKS_KEY, nextLinks, nextLinks.length === 0);
-            const next = { bannerMxc: draft.bannerMxc, about: draft.about.trim(), email: draft.email.trim(), links: nextLinks };
+            const next = { bannerMxc: draft.bannerMxc, bannerCrop: draft.bannerCrop, about: draft.about.trim(), email: draft.email.trim(), links: nextLinks };
             setSaved(next);
             setDraft(next);
             setLinkDrafts(nextLinks.map((link) => ({ ...link })));
@@ -118,10 +126,66 @@ export function ProfileDetails({ client, onToast }: ProfileDetailsProps): React.
     return (
         <div className="settings-section-card settings-profile-details" data-testid="profile-details">
             <h3>Banner</h3>
-            <div className="settings-banner-preview">
-                {/* The full file, not a thumbnail, so GIFs keep moving. */}
-                {bannerUrl ? <img src={bannerUrl} alt="Your profile banner" /> : <span>No banner: a color from your name is used.</span>}
+            {/* Exactly the profile card's banner shape and crop. Drag to choose what shows; zoom to fill. The full
+                file is used (not a thumbnail) so GIFs keep moving. */}
+            <div
+                className={`settings-banner-preview profile-banner-shape${bannerUrl ? " is-croppable" : ""}`}
+                data-testid="banner-preview"
+                onPointerDown={(event) => {
+                    if (!bannerUrl) return;
+                    const box = event.currentTarget.getBoundingClientRect();
+                    const start = { x: event.clientX, y: event.clientY, crop: draft.bannerCrop };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    const move = (moveEvent: PointerEvent): void => {
+                        // Dragging the picture right shows more of its left side, like moving a photo in a frame.
+                        const dx = ((moveEvent.clientX - start.x) / box.width) * 100;
+                        const dy = ((moveEvent.clientY - start.y) / box.height) * 100;
+                        const clamp = (value: number): number => Math.min(100, Math.max(0, Math.round(value)));
+                        setDraft((current) => ({
+                            ...current,
+                            bannerCrop: { ...start.crop, x: clamp(start.crop.x - dx), y: clamp(start.crop.y - dy) },
+                        }));
+                    };
+                    const up = (): void => {
+                        window.removeEventListener("pointermove", move);
+                        window.removeEventListener("pointerup", up);
+                    };
+                    window.addEventListener("pointermove", move);
+                    window.addEventListener("pointerup", up);
+                }}
+            >
+                {bannerUrl ? (
+                    <BannerImage url={bannerUrl} crop={draft.bannerCrop} />
+                ) : (
+                    <span>No banner: a color from your name is used.</span>
+                )}
             </div>
+            {bannerUrl ? (
+                <div className="settings-banner-crop">
+                    <label>
+                        <span>Zoom</span>
+                        <input
+                            type="range"
+                            min={1}
+                            max={4}
+                            step={0.05}
+                            value={draft.bannerCrop.zoom}
+                            aria-label="Banner zoom"
+                            data-testid="banner-zoom"
+                            onChange={(event) =>
+                                setDraft((current) => ({ ...current, bannerCrop: { ...current.bannerCrop, zoom: Number(event.target.value) } }))
+                            }
+                        />
+                    </label>
+                    <button
+                        type="button"
+                        className="settings-button settings-button-secondary"
+                        onClick={() => setDraft((current) => ({ ...current, bannerCrop: DEFAULT_BANNER_CROP }))}
+                    >
+                        Reset crop
+                    </button>
+                </div>
+            ) : null}
             <div className="settings-profile-actions">
                 <button type="button" className="settings-button" disabled={uploading} onClick={() => bannerInputRef.current?.click()}>
                     {uploading ? "Uploading..." : "Upload banner"}
@@ -147,7 +211,10 @@ export function ProfileDetails({ client, onToast }: ProfileDetailsProps): React.
                     }}
                 />
             </div>
-            <p className="settings-field-help">An image or GIF, shown across the top of your profile. Wide pictures work best.</p>
+            <p className="settings-field-help">
+                An image or GIF across the top of your profile. The preview is exactly how it shows on your profile card: drag
+                it to choose what shows, and zoom in if it doesn&apos;t fill the space.
+            </p>
 
             <label className="settings-field">
                 <span>About me</span>

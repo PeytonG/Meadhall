@@ -7,6 +7,8 @@ export const BANNER_KEY = "io.github.peytong.meadhall.banner";
 export const ABOUT_KEY = "io.github.peytong.meadhall.about";
 export const EMAIL_KEY = "io.github.peytong.meadhall.email";
 export const LINKS_KEY = "io.github.peytong.meadhall.links";
+// How the banner is cropped to the profile card's shape: the point (percent) to keep in view, and a zoom.
+export const BANNER_CROP_KEY = "io.github.peytong.meadhall.banner_crop";
 
 export const ABOUT_MAX_LENGTH = 400;
 export const MAX_LINKS = 5;
@@ -16,14 +18,31 @@ export interface ProfileLink {
     url: string;
 }
 
+export interface BannerCrop {
+    x: number; // 0-100
+    y: number; // 0-100
+    zoom: number; // 1-4
+}
+
+export const DEFAULT_BANNER_CROP: BannerCrop = { x: 50, y: 50, zoom: 1 };
+
+export function parseBannerCrop(value: unknown): BannerCrop {
+    if (!value || typeof value !== "object") return DEFAULT_BANNER_CROP;
+    const record = value as Record<string, unknown>;
+    const clamp = (raw: unknown, min: number, max: number, fallback: number): number =>
+        typeof raw === "number" && Number.isFinite(raw) ? Math.min(max, Math.max(min, raw)) : fallback;
+    return { x: clamp(record.x, 0, 100, 50), y: clamp(record.y, 0, 100, 50), zoom: clamp(record.zoom, 1, 4, 1) };
+}
+
 export interface RichProfile {
     bannerMxc: string | null;
+    bannerCrop: BannerCrop;
     about: string;
     email: string;
     links: ProfileLink[];
 }
 
-export const EMPTY_RICH_PROFILE: RichProfile = { bannerMxc: null, about: "", email: "", links: [] };
+export const EMPTY_RICH_PROFILE: RichProfile = { bannerMxc: null, bannerCrop: DEFAULT_BANNER_CROP, about: "", email: "", links: [] };
 
 // Only web links: never javascript:, data: or anything else a stranger could put on their profile.
 export function safeLinkUrl(value: unknown): string | null {
@@ -65,6 +84,7 @@ export function parseRichProfile(profile: Record<string, unknown> | null | undef
     const email = profile[EMAIL_KEY];
     return {
         bannerMxc: typeof banner === "string" && banner.startsWith("mxc://") ? banner : null,
+        bannerCrop: parseBannerCrop(profile[BANNER_CROP_KEY]),
         about: typeof about === "string" ? about.slice(0, ABOUT_MAX_LENGTH) : "",
         email: typeof email === "string" && isPlausibleEmail(email) ? email.trim() : "",
         links: parseLinks(profile[LINKS_KEY]),
