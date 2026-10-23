@@ -55,6 +55,7 @@ import { buildMatrixToRoomPermalink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
+import { MobileUpdateBanner } from "./MobileUpdateBanner";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -2252,6 +2253,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     return (
         <div className={appShellClassName} style={appShellStyle}>
             <DesktopUpdateBanner />
+            <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
             {incomingCall ? (
                 <IncomingCallCard
                     client={client}

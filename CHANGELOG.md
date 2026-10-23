@@ -18,6 +18,8 @@ Versions follow `vX.Y.Z`.
   Invisible) right from the tray icon; it stays in step with the app.
 - **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
   computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
+- **Update notice on Android (and iOS):** like the desktop app, phones tell you when a new version is out, with a
+  link to download it and step-by-step install directions (Settings → Updates, where the notice can be turned off).
 - **Soundboard:** in a call, open **Sounds** to play a sound for everyone: 12 built-in 8-bit sounds (duck, fart,
   sword, air horn, ba dum tss, coin, bell, war horn, sad trombone, applause, crickets, level up) and up to 24 of your
   own (8 seconds, 1 MB each), managed and previewed in Settings → Audio. Your sounds follow your account.

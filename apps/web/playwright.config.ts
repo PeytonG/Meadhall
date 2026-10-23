@@ -17,6 +17,8 @@ export default defineConfig({
     projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
     webServer: {
         command: "pnpm run build && node e2e/serve.mjs",
+        // A release version, as the release workflow stamps it, so the phone update notice has something to compare.
+        env: { VITE_MEADHALL_VERSION: "0.3.0" },
         url: "http://127.0.0.1:4173",
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,

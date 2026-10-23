@@ -15,6 +15,7 @@ import { VisibilityTab } from "./server/tabs/VisibilityTab";
 import { AdvancedTab } from "./server/tabs/AdvancedTab";
 import { AppearanceTab } from "./user/tabs/AppearanceTab";
 import { UpdatesTab } from "./user/tabs/UpdatesTab";
+import { currentPlatform } from "../presence/clientStatus";
 import { ServerAdminTab } from "./user/tabs/ServerAdminTab";
 import { isServerAdmin } from "../../core/admin/synapseAdmin";
 import { AudioTab } from "./user/tabs/AudioTab";
@@ -95,7 +96,7 @@ const USER_NAV: SettingsNavSection[] = [
     },
 ];
 
-// Desktop app only: an "Updates" entry under App Settings.
+// Desktop and phone apps: an "Updates" entry under App Settings.
 function withUpdatesTab(sections: SettingsNavSection[]): SettingsNavSection[] {
     return sections.map((section) =>
         section.title === "App Settings"
@@ -228,7 +229,7 @@ export function SettingsOverlay({
             cancelled = true;
         };
     }, [client, mode, open]);
-    const userNav = isDesktopApp ? withUpdatesTab(USER_NAV) : USER_NAV;
+    const userNav = isDesktopApp || currentPlatform() === "mobile" ? withUpdatesTab(USER_NAV) : USER_NAV;
     const navSections = mode === "server" ? SERVER_NAV : isAdmin ? withServerAdminTab(userNav) : userNav;
     const title = useMemo(() => {
         if (mode === "server") {

@@ -185,6 +185,9 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: pnpm --dir apps/mobile run build
+        env:
+          # The app compares this with the latest release to tell people an update is out.
+          VITE_MEADHALL_VERSION: ${{ needs.version.outputs.version }}
       - name: Prepare release signing key
         id: signing
         shell: bash
