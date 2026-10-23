@@ -271,6 +271,44 @@ function getParticipantDisplayInfo(
     return { displayName, avatarMxc, userId };
 }
 
+type ScreenShareVideoTrack = { attach: (element: HTMLVideoElement) => unknown; detach: (element: HTMLVideoElement) => unknown };
+
+// One stream in the side-by-side view shown when several people share at once; click to watch it large.
+function ScreenShareTile({
+    identity,
+    label,
+    getPublication,
+    trackRevision,
+    onFocus,
+}: {
+    identity: string;
+    label: string;
+    getPublication: (identity: string) => { videoTrack?: ScreenShareVideoTrack } | undefined;
+    trackRevision: number;
+    onFocus: () => void;
+}): React.ReactElement {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    useEffect(() => {
+        const video = videoRef.current;
+        const track = getPublication(identity)?.videoTrack;
+        if (!video || !track) {
+            return undefined;
+        }
+        track.attach(video);
+        return () => {
+            track.detach(video);
+            video.srcObject = null;
+        };
+    }, [getPublication, identity, trackRevision]);
+    return (
+        <button type="button" className="voice-room-stage-tile" onClick={onFocus} title={`Watch ${label}`} data-testid="screen-share-tile">
+            {/* Muted: screen audio plays through its own audio element. */}
+            <video ref={videoRef} className="voice-room-stage-video" autoPlay playsInline muted />
+            <span className="voice-room-stage-tile-name">{label}</span>
+        </button>
+    );
+}
+
 function isParticipantScreenSharing(participant: Participant | LocalParticipant): boolean {
     const publication = participant.getTrackPublication?.(Track.Source.ScreenShare) as
         | { track?: unknown; isSubscribed?: boolean; isMuted?: boolean; videoTrack?: unknown }
@@ -606,6 +644,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [micTrackSettingsSummary, setMicTrackSettingsSummary] = useState<string | null>(null);
     const [localScreenSharing, setLocalScreenSharing] = useState(false);
     const [activeScreenShareIdentity, setActiveScreenShareIdentity] = useState<string | null>(null);
+    // With several people sharing, show every stream side by side until one is picked.
+    const [screenShareGridView, setScreenShareGridView] = useState(true);
     const [screenShareQualityProfileId, setScreenShareQualityProfileId] = useState<ScreenShareQualityProfileId>(
         DEFAULT_SCREEN_SHARE_QUALITY_PROFILE_ID,
     );
@@ -948,6 +988,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
     }, [activeScreenShareIdentity, screenShareParticipants]);
 
+    const showScreenShareGrid = screenShareParticipants.length > 1 && screenShareGridView;
+    useEffect(() => {
+        if (screenShareParticipants.length <= 1) {
+            setScreenShareGridView(true);
+        }
+    }, [screenShareParticipants.length]);
+
     useEffect(() => {
         const stageVideo = screenShareVideoRef.current;
         if (!stageVideo) {
@@ -973,7 +1020,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             videoTrack.detach(stageVideo);
             stageVideo.srcObject = null;
         };
-    }, [activeScreenShareIdentity, audioMuted, connectionState, getScreenShareVideoPublicationForIdentity, screenShareTrackRevision]);
+    }, [
+        activeScreenShareIdentity,
+        audioMuted,
+        connectionState,
+        getScreenShareVideoPublicationForIdentity,
+        screenShareTrackRevision,
+        showScreenShareGrid,
+    ]);
 
     useEffect(() => {
         for (const [sid, audioElement] of remoteAudioElementsByTrackSidRef.current.entries()) {
@@ -2113,7 +2167,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             <h3>Screen share</h3>
                             <div className="voice-room-stage-header-actions">
                                 <span className="voice-room-stage-status">
-                                    {activeScreenShareParticipant
+                                    {showScreenShareGrid
+                                        ? `${screenShareParticipants.length} streams live`
+                                        : activeScreenShareParticipant
                                         ? `${
                                               activeScreenShareParticipant.isLocal ||
                                               activeScreenShareParticipant.matrixUserId === ownUserId
@@ -2160,7 +2216,33 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             ref={stageVideoWrapRef}
                             className={`voice-room-stage-video-wrap${stageFullscreen ? " is-fullscreen" : ""}`}
                         >
-                            {activeScreenShareParticipant ? (
+                            {showScreenShareGrid ? (
+                                <div className="voice-room-stage-grid">
+                                    {screenShareParticipants.map((participant) => (
+                                        <ScreenShareTile
+                                            key={`screen-share-tile-${participant.identity}`}
+                                            identity={participant.identity}
+                                            label={
+                                                participant.isLocal || participant.matrixUserId === ownUserId
+                                                    ? "You"
+                                                    : getParticipantDisplayInfo(
+                                                          matrixRoom,
+                                                          participant.identity,
+                                                          participant.matrixUserId,
+                                                          participant.isLocal,
+                                                          ownProfile,
+                                                      ).displayName
+                                            }
+                                            getPublication={getScreenShareVideoPublicationForIdentity}
+                                            trackRevision={screenShareTrackRevision}
+                                            onFocus={() => {
+                                                setActiveScreenShareIdentity(participant.identity);
+                                                setScreenShareGridView(false);
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            ) : activeScreenShareParticipant ? (
                                 <video ref={screenShareVideoRef} className="voice-room-stage-video" autoPlay playsInline />
                             ) : (
                                 <div className="voice-room-stage-empty">Preparing screen share...</div>
@@ -2168,6 +2250,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </div>
                         {screenShareParticipants.length > 1 ? (
                             <div className="voice-room-stage-picker">
+                                <button
+                                    type="button"
+                                    className={`voice-room-stage-picker-button${showScreenShareGrid ? " is-active" : ""}`}
+                                    onClick={() => setScreenShareGridView(true)}
+                                >
+                                    Show all
+                                </button>
                                 {screenShareParticipants.map((participant) => {
                                     const info = getParticipantDisplayInfo(
                                         matrixRoom,
@@ -2176,13 +2265,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                         participant.isLocal,
                                         ownProfile,
                                     );
-                                    const isActive = participant.identity === activeScreenShareIdentity;
+                                    const isActive = !showScreenShareGrid && participant.identity === activeScreenShareIdentity;
                                     return (
                                         <button
                                             key={`screen-share-${participant.identity}`}
                                             type="button"
                                             className={`voice-room-stage-picker-button${isActive ? " is-active" : ""}`}
-                                            onClick={() => setActiveScreenShareIdentity(participant.identity)}
+                                            onClick={() => {
+                                                setActiveScreenShareIdentity(participant.identity);
+                                                setScreenShareGridView(false);
+                                            }}
                                         >
                                             {participant.isLocal || participant.matrixUserId === ownUserId
                                                 ? "You"

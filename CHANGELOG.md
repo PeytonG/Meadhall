@@ -14,6 +14,7 @@ Versions follow `vX.Y.Z`.
   apps too, not only on desktop.
 - **Direct Messages show the latest message** under each name, next to their status.
 - People on the **phone app** show a green phone instead of the online dot, unless they picked a status.
+- **Two screen shares at once show side by side**; click one to watch it large, and "Show all" to go back.
 - **Calls end themselves after 5 minutes alone**, with a note saying why, so a forgotten call doesn't keep your
   microphone open.
 

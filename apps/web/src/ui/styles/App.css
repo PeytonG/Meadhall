@@ -3914,6 +3914,43 @@ img.voice-ctrl-icon {
     background: #000000;
 }
 
+/* Several streams at once: side by side, each keeping its shape. */
+.voice-room-stage-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 6px;
+    padding: 6px;
+}
+
+.voice-room-stage-tile {
+    position: relative;
+    min-height: 0;
+    border: 1px solid rgba(143, 187, 207, 0.25);
+    border-radius: 8px;
+    padding: 0;
+    overflow: hidden;
+    background: #000000;
+    cursor: zoom-in;
+}
+
+.voice-room-stage-tile:hover {
+    border-color: var(--accent);
+}
+
+.voice-room-stage-tile-name {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #ffffff;
+    font-size: 12px;
+}
+
 .voice-room-stage-empty {
     position: absolute;
     inset: 0;

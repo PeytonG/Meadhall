@@ -454,6 +454,68 @@ describe("voice room smoke", () => {
         expect(voiceAdapterMocks.fetchLiveKitToken).toHaveBeenCalledTimes(1);
     });
 
+    it("shows two screen shares side by side, and one large when picked", async () => {
+        const attached: string[] = [];
+        const screenShare = (owner: string): FakePublication =>
+            ({
+                kind: "video",
+                source: "screen_share",
+                isSubscribed: true,
+                trackSid: `screen-${owner}`,
+                track: createAudioTrack(`screen-${owner}`),
+                videoTrack: {
+                    attach: () => attached.push(owner),
+                    detach: () => [],
+                },
+                setSubscribed: vi.fn(),
+            }) as unknown as FakePublication;
+        seededRemotePublications.push(
+            { participantIdentity: "@alice:example.org::a", participantSid: "remote-a", publication: screenShare("alice") },
+            { participantIdentity: "@bob:example.org::b", participantSid: "remote-b", publication: screenShare("bob") },
+        );
+        const ref = createRef<VoiceRoomHandle>();
+        await act(async () => {
+            root.render(
+                React.createElement(VoiceRoom, {
+                    ref,
+                    client: {
+                        getUserId: () => "@self:example.org",
+                        getUser: () => ({ displayName: "Self" }),
+                        mxcUrlToHttp: () => null,
+                        getRoom: () => null,
+                    },
+                    matrixRoomId: "!voice:example.org",
+                    matrixRoom: null,
+                    audioSettings: createAudioSettings(),
+                    onAudioSettingsChange: () => undefined,
+                }),
+            );
+        });
+        await act(async () => {
+            await ref.current?.join();
+        });
+
+        const tiles = container.querySelectorAll<HTMLButtonElement>("[data-testid=screen-share-tile]");
+        expect(tiles).toHaveLength(2);
+        expect(attached).toEqual(expect.arrayContaining(["alice", "bob"]));
+        expect(container.textContent).toContain("2 streams live");
+
+        await act(async () => {
+            tiles[1].click();
+        });
+        expect(container.querySelectorAll("[data-testid=screen-share-tile]")).toHaveLength(0);
+        expect(container.querySelectorAll(".voice-room-stage-video")).toHaveLength(1);
+        expect(container.textContent).toContain("is live");
+
+        const showAll = [...container.querySelectorAll<HTMLButtonElement>(".voice-room-stage-picker-button")].find(
+            (button) => button.textContent === "Show all",
+        );
+        await act(async () => {
+            showAll?.click();
+        });
+        expect(container.querySelectorAll("[data-testid=screen-share-tile]")).toHaveLength(2);
+    });
+
     describe("MatrixRTC (Element Call compatible)", () => {
         const roomId = "!voice:example.org";
         const transport = { type: "livekit", livekit_service_url: "https://rtc.example.org/livekit/jwt" };
