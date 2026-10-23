@@ -343,20 +343,15 @@ function decodeBase64(base64) {
     return out;
 }
 
+// "userId|deviceId" as bytes (each UTF-16 code unit truncated to a byte, matching core/storage/pickling.ts).
+// The IDs arrive in a message from the page, so they are checked to be strings, and the bytes are built without
+// writing to computed indexes.
 function getPickleAdditionalData(userId, deviceId) {
-    const additionalData = new Uint8Array(userId.length + deviceId.length + 1);
-
-    for (let index = 0; index < userId.length; index++) {
-        additionalData[index] = userId.charCodeAt(index);
+    if (typeof userId !== "string" || typeof deviceId !== "string") {
+        throw new TypeError("userId and deviceId must be strings");
     }
-
-    additionalData[userId.length] = 124;
-
-    for (let index = 0; index < deviceId.length; index++) {
-        additionalData[userId.length + 1 + index] = deviceId.charCodeAt(index);
-    }
-
-    return additionalData;
+    const joined = `${userId}|${deviceId}`;
+    return Uint8Array.from({ length: joined.length }, (_, index) => joined.charCodeAt(index));
 }
 
 async function buildAndEncodePickleKey(data, userId, deviceId) {
