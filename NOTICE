@@ -31,6 +31,12 @@ Changes made in this fork (2026, by PeytonG; see the git history for detail):
 - Discord-style roles and permissions mapped onto Matrix power levels; a server
   admin panel (Synapse Admin API); incoming-call ringtone; pixel emoji; speaking
   campfire; desktop and Android background notifications (no Google services).
+- Status (Away, Do Not Disturb, Invisible, custom status, automatic Away, a phone
+  icon, "Playing ..." from Steam); profiles with banners, bios, links and roles;
+  per-channel "who can talk"; a desktop tray menu; several signed-in accounts with
+  notifications for all; a soundboard with synthesized sounds and more voice
+  effects; a high contrast theme; update notices on phones and "What's new" after
+  updates; an iOS project (Capacitor) with a Codemagic build.
 
 Files added by this fork carry an SPDX-License-Identifier: AGPL-3.0-only header.
 Third-party fonts: Pixelify Sans and Silkscreen, SIL Open Font License 1.1.

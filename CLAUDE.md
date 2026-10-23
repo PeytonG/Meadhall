@@ -255,12 +255,22 @@ Discord-style roles mapped onto Matrix so the server enforces them (and Element 
   touched: admins (100+), v12 creators, anyone at/above you, and people never given roles in Meadhall.
 - Channels limited to roles become invite-only; the editor invites people who gain access (Meadhall auto-joins
   invites to channels of servers you're in) and removes those who lose it.
+- **Who can talk** per channel is "a role and every role above it" (or everyone), stored as `talk` next to `roles`
+  in `channel_view`. It sets the channel's `events_default` (and, in voice channels, the `call.member` level, also
+  written to `com.heorot.channel_access` so the join-calls check agrees). Why ranked rather than an exact set like
+  "see": Matrix decides sending with one threshold per room, so an exact set can't be enforced by the server;
+  "see" can be exact because it is membership (invites/kicks). `setChannelViewRoles` and `setChannelTalkRole`
+  merge, so setting one keeps the other.
 - UI: Server Settings → Members (`settings/server/tabs/MembersTab.tsx`); member list names take the top role color.
+- Profiles show the person's roles in every mutual server (`rightPanel/mutualServerRoles.ts`), falling back to
+  Admin/Moderator from `member.powerLevel` (which counts v12 creators; the power-levels map doesn't).
 
 ### 7.7 Server admin panel
 Settings → Server admin, shown only when `GET /_synapse/admin/v1/users/<me>/admin` says admin (and re-checked in the
 tab; Synapse rejects non-admins anyway). Registration tokens and user management via `core/admin/synapseAdmin.ts`.
-The test Synapse has a test-only `registration_shared_secret` so E2E can create admins (`registerAdmin`).
+The test Synapse has a test-only `registration_shared_secret` so E2E can create admins (`registerAdmin`,
+`makeServerAdmin`). Password reset is an in-page form: it used `window.prompt`, which Electron doesn't implement, so
+it silently did nothing on desktop (the owner hit this; browser tests passed). **Never use `window.prompt`.**
 
 ### 7.8 Android background notifications (`apps/mobile/android/.../meadhall/`)
 No Google services (owner's choice: no extra apps or accounts). `SyncService` (foreground, type
@@ -278,6 +288,78 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 - CI: `ci.yml` (checks, integration, E2E), `security.yml` (CodeQL, dependency review, gitleaks, `pnpm audit
   --audit-level high`, Electronegativity), `release.yml` (tags → draft release → Windows/Linux/Android → publish).
   Actions are pinned to commit SHAs. `.gitleaksignore` holds one reviewed false positive by fingerprint.
+- Playwright projects: `chromium` (desktop size) plus `android-phone` (Pixel 7) and `iphone` (iPhone 14 metrics in
+  Chromium) for the phone-only specs (`mobile`, `mobileUpdates`). The real Electron suite
+  (`playwright.desktop.config.ts`) needs `pnpm --dir apps/desktop run build` first: it runs the copied web build.
+- Audio is tested for real in Chromium by rendering effects/sounds with `OfflineAudioContext`
+  (`e2e/voiceEffects.spec.ts`, `e2e/soundboard.spec.ts`); the voice room smoke tests fake LiveKit (no LiveKit in CI).
+- Screenshots for the README/`docs/SCREENSHOTS.md` are tests (`CAPTURE_SCREENSHOTS=1 ... playwright test
+  screenshots`): `screenshots.spec.ts` and `screenshotsShowcase.spec.ts` stage the demo hall (`seedHall.ts`), roles,
+  profiles and statuses. Recapture after visible UI changes and look at every image before committing.
+
+### 7.10 Status, presence and activity (`ui/presence`)
+- Online / Away / Invisible and the custom status text are real Matrix presence (`setPresence` + `status_msg`), so
+  Element shows them. Synapse rejects `busy`, so **DND** (and the platform, and "Playing ...") travel in the
+  extended-profile field `io.github.peytong.meadhall.status` `{state, platform, activity}`; Meadhall overlays it.
+  Others' fields are cached and refreshed when their presence changes (`clientStatus.ts`, `usePresence.ts`).
+- Presence is on for every platform (it was desktop-only). Synapse only lets you see presence of people you share a
+  room with, and rate-limits presence writes hard (429 after a couple): presence and profile writes are each
+  serialized to the newest value, run independently (profile mustn't wait behind a rate-limited presence write),
+  and clear their "running" marker in `finally` (clearing it inside the loop left it stuck forever when there was
+  nothing to send; that bug made DND never reach the server).
+- Automatic Away after 10 min without input (`autoAway.ts`); desktop uses OS idle time (`powerMonitor`), so working
+  in another app still counts. Phone users without a manual status show a pixel 📱 (`is-mobile` dot).
+- "Playing ...": the desktop app reads Steam's own files (Windows `RunningAppID` registry value, `registry.vdf`
+  elsewhere, names from `appmanifest_<id>.acf`; `apps/desktop/electron/steamActivity.ts`, parser `vdf.ts`). Chosen
+  over the Steam Web API because it needs no API key, Steam login or server bot. Privacy toggle, default on.
+- DND silences notifications and call ringing locally (`isDoNotDisturb()`).
+
+### 7.11 Profiles (`core/profile/richProfile.ts`)
+Banner (mxc, rendered from the full file so GIFs animate), About me, a public email and up to 5 links, each an
+extended-profile field (`io.github.peytong.meadhall.{banner,about,email,links}`): they follow the account and are
+public, which the settings page says. Links are restricted to http(s) both when saving and when reading someone
+else's profile (no `javascript:`/`data:`).
+
+### 7.12 Several accounts (`core/storage/accounts.ts`, `ui/accounts`)
+One account is active and runs the full client; the others wait in a vault (IndexedDB `account` table, key
+`meadhall_accounts`) holding copies of their session slots and still-encrypted tokens. Switching swaps the slots and
+**reloads**, so an account starts exactly like a normal app start (no second client in one page). Each account has
+its own sync and Rust crypto databases via a store prefix (`mx_store_prefix`; the first account keeps the original
+names, so no migration). `SessionLifecycle.clearStorage` clears only the active account (it used to clear whole
+tables, which would wipe other accounts' keys). Inactive accounts are polled every minute via `/notifications` with
+their own tokens (refreshed when they expire), like the Android service; clicking one switches and opens the room.
+Not yet: Android's `SyncService` only covers the active account.
+
+### 7.13 Voice changer and soundboard
+- 18 effects built from standard Web Audio nodes (pitch-shift delay lines, vibrato, multi-tap echoes, filters,
+  ring modulation, wave shaping) so they run everywhere; each is measured in Chromium (audible, no clipping,
+  changed, pitch effects within 8%).
+- Soundboard: 12 built-ins **synthesized** in an 8-bit style (`voice/soundboard/builtinSounds.ts`), so there are no
+  sample files or licenses. Your own sounds (≤ 8 s, 1 MB, decodable) go to the media repo and are listed in account
+  data `io.github.peytong.meadhall.soundboard`. In a call they play on a **separate published audio track**
+  (`SoundboardPlayer`), not mixed into the mic as first planned: it's heard while muted, survives mic restarts and
+  voice effects, and other clients play it like any audio track. No cooldown yet.
+- Calls auto-leave after 5 minutes alone (`voice/aloneInCall.ts`) with a note saying why.
+
+### 7.14 Updates and "What's new"
+- Desktop updates itself (§7.4). Phones can't, so they check GitHub's latest release (cached 6 h for the anonymous
+  rate limit), show a notice with the APK/IPA link, and Settings → Updates has install steps and a switch. The
+  release workflow stamps `VITE_MEADHALL_VERSION` into the mobile build; builds without it never nag.
+- **What's new** (`core/updates/whatsNew.ts`, `WhatsNewDialog.tsx`): once after an update (desktop and phone apps),
+  the CHANGELOG sections newer than the last version this install ran, from `CHANGELOG.md` bundled with `?raw`.
+  The release workflow already refuses tags without a section, so release notes and What's new can't be skipped.
+  Fresh installs see nothing; installs that predate the feature but had an account get the current notes.
+
+### 7.15 iOS (`apps/mobile/ios`, `codemagic.yaml`)
+Capacitor iOS with Swift Package Manager (no CocoaPods), built on Codemagic (`mac_mini_m2`) on `v*` tags, signed
+with an App Store Connect API key integration and uploaded to TestFlight. Icons come from `generate-branding.mjs`.
+**Never built yet**: needs the owner's Apple Developer account and the key in Codemagic. iOS can't poll in the
+background, so notifications need APNs through Sygnal (a push gateway) on the server.
+
+### 7.16 Accessibility
+High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
+brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requires 7:1 against its background
+(the same audit flags 16 texts in the dark theme, so it has teeth).
 
 ## 8. Gotchas
 
@@ -306,6 +388,14 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 | Typecheck compiles matrix-js-sdk sources | Every `matrix-js-sdk/src/*` deep import needs a tsconfig `paths` entry |
 | Local Windows installer build fails (symlinks) | Needs Windows Developer Mode; CI runners are fine |
 | `pnpm dlx` tool blocked (build scripts) | Use `npm_config_ignore_scripts=true npx …` |
+| A button does nothing in the desktop app only | `window.prompt` doesn't exist in Electron (returns null). Use in-page forms; `confirm`/`alert` do work |
+| `\\` in Bash heredocs arrives as `\` | Doubled backslashes are halved on the way in; write regex/paths with the Write/Edit tools and grep the result |
+| Text selectors match twice after DM previews | The DM list repeats the latest message; scope message checks to `.timeline` and rows to `getByTestId("home-row")` |
+| Presence GET 403 / PUT 429 in tests | Synapse shows presence only between people sharing a room, and rate-limits writes; share a room, and expect delays |
+| Room v12 creator shows as level 0 | Creators aren't in `users` of power levels; use `room.getMember(id).powerLevel` |
+| Desktop test runs old code | The Electron app serves the copied web build: `pnpm --dir apps/desktop run build` after web changes |
+| Async "loop running" flag stuck forever | A loop that finishes synchronously clears the flag before `??=` assigns it; clear it in `.finally()` |
+| GitHub anchor links break on emoji headings | Put an explicit `<a id="..."></a>` before the heading and link to that |
 
 ## 9. Status
 
@@ -328,6 +418,7 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 | Discord-style Home (Direct Messages + Group Chats), phone/tablet layouts, voice changer | ✅ merged (PR #6) |
 | `v0.2.1` (picture fix, smooth screen share, campfire) | ✅ published |
 | `v0.3.0`: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ published (PR #9): https://github.com/PeytonG/Meadhall/releases/tag/v0.3.0 |
+| `v0.3.1`: the whole §10.1 backlog except building iOS (status, profiles, accounts, soundboard, effects, talk permissions, Steam, What's new, high contrast, README) | ✅ on branch `v0.3.1`; tests: 177 unit, 14 smoke, 8 integration, 53 E2E (incl. phones), 8 real-desktop |
 
 ## 10. Open issues and roadmap
 
@@ -336,110 +427,49 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 - **Matrix 2.0 mode:** js-sdk 40.2 hashes `user|device|member`; lk-jwt-service hashes JSON. Upgrade matrix-js-sdk
   (44+) before Element Call makes that mode the default.
 - MSC4195 `url`-only transports aren't supported yet (falls back to the relay).
-- iOS; code signing for Windows/macOS; optional FCM push for Android (needs the owner's Firebase project + Sygnal).
+- iOS needs a first real build (Apple Developer account + Codemagic key) and APNs/Sygnal for notifications; code
+  signing for Windows/macOS; optional FCM push for Android (needs the owner's Firebase project + Sygnal).
 - Notification taps on Android open the app but not yet the specific conversation (the intent carries `roomId`).
+- Android's background service only covers the active account (§7.12).
+- No OIDC-native sign-in (Matrix Authentication Service). matrix.org uses MAS: password sign-in works through its
+  compatibility layer and Register falls back to its SSO page (checked against matrix.org on 2026-10-23).
+- Soundboard has no cooldown; "talk" permissions are ranked (role and above), not exact sets (§7.6).
 
-### 10.1 Owner's backlog: v0.3.1 (requested 2026-10-23; in progress)
-Work through these in small PRs, each with UI tests (§4). Notes are starting points, not decisions.
+### 10.1 Owner's v0.3.1 backlog (requested 2026-10-22/23; done on branch `v0.3.1`)
+Each item shipped with tests; the design reasons are in §7. Numbers are the owner's.
 
-**Progress (branch `v0.3.1`):** done: 1, 2, 3, 4, 5, 6, 8, 17, 20, 21, 24, 25, 27. Remaining: 7, 9–16, 18, 19, 22,
-23, 26.
-
-**Bugs**
-1. **Ringtone is broken.** Reproduce first (incoming call card, `voice/ringtone.ts`, `IncomingCallCard.tsx`). Likely
-   suspects: AudioContext blocked by autoplay policy until a user gesture (desktop: allow via
-   `autoplayPolicy: "no-user-gesture-required"` in webPreferences), `setSinkId` failing, or the card unmounting.
-2. **Notifications don't show in the Windows app** (worked on web; Linux/Fedora untested, probably the same).
-   Check: Electron permission handler (`notifications` allowed only for the app origin; is `heorot://` matched?),
-   `Notification.permission` in Electron, AUMID vs the installed shortcut (NSIS shortcut must carry the same
-   AppUserModelId), and Windows Focus Assist. Consider showing them from the main process (`new
-   electron.Notification`) via IPC, which is the most reliable on Windows/Linux. Test on the real desktop app.
-3. **Own profile picture sometimes missing in calls** (others' show). Intermittent: likely the local participant's
-   avatar resolving before the own `User`/member profile loads (`VoiceRoom` participant info). Fall back to
-   `client.getProfileInfo(me)`.
-4. **Two screen shares at once are clunky.** Show all active shares (grid/side-by-side stage with a focus toggle)
-   instead of one stage with a picker.
-5. **Call auto-leave:** if you're alone in a call for 5 minutes, disconnect and post a notice ("You were
-   disconnected for being alone in the call for 5 minutes"; a local toast + a system-style message in the room
-   for that user only, not a real room event).
-6. **Transparent images** in chat should get a background (checkerboard or a neutral tile) so they're readable.
-
-**Profiles and presence**
-7. **Profile shows roles** in mutual servers: role chips grouped by server name (read `core/roles` per shared space).
-8. **Custom status** (typed text) and manual presence: Online / Away (idle) / Do not disturb / Invisible
-   (`setPresence({presence, status_msg})`; DND should also silence notifications locally).
-9. **Editable profile banner** (image or animated GIF) above the avatar on profile cards: store as an mxc URL in an
-   extended-profile field (like the campfire key), render with the GIF animating.
-10. **Profile settings: editable About me** and optional fields (email shown publicly, social links); store in
-    extended profile fields. Steam link could appear here (see 12).
-11. **Desktop tray menu:** Mute, Deafen, and status (Online / Away / Do not disturb / Invisible), wired to the same
-    state as the user panel (`selfVoiceState`, presence) via IPC.
-12. **Activity / rich presence (explore):** Steam (Steam Web API `GetPlayerSummaries` with the user's SteamID and an
-    API key from the server owner, polled by a small server-side bot or the client), manual "Playing ..." activity,
-    or a Discord-RPC-compatible local socket in the desktop app. Publish as an extended-profile field.
-
-**Roles (model it on Discord)**
-13. **Full role editor:** today's roles are ranked power levels. Owner wants Discord-like control: create roles; per
-    role choose which channels it can **see** and which it can **talk** in (separately), moderation powers, etc.
-    Channel overrides per role (view / send / connect to voice / manage messages). Matrix mapping: view =
-    invite-only/restricted membership; talk = per-channel `events_default`/`m.room.message` level set to the lowest
-    rank allowed; voice = `call.member` level. Keep the server enforcing everything (§7.6).
-
-**Voice**
-14. **Expand the voice changer** with many more creative effects (e.g. chipmunk, demon, alien, underwater, cave
-    echo, megaphone, ghost/whisper, helium, old radio, telephone, autotune-ish, reverse-echo). Same TrackProcessor
-    approach (§7.5); measure each in Chromium like the existing ones.
-15. **Soundboard in calls:** built-in clips (duck, fart, sword, airhorn, rimshot, sad trombone, applause, cheers,
-    horn/mead-hall themed ones) plus user-added sounds (uploaded to the media repo, stored in account data or a
-    space pack). Play into the call by mixing into the published mic track (Web Audio mix before the processor),
-    with a per-user volume and a cooldown. Original/CC0 sounds only (license!).
-
-**Platforms**
-16. **iOS app with notifications.** Capacitor iOS (`npx cap add ios`) built in the cloud (Codemagic `codemagic.yaml`
-    on a `mac_mini_m2`, or GitHub Actions macOS runners) with App Store Connect API keys (.p8, Key ID, Issuer ID) and
-    automatic signing; ship via TestFlight. Notifications on iOS need APNs (no background polling on iOS): Synapse
-    pusher → Sygnal with APNs credentials. Needs an Apple Developer account (owner).
-
-**Mobile (Android and iOS)**
-20. **Swipe navigation:** swipe right from the chat to get back to the list / Direct Messages, and left to return
-    (like the Discord app). Touch handlers on the phone layout (`mobilePane`), with the Back button behaviour kept.
-21. **Send button** in the composer on phones, next to the emoji (smile) button: phones have no Enter-to-send.
-    Show it on touch/phone layouts (and when the composer has text or attachments).
-
-22. **UI testing on Android and iOS** too, not only desktop/web: phone-sized Playwright runs (touch, `isMobile`)
-    for every UI change, plus checks on a real device or emulator/simulator when available (Android emulator in CI;
-    iOS simulator on the macOS build host).
-23. **Mobile update notice:** Android/iOS show the same "Meadhall X is available" banner as desktop when a newer
-    GitHub release exists, linking to the latest release to download the APK (or the iOS build), with a Settings
-    toggle to turn the check off. README gets step-by-step download/install directions for the APK and for iOS.
-24. **DM list snippet:** under a person's name (all platforms), show a snippet of the last message after
-    "Direct message", next to the online/offline status.
-25. **Mobile presence icon:** people using Android/iOS show a pixel green phone as their status icon (instead of the
-    dot), unless they picked a status manually.
-26. **Multiple accounts / switch user:** sign in to several accounts at once (e.g. one on matrix.org and one on a
-    self-hosted server), switch between them from the user panel, and keep receiving notifications for all of them
-    (each signed-in account keeps a light sync or `/notifications` poll; desktop and Android background notifiers
-    must cover every account). Sessions are stored per account; signing out removes only that account.
-28. **High contrast theme** for low-vision users (requested 2026-10-22): `data-theme="contrast"`, all text 7:1
-    (WCAG AAA), audited by `e2e/contrast.spec.ts`.
-27. **Automatic Away:** with the Automatic status, show Away after 10 minutes without input and Online again on
-    return (`presence/autoAway.ts`; the desktop app uses the OS idle time via `heorot:getSystemIdleSeconds`).
-
-**Presentation / defaults**
-17. **Default homeserver back to `https://matrix.org`** (owner: more presentable). Change `DEFAULT_HOMESERVER_URL`
-    in `core/config/serverDefaults.ts` and the README; keep the token field logic (it already adapts per server).
-18. **README / GitHub page overhaul with many screenshots:** flames vs no flames on a speaker, Direct Messages,
-    group chats, spaces, the roles editor and member list colors, profiles, settings (fonts, color wheel, voice
-    changer), the admin panel, mobile views, and sign-up with a registration token. Extend
-    `e2e/screenshots.spec.ts`/`seedHall.ts` to stage each scene (a speaking state can be faked by toggling the
-    campfire's `active` in a test-only harness).
-19. **Document registration options** in the README/self-hosting guide: open registration, registration tokens
-    (Synapse `registration_requires_token`, created in the admin panel), email verification, reCAPTCHA, SSO/OIDC,
-    and invite-only (admin creates accounts). Research how common Matrix servers do it (matrix.org, Element's docs,
-    Synapse config docs) and show the matching Meadhall sign-up screen for each.
+| # | Request | Where / decision |
+|---|---|---|
+| 1 | Ringtone broken | Encrypted RTC notifications were ignored before decryption; listen for `Decrypted` (`useIncomingCall.ts`) |
+| 2 | Windows notifications missing | Native notifications from the main process via IPC (`heorot:showNotification`) |
+| 3 | Own picture missing in calls | Local tile returned early without an avatar; own ID used before the call membership syncs |
+| 4 | Two screen shares clunky | Side-by-side grid, click to focus, "Show all" |
+| 5 | Leave after 5 min alone | `voice/aloneInCall.ts` |
+| 6 | Transparent images | Read as a complaint: the gray box behind pictures was removed. Asked the owner to confirm; if they wanted a checkerboard instead, it's a CSS change in `.timeline-image` |
+| 7 | Roles on profiles | §7.6 |
+| 8 | Custom status, manual presence | §7.10 |
+| 9, 10 | Banner, About me, email, links | §7.11 |
+| 11 | Tray menu | Mute/Deafen/Status, state mirrored over IPC (`tray.ts`) |
+| 12 | Steam / activity | Local Steam files, §7.10 |
+| 13 | Full role editor | See + talk per channel, §7.6 |
+| 14 | More voice effects | 12 added (18 total), §7.13 |
+| 15 | Soundboard | §7.13 |
+| 16 | iOS | Project + Codemagic; not built yet, §7.15 |
+| 17 | Default homeserver matrix.org | `core/config/serverDefaults.ts` |
+| 18, 19 | README with screenshots; sign-up docs | README modelled on the owner's reference layout; `docs/SCREENSHOTS.md` |
+| 20, 21 | Phone swipe; send button | `AppShell` touch handler; `composer-send` |
+| 22 | Phone UI testing | Pixel 7 + iPhone projects, §7.9 |
+| 23 | Phone update notice | §7.14 |
+| 24, 25 | DM previews; phone icon | `lastMessageSnippet.ts`; §7.10 |
+| 26 | Several accounts | §7.12 |
+| 27 | Automatic Away | §7.10 |
+| 28 | High contrast theme | §7.16 |
+| 29 | What's new after updates | §7.14 |
+| — | Admin password reset broken on desktop (owner report) | `window.prompt` → form, §7.7 |
 
 ## 11. Work log
 
 | Date | Work |
 |---|---|
 | 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. PR #6 merged; `v0.2.0` released (desktop files re-attached after an electron-builder draft mix-up; release workflow fixed). Then: v0.2.1 (pictures, screen share, campfire); CHANGELOG-driven release notes. Then v0.3.0 work: desktop drag-region fix + themed window controls, quieter campfire with local speech detection, people search, pixel emoji, incoming-call ringtone, roles/permissions, server admin panel, desktop + Android background notifications, much more UI testing (incl. a real Electron test). |
+| 2026-10-23 | v0.3.1 backlog (§10.1): ringtone and Windows notifications fixed; status/DND/Away, DM previews, phone icon; profiles (banner, bio, links, roles); talk permissions; tray menu; Steam activity; 12 voice effects; soundboard; several accounts; phone update notice and What's new; high contrast; iOS project; README overhaul with test-made screenshots; admin password reset fixed on desktop; status write races fixed. |
