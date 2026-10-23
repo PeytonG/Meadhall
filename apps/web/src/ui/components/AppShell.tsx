@@ -59,6 +59,7 @@ import { MobileUpdateBanner } from "./MobileUpdateBanner";
 import { WhatsNewDialog } from "./WhatsNewDialog";
 import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
+import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -2278,6 +2279,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         settings: userSettings.notifications,
         onOpenRoom: focusRoom,
     });
+
+    // Desktop: the unread count as a bubble on the taskbar icon.
+    useTaskbarBadge(client);
 
     // Other accounts signed in on this device: listed in the status menu, and their notifications still arrive.
     const storedAccounts = useStoredAccounts();

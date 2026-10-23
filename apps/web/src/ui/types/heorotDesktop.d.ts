@@ -31,6 +31,7 @@ export interface HeorotDesktopBridge {
     showWindow?: () => Promise<void>;
     getSystemIdleSeconds?: () => Promise<number>;
     getActivity?: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
+    setUnreadBadge?: (badge: { count: number; icon: string | null }) => Promise<void>;
     setTrayState?: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
     onTrayAction?: (listener: (action: { type: string; status?: string }) => void) => () => void;
     showNotification?: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;

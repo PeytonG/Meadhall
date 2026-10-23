@@ -65,6 +65,7 @@ function distance(a: [number, number, number], b: [number, number, number]): num
 
 let carolDm = "";
 let deskUser: ApiUser;
+let carolUser: ApiUser;
 let bob: ApiUser;
 
 // One signed-in app for all the checks: the user has two DMs (Carol's opens first, Bob's stays in the background).
@@ -73,6 +74,7 @@ test.beforeAll(async () => {
     deskUser = user;
     bob = await registerUser("bob");
     const carol = await registerUser("carol");
+    carolUser = carol;
     await setDisplayName(bob, "Bob");
     const bobDm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [user.userId] });
     carolDm = await createRoom(carol, { is_direct: true, preset: "trusted_private_chat", invite: [user.userId] });
@@ -246,4 +248,39 @@ test("server admins can reset someone's password in the desktop app", async () =
     await expect(window.getByTestId("admin-revealed-password")).toHaveText("desktop-reset-789");
     expect(await canLogIn(bob.username, "desktop-reset-789")).toBe(true);
     await window.keyboard.press("Escape");
+});
+
+test("the taskbar icon shows a red unread bubble in the top-right, and clears when read", async () => {
+    type Badge = { count: number; icon: string | null } | undefined;
+    const badge = (): Promise<Badge> => app.evaluate(() => (globalThis as unknown as { meadhallUnreadBadge?: Badge }).meadhallUnreadBadge);
+    // Reading Bob's DM; Carol writes twice.
+    await window.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: /bob/i }).click();
+    await sendMessage(carolUser, carolDm, "are you there?");
+    await sendMessage(carolUser, carolDm, "hello??");
+    await expect.poll(async () => (await badge())?.count ?? 0, { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+
+    // The icon the window now uses: Meadhall's with a red bubble top-right, the bottom-left untouched.
+    const pixels = await app.evaluate(({ nativeImage }) => {
+        const icon = (globalThis as unknown as { meadhallUnreadBadge: { icon: string } }).meadhallUnreadBadge.icon;
+        const image = nativeImage.createFromDataURL(icon);
+        const { width } = image.getSize();
+        const bitmap = image.toBitmap(); // BGRA
+        const at = (x: number, y: number) => {
+            const offset = (y * width + x) * 4;
+            return [bitmap[offset + 2], bitmap[offset + 1], bitmap[offset]];
+        };
+        // Inside the bubble (centre 49,15; radius 15+) but left of the number.
+        return { size: width, topRight: at(37, 15), bottomLeft: at(8, width - 8) };
+    });
+    expect(pixels.size).toBe(64);
+    const [r, g, b] = pixels.topRight;
+    expect(r).toBeGreaterThan(200);
+    expect(g).toBeLessThan(100);
+    expect(b).toBeLessThan(100);
+    expect(pixels.bottomLeft).not.toEqual(pixels.topRight);
+
+    // Reading Carol's messages clears it.
+    await window.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").filter({ hasText: /carol/i }).click();
+    await expect(window.locator(".timeline").getByText("hello??")).toBeVisible();
+    await expect.poll(async () => (await badge())?.count ?? -1, { timeout: 30_000 }).toBe(0);
 });

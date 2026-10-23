@@ -26,6 +26,8 @@ export interface HeorotDesktopBridge {
     showWindow: () => Promise<void>;
     // Seconds since the last keyboard or mouse input anywhere on the computer.
     getSystemIdleSeconds: () => Promise<number>;
+    // The taskbar icon with an unread bubble (icon is a PNG data URL drawn by the app; count 0 clears it).
+    setUnreadBadge: (badge: { count: number; icon: string | null }) => Promise<void>;
     // The game Steam is running, if any.
     getActivity: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
     // The tray menu's Mute / Deafen / Status: the app reports its state and handles the menu's choices.
@@ -83,6 +85,9 @@ const bridge: HeorotDesktopBridge = {
     },
     getSystemIdleSeconds: async (): Promise<number> => ipcRenderer.invoke("heorot:getSystemIdleSeconds"),
     getActivity: async (): Promise<{ name: string; appId: string; source: "steam" } | null> => ipcRenderer.invoke("heorot:getActivity"),
+    setUnreadBadge: async (badge: { count: number; icon: string | null }): Promise<void> => {
+        await ipcRenderer.invoke("heorot:setUnreadBadge", badge);
+    },
     setTrayState: async (state: { muted: boolean; deafened: boolean; status: string }): Promise<void> => {
         await ipcRenderer.invoke("heorot:setTrayState", state);
     },

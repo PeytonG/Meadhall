@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, desktopCapturer, ipcMain, net, Notification, powerMonitor, protocol, session } from "electron";
+import { app, BrowserWindow, desktopCapturer, ipcMain, nativeImage, net, Notification, powerMonitor, protocol, session } from "electron";
 
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
@@ -472,6 +472,21 @@ function registerIpc(): void {
     });
 
     // Clicking a notification brings the window back, even from the tray.
+    // Taskbar badge: the app draws its icon with an unread bubble (top-right, like Discord); 0 restores the plain
+    // icon. The page's input is checked: a PNG data URL of sane size, and a count.
+    ipcMain.handle("heorot:setUnreadBadge", (event, payload: { count?: unknown; icon?: unknown }) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        const count = typeof payload?.count === "number" && Number.isFinite(payload.count) ? Math.max(0, Math.min(9999, Math.floor(payload.count))) : 0;
+        const icon = typeof payload?.icon === "string" && payload.icon.startsWith("data:image/png;base64,") && payload.icon.length < 400_000 ? payload.icon : null;
+        if (window && process.platform !== "darwin") {
+            const image = count > 0 && icon ? nativeImage.createFromDataURL(icon) : nativeImage.createFromPath(resolveAppIconPath());
+            if (!image.isEmpty()) window.setIcon(image);
+        }
+        // macOS dock and Linux launchers that support it (Unity/KDE).
+        app.setBadgeCount(count);
+        (globalThis as { meadhallUnreadBadge?: { count: number; icon: string | null } }).meadhallUnreadBadge = { count, icon: count > 0 ? icon : null };
+    });
+
     // The tray menu mirrors mute/deafen and status; the app reports them as they change.
     ipcMain.handle("heorot:setTrayState", (_event, state: TrayState) => {
         const statuses = ["auto", "online", "idle", "dnd", "invisible"];
