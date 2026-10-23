@@ -45,6 +45,7 @@ import { RoomDialog } from "../rooms/RoomDialog";
 import { releaseElementVolume, setElementVolumePercent, setVolumeBoostSinkId } from "../../voice/volumeBoost";
 import { SpeakingCampfire } from "./PixelCampfire";
 import { VoiceActivityMonitor } from "../../voice/voiceActivity";
+import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
@@ -1983,6 +1984,23 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const connected = connectionState === ConnectionState.Connected;
+    const othersInCall = participants.filter((participant) => !participant.isLocal).length;
+    const leaveVoiceRef = useRef(leaveVoice);
+    leaveVoiceRef.current = leaveVoice;
+    const aloneWatcherRef = useRef<AloneWatcher | null>(null);
+    useEffect(() => {
+        const watcher = createAloneWatcher(() => {
+            void leaveVoiceRef.current().then(() => setError(ALONE_LEFT_MESSAGE));
+        });
+        aloneWatcherRef.current = watcher;
+        return () => {
+            watcher.dispose();
+            aloneWatcherRef.current = null;
+        };
+    }, []);
+    useEffect(() => {
+        aloneWatcherRef.current?.update(connected, othersInCall);
+    }, [connected, othersInCall]);
     // Voice channels created before call memberships were allowed: offer whoever can edit power levels a fix.
     const callAccessRoom = connected && voiceBackendRef.current === "matrixrtc" ? client.getRoom(matrixRoomId) : null;
     const showCallAccessFix =

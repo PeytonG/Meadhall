@@ -14,6 +14,8 @@ Versions follow `vX.Y.Z`.
   apps too, not only on desktop.
 - **Direct Messages show the latest message** under each name, next to their status.
 - People on the **phone app** show a green phone instead of the online dot, unless they picked a status.
+- **Calls end themselves after 5 minutes alone**, with a note saying why, so a forgotten call doesn't keep your
+  microphone open.
 
 ### Changed
 - The app connects to **matrix.org** by default again; type your own server's address to use it.
