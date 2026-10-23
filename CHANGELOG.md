@@ -16,6 +16,8 @@ Versions follow `vX.Y.Z`.
   apps too, not only on desktop.
 - **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
   computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
+- **Profile banner, About me, email and links:** upload an image or GIF banner and add a bio, a public email and up to
+  five links in Settings → Profile; they show on your profile card.
 - **Profiles show roles in mutual servers:** each server you share, by name, with the person's role chips in their
   colors (or Admin / Moderator on servers without Meadhall roles).
 - **Direct Messages show the latest message** under each name, next to their status.

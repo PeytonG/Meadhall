@@ -4,6 +4,7 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import { mediaFromMxc, thumbnailFromMxc } from "../../../adapters/media";
 import { Avatar } from "../../../components/Avatar";
 import type { ToastState } from "../../../components/Toast";
+import { ProfileDetails } from "./ProfileDetails";
 
 interface ProfileTabProps {
     client: MatrixClient;
@@ -194,6 +195,8 @@ export function ProfileTab({ client, onToast }: ProfileTabProps): React.ReactEle
                     {saving ? "Saving..." : "Save profile"}
                 </button>
             </div>
+
+            <ProfileDetails client={client} onToast={onToast} />
         </div>
     );
 }

@@ -12,6 +12,8 @@ import { AboutCard } from "./cards/AboutCard";
 import { RolesCard } from "./cards/RolesCard";
 import { MediaCard } from "./cards/MediaCard";
 import { mutualServerRoles } from "./mutualServerRoles";
+import { LinksCard } from "./cards/LinksCard";
+import { parseRichProfile } from "../../../core/profile/richProfile";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -127,7 +129,11 @@ export function UserProfilePanel({
         [client, memberSources, profileAvatarMxc],
     );
 
+    const rich = useMemo(() => parseRichProfile(profile as Record<string, unknown> | null), [profile]);
     const aboutText = useMemo(() => {
+        if (rich.about.trim().length > 0) {
+            return rich.about;
+        }
         if (typeof profile?.about === "string" && profile.about.trim().length > 0) {
             return profile.about;
         }
@@ -135,7 +141,7 @@ export function UserProfilePanel({
             return profile.bio;
         }
         return "";
-    }, [profile?.about, profile?.bio]);
+    }, [profile?.about, profile?.bio, rich.about]);
 
     const memberSince = getMemberSince(member);
     const aboutBody = memberSince ? `${aboutText || "No bio set"}\n\nMember since ${memberSince}` : aboutText;
@@ -176,6 +182,7 @@ export function UserProfilePanel({
                 displayName={displayName}
                 userId={userId}
                 avatarSources={avatarSources}
+                bannerUrl={rich.bannerMxc ? mediaFromMxc(client, rich.bannerMxc) : null}
                 presence={presenceEnabled ? presence : null}
                 onBack={onBack}
                 onMessage={canMessage ? openDm : undefined}
@@ -195,6 +202,8 @@ export function UserProfilePanel({
                 body={aboutBody}
                 emptyText={loadingProfile ? "Loading profile..." : "No bio set."}
             />
+
+            {rich.email || rich.links.length > 0 ? <LinksCard email={rich.email} links={rich.links} /> : null}
 
             <RolesCard servers={serverRoles} mutualRoomsCount={mutualRoomsCount} />
 

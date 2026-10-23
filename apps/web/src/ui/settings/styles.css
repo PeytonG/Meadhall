@@ -1304,3 +1304,48 @@
     gap: 4px;
     cursor: pointer;
 }
+
+/* Profile details: banner preview, About me, email and links. */
+.settings-banner-preview {
+    height: 110px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.settings-banner-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.settings-links {
+    border: 0;
+    padding: 0;
+    margin: 12px 0;
+    display: grid;
+    gap: 8px;
+}
+
+.settings-links legend {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.settings-link-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+    gap: 6px;
+}
+
+@media (max-width: 560px) {
+    .settings-link-row {
+        grid-template-columns: 1fr;
+    }
+}
