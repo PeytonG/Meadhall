@@ -95,9 +95,9 @@ Every release includes `SHA256SUMS.txt` so you can verify downloads. Desktop app
 
 ### First steps
 
-1. Sign in with any Matrix account, or register one. The homeserver defaults to the Meadhall community server
-   (`https://elementprojectzkypg.duckdns.org`). If a server needs a **registration token** (an invite code from its
-   admin), the Register form asks for it.
+1. Sign in with any Matrix account, or register one. The homeserver defaults to `https://matrix.org`; type your
+   own server's address to use it. If a server needs a **registration token** (an invite code from its admin), the
+   Register form asks for it (see [Signing up](#signing-up)).
 2. A fresh account may offer to set up **secure backup**. Do it, and keep the key safe: it unlocks your encrypted
    history on new devices.
 3. Create a space with **+** in the left rail, add text and voice channels, and invite friends.

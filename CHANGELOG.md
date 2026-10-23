@@ -6,6 +6,9 @@ Versions follow `vX.Y.Z`.
 
 ## Unreleased
 
+### Changed
+- The app connects to **matrix.org** by default again; type your own server's address to use it.
+
 ### Fixed
 - **Notifications show in the Windows and Linux apps.** They now use the system's own notifications, and are switched
   on once for existing installs (an old "off" default had been saved with everyone's settings).

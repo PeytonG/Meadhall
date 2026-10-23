@@ -24,7 +24,7 @@ test("captures README screenshots", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Meadhall" })).toBeVisible();
     // Show the real default server rather than the test server this run points at.
-    await page.getByLabel("Homeserver").fill("https://elementprojectzkypg.duckdns.org");
+    await page.getByLabel("Homeserver").fill("https://matrix.org");
     await capture(page, "login");
 
     const { viewer } = await seedHall();
