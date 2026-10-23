@@ -4,6 +4,13 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## Unreleased
+
+### Fixed
+- **Calls ring again.** In encrypted DMs (the default) the call notice arrives encrypted, so incoming calls never rang.
+  The desktop app also plays the ringtone even if you haven't clicked in it yet (for example after starting at
+  login).
+
 ## v0.3.0 (2026-10-23)
 
 ### New

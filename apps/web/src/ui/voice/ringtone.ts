@@ -85,10 +85,18 @@ export function startRinging(sinkId?: string): () => void {
     };
     scheduleAhead();
     const timer = window.setInterval(scheduleAhead, 500);
+    // Browsers may refuse to start audio until the page has been clicked: start ringing on the next interaction.
+    const resumeOnInteraction = (): void => {
+        void context.resume().catch(() => undefined);
+    };
     void context.resume().catch(() => undefined);
+    window.addEventListener("pointerdown", resumeOnInteraction, true);
+    window.addEventListener("keydown", resumeOnInteraction, true);
     return () => {
         if (stopped) return;
         stopped = true;
+        window.removeEventListener("pointerdown", resumeOnInteraction, true);
+        window.removeEventListener("keydown", resumeOnInteraction, true);
         window.clearInterval(timer);
         output.gain.setTargetAtTime(0, context.currentTime, 0.03);
         window.setTimeout(() => void context.close().catch(() => undefined), 200);

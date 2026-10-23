@@ -343,6 +343,9 @@ function createMainWindow(startHidden = false): BrowserWindow {
         },
         webPreferences: {
             preload: resolvePreloadPath(),
+            // Incoming-call ringtones and message sounds must play even before anyone has clicked in the window
+            // (e.g. the app started hidden at login).
+            autoplayPolicy: "no-user-gesture-required",
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
