@@ -846,3 +846,44 @@
 
 
 
+
+/* Roles in mutual servers: the server's name, then its role chips. */
+.rp-server-roles {
+    display: grid;
+    gap: 6px;
+    padding: 6px 0;
+}
+
+.rp-server-roles-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.rp-server-roles-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.rp-role-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-hover);
+    color: var(--text-main);
+    font-size: 12px;
+}
+
+.rp-role-chip.is-none {
+    color: var(--text-muted);
+}
+
+.rp-role-chip-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex: none;
+}

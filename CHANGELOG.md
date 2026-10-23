@@ -16,6 +16,8 @@ Versions follow `vX.Y.Z`.
   apps too, not only on desktop.
 - **Automatic Away:** with the Automatic status you show as Away after 10 minutes without input (anywhere on the
   computer, in the desktop app) and go back to Online as soon as you return. "Idle" is now called "Away".
+- **Profiles show roles in mutual servers:** each server you share, by name, with the person's role chips in their
+  colors (or Admin / Moderator on servers without Meadhall roles).
 - **Direct Messages show the latest message** under each name, next to their status.
 - People on the **phone app** show a green phone instead of the online dot, unless they picked a status.
 - **Two screen shares at once show side by side**; click one to watch it large, and "Show all" to go back.
