@@ -383,6 +383,7 @@ export function SettingsOverlay({
             case "privacy":
                 return (
                     <PrivacyTab
+                        client={client}
                         settings={userSettings.privacy}
                         onChange={(privacy) =>
                             onUserSettingsChange({

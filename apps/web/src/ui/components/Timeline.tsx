@@ -637,7 +637,8 @@ function extractMessageEvents(room: Room | null): MatrixEvent[] {
     }
 
     const liveEvents = room.getLiveTimeline()?.getEvents() ?? room.timeline;
-    return liveEvents.filter(isRenderableMessage);
+    // Blocked people: the server stops sending their events; also hide the ones already loaded.
+    return liveEvents.filter((event) => isRenderableMessage(event) && !room.client.isUserIgnored(event.getSender() ?? ""));
 }
 
 function formatTime(timestamp: number): string {
@@ -1481,6 +1482,10 @@ export function Timeline({
         };
 
         const onAccountData = (event: MatrixEvent): void => {
+            if (event.getType() === EventType.IgnoredUserList) {
+                refreshEvents();
+                return;
+            }
             if (event.getType() !== PERSONAL_EMOJI_PACK_EVENT_TYPE) {
                 return;
             }
