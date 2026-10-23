@@ -512,3 +512,21 @@
     font-size: 12px;
     color: var(--danger);
 }
+
+/* Send button: only where there's no Enter key to press (phones, touch screens). */
+.composer-send-button {
+    display: none;
+}
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+    .composer-send-button {
+        display: inline-grid;
+        place-items: center;
+        color: var(--accent);
+    }
+
+    .composer-send-button:disabled {
+        color: var(--text-muted);
+        opacity: 0.6;
+    }
+}

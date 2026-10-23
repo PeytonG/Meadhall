@@ -263,3 +263,14 @@ test("emoji are pixel art by default, and the Appearance toggle turns that off",
     await page.keyboard.press("Escape");
     expect(await emoji.evaluate((element) => getComputedStyle(element).filter)).toBe("none");
 });
+
+test("desktop keeps Enter-to-send without a send button", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await createSpaceWithChannel(bob, alice, { space: "Hall", channel: "general" });
+    await signIn(page, alice);
+    await page.getByTitle("Hall").click();
+    await page.getByText("#general", { exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "Open emoji picker" })).toBeVisible();
+    await expect(page.getByTestId("composer-send")).toBeHidden();
+});

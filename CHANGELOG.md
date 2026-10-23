@@ -6,6 +6,10 @@ Versions follow `vX.Y.Z`.
 
 ## Unreleased
 
+### New
+- **Phones: a send button** next to the emoji button, and **swipe** right to go back to your conversations (left to
+  return to the chat).
+
 ### Changed
 - The app connects to **matrix.org** by default again; type your own server's address to use it.
 

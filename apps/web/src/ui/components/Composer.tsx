@@ -1982,6 +1982,8 @@ export function Composer({
                 onDrop={handleDrop}
                 onAttach={() => fileInputRef.current?.click()}
                 onToggleEmoji={() => setEmojiPickerOpen((open) => !open)}
+                onSend={() => void sendMessage()}
+                canSend={text.trim().length > 0 || uploads.some((upload) => upload.roomId === room?.roomId && upload.status === "queued")}
                 stickerControl={
                     <StickerButton
                         disabled={!room}

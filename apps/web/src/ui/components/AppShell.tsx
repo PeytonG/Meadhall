@@ -1744,6 +1744,43 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         setMobilePane("list");
     }, []);
 
+    // Phones: swipe right in a chat to go back to the list (Direct Messages / channels), swipe left from the list to
+    // return to the open chat, like the Discord app.
+    useEffect(() => {
+        if (!isPhoneLayout) {
+            return undefined;
+        }
+        let start: { x: number; y: number; at: number } | null = null;
+        const onStart = (event: TouchEvent): void => {
+            const target = event.target as HTMLElement | null;
+            const ignored = target?.closest("input, textarea, [contenteditable=\"true\"], .settings-nav, .pixel-color-wheel, .voice-room-panel");
+            start = event.touches.length === 1 && !ignored ? { x: event.touches[0].clientX, y: event.touches[0].clientY, at: Date.now() } : null;
+        };
+        const onEnd = (event: TouchEvent): void => {
+            if (!start || event.changedTouches.length === 0) {
+                return;
+            }
+            const dx = event.changedTouches[0].clientX - start.x;
+            const dy = event.changedTouches[0].clientY - start.y;
+            const quick = Date.now() - start.at < 600;
+            start = null;
+            if (!quick || Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) {
+                return;
+            }
+            if (dx > 0 && mobilePane === "chat") {
+                goBackToList();
+            } else if (dx < 0 && mobilePane === "list" && activeRoomId) {
+                setMobilePane("chat");
+            }
+        };
+        window.addEventListener("touchstart", onStart, { passive: true });
+        window.addEventListener("touchend", onEnd, { passive: true });
+        return () => {
+            window.removeEventListener("touchstart", onStart);
+            window.removeEventListener("touchend", onEnd);
+        };
+    }, [activeRoomId, goBackToList, isPhoneLayout, mobilePane]);
+
     const selectUserAndOpenPanel = useCallback(
         (userId: string): void => {
             selectUser(userId);
