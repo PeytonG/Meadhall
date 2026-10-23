@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# iOS builds on Codemagic (macOS in the cloud): Meadhall's iOS app is the Capacitor project in apps/mobile/ios.
+#
+# One-time setup in Codemagic (needs an Apple Developer account):
+#   1. Add this repository as an app in Codemagic.
+#   2. Teams → Integrations → App Store Connect: add an API key (the .p8 file, its Key ID and the Issuer ID) and
+#      name it "Meadhall App Store Connect" (or change `app_store_connect` below to the name you used).
+#   3. Create the app in App Store Connect with the bundle ID io.github.peytong.meadhall.
+# Then push a tag like v0.3.1: Codemagic builds a signed .ipa and uploads it to TestFlight.
+#
+# Notifications on iOS need Apple's push service (APNs) through a push gateway (Sygnal): iOS doesn't let apps poll
+# in the background the way Android's SyncService does. See CLAUDE.md §10.1 item 16.
+
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Meadhall App Store Connect
+    environment:
+      node: 22
+      xcode: latest
+      vars:
+        # Electron isn't needed for the iOS build.
+        ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: io.github.peytong.meadhall
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+    scripts:
+      - name: Install dependencies
+        script: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Build the web app into the iOS project
+        script: |
+          # The app compares this with the latest release for its update notice and "What's new".
+          export VITE_MEADHALL_VERSION="${CM_TAG#v}"
+          pnpm --dir apps/mobile run build:ios
+      - name: Set up code signing
+        script: xcode-project use-profiles
+      - name: Set the version from the tag
+        script: |
+          cd apps/mobile/ios/App
+          VERSION="${CM_TAG#v}"
+          agvtool new-marketing-version "${VERSION%%-*}"
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build the .ipa
+        script: |
+          xcode-project build-ipa \
+            --project "apps/mobile/ios/App/App.xcodeproj" \
+            --scheme "App"
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
