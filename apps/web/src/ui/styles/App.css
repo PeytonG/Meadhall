@@ -6255,3 +6255,16 @@ img.voice-ctrl-icon {
     height: 100%;
     object-fit: cover;
 }
+
+/* Text for screen readers (and text search) that isn't shown. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}

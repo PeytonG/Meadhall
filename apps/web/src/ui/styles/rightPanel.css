@@ -919,3 +919,52 @@
     color: var(--accent-soft);
     overflow-wrap: anywhere;
 }
+
+/* The row is now a container: the main button (profile) and a "⋯" menu button (roles, copy ID). */
+.rs-member-row {
+    padding: 0 4px 0 0;
+    gap: 2px;
+}
+
+.rs-member-select {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.rs-member-more {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+}
+
+.rs-member-row:hover .rs-member-more,
+.rs-member-more:focus-visible {
+    opacity: 1;
+}
+
+.rs-member-more:hover {
+    background: var(--bg-input);
+    color: var(--text-main);
+}
+
+@media (hover: none) {
+    .rs-member-more {
+        opacity: 1;
+    }
+}

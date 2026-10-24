@@ -43,6 +43,8 @@ function MenuList({
     const listRef = useRef<HTMLDivElement | null>(null);
     const [openSubmenu, setOpenSubmenu] = useState<number | null>(null);
     const [submenuTop, setSubmenuTop] = useState(0);
+    // Submenus open to the right, or to the left when the menu is near the right edge of the window.
+    const [submenuLeft, setSubmenuLeft] = useState(false);
 
     useEffect(() => {
         if (autoFocus) listRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
@@ -70,6 +72,8 @@ function MenuList({
                 const hasSubmenu = Boolean(item.submenu?.length);
                 const open = (target: HTMLElement): void => {
                     setSubmenuTop(target.offsetTop);
+                    const box = listRef.current?.getBoundingClientRect();
+                    setSubmenuLeft(Boolean(box && box.right + 240 > window.innerWidth));
                     setOpenSubmenu(index);
                 };
                 return (
@@ -123,7 +127,7 @@ function MenuList({
                                     setOpenSubmenu(null);
                                     buttons()[index]?.focus();
                                 }}
-                                style={{ position: "absolute", left: "100%", top: submenuTop }}
+                                style={submenuLeft ? { position: "absolute", right: "100%", top: submenuTop, marginRight: 6, marginLeft: 0 } : { position: "absolute", left: "100%", top: submenuTop }}
                             />
                         ) : null}
                     </React.Fragment>

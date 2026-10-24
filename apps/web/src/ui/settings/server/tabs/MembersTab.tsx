@@ -3,6 +3,7 @@
 // rank, permissions), give them to members, and choose which roles can see each channel. Roles are applied as
 // Matrix power levels and invite-only channels (core/roles), so the server enforces them for everyone.
 import React, { useEffect, useMemo, useState } from "react";
+import { useRoomStateVersion } from "../../../hooks/useRoomStateVersion";
 import { EventType, RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 
 import { readAssignments, readChannelTalk, readChannelView, readRoles, saveRoles, setChannelTalkRole, setChannelViewRoles, setMemberRoles } from "../../../../core/roles/applyRoles";
@@ -27,18 +28,6 @@ function errorText(error: unknown): string {
 }
 
 // Re-renders when roles or assignments change in the space (ours or another admin's).
-function useSpaceStateVersion(rooms: Room[]): number {
-    const [version, setVersion] = useState(0);
-    useEffect(() => {
-        const bump = (): void => setVersion((value) => value + 1);
-        for (const room of rooms) room.currentState.on(RoomStateEvent.Events, bump);
-        return () => {
-            for (const room of rooms) room.currentState.removeListener(RoomStateEvent.Events, bump);
-        };
-    }, [rooms]);
-    return version;
-}
-
 function RoleEditor({ role, onChange, onDelete, disabled }: { role: Role; onChange: (role: Role) => void; onDelete: () => void; disabled: boolean }): React.ReactElement {
     const toggle = (permission: Permission): void =>
         onChange({
@@ -95,7 +84,7 @@ function RoleEditor({ role, onChange, onDelete, disabled }: { role: Role; onChan
 }
 
 export function MembersTab({ client, spaceRoom, channels, onToast }: MembersTabProps): React.ReactElement {
-    const version = useSpaceStateVersion(useMemo(() => [spaceRoom, ...channels], [channels, spaceRoom]));
+    const version = useRoomStateVersion(useMemo(() => [spaceRoom, ...channels], [channels, spaceRoom]));
     const roles = useMemo(() => readRoles(spaceRoom), [spaceRoom, version]);
     const assignments = useMemo(() => readAssignments(spaceRoom, roles), [roles, spaceRoom, version]);
     const [draftRoles, setDraftRoles] = useState<Role[]>(roles);

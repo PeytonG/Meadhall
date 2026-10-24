@@ -987,6 +987,8 @@ export function RoomList({
                                             <PixelIcon name={channelTypeIcon(isVoiceChannel ? "voice" : getChannelType(room, spaceRoom))} size={14} />
                                         </span>
                                     ) : null}
+                                    {/* Read as "#general" by screen readers (and text search); the icon shows it. */}
+                                    {showHashPrefix && !isVoiceChannel ? <span className="visually-hidden">#</span> : null}
                                     {roomName}
                                     {muted ? (
                                         <span className="room-item-muted-icon" title="Muted">
@@ -1379,6 +1381,7 @@ export function RoomList({
                                                     <span className="room-item-type-icon" aria-hidden="true">
                                                         <PixelIcon name={channelTypeIcon(isVoiceChannel ? "voice" : listedChannelType(spaceRoom, room.roomId))} size={14} />
                                                     </span>
+                                                    {showHashPrefix && !isVoiceChannel ? <span className="visually-hidden">#</span> : null}
                                                     {room.name}
                                                 </span>
                                                 <span className="room-item-subtitle">{subtitle}</span>

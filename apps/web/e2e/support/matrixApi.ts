@@ -260,3 +260,7 @@ export async function downloadMedia(user: ApiUser, mxc: string): Promise<Uint8Ar
     if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
 }
+
+export async function invite(user: ApiUser, roomId: string, userId: string): Promise<void> {
+    await request(user, "POST", `/rooms/${encodeURIComponent(roomId)}/invite`, { user_id: userId });
+}
