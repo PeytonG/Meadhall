@@ -638,7 +638,10 @@ async function bootstrap(): Promise<void> {
     await app.whenReady();
     if (process.platform === "win32") {
         // Windows shows notifications under this ID (the installer registers it); without it toasts can be dropped.
-        app.setAppUserModelId("io.github.peytong.meadhall");
+        // Development and test runs (unpackaged electron.exe) get their own ID: when they used the real one, Electron
+        // created a Start-menu shortcut "Electron" -> electron.exe under it, and Windows then showed Electron's
+        // name and icon for the installed Meadhall on the taskbar (the owner's v0.3.0-v0.3.2 taskbar icon bug).
+        app.setAppUserModelId(app.isPackaged ? "io.github.peytong.meadhall" : "io.github.peytong.meadhall.dev");
     }
     configureAppProtocol();
     configurePermissionHandlers(canNavigateInsideApp);
