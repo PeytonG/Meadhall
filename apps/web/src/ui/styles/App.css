@@ -5739,3 +5739,18 @@ img.voice-ctrl-icon {
     gap: 8px;
     color: var(--text-muted);
 }
+
+/* "Call ended" notice: top centre so it never sits on the update banner (bottom right). */
+.desktop-update-banner.call-ended-notice {
+    top: 16px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(560px, calc(100vw - 32px));
+    border-left: 4px solid var(--danger);
+}
+
+.call-ended-notice span {
+    flex: 1;
+}

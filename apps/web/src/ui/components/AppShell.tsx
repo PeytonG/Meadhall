@@ -60,6 +60,8 @@ import { WhatsNewDialog } from "./WhatsNewDialog";
 import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
+import { captureGlobalErrors, logAppError } from "../logs/appLog";
+import { CallEndedNotice } from "./voice/CallEndedNotice";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -1523,6 +1525,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     }, [selectedSpaceId, selectedSpaceRoom, settingsState]);
 
     const pushToast = useCallback((nextToast: Omit<ToastState, "id">): void => {
+        if (nextToast.type === "error") logAppError("app", nextToast.message);
         setToast({
             id: Date.now(),
             ...nextToast,
@@ -2280,6 +2283,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         onOpenRoom: focusRoom,
     });
 
+    // Uncaught errors go to Settings → Logs too.
+    useEffect(() => captureGlobalErrors(), []);
+
     // Desktop: the unread count as a bubble on the taskbar icon.
     useTaskbarBadge(client);
 
@@ -2899,6 +2905,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             <DesktopUpdateBanner />
             <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
             <WhatsNewDialog />
+            <CallEndedNotice onViewDetails={() => openUserSettings("logs")} />
             {incomingCall ? (
                 <IncomingCallCard
                     client={client}
