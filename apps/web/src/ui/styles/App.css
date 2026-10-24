@@ -5829,3 +5829,219 @@ img.voice-ctrl-icon {
         animation: none;
     }
 }
+
+/* Right-click menus for servers and channels (components/menus/ContextMenu.tsx). */
+.context-menu-layer {
+    position: fixed;
+    z-index: 1150;
+}
+
+.context-menu {
+    min-width: 220px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    background: var(--bg-pane);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.context-menu .context-menu {
+    position: absolute;
+    margin-left: 6px;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-main);
+    text-align: left;
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 8px;
+    cursor: pointer;
+}
+
+.context-menu-item:hover:not(:disabled),
+.context-menu-item:focus-visible,
+.context-menu-item[aria-expanded="true"] {
+    background: var(--accent);
+    color: var(--on-primary);
+    outline: none;
+}
+
+.context-menu-item:disabled {
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.context-menu-item.is-danger {
+    color: var(--danger);
+}
+
+.context-menu-item.is-danger:hover:not(:disabled),
+.context-menu-item.is-danger:focus-visible {
+    background: var(--danger);
+    color: #fff;
+}
+
+.context-menu-label {
+    flex: 1;
+    display: grid;
+    gap: 1px;
+}
+
+.context-menu-label small {
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+.context-menu-check {
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    border: 2px solid currentColor;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.context-menu-check.is-checked {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-primary);
+}
+
+.context-menu-arrow {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.context-menu-separator {
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--border);
+}
+
+/* Create channel: the channel type picker. */
+.channel-type-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px;
+}
+
+.channel-type-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}
+
+.channel-type-option span {
+    display: grid;
+    gap: 2px;
+}
+
+.channel-type-option small {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.channel-type-option.is-active {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Channel list: type icons (pixel or smooth), muted channels. */
+.room-item-type-icon {
+    display: inline-flex;
+    vertical-align: -2px;
+    margin-right: 6px;
+    color: var(--text-muted);
+}
+
+.room-item.is-active .room-item-type-icon,
+.room-item.has-unread .room-item-type-icon {
+    color: var(--text-main);
+}
+
+.room-item.has-unread .room-item-name {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.room-item.is-muted {
+    opacity: 0.55;
+}
+
+.room-item.is-muted.is-active {
+    opacity: 0.85;
+}
+
+.room-item-muted-icon {
+    display: inline-flex;
+    vertical-align: -1px;
+    margin-left: 6px;
+    color: var(--text-muted);
+}
+
+/* Server rail: unread count (red, bottom right) and a pip on the left for unread messages, like Discord. */
+.rail-icon[data-space-id] {
+    position: relative;
+    overflow: visible;
+}
+
+.rail-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    border: 3px solid var(--bg-app);
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    box-sizing: content-box;
+}
+
+.rail-icon.has-unread::before,
+.rail-icon[data-space-id].is-active::before {
+    content: "";
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    width: 4px;
+    height: 8px;
+    margin-top: -4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--text-main);
+}
+
+.rail-icon.is-active::before {
+    height: 36px;
+    margin-top: -18px;
+}
+
+.rail-icon.is-muted {
+    opacity: 0.7;
+}

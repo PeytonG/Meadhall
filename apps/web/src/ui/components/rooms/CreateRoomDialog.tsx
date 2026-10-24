@@ -8,6 +8,15 @@ import {
     allowCallMemberships,
     voiceChannelInitialState,
 } from "../../voice/voiceChannel";
+import {
+    CHANNEL_TYPES,
+    channelTypeInitialState,
+    limitPostsToModerators,
+    postsLimitedToModerators,
+    type ChannelType,
+} from "../../../core/rooms/channelType";
+import { PixelIcon } from "../PixelIcon";
+import { channelTypeIcon } from "../channelIcons";
 
 interface CreateRoomDialogProps {
     client: MatrixClient;
@@ -62,7 +71,8 @@ export function CreateRoomDialog({
     const [aliasLocalPart, setAliasLocalPart] = useState("");
     const [inviteInput, setInviteInput] = useState("");
     const [enableEncryption, setEnableEncryption] = useState(true);
-    const [voiceChannel, setVoiceChannel] = useState(false);
+    const [kind, setKind] = useState<ChannelType | "voice">("text");
+    const voiceChannel = kind === "voice";
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +87,7 @@ export function CreateRoomDialog({
         setAliasLocalPart("");
         setInviteInput("");
         setEnableEncryption(true);
-        setVoiceChannel(false);
+        setKind("text");
         setSaving(false);
         setError(null);
     }, [open]);
@@ -100,6 +110,8 @@ export function CreateRoomDialog({
             }
             if (voiceChannel) {
                 initialState.push(...voiceChannelInitialState());
+            } else {
+                initialState.push(...channelTypeInitialState(kind));
             }
 
             const options: Parameters<MatrixClient["createRoom"]>[0] = {
@@ -115,6 +127,8 @@ export function CreateRoomDialog({
             const response = await client.createRoom(options);
             if (voiceChannel) {
                 await allowCallMemberships(client, response.room_id, 0);
+            } else if (postsLimitedToModerators(kind)) {
+                await limitPostsToModerators(client, response.room_id);
             }
             if (spaceParentId) {
                 const viaServer = getViaServerFromUserId(client.getUserId());
@@ -126,6 +140,8 @@ export function CreateRoomDialog({
                 if (voiceChannel) {
                     childContent[HEOROT_SPACE_CHILD_CHANNEL_TYPE_KEY] = "voice";
                     childContent[HEOROT_SPACE_CHILD_VOICE_KEY] = true;
+                } else if (kind !== "text") {
+                    childContent[HEOROT_SPACE_CHILD_CHANNEL_TYPE_KEY] = kind;
                 }
                 if (via) {
                     childContent.via = via;
@@ -248,15 +264,32 @@ export function CreateRoomDialog({
                 />
                 Enable end-to-end encryption
             </label>
-            <label className="room-dialog-checkbox">
-                <input
-                    type="checkbox"
-                    checked={voiceChannel}
-                    onChange={(event) => setVoiceChannel(event.target.checked)}
-                    disabled={saving}
-                />
-                Voice channel (chat suppressed)
-            </label>
+            <div className="room-dialog-field" role="radiogroup" aria-label="Channel type">
+                <span>Channel type</span>
+                <div className="channel-type-options">
+                    {[
+                        CHANNEL_TYPES[0]!,
+                        { type: "voice" as const, label: "Voice", description: "Hang out by voice. Text chat can be turned on in its settings." },
+                        ...CHANNEL_TYPES.slice(1),
+                    ].map((option) => (
+                        <button
+                            key={option.type}
+                            type="button"
+                            role="radio"
+                            aria-checked={kind === option.type}
+                            className={`channel-type-option${kind === option.type ? " is-active" : ""}`}
+                            onClick={() => setKind(option.type)}
+                            disabled={saving}
+                        >
+                            <PixelIcon name={channelTypeIcon(option.type)} size={18} />
+                            <span>
+                                <strong>{option.label}</strong>
+                                <small>{option.description}</small>
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
             {error ? <p className="room-dialog-error">{error}</p> : null}
         </RoomDialog>
     );

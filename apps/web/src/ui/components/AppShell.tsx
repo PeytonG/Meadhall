@@ -21,7 +21,20 @@ import { Composer } from "./Composer";
 import { EmojiUploadDialog } from "./EmojiUploadDialog";
 import { ChannelHeader } from "./header/ChannelHeader";
 import { RightPanel } from "./rightPanel/RightPanel";
-import { RoomList, type DiscoverableSpaceChannel } from "./RoomList";
+import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpaceChannel } from "./RoomList";
+import { ContextMenu } from "./menus/ContextMenu";
+import { channelMenuItems, spaceMenuItems } from "./menus/roomMenus";
+import { ServerProfileDialog } from "./rooms/ServerProfileDialog";
+import {
+    RoomNotificationMode,
+    applySpaceNotificationMode,
+    getSpaceNotificationMode,
+    isRoomMuted,
+    markRoomsRead,
+    setSpaceNotificationMode,
+} from "../notifications/roomActions";
+import { getRoomNotificationMode, setRoomNotificationMode } from "../adapters/roomNotificationAdapter";
+import { getSpaceView, movedSpaceOrder, orderSpaces, readSpaceOrder, saveSpaceOrder, setSpaceView, useSpaceView } from "../stores/spaceView";
 import { Timeline } from "./Timeline";
 import { Toast, type ToastState } from "./Toast";
 import { Avatar } from "./Avatar";
@@ -1132,9 +1145,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         () => new Map(visibleRooms.map((room) => [room.roomId, room])),
         [visibleRooms],
     );
+    // In the order you arranged them (server menu → Move to...), new ones alphabetically after.
     const spaces = useMemo(
-        () => sortRoomsByName(visibleRooms.filter((room) => room.isSpaceRoom())),
-        [visibleRooms],
+        () => orderSpaces(sortRoomsByName(visibleRooms.filter((room) => room.isSpaceRoom())), readSpaceOrder(client)),
+        [client, visibleRooms],
     );
     const voiceChannelHintRoomIds = useMemo(() => {
         const hints = new Set<string>();
@@ -1180,6 +1194,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const homeBugReports = useMemo(() => homeOtherRooms.filter((room) => isReceivedBugReport(room, client.getUserId())), [client, homeOtherRooms]);
     const homeGroupRooms = useMemo(() => homeOtherRooms.filter((room) => !isReceivedBugReport(room, client.getUserId())), [client, homeOtherRooms]);
     const homeRooms = useMemo(() => [...peopleChannels, ...homeOtherRooms], [homeOtherRooms, peopleChannels]);
+    // Muted channels and servers (push rules, so the same on every device): dimmed, no unread counts.
+    const mutedRoomIds = useMemo(
+        () => new Set(visibleRooms.filter((room) => isRoomMuted(client, room.roomId)).map((room) => room.roomId)),
+        [client, visibleRooms],
+    );
     // Invites to rooms outside any server that aren't DMs (group chats, server notices): shown under Group Chats to
     // accept or decline. DM invites are joined on open, and server channels join automatically.
     const homeInvites = useMemo(
@@ -1228,6 +1247,39 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
         return getSpaceChannels(selectedSpaceRoom, roomById);
     }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
+    const selectedSpaceView = useSpaceView(selectedSpaceId);
+    const listedChannels = useMemo(
+        () =>
+            selectedSpaceId !== PEOPLE_SPACE_ID && selectedSpaceView.hideMutedChannels
+                ? channels.filter((room) => !mutedRoomIds.has(room.roomId) || room.roomId === activeRoomId)
+                : channels,
+        [activeRoomId, channels, mutedRoomIds, selectedSpaceId, selectedSpaceView.hideMutedChannels],
+    );
+    // Unread counts on the server icons in the rail (muted servers and channels don't count).
+    const spaceUnread = useMemo(() => {
+        const result = new Map<string, { count: number; activity: boolean }>();
+        for (const space of spaces) {
+            if (mutedRoomIds.has(space.roomId)) continue;
+            let count = 0;
+            let activity = false;
+            for (const room of getSpaceChannels(space, roomById)) {
+                if (mutedRoomIds.has(room.roomId) || room.getMyMembership() !== "join") continue;
+                count += getServerUnreadCount(room);
+                activity ||= Boolean(client.getUserId()) && hasUnreadActivity(room, client.getUserId() ?? "");
+            }
+            if (count > 0 || activity) result.set(space.roomId, { count, activity });
+        }
+        return result;
+    }, [client, mutedRoomIds, roomById, spaces, rooms]);
+    // Channels joined after a server was muted (or set to mentions only) get the server's setting.
+    useEffect(() => {
+        for (const space of spaces) {
+            if (getSpaceNotificationMode(client, space.roomId) === RoomNotificationMode.Default) continue;
+            void applySpaceNotificationMode(client, space.roomId, getSpaceChannels(space, roomById)).catch(() => undefined);
+        }
+    }, [client, roomById, spaces]);
+    const [contextMenu, setContextMenu] = useState<{ kind: "space" | "channel"; roomId: string; x: number; y: number } | null>(null);
+    const [serverProfileSpaceId, setServerProfileSpaceId] = useState<string | null>(null);
 
     useEffect(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID || !selectedSpaceRoom?.isSpaceRoom()) {
@@ -2363,6 +2415,78 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Right-click menus on servers in the rail and on channels (components/menus/roomMenus.ts).
+    const reportError = (what: string) => (error: unknown) =>
+        pushToast({ type: "error", message: `${what}: ${error instanceof Error ? error.message : String(error)}` });
+    const leaveServer = async (space: Room, children: Room[]): Promise<void> => {
+        if (!window.confirm(`Leave "${getRoomName(space)}"? You'll leave all of its channels too.`)) return;
+        try {
+            for (const room of children) if (room.getMyMembership() === "join") await client.leave(room.roomId).catch(() => undefined);
+            await client.leave(space.roomId);
+            if (selectedSpaceId === space.roomId) selectHome();
+            pushToast({ type: "success", message: `Left ${getRoomName(space)}.` });
+        } catch (error) {
+            reportError("Couldn't leave the server")(error);
+        }
+    };
+    const contextMenuRoom = contextMenu ? client.getRoom(contextMenu.roomId) : null;
+    const contextMenuItems = (() => {
+        if (!contextMenu || !contextMenuRoom) return null;
+        const room = contextMenuRoom;
+        if (contextMenu.kind === "space") {
+            const children = getSpaceChannels(room, roomById);
+            const order = spaces.map((space) => space.roomId);
+            const index = order.indexOf(room.roomId);
+            const view = getSpaceView(room.roomId);
+            const setMode = (mode: RoomNotificationMode): void => {
+                void setSpaceNotificationMode(client, room, children, mode).catch(reportError("Couldn't change notifications"));
+            };
+            return spaceMenuItems(
+                {
+                    hasUnread: spaceUnread.has(room.roomId),
+                    canInvite: room.canInvite(ownUserId),
+                    canManage: room.currentState.maySendStateEvent(EventType.SpaceChild, ownUserId),
+                    muted: mutedRoomIds.has(room.roomId),
+                    notificationMode: getSpaceNotificationMode(client, room.roomId),
+                    hideMutedChannels: view.hideMutedChannels,
+                    showAllChannels: view.showAllChannels,
+                    canMoveUp: index > 0,
+                    canMoveDown: index >= 0 && index < order.length - 1,
+                },
+                {
+                    markRead: () => void markRoomsRead(client, [room, ...children]),
+                    invite: () => openInviteDialogFor(room.roomId),
+                    setMuted: (muted) => setMode(muted ? RoomNotificationMode.Mute : RoomNotificationMode.Default),
+                    setNotificationMode: setMode,
+                    setHideMutedChannels: (hide) => setSpaceView(room.roomId, { hideMutedChannels: hide }),
+                    setShowAllChannels: (show) => setSpaceView(room.roomId, { showAllChannels: show }),
+                    openPrivacySettings: () => openUserSettings("privacy"),
+                    editServerProfile: () => setServerProfileSpaceId(room.roomId),
+                    openServerSettings: () => {
+                        selectServer(room.roomId);
+                        setSettingsState({ mode: "server", tab: "overview" });
+                    },
+                    move: (to) => void saveSpaceOrder(client, movedSpaceOrder(order, room.roomId, to)).catch(reportError("Couldn't move the server")),
+                    leave: () => void leaveServer(room, children),
+                },
+            );
+        }
+        return channelMenuItems(
+            {
+                hasUnread: getServerUnreadCount(room) > 0 || hasUnreadActivity(room, ownUserId),
+                notificationMode: getRoomNotificationMode(client, room.roomId),
+                canEdit: room.currentState.maySendStateEvent(EventType.RoomName, ownUserId),
+            },
+            {
+                markRead: () => void markRoomsRead(client, [room]),
+                setNotificationMode: (mode) => void setRoomNotificationMode(client, room.roomId, mode).catch(reportError("Couldn't change notifications")),
+                copyLink: () => void navigator.clipboard?.writeText(`https://matrix.to/#/${encodeURIComponent(room.getCanonicalAlias() ?? room.roomId)}`),
+                editChannel: () => openRoomSettingsFor(room.roomId),
+            },
+        );
+    })();
+    const serverProfileSpace = serverProfileSpaceId ? client.getRoom(serverProfileSpaceId) : null;
+
     return (
         <div className={appShellClassName} style={appShellStyle}>
             <aside className="left-rail">
@@ -2383,11 +2507,21 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         <button
                             type="button"
                             key={space.roomId}
-                            className={`rail-icon${selectedSpaceId === space.roomId ? " is-active" : ""}`}
+                            className={`rail-icon${selectedSpaceId === space.roomId ? " is-active" : ""}${spaceUnread.has(space.roomId) ? " has-unread" : ""}${mutedRoomIds.has(space.roomId) ? " is-muted" : ""}`}
                             onClick={() => selectServer(space.roomId)}
+                            onContextMenu={(event) => {
+                                event.preventDefault();
+                                setContextMenu({ kind: "space", roomId: space.roomId, x: event.clientX, y: event.clientY });
+                            }}
                             title={getRoomName(space)}
+                            data-space-id={space.roomId}
                         >
                             <RailSpaceIcon client={client} space={space} glyph={getSpaceGlyph(getRoomName(space))} />
+                            {(spaceUnread.get(space.roomId)?.count ?? 0) > 0 ? (
+                                <span className="rail-badge" data-testid="rail-badge">
+                                    {spaceUnread.get(space.roomId)!.count > 99 ? "99+" : spaceUnread.get(space.roomId)!.count}
+                                </span>
+                            ) : null}
                         </button>
                     );
                 })}
@@ -2494,11 +2628,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 <RoomList
                     client={client}
                     spaceId={selectedSpaceId}
-                    rooms={channels}
+                    rooms={listedChannels}
+                    mutedRoomIds={mutedRoomIds}
+                    onRoomContextMenu={(roomId, x, y) => setContextMenu({ kind: "channel", roomId, x, y })}
                     voiceChannelHintRoomIds={voiceChannelHintRoomIds}
                     voiceDiscoveryReady={voiceDiscoveryReady}
                     showRoomAvatars={selectedSpaceId === PEOPLE_SPACE_ID || userSettings.appearance.showSpaceChannelAvatars}
-                    discoverableRooms={selectedSpaceId === PEOPLE_SPACE_ID ? [] : discoverableSpaceChannels}
+                    discoverableRooms={selectedSpaceId === PEOPLE_SPACE_ID || !selectedSpaceView.showAllChannels ? [] : discoverableSpaceChannels}
                     discoverableJoiningRoomId={joiningDiscoverableRoomId}
                     activeRoomId={activeRoomId}
                     orderingMode={selectedSpaceId === PEOPLE_SPACE_ID ? "dynamic" : "manual"}
@@ -2977,6 +3113,24 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
             <WhatsNewDialog />
             <CallEndedNotice onViewDetails={() => openUserSettings("logs")} />
+            {contextMenu && contextMenuItems && contextMenuRoom ? (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    items={contextMenuItems}
+                    label={contextMenu.kind === "space" ? `${getRoomName(contextMenuRoom)} menu` : `${getRoomName(contextMenuRoom)} channel menu`}
+                    onClose={() => setContextMenu(null)}
+                />
+            ) : null}
+            {serverProfileSpace ? (
+                <ServerProfileDialog
+                    client={client}
+                    space={serverProfileSpace}
+                    channels={getSpaceChannels(serverProfileSpace, roomById)}
+                    onClose={() => setServerProfileSpaceId(null)}
+                    onToast={pushToast}
+                />
+            ) : null}
             {incomingCall ? (
                 <IncomingCallCard
                     client={client}
