@@ -1488,3 +1488,18 @@
 .logs-list small {
     color: var(--accent-soft);
 }
+
+/* Settings → Report a bug */
+.bug-report-preview {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 0 12px;
+}
+
+.bug-report-preview img {
+    max-width: 240px;
+    max-height: 160px;
+    object-fit: contain;
+    border: 1px solid var(--border);
+}

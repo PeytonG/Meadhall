@@ -6,6 +6,7 @@ import { mediaFromMxc, thumbnailFromMxc } from "../../adapters/media";
 import { Avatar } from "../Avatar";
 import { RoomDialog } from "./RoomDialog";
 import { matchesUserSearch, userSearchScore } from "../../search/userSearch";
+import { isBugReportRoom } from "../../../core/bugReport/bugReport";
 
 interface CreateDirectChatDialogProps {
     client: MatrixClient;
@@ -49,7 +50,7 @@ function collectLocalSuggestions(client: MatrixClient, ownUserId: string, term: 
     const byUserId = new Map<string, UserSuggestion>();
     const normalizedTerm = normalize(term);
 
-    for (const room of client.getRooms()) {
+    for (const room of client.getRooms().filter((candidate) => !isBugReportRoom(candidate))) {
         for (const member of room.currentState.getMembers()) {
             const roomMember = member as RoomMember;
             const userId = roomMember.userId;
@@ -85,7 +86,7 @@ function findLocalSuggestionByUserId(client: MatrixClient, ownUserId: string, us
         return null;
     }
 
-    for (const room of client.getRooms()) {
+    for (const room of client.getRooms().filter((candidate) => !isBugReportRoom(candidate))) {
         const member = room.getMember(normalizedUserId);
         if (!member || member.userId === ownUserId) {
             continue;

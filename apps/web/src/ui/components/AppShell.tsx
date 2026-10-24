@@ -62,6 +62,7 @@ import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotific
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { captureGlobalErrors, logAppError } from "../logs/appLog";
 import { CallEndedNotice } from "./voice/CallEndedNotice";
+import { cleanUpBugReportRooms, isBugReportRoom } from "../../core/bugReport/bugReport";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -150,6 +151,11 @@ function readStoredRightSidebarMode(): RightSidebarMode {
 
 function getRoomName(room: Room): string {
     return room.name || room.getCanonicalAlias() || room.roomId;
+}
+
+// Every room except the hidden bug-report rooms (Settings → Report a bug).
+function listedRooms(client: MatrixClient): Room[] {
+    return client.getRooms().filter((room) => !isBugReportRoom(room));
 }
 
 function isVisibleMembership(room: Room): boolean {
@@ -833,7 +839,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const { config } = useMatrix();
     const brandName = getBrandName(config);
     const [voiceDiscoveryReady, setVoiceDiscoveryReady] = useState(false);
-    const [rooms, setRooms] = useState<Room[]>(() => [...client.getRooms()]);
+    const [rooms, setRooms] = useState<Room[]>(() => listedRooms(client));
     const [selectedSpaceId, setSelectedSpaceId] = useState<string>(PEOPLE_SPACE_ID);
     const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
         const directRoomIds = getDirectRoomIds(client);
@@ -1002,7 +1008,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
         const onRoomsChanged = (): void => {
             syncRoomListeners();
-            setRooms([...client.getRooms()]);
+            setRooms(listedRooms(client));
         };
 
         const attachRoomListeners = (room: Room): void => {
@@ -1577,7 +1583,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     setSelectedSpaceHierarchyJoinedRoomIds([]);
                     setDiscoverableSpaceChannels([]);
                     setJoiningDiscoverableRoomId(null);
-                    setRooms([...client.getRooms()]);
+                    setRooms(listedRooms(client));
                     pushToast({
                         type: "error",
                         message: "Can't load server hierarchy because you're not joined to the server room.",
@@ -1657,7 +1663,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     ),
                 );
                 setJoiningDiscoverableRoomId(null);
-                setRooms([...client.getRooms()]);
+                setRooms(listedRooms(client));
                 pushToast({ type: "success", message: "Channels reloaded from server hierarchy." });
             } catch (reloadError) {
                 const message = reloadError instanceof Error ? reloadError.message : "Failed to reload channels.";
@@ -1955,7 +1961,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 setSelectedSpaceId(joinedRoom.roomId);
                 setActiveRoomId(null);
                 setPendingFocusRoomId(null);
-                setRooms([...client.getRooms()]);
+                setRooms(listedRooms(client));
                 return joinedRoom.roomId;
             }
 
@@ -1963,7 +1969,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             if (!directRoomIds.has(joinedRoom.roomId)) {
                 joinedParentSpaceId = await ensureRoomParentSpacesJoined(client, joinedRoom, options?.preferredSpaceId ?? null);
             }
-            setRooms([...client.getRooms()]);
+            setRooms(listedRooms(client));
 
             if (directRoomIds.has(joinedRoom.roomId)) {
                 setSelectedSpaceId(PEOPLE_SPACE_ID);
@@ -2285,6 +2291,26 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     // Uncaught errors go to Settings → Logs too.
     useEffect(() => captureGlobalErrors(), []);
+
+    // Bug reports (Settings → Report a bug): leave each report's room once the developer has joined it.
+    useEffect(() => {
+        let running = false;
+        const cleanUp = (): void => {
+            if (running) return;
+            running = true;
+            void cleanUpBugReportRooms(client).finally(() => {
+                running = false;
+            });
+        };
+        const onTimeline = (event: MatrixEvent, room: Room | undefined): void => {
+            if (event.getType() === EventType.RoomMember && room && isBugReportRoom(room)) cleanUp();
+        };
+        cleanUp();
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.removeListener(RoomEvent.Timeline, onTimeline);
+        };
+    }, [client]);
 
     // Desktop: the unread count as a bubble on the taskbar icon.
     useTaskbarBadge(client);

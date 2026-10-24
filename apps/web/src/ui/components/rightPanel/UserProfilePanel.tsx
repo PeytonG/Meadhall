@@ -15,6 +15,7 @@ import { mutualServerRoles } from "./mutualServerRoles";
 import { useIgnoredUsers } from "../../hooks/useIgnoredUsers";
 import { LinksCard } from "./cards/LinksCard";
 import { parseRichProfile } from "../../../core/profile/richProfile";
+import { isBugReportRoom } from "../../../core/bugReport/bugReport";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -151,7 +152,7 @@ export function UserProfilePanel({
         () =>
             client
                 .getRooms()
-                .filter((candidate) => !candidate.isSpaceRoom())
+                .filter((candidate) => !candidate.isSpaceRoom() && !isBugReportRoom(candidate))
                 .filter((candidate) => candidate.getMember(userId)?.membership === "join")
                 .length,
         [client, userId],
