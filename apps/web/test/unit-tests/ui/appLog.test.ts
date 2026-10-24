@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { clearAppLog, hintFor, logAppError, readAppLog } from "../../../src/ui/logs/appLog";
+import { clearAppLog, hintFor, logAppError, readAppLog, redactSecrets } from "../../../src/ui/logs/appLog";
 
 describe("error log", () => {
     beforeEach(() => clearAppLog());
@@ -23,5 +23,15 @@ describe("error log", () => {
         expect(hintFor("startVerification(): other device is unknown")).toMatch(/both devices/);
         expect(hintFor("Lost the call connection (signal close).")).toMatch(/call server/);
         expect(hintFor("something nobody has seen")).toBeNull();
+    });
+});
+
+describe("redactSecrets", () => {
+    it("removes access tokens and passwords before they're logged", () => {
+        expect(redactSecrets("GET /sync?access_token=syt_abc123def456ghi failed")).toBe("GET /sync?access_token=[redacted] failed");
+        expect(redactSecrets("Authorization: Bearer abc.def.ghi")).toBe("Authorization: Bearer [redacted]");
+        expect(redactSecrets('{"password":"hunter22"}')).toBe('{"password":"[redacted]"}');
+        expect(redactSecrets("token syt_YWxpY2U_abcdefghij_123 rejected")).toBe("token [redacted] rejected");
+        expect(redactSecrets("Rate limited: retry after 3s")).toBe("Rate limited: retry after 3s");
     });
 });

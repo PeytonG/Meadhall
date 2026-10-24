@@ -22,8 +22,16 @@ export function readAppLog(): AppLogEntry[] {
     }
 }
 
+// Logs can be attached to bug reports, so anything that looks like a credential is removed before it's stored.
+export function redactSecrets(text: string): string {
+    return text
+        .replace(/\b(syt|syr|mct)_[A-Za-z0-9_-]{8,}/g, "[redacted]")
+        .replace(/(Bearer\s+)[^\s"']+/gi, "$1[redacted]")
+        .replace(/((?:access_token|refresh_token|password)["']?\s*[=:]\s*["']?)[^\s"'&,}]+/gi, "$1[redacted]");
+}
+
 export function logAppError(source: string, error: unknown): void {
-    const message = (error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error)) ?? "";
+    const message = redactSecrets((error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error)) ?? "");
     if (!message.trim()) return;
     try {
         const entries = readAppLog();
