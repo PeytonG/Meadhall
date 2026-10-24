@@ -5791,3 +5791,9 @@ img.voice-ctrl-icon {
     font-weight: 700;
     line-height: 1;
 }
+
+.voice-call-log-note {
+    margin: 4px 0 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+}

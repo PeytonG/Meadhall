@@ -63,6 +63,7 @@ import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { captureGlobalErrors, logAppError } from "../logs/appLog";
 import { CallEndedNotice } from "./voice/CallEndedNotice";
 import { RailSpaceIcon } from "./RailSpaceIcon";
+import { callAnnouncement } from "../voice/callAnnouncement";
 import { cleanUpBugReportRooms, isBugReportRoom, isReceivedBugReport, isSentBugReport } from "../../core/bugReport/bugReport";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
@@ -2720,13 +2721,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
-                            announceCall={
-                                !activeVoiceSessionRoom || isRoomVoiceChannel(activeVoiceSessionRoom)
-                                    ? null
-                                    : isOneToOneRoom(activeVoiceSessionRoom, ownUserId)
-                                      ? "ring"
-                                      : "notification"
-                            }
+                            announceCall={callAnnouncement(
+                                activeVoiceSessionRoom
+                                    ? {
+                                          isVoiceChannel: isRoomVoiceChannel(activeVoiceSessionRoom),
+                                          isHomeRoom: ringableRoomIds.has(activeVoiceSessionRoom.roomId),
+                                          isOneToOne: isOneToOneRoom(activeVoiceSessionRoom, ownUserId),
+                                      }
+                                    : null,
+                            )}
                             joinMuted={selfVoice.muted}
                             joinDeafened={selfVoice.deafened}
                             onControlsStateChange={handleVoiceControlsStateChange}

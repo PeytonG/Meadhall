@@ -55,7 +55,7 @@ import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
-import { RECONNECT_DELAYS_MS, announceCallEnded, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
+import { RECONNECT_DELAYS_MS, announceCallEnded, beginCallLog, currentCallLogId, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
 import { logAppError } from "../../logs/appLog";
 import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
@@ -1127,6 +1127,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         const targetRoomId = matrixRoomId;
         if (!targetRoomId) {
             return;
+        }
+        // Joining yourself starts a new call in the history; rejoining after a drop continues the same one.
+        if (normalizedAttemptNumber === 1 && reconnectRef.current.attempts === 0) {
+            beginCallLog();
+            logCallEvent("Joining", targetRoomId);
         }
         if (
             connectionState === ConnectionState.Connected &&
@@ -2615,12 +2620,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             </select>
                         </label>
                         <details className="voice-call-log" data-testid="call-log">
-                            <summary>Call history (why calls ended)</summary>
-                            <pre>{formatCallLog(readCallLog().slice(-15)) || "Nothing yet."}</pre>
+                            <summary>This call&apos;s history (drops and rejoins)</summary>
+                            <pre>{formatCallLog(readCallLog(currentCallLogId()).slice(-15)) || "Nothing yet."}</pre>
+                            <p className="voice-call-log-note">Earlier calls are in Settings → Logs.</p>
                             <button
                                 type="button"
                                 className="settings-button settings-button-secondary"
-                                onClick={() => void navigator.clipboard?.writeText(formatCallLog(readCallLog()))}
+                                onClick={() => void navigator.clipboard?.writeText(formatCallLog(readCallLog(currentCallLogId())))}
                             >
                                 Copy for a bug report
                             </button>
