@@ -45,8 +45,9 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 | Platform | File | How to install |
 |---|---|---|
 | 🪟 **Windows** 10/11 | `Meadhall-Setup-<version>.exe` | Run it. SmartScreen may warn because the app isn't code-signed yet: **More info → Run anyway**. |
-| 🐧 **Linux** (any distro) | `Meadhall-<version>-x86_64.AppImage` | `chmod +x Meadhall-*.AppImage`, then run it. |
-| 🎩 **Fedora / RHEL** | `Meadhall-<version>-x86_64.rpm` | `sudo dnf install ./Meadhall-*.rpm` |
+| 🎩 **Fedora / RHEL** | `Meadhall-<version>-x86_64.rpm` | See [Installing on Linux](#installing-on-linux). |
+| 🐧 **Debian / Ubuntu / Mint** | `Meadhall-<version>-amd64.deb` | See [Installing on Linux](#installing-on-linux). |
+| 🐧 **Any Linux** | `Meadhall-<version>-x86_64.AppImage` | See [Installing on Linux](#installing-on-linux). |
 | 🤖 **Android** 7+ | `Meadhall-<version>-android.apk` | See [Installing on Android](#installing-on-android) below. |
 | 🍎 **iOS (Beta)** | TestFlight | Invite only for now: see [iOS (Beta)](#ios). |
 | 🌐 **Web** | — | Use a Meadhall someone hosts, or [host your own](docs/self-hosting.md). |
@@ -54,6 +55,33 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 - **Desktop apps update themselves:** a notice offers **Update now**, then a one-time **What's new** shows what changed.
 - **Phones tell you when there's an update** and link straight to it (turn this off in Settings → Updates).
 - Every release has a `SHA256SUMS.txt` to check your downloads against.
+
+<a id="installing-on-linux"></a>
+<details>
+<summary><b>🐧 Installing on Linux</b> (and updating)</summary>
+
+Open a terminal in the folder you downloaded to (usually `cd ~/Downloads`), then:
+
+| Distro | Install |
+|---|---|
+| **Fedora, RHEL, Nobara** (.rpm) | `sudo dnf install ./Meadhall-*.rpm` |
+| **Debian, Ubuntu, Mint, Pop!_OS** (.deb) | `sudo apt install ./Meadhall-*.deb` |
+| **Anything else** (AppImage) | Install FUSE 2 once (below), then `chmod +x Meadhall-*.AppImage` and run `./Meadhall-*.AppImage` |
+
+AppImages need the FUSE 2 library, which many current distros no longer install by default (otherwise you'll see
+`dlopen(): error loading libfuse.so.2`):
+
+| Distro | Command |
+|---|---|
+| Fedora | `sudo dnf install fuse-libs` |
+| Ubuntu 24.04 and newer | `sudo apt install libfuse2t64` |
+| Ubuntu 22.04, Debian, Mint | `sudo apt install libfuse2` |
+| Arch, Manjaro | `sudo pacman -S fuse2` |
+
+**Updates:** Meadhall tells you when one is out. With the .rpm or .deb it asks for your password to install it (or
+shows the command to run if you'd rather do it yourself); the AppImage replaces itself.
+
+</details>
 
 <a id="installing-on-android"></a>
 <details>
