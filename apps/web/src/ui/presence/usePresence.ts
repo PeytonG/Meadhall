@@ -3,6 +3,7 @@ import { UserEvent, type MatrixClient, type User } from "matrix-js-sdk/src/matri
 
 import { buildPresenceVm, type PresenceVm } from "./buildPresenceVm";
 import { cachedPublishedStatus, onPublishedStatusChange, refreshPublishedStatus } from "./clientStatus";
+import { serverSharesPresence } from "./presenceSupport";
 
 function sanitizeUserIds(userIds: string[]): string[] {
     const unique = new Set<string>();
@@ -77,6 +78,7 @@ export function usePresenceMap(
                     lastActiveAgo: user?.lastActiveAgo,
                     statusMessage: user?.presenceStatusMsg,
                     published: cachedPublishedStatus(userId),
+                    unsupported: !serverSharesPresence(client, userId),
                 }),
             );
         }

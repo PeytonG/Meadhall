@@ -5780,3 +5780,14 @@ img.voice-ctrl-icon {
     border-color: var(--accent-soft);
     color: var(--on-primary);
 }
+
+/* Status unavailable: their homeserver doesn't share presence (presenceSupport.ts). */
+.avatar-presence-dot.is-unsupported {
+    display: grid;
+    place-items: center;
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    font-size: calc(var(--avatar-presence-size) - 2px);
+    font-weight: 700;
+    line-height: 1;
+}

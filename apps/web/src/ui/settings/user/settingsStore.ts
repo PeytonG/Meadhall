@@ -39,6 +39,8 @@ export interface PrivacySettings {
     allowDmsFromServerMembers: boolean;
     // Desktop app: show the game you're playing (from Steam) as "Playing ..." to others.
     shareActivity: boolean;
+    // Off: you appear offline to everyone, with no status text, Do Not Disturb or game shown.
+    shareStatus: boolean;
 }
 
 export interface AudioSettings {
@@ -91,6 +93,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         showReadReceipts: true,
         allowDmsFromServerMembers: true,
         shareActivity: true,
+        shareStatus: true,
     },
     audio: {
         preferredAudioInputId: "default",
@@ -172,6 +175,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             showReadReceipts: privacy.showReadReceipts !== false,
             allowDmsFromServerMembers: privacy.allowDmsFromServerMembers !== false,
             shareActivity: privacy.shareActivity !== false,
+            shareStatus: privacy.shareStatus !== false,
         },
         audio: {
             preferredAudioInputId:

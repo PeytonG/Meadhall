@@ -928,9 +928,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             window.clearInterval(timer);
         };
     }, [shareActivity]);
+    const shareStatus = userSettings.privacy.shareStatus;
     useEffect(() => {
-        void applyOwnStatus(client, ownStatus, autoAway, activity);
-    }, [client, ownStatus, autoAway, activity]);
+        void applyOwnStatus(client, ownStatus, autoAway, activity, shareStatus);
+    }, [client, ownStatus, autoAway, activity, shareStatus]);
     const ownStatusDot =
         ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {

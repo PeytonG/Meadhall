@@ -12,7 +12,7 @@ interface AvatarProps {
     seed?: string;
     userId?: string;
     // "mobile": online on the Android/iOS app, drawn as a green pixel phone.
-    presenceState?: Exclude<PresenceState, "unknown"> | "mobile" | null;
+    presenceState?: Exclude<PresenceState, "unknown"> | "mobile" | "unsupported" | null;
 }
 
 function getLocalpartFromUserId(userId?: string): string {
@@ -92,6 +92,10 @@ export function Avatar({ name, src, sources, className, seed, userId, presenceSt
             {presenceState === "mobile" ? (
                 <span className="avatar-presence-dot is-mobile" title="On mobile">
                     <PixelIcon name="mobile" size={10} />
+                </span>
+            ) : presenceState === "unsupported" ? (
+                <span className="avatar-presence-dot is-unsupported" title="Status unavailable: their server doesn't share it" data-testid="presence-unsupported">
+                    ?
                 </span>
             ) : presenceState ? (
                 <span className={`avatar-presence-dot is-${presenceState}`} />
