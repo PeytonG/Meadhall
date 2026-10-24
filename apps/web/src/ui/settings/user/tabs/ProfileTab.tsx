@@ -5,6 +5,7 @@ import { mediaFromMxc, thumbnailFromMxc } from "../../../adapters/media";
 import { Avatar } from "../../../components/Avatar";
 import type { ToastState } from "../../../components/Toast";
 import { ProfileDetails } from "./ProfileDetails";
+import { ProfileStyleSection } from "./ProfileStyleSection";
 
 interface ProfileTabProps {
     client: MatrixClient;
@@ -197,6 +198,7 @@ export function ProfileTab({ client, onToast }: ProfileTabProps): React.ReactEle
             </div>
 
             <ProfileDetails client={client} onToast={onToast} />
+            <ProfileStyleSection client={client} onToast={onToast} />
         </div>
     );
 }

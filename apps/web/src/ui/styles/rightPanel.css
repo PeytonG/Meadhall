@@ -978,3 +978,31 @@
 .rs-member-name-line .rs-member-name {
     min-width: 0;
 }
+
+/* Nameplates (profile style) behind member rows: strongest on the right, clear behind the name. */
+.rs-member-row {
+    position: relative;
+    overflow: hidden;
+}
+
+.nameplate-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 15%, rgba(0, 0, 0, 0.85) 100%);
+    mask-image: linear-gradient(90deg, transparent 15%, rgba(0, 0, 0, 0.85) 100%);
+    opacity: 0.8;
+}
+
+.rs-member-row > :not(.nameplate-bg) {
+    position: relative;
+}
+
+/* A profile card with a style: its gradient behind everything, sections slightly see-through. */
+.right-panel-body-user.has-card-style {
+    background-size: 100% 100%;
+}
+
+.right-panel-body-user.has-card-style :is(.rp-section, .rp-card, .rp-server-roles, .rp-profile-about) {
+    background: color-mix(in srgb, var(--bg-pane) 72%, transparent);
+}

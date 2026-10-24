@@ -17,6 +17,9 @@ import { LinksCard } from "./cards/LinksCard";
 import { parseRichProfile } from "../../../core/profile/richProfile";
 import { isSentBugReport } from "../../../core/bugReport/bugReport";
 import { UserBadges } from "../badges/UserBadges";
+import { gradientColors, gradientCss } from "../../../core/profile/profileStyle";
+import { useProfileStyle } from "../../profile/useProfileStyle";
+import { useIconStyle } from "../../theme/iconStyle";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -133,6 +136,9 @@ export function UserProfilePanel({
     );
 
     const rich = useMemo(() => parseRichProfile(profile as Record<string, unknown> | null), [profile]);
+    // Their profile style: the card's gradient.
+    const iconStyle = useIconStyle();
+    const cardColors = gradientColors(useProfileStyle(client, userId).card);
     const aboutText = useMemo(() => {
         if (rich.about.trim().length > 0) {
             return rich.about;
@@ -182,7 +188,11 @@ export function UserProfilePanel({
     }, [canMessage, client, onOpenRoom, onToast, userId]);
 
     return (
-        <div className="right-panel-body right-panel-body-user">
+        <div
+            className={`right-panel-body right-panel-body-user${cardColors ? " has-card-style" : ""}`}
+            style={cardColors ? { backgroundImage: gradientCss(cardColors, { pixel: iconStyle === "pixel" }) } : undefined}
+            data-testid="profile-card"
+        >
             <ProfileHeader
                 displayName={displayName}
                 badges={<UserBadges client={client} userId={userId} size={18} />}

@@ -12,6 +12,7 @@ import { Avatar } from "../../Avatar";
 import { useRoomStateVersion } from "../../../hooks/useRoomStateVersion";
 import { ContextMenu, type ContextMenuItem } from "../../menus/ContextMenu";
 import { UserBadges } from "../../badges/UserBadges";
+import { NameplateBackground } from "../../../profile/Nameplate";
 
 interface MembersPanelProps {
     client: MatrixClient;
@@ -204,6 +205,7 @@ export function MembersPanel({ client, room, activeSpaceRoom, onSelectUser, onTo
                                         openMenu(member.userId, event.clientX, event.clientY);
                                     }}
                                 >
+                                    <NameplateBackground client={client} userId={member.userId} />
                                     <button type="button" className="rs-member-select" onClick={() => onSelectUser(member.userId)} title={member.userId}>
                                         <Avatar
                                             className="rs-member-avatar"
