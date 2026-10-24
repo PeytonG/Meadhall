@@ -368,6 +368,7 @@ export function SettingsOverlay({
                 return (
                     <NotificationsTab
                         settings={userSettings.notifications}
+                        speakerId={userSettings.audio.preferredAudioOutputId}
                         onChange={(notifications) =>
                             onUserSettingsChange({
                                 ...userSettings,

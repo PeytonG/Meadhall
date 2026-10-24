@@ -13,12 +13,14 @@ interface IncomingCallCardProps {
     client: MatrixClient;
     call: IncomingCall;
     speakerId?: string;
+    // Settings → Notifications: whether to ring, and your own ringtone.
+    ringtone?: { enabled: boolean; customDataUrl: string | null };
     onJoin: () => void;
     onDismiss: () => void;
 }
 
 // "Bob is calling": shown (and ringing) for the person being called, never the caller.
-export function IncomingCallCard({ client, call, speakerId, onJoin, onDismiss }: IncomingCallCardProps): React.ReactElement {
+export function IncomingCallCard({ client, call, speakerId, ringtone, onJoin, onDismiss }: IncomingCallCardProps): React.ReactElement {
     const room = client.getRoom(call.roomId);
     const member = room?.getMember(call.callerId) ?? null;
     const callerName = member?.name ?? client.getUser(call.callerId)?.displayName ?? call.callerId;
@@ -26,7 +28,9 @@ export function IncomingCallCard({ client, call, speakerId, onJoin, onDismiss }:
     const avatarSources = memberAvatarSources(client, member, 96, "crop");
 
     // Do Not Disturb: the card still shows, but nothing rings.
-    useEffect(() => (isDoNotDisturb() ? undefined : startRinging(speakerId)), [call.eventId, speakerId]);
+    const ringEnabled = ringtone?.enabled !== false;
+    const ringSound = ringtone?.customDataUrl ?? null;
+    useEffect(() => (isDoNotDisturb() || !ringEnabled ? undefined : startRinging(speakerId, ringSound)), [call.eventId, speakerId, ringEnabled, ringSound]);
 
     // In the background (another window, or the desktop app in the tray): an OS notification too.
     useEffect(() => {

@@ -63,8 +63,20 @@ export function ringtoneLoopSeconds(): number {
 
 type SinkAwareContext = AudioContext & { setSinkId?: (sinkId: string) => Promise<void> };
 
-// Starts ringing; call the returned function to stop. `sinkId` picks the speaker (Settings -> Audio).
-export function startRinging(sinkId?: string): () => void {
+// Your own ringtone (Settings → Notifications): decoded once, then looped with the same pause as the jingle.
+async function decodeCustomRingtone(context: BaseAudioContext, dataUrl: string): Promise<AudioBuffer> {
+    // Decoded here rather than fetched: the page's content security policy doesn't allow fetching data: URLs.
+    const comma = dataUrl.indexOf(",");
+    if (comma < 0 || !dataUrl.slice(0, comma).endsWith(";base64")) throw new Error("Unsupported ringtone");
+    const binary = atob(dataUrl.slice(comma + 1));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return context.decodeAudioData(bytes.buffer);
+}
+
+// Starts ringing; call the returned function to stop. `sinkId` picks the speaker (Settings -> Audio); `customDataUrl`
+// rings with your own sound (the jingle plays if it can't be decoded).
+export function startRinging(sinkId?: string, customDataUrl?: string | null): () => void {
     if (typeof window === "undefined" || !window.AudioContext) {
         return () => undefined;
     }
@@ -76,13 +88,36 @@ export function startRinging(sinkId?: string): () => void {
     output.connect(context.destination);
     let stopped = false;
     let nextStart = context.currentTime + 0.05;
-    const loop = ringtoneLoopSeconds();
+    let loop = ringtoneLoopSeconds();
+    let custom: AudioBuffer | null = null;
+    let ready = !customDataUrl;
     const scheduleAhead = (): void => {
+        if (!ready) return;
         while (!stopped && nextStart < context.currentTime + 2) {
-            scheduleRingtone(context, output, nextStart);
+            if (custom) {
+                const source = context.createBufferSource();
+                source.buffer = custom;
+                source.connect(output);
+                source.start(nextStart);
+            } else {
+                scheduleRingtone(context, output, nextStart);
+            }
             nextStart += loop;
         }
     };
+    if (customDataUrl) {
+        void decodeCustomRingtone(context, customDataUrl)
+            .then((buffer) => {
+                custom = buffer;
+                loop = buffer.duration + LOOP_PAUSE_SECONDS;
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                ready = true;
+                nextStart = Math.max(nextStart, context.currentTime + 0.05);
+                scheduleAhead();
+            });
+    }
     scheduleAhead();
     const timer = window.setInterval(scheduleAhead, 500);
     // Browsers may refuse to start audio until the page has been clicked: start ringing on the next interaction.
