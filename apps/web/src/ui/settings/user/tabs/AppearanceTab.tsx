@@ -91,6 +91,25 @@ export function AppearanceTab({
             <FontPicker settings={settings} onChange={onChange} />
 
             <div className="settings-section-card">
+                <h3>Icons</h3>
+                <div className="settings-theme-row" role="radiogroup" aria-label="Icon style">
+                    {(["pixel", "smooth"] as const).map((style) => (
+                        <button
+                            key={style}
+                            type="button"
+                            role="radio"
+                            aria-checked={settings.iconStyle === style}
+                            className={`settings-theme-button${settings.iconStyle === style ? " is-active" : ""}`}
+                            onClick={() => onChange({ ...settings, iconStyle: style })}
+                        >
+                            {style === "pixel" ? "Pixel" : "Smooth"}
+                        </button>
+                    ))}
+                </div>
+                <p className="settings-field-help">The buttons and controls: pixel art to match the theme, or smooth lines.</p>
+            </div>
+
+            <div className="settings-section-card">
                 <h3>Emoji</h3>
                 <label className="settings-toggle">
                     <input

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react";
 
+import { useIconStyle } from "../theme/iconStyle";
+
 // 12x12 pixel-art icons drawn as crisp SVG rects in the current text color. "#" = filled pixel.
 const ICONS = {
     mic: [
@@ -176,6 +178,26 @@ const ICONS = {
 
 export type PixelIconName = keyof typeof ICONS;
 
+// The same icons as smooth lines (24x24, drawn with currentColor), for the "Smooth" icon style.
+const SMOOTH_ICONS: Record<PixelIconName, string[]> = {
+    mic: ["M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z", "M5 11a7 7 0 0 0 14 0", "M12 18v3", "M9 21h6"],
+    headphones: ["M4 15v-3a8 8 0 0 1 16 0v3", "M4 15h3v5H5a1 1 0 0 1-1-1z", "M20 15h-3v5h2a1 1 0 0 0 1-1z"],
+    gear: [
+        "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+        "M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1",
+        "M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z",
+    ],
+    mobile: ["M9 2h6a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z", "M11 18h2"],
+    soundboard: ["M3 10h4l5-4v12l-5-4H3z", "M17 4v10", "M17 4l4-1v3l-4 1", "M15.5 12.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"],
+    send: ["M3 11l18-8-8 18-2-8z", "M11 13l10-10"],
+    phone: ["M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"],
+    people: ["M9 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6z", "M3 20a6 6 0 0 1 12 0", "M17 7a2.5 2.5 0 1 0 0 5", "M16 14a5 5 0 0 1 5 6"],
+    back: ["M15 5l-7 7 7 7"],
+    menu: ["M4 6h16M4 12h16M4 18h16"],
+    plus: ["M12 5v14M5 12h14"],
+    hangup: ["M3 14c5-5 13-5 18 0l-2 3-4-1v-3a10 10 0 0 0-6 0v3l-4 1z"],
+};
+
 // Diagonal slash for "off" states (muted mic, deafened).
 const SLASH = Array.from({ length: 12 }, (_, index) => [index, index] as const);
 
@@ -186,6 +208,29 @@ interface PixelIconProps {
 }
 
 export function PixelIcon({ name, slashed = false, size = 20 }: PixelIconProps): React.ReactElement {
+    const style = useIconStyle();
+    if (style === "smooth") {
+        return (
+            <svg
+                className="pixel-icon is-smooth"
+                data-icon-style="smooth"
+                viewBox="0 0 24 24"
+                width={size}
+                height={size}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                {SMOOTH_ICONS[name].map((d) => (
+                    <path key={d} d={d} />
+                ))}
+                {slashed ? <path className="pixel-icon-slash-line" d="M3 3l18 18" /> : null}
+            </svg>
+        );
+    }
     const pixels = ICONS[name].flatMap((row, y) =>
         [...row].flatMap((cell, x) => (cell === "#" ? [<rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} />] : [])),
     );
