@@ -23,6 +23,9 @@ import { ChannelHeader } from "./header/ChannelHeader";
 import { RightPanel } from "./rightPanel/RightPanel";
 import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpaceChannel } from "./RoomList";
 import { ContextMenu } from "./menus/ContextMenu";
+import { InboxPanel } from "./inbox/InboxPanel";
+import { useDesktopUpdates } from "../hooks/useDesktopUpdates";
+import { useMobileUpdates } from "../hooks/useMobileUpdates";
 import { channelMenuItems, spaceMenuItems } from "./menus/roomMenus";
 import { ServerProfileDialog } from "./rooms/ServerProfileDialog";
 import {
@@ -1278,6 +1281,27 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             void applySpaceNotificationMode(client, space.roomId, getSpaceChannels(space, roomById)).catch(() => undefined);
         }
     }, [client, roomById, spaces]);
+    // The inbox: unread messages in every conversation you haven't muted.
+    const [inboxOpen, setInboxOpen] = useState(false);
+    const inboxCount = useMemo(
+        () =>
+            visibleRooms
+                .filter((room) => !room.isSpaceRoom() && room.getMyMembership() === "join" && !mutedRoomIds.has(room.roomId))
+                .reduce((total, room) => total + getServerUnreadCount(room), 0),
+        [mutedRoomIds, visibleRooms, rooms],
+    );
+    const isMutedRoom = useCallback((roomId: string) => mutedRoomIds.has(roomId), [mutedRoomIds]);
+    const describeInboxRoom = useCallback(
+        (room: Room): string => {
+            const parentId = findParentSpaceIdForRoom(room.roomId, spaces);
+            const parent = parentId ? client.getRoom(parentId) : null;
+            return parent ? `#${getRoomName(room)} · ${getRoomName(parent)}` : getRoomName(room);
+        },
+        [client, spaces],
+    );
+    // A green download arrow in the top bar when an update is out.
+    const desktopUpdates = useDesktopUpdates();
+    const mobileUpdates = useMobileUpdates();
     const [contextMenu, setContextMenu] = useState<{ kind: "space" | "channel"; roomId: string; x: number; y: number } | null>(null);
     const [serverProfileSpaceId, setServerProfileSpaceId] = useState<string | null>(null);
 
@@ -2798,6 +2822,20 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             : undefined
                     }
                     onMobileBack={goBackToList}
+                    inbox={{ count: inboxCount, open: inboxOpen, onToggle: () => setInboxOpen((open) => !open) }}
+                    update={
+                        desktopUpdates.status && (desktopUpdates.status.state === "available" || desktopUpdates.status.state === "downloaded")
+                            ? {
+                                  label:
+                                      desktopUpdates.status.state === "downloaded"
+                                          ? `Restart to update to Meadhall ${desktopUpdates.status.version}`
+                                          : `Update to Meadhall ${desktopUpdates.status.version}`,
+                                  onClick: desktopUpdates.updateNow,
+                              }
+                            : mobileUpdates.updateAvailable
+                              ? { label: "A new version of Meadhall is out", onClick: () => openUserSettings("updates") }
+                              : undefined
+                    }
                     showHashPrefix={shouldPrefixRoomWithHash}
                     sidebarMode={isNarrowLayout && !narrowPanelOpen ? "closed" : rightSidebarMode}
                     searchQuery={sidebarSearchQuery}
@@ -3113,6 +3151,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
             <WhatsNewDialog />
             <CallEndedNotice onViewDetails={() => openUserSettings("logs")} />
+            {inboxOpen ? (
+                <InboxPanel
+                    client={client}
+                    rooms={visibleRooms}
+                    isMuted={isMutedRoom}
+                    describeRoom={describeInboxRoom}
+                    onOpenRoom={(roomId) => {
+                        setInboxOpen(false);
+                        focusRoom(roomId);
+                    }}
+                    onClose={() => setInboxOpen(false)}
+                />
+            ) : null}
             {contextMenu && contextMenuItems && contextMenuRoom ? (
                 <ContextMenu
                     x={contextMenu.x}
