@@ -3,11 +3,22 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { useIgnoredUsers } from "../../../hooks/useIgnoredUsers";
 import type { PrivacySettings } from "../settingsStore";
+import { setSharingEnabled, useSharingEnabled } from "../../../sharing/sharingSetting";
 
 interface PrivacyTabProps {
     client: MatrixClient;
     settings: PrivacySettings;
     onChange: (settings: PrivacySettings) => void;
+}
+
+function SharingToggle(): React.ReactElement {
+    const enabled = useSharingEnabled();
+    return (
+        <label className="settings-toggle">
+            <input type="checkbox" checked={enabled} onChange={(event) => setSharingEnabled(event.target.checked)} data-testid="sharing-toggle" />
+            Sharing: share soundboard sounds and style profiles with friends, and adopt ones they share with you
+        </label>
+    );
 }
 
 export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): React.ReactElement {
@@ -58,6 +69,8 @@ export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): Rea
                     Show what I&apos;m playing (games running in Steam appear as &quot;Playing ...&quot; under your name)
                 </label>
             ) : null}
+
+            <SharingToggle />
 
             <div className="settings-section-card" data-testid="blocked-users">
                 <h3>Blocked people</h3>

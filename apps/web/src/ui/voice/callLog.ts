@@ -10,12 +10,28 @@ export interface CallLogEntry {
     at: number;
     event: string;
     detail?: string;
+    // Which call it belongs to (rejoins after a drop stay in the same call), so the call view can show just that one.
+    call?: string;
 }
 
-export function readCallLog(): CallLogEntry[] {
+let currentCall: string | null = null;
+
+// Starts a new call in the history: called when you join a call yourself, not when rejoining after a drop.
+export function beginCallLog(): string {
+    currentCall = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    return currentCall;
+}
+
+export function currentCallLogId(): string | null {
+    return currentCall;
+}
+
+// Everything, or only one call's entries.
+export function readCallLog(call?: string | null): CallLogEntry[] {
     try {
         const entries = JSON.parse(window.localStorage.getItem(KEY) ?? "[]") as unknown;
-        return Array.isArray(entries) ? (entries as CallLogEntry[]).filter((entry) => typeof entry?.at === "number") : [];
+        const valid = Array.isArray(entries) ? (entries as CallLogEntry[]).filter((entry) => typeof entry?.at === "number") : [];
+        return call === undefined ? valid : valid.filter((entry) => call !== null && entry.call === call);
     } catch {
         return [];
     }
@@ -23,7 +39,8 @@ export function readCallLog(): CallLogEntry[] {
 
 export function logCallEvent(event: string, detail?: string): void {
     try {
-        const entries = [...readCallLog(), { at: Date.now(), event, ...(detail ? { detail: detail.slice(0, 300) } : {}) }];
+        const entry: CallLogEntry = { at: Date.now(), event, ...(detail ? { detail: detail.slice(0, 300) } : {}), ...(currentCall ? { call: currentCall } : {}) };
+        const entries = [...readCallLog(), entry];
         window.localStorage.setItem(KEY, JSON.stringify(entries.slice(-MAX_ENTRIES)));
     } catch {
         // Not recorded; the call itself is unaffected.

@@ -549,11 +549,14 @@ function registerIpc(): void {
         window.setBackgroundColor(value.color);
     });
 
-    handleFromApp("heorot:getDesktopCapturerSources", async () => {
+    // Without previews the list comes back almost at once, so the picker opens immediately; previews (a few seconds
+    // with many windows open) are fetched next and filled in.
+    handleFromApp("heorot:getDesktopCapturerSources", async (_event, options: unknown) => {
+        const previews = !(options && typeof options === "object" && (options as { previews?: unknown }).previews === false);
         const sources = await desktopCapturer.getSources({
             types: ["window", "screen"],
             fetchWindowIcons: true,
-            thumbnailSize: { width: 320, height: 180 },
+            thumbnailSize: previews ? { width: 320, height: 180 } : { width: 0, height: 0 },
         });
         // Small previews (and the app's icon for windows) so people can see what they're about to share.
         return sources.map((source) => ({

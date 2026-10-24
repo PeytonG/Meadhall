@@ -198,3 +198,9 @@
 }
 
 
+
+/* Pixel-art icons are filled squares, not strokes (the rule above is for the line icons). */
+.channel-header svg.pixel-icon:not(.is-smooth) {
+    stroke: none;
+    fill: currentColor;
+}

@@ -1503,3 +1503,143 @@
     object-fit: contain;
     border: 1px solid var(--border);
 }
+
+/* Settings → Profile → Profile style */
+.profile-style-preview {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.profile-style-preview-card {
+    width: 180px;
+    height: 96px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 2px;
+    border: 1px solid var(--border);
+    background: var(--bg-pane);
+    color: var(--text-main);
+}
+
+.profile-style-preview-card span {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.profile-style-preview-plate {
+    align-self: center;
+    width: 220px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-pane);
+    font-weight: 700;
+}
+
+.profile-style-picker {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.profile-style-picker-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.profile-style-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.profile-style-swatch {
+    width: 34px;
+    height: 34px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    padding: 0;
+}
+
+.profile-style-swatch.is-none {
+    width: auto;
+    padding: 0 8px;
+    background: var(--bg-input);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 12px;
+}
+
+.profile-style-swatch.is-active,
+.profile-style-custom.is-active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.profile-style-custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border: 2px solid transparent;
+}
+
+.profile-style-custom input[type="color"] {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: none;
+}
+
+/* Settings → Appearance → Style profiles */
+.style-profiles-save {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.style-profiles-save input {
+    flex: 1;
+    min-width: 0;
+}
+
+.style-profiles-list {
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.style-profiles-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--border);
+}
+
+.style-profile-swatch {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+}
+
+.style-profile-text {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+}
+
+.style-profile-text small {
+    color: var(--text-muted);
+    font-size: 11px;
+}

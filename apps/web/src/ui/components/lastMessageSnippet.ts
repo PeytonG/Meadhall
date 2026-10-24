@@ -26,8 +26,11 @@ function describe(event: MatrixEvent): string | null {
             return "Sent a video";
         case MsgType.Audio:
             return "Sent a voice clip";
-        case MsgType.File:
-            return "Sent a file";
+        case MsgType.File: {
+            // A shared sound or style profile (.meadhall).
+            const shared = (content as Record<string, unknown>)["io.github.peytong.meadhall.share"] as { kind?: unknown } | undefined;
+            return shared?.kind === "sound" ? "Shared a sound" : shared?.kind === "style" ? "Shared a style" : "Sent a file";
+        }
         default: {
             const body = typeof content.body === "string" ? content.body : "";
             // Drop a reply's quoted fallback ("> <@user> text") and collapse whitespace.

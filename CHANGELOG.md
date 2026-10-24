@@ -4,6 +4,48 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.3.4 (2026-10-24)
+
+### New
+- **Right-click a server** for a menu like Discord's: Mark as read, Invite, Mute, Notification settings, Hide muted
+  channels, Show all channels, Privacy settings, Edit per-server profile (a nickname and picture just for that
+  server), Server settings, Move to... and Leave. **Right-click a channel** to mark it read, mute it, change its
+  notifications, copy its link or edit it.
+- **Mute** servers and channels: no notifications, and they don't count as unread. It works on every device, and in
+  Element too.
+- **Channel types:** text (#), voice, rules, FAQ, news and events, each with its own pixel icon (smooth with the
+  Smooth icon style). Rules and news channels start with only moderators posting; everyone can still react.
+- **Unread counts** on each channel and on server icons in the rail.
+- **Server banners:** a picture or GIF under the server's name, set in Server settings → Overview.
+- **Inbox:** a button in the top bar listing everything you haven't read (or only your mentions), grouped by
+  conversation. Jump there, or mark things read.
+- **Update arrow:** a green download arrow in the top bar when an update is out.
+- **Members by role:** the member list groups people under their highest role, highest rank first, then Online and
+  Offline. People who can manage roles can right-click someone (or use ...) to give or take roles.
+- **Text chat in voice channels:** turn it on in a voice channel's settings and the chat shows beside the call.
+- **Badges:** founding members of Meadhall wear a gold coin after their name. Only Meadhall's own signed list makes
+  official badges; anything else shows as "unofficial" behind a "...".
+- **Profile style:** a gradient for your profile card and a nameplate behind your name in member lists (Settings →
+  Profile), drawn in pixel bands.
+- **Style profiles:** save your look (theme, colors, fonts, icons, card and nameplate) and switch between looks
+  (Settings → Appearance).
+- **Sharing** (turn it on in Settings → Privacy & Safety): send friends your soundboard sounds and style profiles.
+  They see a card showing what it adds, and Adopt adds it. You can also save and import them as `.meadhall` files.
+- **Bug reports reach the developer** inside Meadhall, under Home → Bug reports.
+
+### Changed
+- Channels list their type with an icon instead of "#" text.
+- The screen share picker opens straight away and fills in previews as they're captured.
+- The call's history in the call settings shows only the current call; earlier calls are in Settings → Logs.
+
+### Fixed
+- **Screen share previews** were always "No preview", and the picker took seconds to open. **Stream this** is
+  always in view now (in every dialog, the buttons stay put while the list scrolls).
+- **A call started in a server's text channel** notified everyone in it. Only DMs and group chats ring or notify.
+- **GIFs** copied from a web page or Discord and pasted were still pictures. They loop now.
+- **Server pictures** that couldn't be loaded showed a broken image; now the server's initial shows instead.
+- Invites to group chats and DM invites no longer flicker between lists.
+
 ## v0.3.3 (2026-10-23)
 
 ### New

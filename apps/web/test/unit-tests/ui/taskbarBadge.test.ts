@@ -17,7 +17,7 @@ describe("taskbar badge", () => {
             isSpaceRoom: () => space,
             getUnreadNotificationCount: () => count,
         });
-        const client = { getRooms: () => [room(2), room(3), room(7, "leave"), room(4, "join", true), room(0)] };
+        const client = { getUserId: () => "@me:example.org", getRooms: () => [room(2), room(3), room(7, "leave"), room(4, "join", true), room(0)] };
         expect(unreadNotificationTotal(client as never)).toBe(5);
     });
 });

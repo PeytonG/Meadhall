@@ -39,6 +39,11 @@ import {
 } from "../stores/CategoryStore";
 import { isVoiceChannelRoom } from "../voice/voiceChannel";
 import { Avatar } from "./Avatar";
+import { PixelIcon } from "./PixelIcon";
+import { channelTypeIcon } from "./channelIcons";
+import { getChannelType, listedChannelType } from "../../core/rooms/channelType";
+
+const EMPTY_MUTED_ROOM_IDS: ReadonlySet<string> = new Set();
 import { SpeakingCampfire } from "./voice/PixelCampfire";
 import micMuteIcon from "./icons/mic-02.svg";
 import volumeMuteIcon from "./icons/volume-mute-02.svg";
@@ -72,6 +77,10 @@ interface RoomListProps {
     liveParticipantsOverrideRoomId?: string | null;
     onOpenRoomSettings?: (roomId: string) => void;
     voiceDiscoveryReady?: boolean;
+    // Muted channels show dimmed, without unread counts.
+    mutedRoomIds?: ReadonlySet<string>;
+    // Right-click (or long-press) on a channel: Mark as read, Mute, notification settings...
+    onRoomContextMenu?: (roomId: string, x: number, y: number) => void;
 }
 
 interface VoiceParticipantInfo {
@@ -142,7 +151,7 @@ function eventTriggersUnread(event: MatrixEvent, ownUserId: string): boolean {
     return !event.isRedacted();
 }
 
-function hasUnreadActivity(room: Room, ownUserId: string): boolean {
+export function hasUnreadActivity(room: Room, ownUserId: string): boolean {
     const events = room.getLiveTimeline()?.getEvents() ?? room.timeline;
     for (let index = events.length - 1; index >= 0; index--) {
         const event = events[index];
@@ -246,7 +255,10 @@ export function RoomList({
     liveParticipantsOverrideRoomId = null,
     onOpenRoomSettings,
     voiceDiscoveryReady = false,
+    mutedRoomIds = EMPTY_MUTED_ROOM_IDS,
+    onRoomContextMenu,
 }: RoomListProps): React.ReactElement {
+    const spaceRoom = client.getRoom(spaceId);
     const { config } = useMatrix();
     const manualOrderingEnabled = orderingMode === "manual";
     const orderingControlsEnabled = manualOrderingEnabled && showOrderingControls;
@@ -787,8 +799,9 @@ export function RoomList({
         opts: { indexInGroup: number; groupSize: number; catId: string | null },
     ): React.ReactElement => {
         const { indexInGroup, groupSize, catId } = opts;
-        const unreadCount = getServerUnreadCount(room);
-        const showActivityDot = unreadCount === 0 && ownUserId ? hasUnreadActivity(room, ownUserId) : false;
+        const muted = mutedRoomIds.has(room.roomId);
+        const unreadCount = muted ? 0 : getServerUnreadCount(room);
+        const showActivityDot = !muted && unreadCount === 0 && ownUserId ? hasUnreadActivity(room, ownUserId) : false;
         const isActive = room.roomId === activeRoomId;
         const roomName = getRoomName(room);
         const allowMemberAvatarFallback = !showHashPrefix;
@@ -918,7 +931,13 @@ export function RoomList({
             <div
                 key={room.roomId}
                 role="listitem"
-                className={`room-item${isActive ? " is-active" : ""}${dragClass}`}
+                className={`room-item${isActive ? " is-active" : ""}${muted ? " is-muted" : ""}${unreadCount > 0 || showActivityDot ? " has-unread" : ""}${dragClass}`}
+                data-room-id={room.roomId}
+                onContextMenu={(event) => {
+                    if (!onRoomContextMenu) return;
+                    event.preventDefault();
+                    onRoomContextMenu(room.roomId, event.clientX, event.clientY);
+                }}
                 draggable={orderingControlsEnabled}
                 onDragStart={(event) => {
                     if (!orderingControlsEnabled) {
@@ -963,9 +982,19 @@ export function RoomList({
                             ) : null}
                             <span className="room-item-title-block">
                                 <span className="room-item-name">
-                                    {isVoiceChannel ? "\uD83D\uDD0A " : ""}
-                                    {showHashPrefix ? "#" : ""}
+                                    {showHashPrefix || isVoiceChannel ? (
+                                        <span className="room-item-type-icon" aria-hidden="true">
+                                            <PixelIcon name={channelTypeIcon(isVoiceChannel ? "voice" : getChannelType(room, spaceRoom))} size={14} />
+                                        </span>
+                                    ) : null}
+                                    {/* Read as "#general" by screen readers (and text search); the icon shows it. */}
+                                    {showHashPrefix && !isVoiceChannel ? <span className="visually-hidden">#</span> : null}
                                     {roomName}
+                                    {muted ? (
+                                        <span className="room-item-muted-icon" title="Muted">
+                                            <PixelIcon name="bell" slashed size={12} />
+                                        </span>
+                                    ) : null}
                                 </span>
                                 {isVoiceChannel ? (
                                     <span className="room-item-subtitle">{voiceSubtitle}</span>
@@ -1349,8 +1378,10 @@ export function RoomList({
                                             ) : null}
                                             <span className="room-item-title-block">
                                                 <span className="room-item-name">
-                                                    {isVoiceChannel ? "\uD83D\uDD0A " : ""}
-                                                    {showHashPrefix ? "#" : ""}
+                                                    <span className="room-item-type-icon" aria-hidden="true">
+                                                        <PixelIcon name={channelTypeIcon(isVoiceChannel ? "voice" : listedChannelType(spaceRoom, room.roomId))} size={14} />
+                                                    </span>
+                                                    {showHashPrefix && !isVoiceChannel ? <span className="visually-hidden">#</span> : null}
                                                     {room.name}
                                                 </span>
                                                 <span className="room-item-subtitle">{subtitle}</span>

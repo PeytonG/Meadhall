@@ -73,6 +73,7 @@ export function RightPanel({
                             room={room}
                             activeSpaceRoom={activeSpaceRoom}
                             onSelectUser={onSelectUser}
+                            onToast={onToast}
                         />
                     ) : null}
                     {roomMode === "search" ? (

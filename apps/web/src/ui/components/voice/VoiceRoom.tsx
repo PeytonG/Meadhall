@@ -50,12 +50,13 @@ import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
 import { PixelIcon } from "../PixelIcon";
 import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
 import { ScreenSharePicker } from "./ScreenSharePicker";
+import { mergeCapturePreviews } from "../../voice/capturePreviews";
 import { stageGridStyle } from "../../voice/stageGrid";
 import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
-import { RECONNECT_DELAYS_MS, announceCallEnded, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
+import { RECONNECT_DELAYS_MS, announceCallEnded, beginCallLog, currentCallLogId, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
 import { logAppError } from "../../logs/appLog";
 import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
@@ -677,6 +678,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [stageFullscreen, setStageFullscreen] = useState(false);
     const [desktopCaptureDialogOpen, setDesktopCaptureDialogOpen] = useState(false);
     const [desktopCaptureSources, setDesktopCaptureSources] = useState<DesktopCaptureSource[]>([]);
+    const [desktopCapturePreviewsLoading, setDesktopCapturePreviewsLoading] = useState(false);
+    const [desktopCaptureListLoading, setDesktopCaptureListLoading] = useState(false);
     const [selectedDesktopCaptureSourceId, setSelectedDesktopCaptureSourceId] = useState<string | null>(null);
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1127,6 +1130,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         const targetRoomId = matrixRoomId;
         if (!targetRoomId) {
             return;
+        }
+        // Joining yourself starts a new call in the history; rejoining after a drop continues the same one.
+        if (normalizedAttemptNumber === 1 && reconnectRef.current.attempts === 0) {
+            beginCallLog();
+            logCallEvent("Joining", targetRoomId);
         }
         if (
             connectionState === ConnectionState.Connected &&
@@ -2001,25 +2009,42 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             return true;
         }
 
+        // The picker opens at once ("Finding screens and windows..."): listing sources can take seconds (Linux), and
+        // previews longer still, so both are filled in as they arrive.
+        setDesktopCaptureListLoading(true);
+        const chosen = openDesktopCaptureSourceDialog([]);
+        const ourDialog = desktopCaptureSelectionResolverRef.current;
         try {
-            const sources = await bridge.getDesktopCapturerSources();
+            const sources = await bridge.getDesktopCapturerSources({ previews: false });
+            setDesktopCaptureListLoading(false);
+            // Cancelled while we were looking.
+            if (desktopCaptureSelectionResolverRef.current !== ourDialog) return await chosen;
             if (sources.length === 0) {
+                closeDesktopCaptureDialog(false);
                 setError("No stream source is available.");
                 return false;
             }
 
             if (sources.length === 1) {
                 await bridge.setPreferredDisplayMediaSource(sources[0].id);
+                closeDesktopCaptureDialog(true);
                 return true;
             }
 
-            return await openDesktopCaptureSourceDialog(
-                sources.map((source) => ({
-                    id: source.id,
-                    name: source.name || source.id,
-                })),
-            );
+            setDesktopCaptureSources(sources.map((source) => ({ ...source, name: source.name || source.id })));
+            setSelectedDesktopCaptureSourceId(sources[0]?.id ?? null);
+            if (sources.some((source) => !source.thumbnail)) {
+                setDesktopCapturePreviewsLoading(true);
+                void bridge
+                    .getDesktopCapturerSources({ previews: true })
+                    .then((withPreviews) => setDesktopCaptureSources((current) => mergeCapturePreviews(current, withPreviews)))
+                    .catch(() => undefined)
+                    .finally(() => setDesktopCapturePreviewsLoading(false));
+            }
+            return await chosen;
         } catch (captureSourceError) {
+            setDesktopCaptureListLoading(false);
+            if (desktopCaptureSelectionResolverRef.current === ourDialog) closeDesktopCaptureDialog(false);
             setError(captureSourceError instanceof Error ? captureSourceError.message : "Unable to prepare stream source selection.");
             return false;
         }
@@ -2615,12 +2640,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             </select>
                         </label>
                         <details className="voice-call-log" data-testid="call-log">
-                            <summary>Call history (why calls ended)</summary>
-                            <pre>{formatCallLog(readCallLog().slice(-15)) || "Nothing yet."}</pre>
+                            <summary>This call&apos;s history (drops and rejoins)</summary>
+                            <pre>{formatCallLog(readCallLog(currentCallLogId()).slice(-15)) || "Nothing yet."}</pre>
+                            <p className="voice-call-log-note">Earlier calls are in Settings → Logs.</p>
                             <button
                                 type="button"
                                 className="settings-button settings-button-secondary"
-                                onClick={() => void navigator.clipboard?.writeText(formatCallLog(readCallLog()))}
+                                onClick={() => void navigator.clipboard?.writeText(formatCallLog(readCallLog(currentCallLogId())))}
                             >
                                 Copy for a bug report
                             </button>
@@ -2907,6 +2933,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             >
                 <ScreenSharePicker
                     sources={desktopCaptureSources}
+                    previewsLoading={desktopCapturePreviewsLoading}
+                    listLoading={desktopCaptureListLoading}
                     selectedId={selectedDesktopCaptureSourceId}
                     onSelect={setSelectedDesktopCaptureSourceId}
                     onConfirm={() => void confirmDesktopCaptureSourceSelection()}

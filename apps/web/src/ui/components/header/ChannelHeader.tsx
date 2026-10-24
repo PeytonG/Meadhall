@@ -27,6 +27,10 @@ interface ChannelHeaderProps {
     subtitle?: string;
     // Phone layout: back to the channel list (the button is hidden on wider screens).
     onMobileBack?: () => void;
+    // The inbox (unread messages everywhere), with how many are waiting.
+    inbox?: { count: number; open: boolean; onToggle: () => void };
+    // Shown only when an update is ready, like Discord's green download arrow.
+    update?: { label: string; onClick: () => void };
 }
 
 type HeaderIconKind = "search" | "pins" | "members" | "info" | "more";
@@ -119,6 +123,8 @@ export function ChannelHeader({
     call,
     subtitle,
     onMobileBack,
+    inbox,
+    update,
 }: ChannelHeaderProps): React.ReactElement {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
@@ -281,6 +287,34 @@ export function ChannelHeader({
                 >
                     <HeaderIcon kind="info" />
                 </button>
+
+                {update ? (
+                    <button
+                        type="button"
+                        className="channel-header-icon-btn channel-header-update"
+                        aria-label={update.label}
+                        title={update.label}
+                        onClick={update.onClick}
+                        data-testid="header-update"
+                    >
+                        <PixelIcon name="download" size={18} />
+                    </button>
+                ) : null}
+                {inbox ? (
+                    <button
+                        type="button"
+                        className={`channel-header-icon-btn channel-header-inbox${inbox.open ? " is-active" : ""}`}
+                        aria-label={inbox.count > 0 ? `Inbox, ${inbox.count} unread` : "Inbox"}
+                        aria-expanded={inbox.open}
+                        title="Inbox"
+                        onClick={inbox.onToggle}
+                        data-inbox-toggle
+                        data-testid="header-inbox"
+                    >
+                        <PixelIcon name="inbox" size={18} />
+                        {inbox.count > 0 ? <span className="channel-header-inbox-count">{inbox.count > 99 ? "99+" : inbox.count}</span> : null}
+                    </button>
+                ) : null}
 
                 <div className="channel-header-menu" ref={menuRef}>
                     <button

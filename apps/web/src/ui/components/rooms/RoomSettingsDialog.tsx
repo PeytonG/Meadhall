@@ -8,6 +8,9 @@ import {
 } from "matrix-js-sdk/src/matrix";
 
 import { RoomDialog } from "./RoomDialog";
+import { CHANNEL_TYPES, CHANNEL_TYPE_EVENT, getChannelType, setChannelType, type ChannelType } from "../../../core/rooms/channelType";
+import { VOICE_CHAT_EVENT, isVoiceChatEnabled, setVoiceChat } from "../../../core/voice/voiceChat";
+import { isVoiceChannelRoom } from "../../voice/voiceChannel";
 import { getRoomDisplayName } from "./roomAdminUtils";
 
 interface RoomSettingsDialogProps {
@@ -57,6 +60,8 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
     const [joinRule, setJoinRule] = useState<JoinRule>(JoinRule.Invite);
     const [historyVisibility, setHistoryVisibility] = useState<HistoryVisibility>(HistoryVisibility.Shared);
     const [enableEncryption, setEnableEncryption] = useState(false);
+    const [channelType, setChannelTypeState] = useState<ChannelType>("text");
+    const [voiceChat, setVoiceChatState] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +81,16 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
         room && myUserId && !currentlyEncrypted && room.currentState.maySendStateEvent(EventType.RoomEncryption, myUserId),
     );
 
+    const isVoice = isVoiceChannelRoom(room);
+    const canEditVoiceChat = Boolean(room && myUserId && room.currentState.maySendStateEvent(VOICE_CHAT_EVENT, myUserId));
+    const canEditChannelType = Boolean(room && myUserId && room.currentState.maySendStateEvent(CHANNEL_TYPE_EVENT, myUserId));
+    // The server the channel belongs to (its type is also listed there).
+    const parentSpace = (channel: Room): Room | null => {
+        const parentId = channel.currentState.getStateEvents(EventType.SpaceParent).find((event) => event.getContent()?.canonical)?.getStateKey()
+            ?? channel.currentState.getStateEvents(EventType.SpaceParent)[0]?.getStateKey();
+        return parentId ? client.getRoom(parentId) : null;
+    };
+
     useEffect(() => {
         if (!open || !room) {
             return;
@@ -86,6 +101,8 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
         setJoinRule(getJoinRule(room));
         setHistoryVisibility(getHistoryVisibility(room));
         setEnableEncryption(isRoomEncrypted(room));
+        setChannelTypeState(getChannelType(room, parentSpace(room)));
+        setVoiceChatState(isVoiceChatEnabled(room));
         setSaving(false);
         setError(null);
     }, [open, room]);
@@ -130,6 +147,14 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
                     { history_visibility: historyVisibility },
                     "",
                 );
+            }
+
+            if (isVoice && canEditVoiceChat && voiceChat !== isVoiceChatEnabled(room)) {
+                await setVoiceChat(client, room.roomId, voiceChat);
+            }
+
+            if (!isVoice && canEditChannelType && channelType !== getChannelType(room, parentSpace(room))) {
+                await setChannelType(client, room, parentSpace(room), channelType);
             }
 
             if (canEnableEncryption && enableEncryption && !encryptedNow) {
@@ -219,6 +244,35 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
                     </select>
                 </label>
             </div>
+
+            {isVoice ? (
+                <label className="room-dialog-checkbox">
+                    <input
+                        type="checkbox"
+                        checked={voiceChat}
+                        onChange={(event) => setVoiceChatState(event.target.checked)}
+                        disabled={saving || !canEditVoiceChat}
+                        data-testid="voice-chat-toggle"
+                    />
+                    Text chat in this voice channel (shown beside the call)
+                </label>
+            ) : (
+                <label className="room-dialog-field">
+                    <span>Channel type</span>
+                    <select
+                        className="room-dialog-input"
+                        value={channelType}
+                        onChange={(event) => setChannelTypeState(event.target.value as ChannelType)}
+                        disabled={saving || !canEditChannelType}
+                    >
+                        {CHANNEL_TYPES.map((option) => (
+                            <option key={option.type} value={option.type}>
+                                {option.label}: {option.description}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            )}
 
             <label className="room-dialog-checkbox">
                 <input

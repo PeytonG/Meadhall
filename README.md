@@ -119,14 +119,20 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 
 **Feels like Discord**
 - 🏰 **Servers and channels** (Matrix spaces and rooms) with categories, drag-and-drop ordering and channel settings.
+  Channel types (text, voice, rules, FAQ, news, events) with pixel icons, server banners, unread counts on channels
+  and server icons, and right-click menus to mark as read, mute, change notifications, reorder servers or set a
+  per-server nickname.
+- 📥 An **inbox** of everything unread (or just your mentions), and a download arrow when an update is out.
 - 💬 **Direct messages and group chats** on Home, with the latest message and each person's status under their name.
 - 🎭 **Roles**: colored roles with moderation powers, channels only some roles **can see**, and channels only a role
-  and above **can talk** in. They're Matrix power levels, so the server enforces them, in Element too.
+  and above **can talk** in. They're Matrix power levels, so the server enforces them, in Element too. The member
+  list groups people by role, highest rank first, and admins change roles right from it.
 - 🟢 **Status**: Online, Away, Do Not Disturb, Invisible and a custom status. You go Away after 10 minutes without
   input, people on the phone app show a 📱, and the desktop app shows **"Playing ..."** for games running in Steam.
   People whose server doesn't share status show a **?**, and you can stop sharing yours in Settings → Privacy.
 - 🪪 **Profiles** with a banner (image or GIF, cropped to fit), About me, links, and the person's roles in every server
-  you share. **Block** anyone from their profile.
+  you share, a **card gradient** and a **nameplate** behind your name in member lists, and **badges** (founding members
+  of Meadhall wear a gold coin). **Block** anyone from their profile.
 - 👥 **Multiple accounts**: sign in to accounts on different servers, switch from the user panel, and get
   notifications for all of them.
 - ↩️ Replies, edits, reactions, pins, read receipts, typing indicators, search and a member list.
@@ -140,6 +146,7 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 - 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own (trim them to fit), played over your mic.
 - 🖥️ Screen sharing with **previews** of what you can share, several streams side by side, per-person volume up to 120%,
   mute and deafen any time.
+- 💬 Voice channels can have **text chat** beside the call. Calls in a server's channels never ring everyone.
 - 🔁 Dropped calls **rejoin by themselves**. If a call ends without you choosing to, Meadhall tells you why, and
   Settings → Logs keeps the history.
 
@@ -147,6 +154,8 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 - 🎨 A hand-made pixel theme. The **pixel color wheel** recolors the whole app; dark, light and **high contrast** themes.
 - 😀 Pixel emoji, pixel stickers, custom emoji packs per server and per person, and pixel fonts (or any font you have).
 - 🧱 Pixel-art icons, or smooth ones if you prefer (Settings → Appearance).
+- 🎁 **Style profiles**: save your look and switch between looks. Turn on **Sharing** to send friends your soundboard
+  sounds and styles; they add them with one click (or as `.meadhall` files).
 
 **Yours**
 - 🔒 End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery. Rooms
@@ -162,6 +171,39 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 <a id="screenshots"></a>
 
 ## 🖼️ Screenshots
+
+### New in v0.3.4
+
+<a href="docs/screenshots/server-features.png"><img src="docs/screenshots/server-features.png" alt="A server with a banner, channel types, unread counts, members grouped by role with nameplates, and the founder coin" width="900" /></a>
+
+<table>
+<tr>
+<td width="50%"><a href="docs/screenshots/server-menu.png"><img src="docs/screenshots/server-menu.png" alt="The server right-click menu" /></a></td>
+<td width="50%"><a href="docs/screenshots/inbox.png"><img src="docs/screenshots/inbox.png" alt="The inbox" /></a></td>
+</tr>
+<tr>
+<td><b>Right-click a server:</b> mark as read, mute, notifications, hide muted channels, nickname, move, leave.</td>
+<td><b>Inbox:</b> every unread message (or only mentions), grouped by conversation.</td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/profile-style.png"><img src="docs/screenshots/profile-style.png" alt="A profile card with a gradient and the founder coin" /></a></td>
+<td><a href="docs/screenshots/profile-style-settings.png"><img src="docs/screenshots/profile-style-settings.png" alt="Choosing a card gradient and nameplate" /></a></td>
+</tr>
+<tr>
+<td><b>Profile cards</b> with a gradient, and badges after names.</td>
+<td><b>Profile style:</b> 10 gradients or your own colors, drawn in pixel bands.</td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/sharing.png"><img src="docs/screenshots/sharing.png" alt="A shared soundboard sound in a chat" /></a></td>
+<td></td>
+</tr>
+<tr>
+<td><b>Sharing:</b> a friend's sound arrives as a card; play it, then Adopt.</td>
+<td></td>
+</tr>
+</table>
+
+### Everything else
 
 <table>
 <tr>

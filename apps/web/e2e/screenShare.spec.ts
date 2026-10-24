@@ -24,6 +24,33 @@ test("the share picker shows a preview for each screen and window, grouped, and 
     if (process.env.PREVIEW_DIR) await page.screenshot({ path: `${process.env.PREVIEW_DIR}/screen-share-picker.png` });
 });
 
+test("the picker opens before the list is ready and says it is looking", async ({ page }) => {
+    await openHarness(page, "screenShareHarness.tsx", { harnessMode: "finding" });
+    const dialog = page.getByRole("dialog", { name: "Choose stream source" });
+    await expect(dialog.getByRole("status")).toHaveText("Finding screens and windows…");
+    await expect(dialog.getByText("Nothing to share was found.")).toHaveCount(0);
+});
+
+test("with lots of windows, Stream this stays in view and previews show as loading", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openHarness(page, "screenShareHarness.tsx", { harnessMode: "many" });
+    const dialog = page.getByRole("dialog", { name: "Choose stream source" });
+    const stream = dialog.getByRole("button", { name: "Stream this" });
+    const inViewport = async (): Promise<boolean> =>
+        stream.evaluate((button) => {
+            const box = button.getBoundingClientRect();
+            return box.top >= 0 && box.bottom <= window.innerHeight && document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === button;
+        });
+    expect(await inViewport()).toBe(true);
+    // Scroll the list to the bottom and back: the button never moves out of view.
+    const body = dialog.locator(".room-dialog-body");
+    expect(await body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    await body.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    expect(await inViewport()).toBe(true);
+    await expect(dialog.getByText("Loading preview…").first()).toBeVisible();
+    await expect(dialog.getByText("No preview")).toHaveCount(0);
+});
+
 for (const { viewport, streams } of [
     { viewport: { width: 1920, height: 1080 }, streams: 2 },
     { viewport: { width: 1440, height: 900 }, streams: 2 },

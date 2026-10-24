@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 
 import "./styles";
 
+import { RoomDialog } from "../../src/ui/components/rooms/RoomDialog";
 import { ScreenSharePicker } from "../../src/ui/components/voice/ScreenSharePicker";
 import { stageGridStyle } from "../../src/ui/voice/stageGrid";
 
@@ -70,18 +71,32 @@ function Harness(): React.ReactElement {
         { hue: 130, label: "Hrothgar: Spreadsheet" },
         { hue: 300, label: "Wealhtheow: Map" },
     ].slice(0, streamCount);
-    if (mode === "picker") {
+    if (mode === "picker" || mode === "many" || mode === "finding") {
+        // "many": 30 windows still waiting for their previews, as when the picker has just opened on a busy desktop.
+        const shown =
+            mode === "finding"
+                ? []
+                : mode === "many"
+                ? Array.from({ length: 30 }, (_, index) => ({ id: `window:${index}:0`, name: `Window ${index + 1}`, kind: "window" as const, thumbnail: null, icon: null }))
+                : sources;
         return (
-            <div className="room-dialog-overlay" style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center" }}>
-                <div className="room-dialog" role="dialog" aria-label="Choose stream source">
-                    <div className="room-dialog-header">
-                        <h2>Choose stream source</h2>
-                    </div>
-                    <div className="room-dialog-body">
-                        <ScreenSharePicker sources={sources} selectedId={selected} onSelect={setSelected} onConfirm={() => undefined} />
-                    </div>
-                </div>
-            </div>
+            <RoomDialog
+                open
+                title="Choose stream source"
+                onClose={() => undefined}
+                footer={
+                    <>
+                        <button type="button" className="room-dialog-button room-dialog-button-secondary">
+                            Cancel
+                        </button>
+                        <button type="button" className="room-dialog-button room-dialog-button-primary">
+                            Stream this
+                        </button>
+                    </>
+                }
+            >
+                <ScreenSharePicker sources={shown} selectedId={selected} onSelect={setSelected} onConfirm={() => undefined} previewsLoading={mode === "many"} listLoading={mode === "finding"} />
+            </RoomDialog>
         );
     }
     return (
