@@ -1497,7 +1497,7 @@
     margin: 0 0 12px;
 }
 
-.bug-report-preview img {
+.bug-report-preview canvas {
     max-width: 240px;
     max-height: 160px;
     object-fit: contain;

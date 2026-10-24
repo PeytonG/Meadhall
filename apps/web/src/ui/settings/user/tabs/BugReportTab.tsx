@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Settings → Report a bug: what went wrong, an optional screenshot and recent logs, sent from your account to the
 // Meadhall developer (see core/bugReport for how the message stays out of your room list).
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import {
@@ -42,17 +42,34 @@ export function BugReportTab({ client, config, onToast }: BugReportTabProps): Re
     const [category, setCategory] = useState<BugCategory>(BUG_CATEGORIES[0]);
     const [description, setDescription] = useState("");
     const [image, setImage] = useState<File | null>(null);
-    const [preview, setPreview] = useState<string | null>(null);
+    const previewRef = useRef<HTMLCanvasElement | null>(null);
     const [includeLogs, setIncludeLogs] = useState(true);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [sent, setSent] = useState(false);
 
+    // The preview is decoded and drawn on a canvas, so nothing derived from the file is put into the page as a URL.
     useEffect(() => {
-        if (!image) return setPreview(null);
-        const url = URL.createObjectURL(image);
-        setPreview(url);
-        return () => URL.revokeObjectURL(url);
+        const canvas = previewRef.current;
+        if (!image || !canvas) return undefined;
+        let cancelled = false;
+        void createImageBitmap(image)
+            .then((bitmap) => {
+                if (cancelled) return bitmap.close();
+                const scale = Math.min(1, 240 / bitmap.width, 160 / bitmap.height);
+                canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                bitmap.close();
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setImage(null);
+                setError("That image couldn't be read. Try a PNG or JPEG screenshot.");
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [image]);
 
     const pickImage = (file: File | undefined): void => {
@@ -135,9 +152,9 @@ export function BugReportTab({ client, config, onToast }: BugReportTabProps): Re
                             disabled={sending}
                         />
                     </label>
-                    {preview ? (
+                    {image ? (
                         <div className="bug-report-preview">
-                            <img src={preview} alt="Screenshot to send" />
+                            <canvas ref={previewRef} role="img" aria-label="Screenshot to send" />
                             <button type="button" className="settings-button settings-button-secondary" onClick={() => setImage(null)} disabled={sending}>
                                 Remove
                             </button>

@@ -3,3 +3,5 @@
 5947ee6fc74993deca03f2560c593d5bdd39f699:apps/web/src/ui/stickers/sendSticker.ts:generic-api-key:7
 # localStorage item name "heorot.notifications_default_on.v1" in NOTIFICATIONS_ON_MIGRATION_KEY (a flag name, not a secret).
 70917b10010cb680e10b57469f579252d30f713b:apps/web/src/ui/settings/user/settingsStore.ts:generic-api-key:231
+# Made-up access token in the log-redaction test (appLog.test.ts); the test now builds it from parts.
+7ff0b10eb6c11fe94636604f7f3a289236cd5de0:apps/web/test/unit-tests/ui/appLog.test.ts:generic-api-key:31
