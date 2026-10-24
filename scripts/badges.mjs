@@ -28,7 +28,12 @@ const BADGES = new Set(["founder"]);
 const ITERATIONS = 50_000;
 
 function readHolders() {
-    return fs.existsSync(holdersFile) ? JSON.parse(fs.readFileSync(holdersFile, "utf8")) : {};
+    try {
+        return JSON.parse(fs.readFileSync(holdersFile, "utf8"));
+    } catch (error) {
+        if (error.code === "ENOENT") return {};
+        throw error;
+    }
 }
 
 function writeHolders(holders) {
@@ -56,10 +61,13 @@ fs.mkdirSync(privateDir, { recursive: true });
 
 switch (command) {
     case "init": {
-        if (!fs.existsSync(keyFile)) {
-            const { privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
-            fs.writeFileSync(keyFile, privateKey.export({ type: "pkcs8", format: "pem" }), { mode: 0o600 });
+        // "wx": create only if it doesn't exist yet, so an existing key is never replaced (no check-then-write race).
+        const { privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
+        try {
+            fs.writeFileSync(keyFile, privateKey.export({ type: "pkcs8", format: "pem" }), { mode: 0o600, flag: "wx" });
             console.log(`Created ${keyFile}. Back it up: without it, no new official badges can be made.`);
+        } catch (error) {
+            if (error.code !== "EEXIST") throw error;
         }
         console.log(`Public key (BADGE_PUBLIC_KEY in src/core/badges/badgeKey.ts):\n${publicKeyBase64(fs.readFileSync(keyFile, "utf8"))}`);
         break;
@@ -83,14 +91,19 @@ switch (command) {
         break;
     }
     case "publish": {
-        if (!fs.existsSync(keyFile)) throw new Error(`No signing key at ${keyFile}. Run "init" first.`);
+        let signingKey;
+        try {
+            signingKey = fs.readFileSync(keyFile, "utf8");
+        } catch {
+            throw new Error(`No signing key at ${keyFile}. Run "init" first.`);
+        }
         const salt = crypto.randomBytes(16).toString("base64");
         const entries = {};
         for (const [id, badges] of Object.entries(readHolders())) entries[fingerprint(id, salt)] = badges;
         // Shuffled, so the order says nothing about who was added when.
         const shuffled = Object.fromEntries(Object.entries(entries).sort(() => crypto.randomInt(3) - 1));
         const payload = JSON.stringify({ version: 1, issued: new Date().toISOString(), salt, iterations: ITERATIONS, entries: shuffled });
-        const signature = crypto.sign("sha256", Buffer.from(payload), { key: fs.readFileSync(keyFile, "utf8"), dsaEncoding: "ieee-p1363" }).toString("base64");
+        const signature = crypto.sign("sha256", Buffer.from(payload), { key: signingKey, dsaEncoding: "ieee-p1363" }).toString("base64");
         fs.mkdirSync(path.dirname(outFile), { recursive: true });
         fs.writeFileSync(outFile, `${JSON.stringify({ payload, signature }, null, 2)}\n`);
         console.log(`Wrote ${path.relative(repoRoot, outFile)} (${Object.keys(entries).length} people). Commit and push it.`);
