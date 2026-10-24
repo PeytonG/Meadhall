@@ -3,6 +3,7 @@
 // one-screen-at-a-time phone layout used by the Android app.
 import { expect, test } from "@playwright/test";
 
+import { createRoom, joinRoom, registerUser, setAccountData, setDisplayName } from "./support/matrixApi";
 import { seedHall } from "./support/seedHall";
 import { signIn } from "./support/ui";
 
@@ -74,4 +75,30 @@ test("the phone's Back button returns from a chat to the list", async ({ page })
     await page.goBack();
     await expect(page.getByTestId("rail-home")).toBeVisible();
     await expect(page.locator(".timeline").getByText("Who's bringing the shields tonight?")).toBeHidden();
+});
+
+test("rooms show an Encrypted (lock) or red Unencrypted (open lock) chip in the header", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await setDisplayName(bob, "Bob");
+    const open = await createRoom(bob, { name: "Open Hall", preset: "private_chat", invite: [alice.userId] });
+    const sealed = await createRoom(bob, {
+        name: "Sealed Hall",
+        preset: "private_chat",
+        invite: [alice.userId],
+        initial_state: [{ type: "m.room.encryption", state_key: "", content: { algorithm: "m.megolm.v1.aes-sha2" } }],
+    });
+    await joinRoom(alice, open);
+    await joinRoom(alice, sealed);
+    await setAccountData(alice, "m.direct", { [bob.userId]: [open, sealed] });
+    await signIn(page, alice);
+
+    const groups = page.getByRole("region", { name: /Group chats|Direct messages/ });
+    await groups.getByText("Open Hall").first().click();
+    const chip = page.getByTestId("encryption-chip");
+    await expect(chip).toHaveText(/Unencrypted/);
+    await expect(chip).toContainText("\u{1F513}");
+    await expect(chip).toHaveCSS("color", "rgb(195, 91, 91)");
+    await groups.getByText("Sealed Hall").first().click();
+    await expect(chip).toHaveText("🔒Encrypted");
 });

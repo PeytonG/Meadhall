@@ -10,6 +10,8 @@ export interface PresenceVm {
     statusText?: string | null;
     // On the Android/iOS app and online without a manually picked status: shown as a green phone.
     onMobile?: boolean;
+    // Their homeserver doesn't share presence (presenceSupport.ts): shown as "?" instead of a dot.
+    unsupported?: boolean;
 }
 
 export interface PresenceSource {
@@ -23,6 +25,7 @@ export interface PresenceSource {
     } | null;
     currentlyActive?: boolean | null;
     lastActiveAgo?: number | null;
+    unsupported?: boolean;
 }
 
 const BUSY_PRESENCE_NAMES = new Set(["busy", "org.matrix.msc3026.busy"]);
@@ -114,6 +117,18 @@ function mapPresenceState(rawPresence: string | null | undefined): PresenceState
 }
 
 export function buildPresenceVm(source: PresenceSource | null | undefined): PresenceVm {
+    if (source?.unsupported) {
+        return {
+            state: "unknown",
+            primaryLabel: "Status unavailable",
+            secondaryLabel: "Their server doesn't share online status",
+            isCurrentlyActive: false,
+            lastActiveAgo: null,
+            statusText: null,
+            onMobile: false,
+            unsupported: true,
+        };
+    }
     const matrixState = mapPresenceState(source?.presence ?? null);
     const published = source?.published ?? null;
     // DND can't be a Matrix presence (Synapse rejects "busy"), so it comes from the published status, as long as
@@ -186,9 +201,12 @@ export function getPresenceSortRank(presence: PresenceVm | null | undefined): nu
 
 export function toAvatarPresenceState(
     presence: PresenceVm | null | undefined,
-): Exclude<PresenceState, "unknown"> | "mobile" | null {
+): Exclude<PresenceState, "unknown"> | "mobile" | "unsupported" | null {
     if (!presence) {
         return null;
+    }
+    if (presence.unsupported) {
+        return "unsupported";
     }
     if (presence.onMobile) {
         return "mobile";

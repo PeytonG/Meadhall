@@ -66,6 +66,7 @@ interface Verifier {
 
 interface VerificationRequest {
     initiatedByMe: boolean;
+    otherUserId: string;
     phase: VerificationPhaseValue;
     verifier?: Verifier;
     cancellationCode: string | null;
@@ -80,6 +81,10 @@ interface VerificationRequest {
 
 function toErrorMessage(error: unknown): string {
     if (error instanceof Error) {
+        // The SDK's wording when it doesn't know the device it's verifying with yet.
+        if (/other device is unknown/i.test(error.message)) {
+            return "Your other device hasn't answered yet, or isn't known to this one. Open Meadhall (or Element) on it, accept the verification request there, then try again.";
+        }
         return error.message;
     }
 
@@ -467,15 +472,25 @@ export function VerificationDialog({
         });
     }, [request, runRequestAction]);
 
+    // We asked; until the other device accepts, there is no device to compare emoji with.
+    const waitingForOtherDevice = Boolean(request?.initiatedByMe && phase === VerificationPhase.Requested);
+
     const startSasVerification = useCallback(async (): Promise<void> => {
         if (!request) {
             return;
         }
 
         await runRequestAction("start_sas", async () => {
+            // Our own request: the other device has to accept it first, or there is nothing to verify with yet.
+            if (request.initiatedByMe && request.phase < VerificationPhase.Ready) {
+                setStatusMessage("Waiting for your other device to accept the request…");
+                return;
+            }
             if (!request.initiatedByMe && request.phase < VerificationPhase.Ready) {
                 await request.accept();
             }
+            // Make sure we know the other side's current devices (a stale list also means "unknown device").
+            await client.getCrypto()?.getUserDeviceInfo([request.otherUserId], true);
 
             const createdVerifier = await request.startVerification(VERIFICATION_METHOD_SAS);
             setSas(null);
@@ -483,7 +498,7 @@ export function VerificationDialog({
             setStatusMessage("Waiting for SAS challenge...");
             attachVerifier(createdVerifier);
         });
-    }, [attachVerifier, request, runRequestAction]);
+    }, [attachVerifier, client, request, runRequestAction]);
 
     const startQrScanVerification = useCallback(async (): Promise<void> => {
         if (!request) {
@@ -622,9 +637,14 @@ export function VerificationDialog({
                                     type="button"
                                     className="verification-primary"
                                     onClick={() => void startSasVerification()}
-                                    disabled={pendingAction !== null || completed}
+                                    disabled={pendingAction !== null || completed || waitingForOtherDevice}
+                                    data-testid="start-sas"
                                 >
-                                    {pendingAction === "start_sas" ? "Starting..." : "Start Emoji Verification"}
+                                    {pendingAction === "start_sas"
+                                        ? "Starting..."
+                                        : waitingForOtherDevice
+                                          ? "Waiting for your other device…"
+                                          : "Start Emoji Verification"}
                                 </button>
                                 <button
                                     type="button"

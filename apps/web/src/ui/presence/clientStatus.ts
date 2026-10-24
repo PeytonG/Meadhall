@@ -112,12 +112,20 @@ function sendPresence(client: MatrixClient, body: PresenceBody): Promise<void> {
 
 // Applies your status everywhere: presence (and what /sync reports), status text, and the profile field.
 // `away` is automatic Away (no input for a while); it only affects the Automatic status and isn't saved.
-export async function applyOwnStatus(client: MatrixClient, own: OwnStatus, away = false, activity: PublishedActivity | null = null): Promise<void> {
+// With `share` off (Settings → Privacy) others see you as offline with no status, whatever you picked.
+export async function applyOwnStatus(
+    client: MatrixClient,
+    chosen: OwnStatus,
+    away = false,
+    activity: PublishedActivity | null = null,
+    share = true,
+): Promise<void> {
     try {
-        window.localStorage.setItem(LOCAL_KEY, JSON.stringify(own));
+        window.localStorage.setItem(LOCAL_KEY, JSON.stringify(chosen));
     } catch {
         // Remembered for this session only.
     }
+    const own: OwnStatus = share ? chosen : { state: "invisible", text: "" };
     const presence = matrixPresenceFor(own.state === "auto" && away ? "idle" : own.state);
     client.setSyncPresence(presence as never);
     const published = publishedStatusFor(own, currentPlatform(), activity);

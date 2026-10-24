@@ -155,3 +155,39 @@ export function generatePassword(length = 14): string {
     crypto.getRandomValues(values);
     return Array.from(values, (value) => alphabet[value % alphabet.length]).join("");
 }
+
+// Server notices (https://element-hq.github.io/synapse/latest/admin_api/server_notices.html): a message from the server
+// itself, delivered in a room the user can read but not reply in. Needs `server_notices` in homeserver.yaml.
+export async function sendServerNotice(client: MatrixClient, userId: string, body: string): Promise<void> {
+    // PUT with a transaction ID, so a retried request can't deliver the notice twice.
+    await admin(client, Method.Put, `/v1/send_server_notice/${encodeURIComponent(crypto.randomUUID())}`, {
+        body: { user_id: userId, content: { msgtype: "m.text", body } },
+    });
+}
+
+// Every active (not deactivated) account on this server.
+export async function listActiveUserIds(client: MatrixClient): Promise<string[]> {
+    const userIds: string[] = [];
+    let from: number | null = 0;
+    while (from !== null) {
+        const page = await listUsers(client, { from, limit: 100 });
+        userIds.push(...page.users.filter((user) => !user.deactivated).map((user) => user.name));
+        from = page.nextFrom;
+    }
+    return userIds;
+}
+
+// "alice, @bob:example.org" → full user IDs on this server for bare names.
+export function parseNoticeRecipients(input: string, serverName: string): string[] {
+    const ids = input
+        .split(/[\s,;]+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => (entry.includes(":") ? (entry.startsWith("@") ? entry : `@${entry}`) : `@${entry.replace(/^@/, "")}:${serverName}`));
+    return [...new Set(ids)];
+}
+
+export function isServerNoticesDisabled(error: unknown): boolean {
+    const message = (error as { data?: { error?: unknown } }).data?.error;
+    return typeof message === "string" && /server notices are not enabled/i.test(message);
+}

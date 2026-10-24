@@ -60,6 +60,9 @@ import { WhatsNewDialog } from "./WhatsNewDialog";
 import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
+import { captureGlobalErrors, logAppError } from "../logs/appLog";
+import { CallEndedNotice } from "./voice/CallEndedNotice";
+import { cleanUpBugReportRooms, isBugReportRoom } from "../../core/bugReport/bugReport";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -148,6 +151,11 @@ function readStoredRightSidebarMode(): RightSidebarMode {
 
 function getRoomName(room: Room): string {
     return room.name || room.getCanonicalAlias() || room.roomId;
+}
+
+// Every room except the hidden bug-report rooms (Settings → Report a bug).
+function listedRooms(client: MatrixClient): Room[] {
+    return client.getRooms().filter((room) => !isBugReportRoom(room));
 }
 
 function isVisibleMembership(room: Room): boolean {
@@ -831,7 +839,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const { config } = useMatrix();
     const brandName = getBrandName(config);
     const [voiceDiscoveryReady, setVoiceDiscoveryReady] = useState(false);
-    const [rooms, setRooms] = useState<Room[]>(() => [...client.getRooms()]);
+    const [rooms, setRooms] = useState<Room[]>(() => listedRooms(client));
     const [selectedSpaceId, setSelectedSpaceId] = useState<string>(PEOPLE_SPACE_ID);
     const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
         const directRoomIds = getDirectRoomIds(client);
@@ -920,9 +928,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             window.clearInterval(timer);
         };
     }, [shareActivity]);
+    const shareStatus = userSettings.privacy.shareStatus;
     useEffect(() => {
-        void applyOwnStatus(client, ownStatus, autoAway, activity);
-    }, [client, ownStatus, autoAway, activity]);
+        void applyOwnStatus(client, ownStatus, autoAway, activity, shareStatus);
+    }, [client, ownStatus, autoAway, activity, shareStatus]);
     const ownStatusDot =
         ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {
@@ -1000,7 +1009,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
         const onRoomsChanged = (): void => {
             syncRoomListeners();
-            setRooms([...client.getRooms()]);
+            setRooms(listedRooms(client));
         };
 
         const attachRoomListeners = (room: Room): void => {
@@ -1166,6 +1175,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         [directRoomIds, spaces, visibleRooms],
     );
     const homeRooms = useMemo(() => [...peopleChannels, ...homeOtherRooms], [homeOtherRooms, peopleChannels]);
+    // Invites to rooms outside any server that aren't DMs (group chats, server notices): shown under Group Chats to
+    // accept or decline. DM invites are joined on open, and server channels join automatically.
+    const homeInvites = useMemo(
+        () =>
+            visibleRooms.filter(
+                (room) =>
+                    !room.isSpaceRoom() &&
+                    !directRoomIds.has(room.roomId) &&
+                    room.getMyMembership() === "invite" &&
+                    // DM invites (is_direct) belong under Direct Messages, even before m.direct maps them.
+                    !(room as Room & { getDMInviter?: () => string | undefined }).getDMInviter?.() &&
+                    room.currentState.getStateEvents(EventType.SpaceParent).length === 0 &&
+                    !findParentSpaceIdForRoom(room.roomId, spaces),
+            ),
+        [directRoomIds, spaces, visibleRooms],
+    );
     const isRoomVoiceChannel = useCallback(
         (room: Room | null): boolean => Boolean(room && (isVoiceChannelRoom(room) || voiceChannelHintRoomIds.has(room.roomId))),
         [voiceChannelHintRoomIds],
@@ -1523,6 +1548,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     }, [selectedSpaceId, selectedSpaceRoom, settingsState]);
 
     const pushToast = useCallback((nextToast: Omit<ToastState, "id">): void => {
+        if (nextToast.type === "error") logAppError("app", nextToast.message);
         setToast({
             id: Date.now(),
             ...nextToast,
@@ -1574,7 +1600,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     setSelectedSpaceHierarchyJoinedRoomIds([]);
                     setDiscoverableSpaceChannels([]);
                     setJoiningDiscoverableRoomId(null);
-                    setRooms([...client.getRooms()]);
+                    setRooms(listedRooms(client));
                     pushToast({
                         type: "error",
                         message: "Can't load server hierarchy because you're not joined to the server room.",
@@ -1654,7 +1680,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     ),
                 );
                 setJoiningDiscoverableRoomId(null);
-                setRooms([...client.getRooms()]);
+                setRooms(listedRooms(client));
                 pushToast({ type: "success", message: "Channels reloaded from server hierarchy." });
             } catch (reloadError) {
                 const message = reloadError instanceof Error ? reloadError.message : "Failed to reload channels.";
@@ -1952,7 +1978,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 setSelectedSpaceId(joinedRoom.roomId);
                 setActiveRoomId(null);
                 setPendingFocusRoomId(null);
-                setRooms([...client.getRooms()]);
+                setRooms(listedRooms(client));
                 return joinedRoom.roomId;
             }
 
@@ -1960,7 +1986,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             if (!directRoomIds.has(joinedRoom.roomId)) {
                 joinedParentSpaceId = await ensureRoomParentSpacesJoined(client, joinedRoom, options?.preferredSpaceId ?? null);
             }
-            setRooms([...client.getRooms()]);
+            setRooms(listedRooms(client));
 
             if (directRoomIds.has(joinedRoom.roomId)) {
                 setSelectedSpaceId(PEOPLE_SPACE_ID);
@@ -2280,6 +2306,29 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         onOpenRoom: focusRoom,
     });
 
+    // Uncaught errors go to Settings → Logs too.
+    useEffect(() => captureGlobalErrors(), []);
+
+    // Bug reports (Settings → Report a bug): leave each report's room once the developer has joined it.
+    useEffect(() => {
+        let running = false;
+        const cleanUp = (): void => {
+            if (running) return;
+            running = true;
+            void cleanUpBugReportRooms(client).finally(() => {
+                running = false;
+            });
+        };
+        const onTimeline = (event: MatrixEvent, room: Room | undefined): void => {
+            if (event.getType() === EventType.RoomMember && room && isBugReportRoom(room)) cleanUp();
+        };
+        cleanUp();
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.removeListener(RoomEvent.Timeline, onTimeline);
+        };
+    }, [client]);
+
     // Desktop: the unread count as a bubble on the taskbar icon.
     useTaskbarBadge(client);
 
@@ -2344,6 +2393,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         client={client}
                         directRooms={peopleChannels}
                         otherRooms={homeOtherRooms}
+                        invites={homeInvites}
+                        onAcceptInvite={(roomId) => {
+                            void requestJoinRoom(roomId, { preferredSpaceId: null })
+                                .then(() => selectChannel(roomId))
+                                .catch((joinError) => pushToast({ type: "error", message: describeJoinError(joinError, roomId) }));
+                        }}
+                        onDeclineInvite={(roomId) => {
+                            void client.leave(roomId).catch((leaveError) => pushToast({ type: "error", message: `Couldn't decline: ${leaveError instanceof Error ? leaveError.message : String(leaveError)}` }));
+                        }}
                         activeRoomId={activeRoomId}
                         roomCalls={roomCalls}
                         currentCallRoomId={hasActiveVoiceSession ? voiceSessionRoomId : null}
@@ -2899,6 +2957,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             <DesktopUpdateBanner />
             <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
             <WhatsNewDialog />
+            <CallEndedNotice onViewDetails={() => openUserSettings("logs")} />
             {incomingCall ? (
                 <IncomingCallCard
                     client={client}

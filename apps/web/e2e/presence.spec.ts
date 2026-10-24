@@ -142,3 +142,29 @@ test("status changes reach other people within seconds", async ({ page }) => {
     await expect(row.locator(".avatar-presence-dot")).toHaveClass(/is-dnd/, { timeout: 10_000 });
     expect(Date.now() - started).toBeLessThan(10_000);
 });
+
+test("turning off Share my status makes you appear offline with no status, and back on restores it", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    const hall = await createRoom(bob, { name: "Hall", invite: [alice.userId] });
+    await joinRoom(alice, hall);
+    await signIn(page, alice);
+    await page.getByTestId("user-card").click();
+    const menu = page.getByRole("menu", { name: "Set status" });
+    await menu.getByTestId("status-text").fill("Feasting in the hall");
+    await menu.getByRole("menuitemradio", { name: /Do Not Disturb/ }).click();
+    await expect.poll(() => readProfileField(bob, alice.userId, STATUS_KEY).catch(() => null), { timeout: 15_000 }).toMatchObject({ state: "dnd" });
+
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
+    await page.getByRole("button", { name: "Privacy & Safety", exact: true }).click();
+    await page.getByTestId("share-status").uncheck();
+    await expect.poll(async () => readPresence(bob, alice.userId), { timeout: 30_000 }).toMatchObject({ presence: "offline" });
+    expect((await readPresence(bob, alice.userId)).status_msg ?? "").toBe("");
+    await expect.poll(() => readProfileField(bob, alice.userId, STATUS_KEY).catch(() => null), { timeout: 15_000 }).toMatchObject({ state: null, activity: null });
+
+    await page.getByTestId("share-status").check();
+    await expect.poll(async () => readPresence(bob, alice.userId), { timeout: 30_000 }).toMatchObject({
+        presence: "unavailable",
+        status_msg: "Feasting in the hall",
+    });
+});

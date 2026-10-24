@@ -1,6 +1,7 @@
 import { normalizeVoiceEffect, type VoiceEffect } from "../../voice/voiceChanger";
 import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
+import { setIconStyle, type IconStyle } from "../../theme/iconStyle";
 
 // "contrast": high contrast for people who find the other themes hard to see (pure black, white text, bold outlines).
 export type AppTheme = "dark" | "light" | "contrast";
@@ -19,6 +20,8 @@ export interface AppearanceSettings {
     customFontFamily: string;
     // Standard emoji drawn as pixel art (on by default to match the theme).
     pixelEmoji: boolean;
+    // Icons as pixel art (default) or smooth lines.
+    iconStyle: IconStyle;
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
 }
@@ -36,6 +39,8 @@ export interface PrivacySettings {
     allowDmsFromServerMembers: boolean;
     // Desktop app: show the game you're playing (from Steam) as "Playing ..." to others.
     shareActivity: boolean;
+    // Off: you appear offline to everyone, with no status text, Do Not Disturb or game shown.
+    shareStatus: boolean;
 }
 
 export interface AudioSettings {
@@ -72,6 +77,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         fontStyle: "pixel",
         customFontFamily: "",
         pixelEmoji: true,
+        iconStyle: "pixel",
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
     },
@@ -87,6 +93,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         showReadReceipts: true,
         allowDmsFromServerMembers: true,
         shareActivity: true,
+        shareStatus: true,
     },
     audio: {
         preferredAudioInputId: "default",
@@ -153,6 +160,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             fontStyle: fontStyle === "custom" && !customFontFamily ? "system" : fontStyle,
             customFontFamily,
             pixelEmoji: appearance.pixelEmoji !== false,
+            iconStyle: appearance.iconStyle === "smooth" ? "smooth" : "pixel",
             chatLineLengthCh,
             showSpaceChannelAvatars,
         },
@@ -167,6 +175,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             showReadReceipts: privacy.showReadReceipts !== false,
             allowDmsFromServerMembers: privacy.allowDmsFromServerMembers !== false,
             shareActivity: privacy.shareActivity !== false,
+            shareStatus: privacy.shareStatus !== false,
         },
         audio: {
             preferredAudioInputId:
@@ -225,6 +234,8 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     root.setAttribute("data-theme", settings.theme);
     root.setAttribute("data-font", settings.fontStyle);
     root.setAttribute("data-pixel-emoji", settings.pixelEmoji === false ? "off" : "on");
+    root.setAttribute("data-icon-style", settings.iconStyle === "smooth" ? "smooth" : "pixel");
+    setIconStyle(settings.iconStyle === "smooth" ? "smooth" : "pixel");
     if (settings.fontStyle === "custom" && settings.customFontFamily) {
         root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));
     } else {

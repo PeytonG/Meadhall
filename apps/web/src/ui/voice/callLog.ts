@@ -36,5 +36,18 @@ export function formatCallLog(entries: CallLogEntry[]): string {
         .join("\n");
 }
 
+// Calls that ended without you choosing to (alone too long, dropped and couldn't rejoin, membership failed): the app
+// shows a notice saying why, even if you've left the call view.
+const endedListeners = new Set<(reason: string) => void>();
+
+export function onCallEnded(listener: (reason: string) => void): () => void {
+    endedListeners.add(listener);
+    return () => endedListeners.delete(listener);
+}
+
+export function announceCallEnded(reason: string): void {
+    endedListeners.forEach((listener) => listener(reason));
+}
+
 // Reconnecting after an unexpected drop: a few quick tries, then give up rather than loop forever.
 export const RECONNECT_DELAYS_MS = [1_500, 4_000, 10_000];

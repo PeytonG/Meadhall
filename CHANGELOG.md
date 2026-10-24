@@ -4,6 +4,46 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.3.3 (2026-10-23)
+
+### New
+- **Report a bug:** Settings → Report a bug sends what went wrong (pick a category, describe it, add a screenshot if
+  you like, and optionally the app version and recent logs) to the Meadhall developer, as a message from your
+  account. It doesn't appear in your chats.
+- **Logs:** Settings → Logs shows your call history (when calls started, dropped, rejoined and why they ended) and the
+  errors the app ran into, each with a hint about what it usually means. Copy either into a bug report. Logs stay on
+  your device, and anything that looks like a password or access token is left out.
+- **"Call ended" notice:** if a call ends without you choosing to (nobody else there for 5 minutes, or the connection
+  dropped and couldn't come back), a notice says why wherever you are in the app, with **View details** opening
+  Logs.
+- **Icon style:** Settings → Appearance → Icons switches the buttons between pixel art (the default) and smooth lines.
+- **Unencrypted chip:** rooms without end-to-end encryption show a red **Unencrypted** chip with an open lock in the
+  header.
+- **Server notices (server admins):** Settings → Server admin can send a message from the server to everyone or to
+  chosen people, like the Synapse admin page.
+- **Share my status:** Settings → Privacy & Safety lets you stop sharing your status: you appear offline to everyone,
+  with no status text, Do Not Disturb or game shown.
+- **Debian, Ubuntu and Mint package:** a `.deb` download alongside the Fedora `.rpm` and the AppImage.
+
+### Changed
+- **Status on other servers:** people whose server doesn't share online status (matrix.org, for one) show a **?**
+  instead of looking permanently offline.
+- **Invites to group chats** (and server notices) show under Home → Group Chats with Accept and Decline. They didn't
+  appear anywhere before.
+- **Linux install steps in the README work** on Fedora, Debian/Ubuntu/Mint and other distributions, including what to
+  install for the AppImage.
+
+### Fixed
+- **Updating or going back to another version on Fedora** failed with "Command pkexec exited with code 127". The
+  `.rpm` and `.deb` now install through your package manager, after asking for your password.
+- **Device verification** no longer fails with "startVerification(): other device is unknown": emoji comparison
+  waits until your other device has accepted.
+- **Meadhall's icon on the Fedora (GNOME) taskbar** instead of a generic one.
+- **Meadhall's icon on the Windows taskbar** instead of Electron's. If you still see Electron's icon, delete
+  `Electron.lnk` from `%APPDATA%\Microsoft\Windows\Start Menu\Programs` and restart Meadhall.
+- The `.rpm` and `.deb` now pull in the sound and graphics libraries Meadhall needs, so it starts on a minimal
+  install.
+
 ## v0.3.2 (2026-10-23)
 
 ### New

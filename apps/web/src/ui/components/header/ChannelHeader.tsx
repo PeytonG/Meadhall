@@ -195,9 +195,20 @@ export function ChannelHeader({
                 <div className="channel-header-title-row">
                     <h1 className="channel-header-title">{`${titlePrefix}${roomName}`}</h1>
                     {room && encrypted ? (
-                        <span className="channel-header-chip channel-header-chip-encrypted">
+                        <span className="channel-header-chip channel-header-chip-encrypted" data-testid="encryption-chip">
                             <span aria-hidden="true">{"\uD83D\uDD12"}</span>
                             Encrypted
+                        </span>
+                    ) : null}
+                    {/* Unencrypted rooms say so too: the server (and its admins) can read them. */}
+                    {room && !encrypted ? (
+                        <span
+                            className="channel-header-chip channel-header-chip-unencrypted"
+                            data-testid="encryption-chip"
+                            title="Not end-to-end encrypted: the server can read messages here"
+                        >
+                            <span aria-hidden="true">{"\uD83D\uDD13"}</span>
+                            Unencrypted
                         </span>
                     ) : null}
                 </div>

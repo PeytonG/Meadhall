@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { HeorotDesktopUpdateStatus } from "../types/heorotDesktop";
+import { logAppError } from "../logs/appLog";
 
 export interface DesktopUpdates {
     // False outside the packaged desktop app (web, mobile, dev builds).
@@ -29,7 +30,10 @@ export function useDesktopUpdates(): DesktopUpdates {
         void bridge.getAppVersion?.().then((version) => {
             if (!cancelled) setAppVersion(version);
         });
-        const unsubscribe = bridge.onUpdateStatus(setStatus);
+        const unsubscribe = bridge.onUpdateStatus((next) => {
+            setStatus(next);
+            if (next.state === "error") logAppError("updates", next.message);
+        });
         return () => {
             cancelled = true;
             unsubscribe();

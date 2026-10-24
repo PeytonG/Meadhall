@@ -89,3 +89,28 @@ test("admins create accounts, reset passwords, grant admin and deactivate", asyn
     await expect(row).toContainText("Deactivated");
     expect(await canLogIn(username, "second-password-456")).toBe(false);
 });
+
+test("admins send server notices to chosen users", async ({ page, browser }) => {
+    const admin = await registerAdmin("admin");
+    const bob = await registerUser("bob");
+    await signIn(page, admin);
+    await openAdmin(page);
+    const notices = page.getByTestId("admin-notices");
+    await notices.getByLabel("Message").fill("Maintenance tonight at 22:00.");
+    await notices.getByRole("radio", { name: "Specific users" }).click();
+    await notices.getByLabel(/Users \(names or Matrix IDs/).fill(bob.username);
+    page.once("dialog", (dialog) => void dialog.accept());
+    await notices.getByRole("button", { name: "Send notice" }).click();
+    await expect(page.getByTestId("admin-notice-result")).toContainText("Sent to 1 user.");
+    if (process.env.PREVIEW_DIR) await notices.screenshot({ path: `${process.env.PREVIEW_DIR}/admin-notices.png` });
+
+    // Bob gets an invite to the Server notices room under Home → Group Chats, accepts it and reads the notice.
+    const bobPage = await (await browser.newContext()).newPage();
+    await signIn(bobPage, bob);
+    const invite = bobPage.getByTestId("home-invite").filter({ hasText: "Server notices" });
+    await expect(invite).toBeVisible({ timeout: 20_000 });
+    if (process.env.PREVIEW_DIR) await bobPage.locator(".home-sidebar").screenshot({ path: `${process.env.PREVIEW_DIR}/notice-invite.png` });
+    await invite.getByRole("button", { name: "Accept" }).click();
+    await expect(bobPage.getByText("Maintenance tonight at 22:00.")).toBeVisible({ timeout: 20_000 });
+    await expect(bobPage.getByTestId("home-invite")).toHaveCount(0);
+});

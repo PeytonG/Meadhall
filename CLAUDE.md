@@ -184,7 +184,15 @@ unlimited power (`powerLevel === Infinity`).
 - **Updates:** electron-updater from this repo's GitHub Releases, `autoDownload` off. "Meadhall X is available" →
   **Update now** (download with progress, silent install, restart); Settings → Updates has "Check for updates".
 - **Identity:** app ID `io.github.peytong.meadhall` (installs alongside Heorot; also the Windows AppUserModelId,
-  set at startup so toasts are delivered). Electron 44.
+  set at startup so toasts are delivered). Electron 44. Unpackaged (dev/test) runs use
+  `io.github.peytong.meadhall.dev`: Windows gives the taskbar button the icon of any Start-menu shortcut carrying
+  the same AUMID, and dev runs left an `Electron.lnk` that made the installed app show Electron's atom.
+- **Linux packages:** AppImage, `.rpm` and `.deb`. `desktopName: meadhall.desktop` (package.json) sets the Wayland
+  app_id and WM_CLASS `meadhall`, matching the desktop file's `StartupWMClass`, so GNOME shows our icon. Both
+  packages declare the libraries Electron needs (ALSA, gbm, drm), or it won't start on a minimal install. Updates of
+  `.rpm`/`.deb` go through `electron/linuxPackage.ts` (`pkexec dnf|zypper|rpm|apt-get install` the downloaded file),
+  not electron-updater, whose RpmUpdater quotes the command so bash exits 127. `resources/package-type` says which
+  package is installed (absent for AppImage, which keeps electron-updater's own install).
 - **Drag regions:** only title-bar strips (`.channel-header`, `.pane-top`, `.home-search`, `.rs-panel-header`,
   `.settings-header`) have `-webkit-app-region: drag`; their controls and every overlay opt out. **Never** make
   `html`/large areas draggable: drag regions swallow clicks and wheel scrolling (that was the dead color wheels,
@@ -271,6 +279,9 @@ tab; Synapse rejects non-admins anyway). Registration tokens and user management
 The test Synapse has a test-only `registration_shared_secret` so E2E can create admins (`registerAdmin`,
 `makeServerAdmin`). Password reset is an in-page form: it used `window.prompt`, which Electron doesn't implement, so
 it silently did nothing on desktop (the owner hit this; browser tests passed). **Never use `window.prompt`.**
+Server notices (v0.3.3) use `PUT /_synapse/admin/v1/send_server_notice/<txn>`, one user at a time ("Everyone" pages
+through `/v2/users`, skipping deactivated). They need `server_notices` in homeserver.yaml (the test Synapse has it);
+without it the panel says so. Recipients get an invite that shows under Home → Group Chats (`homeInvites`).
 
 ### 7.8 Android background notifications (`apps/mobile/android/.../meadhall/`)
 No Google services (owner's choice: no extra apps or accounts). `SyncService` (foreground, type
@@ -313,6 +324,12 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
   elsewhere, names from `appmanifest_<id>.acf`; `apps/desktop/electron/steamActivity.ts`, parser `vdf.ts`). Chosen
   over the Steam Web API because it needs no API key, Steam login or server bot. Privacy toggle, default on.
 - DND silences notifications and call ringing locally (`isDoNotDisturb()`).
+- **Other servers:** Synapse federates custom profile fields, so DND and "Playing" reach up-to-date Synapse servers;
+  elsewhere the profile read fails and people show plain presence. Servers that never send presence (matrix.org turns
+  it off) get a **?** badge (`presenceSupport.ts`: a server counts once presence has arrived for anyone on it; our
+  own server always counts; nothing is decided before the first sync).
+- **Share my status** (Privacy, default on): off publishes you as invisible (offline, no text, `{state: null,
+  activity: null}`) while keeping your chosen status locally (`applyOwnStatus(..., share)`).
 
 ### 7.11 Profiles (`core/profile/richProfile.ts`)
 Banner (mxc, rendered from the full file so GIFs animate), About me, a public email and up to 5 links, each an
@@ -382,6 +399,19 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
 - **Overlays come last in AppShell:** Chromium resolves `-webkit-app-region` in document order, so anything drawn over
   the title-bar strip (call card, banners) must be rendered after the layout as well as opting out with no-drag.
 
+### 7.18 Bug reports and logs (v0.3.3)
+- **Logs** (`ui/logs/appLog.ts`, Settings → Logs): error toasts, call errors, update errors and uncaught errors, kept
+  in localStorage (200 entries), credentials redacted, each with a hint (`hintFor`). The call history is
+  `ui/voice/callLog.ts`. Calls that end without the user choosing to call `announceCallEnded`, and
+  `CallEndedNotice` (rendered by AppShell) shows why until dismissed.
+- **Report a bug** (`core/bugReport/bugReport.ts`): sent from the reporter's account to
+  `@peytongna:elementprojectzkypg.duckdns.org` (forks: `bug_report_recipient` in config.json), whose ID is never
+  shown. Each report is a fresh unencrypted room with creation type `io.github.peytong.meadhall.bug_report`, hidden
+  from the room list, DM suggestions, mutual rooms and the taskbar badge (`isBugReportRoom`). The reporter can't
+  leave straight away: once every local user has left, the owner's server can't join through ours. So AppShell
+  leaves and forgets it once anyone else has joined (`cleanUpBugReportRooms`, run on member timeline events) or
+  after 30 days. 3 reports an hour; images up to 8 MB.
+
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
 brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requires 7:1 against its background
@@ -424,6 +454,13 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | Desktop test runs old code | The Electron app serves the copied web build: `pnpm --dir apps/desktop run build` after web changes |
 | Async "loop running" flag stuck forever | A loop that finishes synchronously clears the flag before `??=` assigns it; clear it in `.finally()` |
 | GitHub anchor links break on emoji headings | Put an explicit `<a id="..."></a>` before the heading and link to that |
+| Installed Windows app shows Electron's atom on the taskbar | A Start-menu `.lnk` with the same AppUserModelID (dev runs made `Electron.lnk`). Dev runs now use a `.dev` AUMID; existing stray shortcuts must be deleted by hand |
+| Fedora update: "Command pkexec exited with code 127" | electron-updater's RpmUpdater passes a quoted string that bash runs as one command name. We install `.rpm`/`.deb` ourselves (`linuxPackage.ts`) |
+| Generic gear icon on GNOME's taskbar | Window app_id/WM_CLASS didn't match the desktop file; `desktopName` in package.json fixes both |
+| `.deb` won't start: `libasound.so.2` missing | Declare deps in electron-builder `deb.depends`/`rpm.depends`; test in a clean `ubuntu:24.04` / `fedora:42` container |
+| `RoomStateEvent.Events` never fires for a member joining | Listen to `RoomEvent.Timeline` and check `m.room.member` instead |
+| `\b` in a regex became a backspace character | A `node` script with `"\\b"` in a template string; write regexes with Write/Edit and scan for control characters |
+| Smoke tests can't import `@testing-library/react` | Not installed: render with `createRoot` + `act` like the existing smoke tests |
 
 ## 9. Status
 
@@ -447,6 +484,8 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | `v0.2.1` (picture fix, smooth screen share, campfire) | ✅ published |
 | `v0.3.0`: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ published (PR #9): https://github.com/PeytonG/Meadhall/releases/tag/v0.3.0 |
 | `v0.3.1`: the whole §10.1 backlog except building iOS (status, profiles, accounts, soundboard, effects, talk permissions, Steam, What's new, high contrast, README) | ✅ released (PR #10); tests: 177 unit, 14 smoke, 8 integration, 45 E2E (incl. Android and iPhone sizes), 7 real-desktop |
+| `v0.3.2`: §10.2 | ✅ released |
+| `v0.3.3`: §10.3 (bug reports, logs, server notices, cross-server status, Linux packages and updates, taskbar icons) | ✅ tests: 202 unit, 22 smoke, 8 integration, 68 E2E (10 screenshot-only skipped), 10 real-desktop |
 
 ## 10. Open issues and roadmap
 
@@ -515,6 +554,23 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | Install an earlier version, warn below 0.3.2 | §7.17 |
 | Screenshots of soundboard and calls | Component harnesses (`e2e/harness`, `openHarness`) render in-call UI without LiveKit |
 
+### 10.3 Owner's v0.3.3 list (2026-10-23)
+| Request | What was found / done |
+|---|---|
+| Fedora rollback/update: "pkexec exited with code 127" | electron-updater quoting bug, reproduced in `fedora:42`; own installer (§7.4) |
+| Icon style selector, pixel default | Settings → Appearance → Icons; `SMOOTH_ICONS` in `PixelIcon.tsx` |
+| Verification: "other device is unknown" | SAS started before the other device accepted; button waits, device list refreshed first |
+| Linux README commands fail on Fedora | Rewritten per distro (dnf/apt, FUSE 2 package names) and tested in containers; `.deb` added |
+| Call end reason visible after the call | Logs page + call-ended notice (§7.18) |
+| Report a bug to the owner, hidden from the reporter | §7.18 |
+| Red Unencrypted chip | Channel header |
+| Server notices in the admin panel | §7.7 |
+| Fedora taskbar shows a generic icon | `desktopName` (§7.4) |
+| Status across homeservers, ? if unsupported | §7.10 |
+| Toggle sharing your status | §7.10 |
+| Logs setting with helpful errors | §7.18 |
+| Windows taskbar shows Electron's icon | Stray dev `Electron.lnk` with our AUMID (§8); dev AUMID split; owner deletes the old shortcut |
+
 ## 11. Work log
 
 | Date | Work |
@@ -522,3 +578,4 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 2026-10-22 | Forked Heorot; fixed typecheck; MatrixRTC voice verified against Element Call/lk-jwt-service source; desktop updater, tray, login, permissions; Synapse integration + Playwright E2E + CI; release pipeline; security audit and scanning; renamed to Meadhall; standalone repo `PeytonG/Meadhall`; owner's artwork; pixel theme, color wheel, fonts, stickers, Discord-style UI; one-click updates; live audio settings; docs; CodeQL test-tooling fixes; Android release key + secrets (backed up to Documents); Synapse script hang fix; PR #3 merged; old fork deleted; `v0.1.0` released (all 6 jobs green); sign-in resolves the homeserver address (`.well-known`, http→https) before logging in or registering. Then: default server + registration tokens, font picker, round avatars, mute/deafen outside calls, volume boost to 120%, DM/group calls with notifications. Then: Discord-style Home, phone layout (Android Back), voice changer, README screenshots. PR #6 merged; `v0.2.0` released (desktop files re-attached after an electron-builder draft mix-up; release workflow fixed). Then: v0.2.1 (pictures, screen share, campfire); CHANGELOG-driven release notes. Then v0.3.0 work: desktop drag-region fix + themed window controls, quieter campfire with local speech detection, people search, pixel emoji, incoming-call ringtone, roles/permissions, server admin panel, desktop + Android background notifications, much more UI testing (incl. a real Electron test). |
 | 2026-10-23 | v0.3.1 backlog (§10.1): ringtone and Windows notifications fixed; status/DND/Away, DM previews, phone icon; profiles (banner, bio, links, roles); talk permissions; tray menu; Steam activity; 12 voice effects; soundboard; several accounts; phone update notice and What's new; high contrast; iOS project; README overhaul with test-made screenshots; admin password reset fixed on desktop; status write races fixed. |
 | 2026-10-23 | v0.3.2 (§10.2): soundboard over the mic, volume, trimming and scrolling; call drops (alone timer, rejoin, call history); Steam display; status speed; call card clicks on desktop; taskbar icon and unread bubble; screen share previews and scaling; banner crop; Block / Ignore; earlier versions; CodeQL fixes and a security audit (IPC sender check); read-marker race; component harness for in-call tests and screenshots. |
+| 2026-10-23 | v0.3.3 (§10.3): Linux `.rpm`/`.deb` updates via the package manager, `.deb` package, declared deps, GNOME and Windows taskbar icons; verification fix; Unencrypted chip; icon style; Logs and call-ended notice; Report a bug; server notices and group-chat invites; cross-server status ? and Share my status; log redaction. Packages verified in clean Ubuntu 24.04 and Fedora 42 containers. |

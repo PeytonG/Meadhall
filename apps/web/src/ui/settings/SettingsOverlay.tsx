@@ -15,6 +15,8 @@ import { VisibilityTab } from "./server/tabs/VisibilityTab";
 import { AdvancedTab } from "./server/tabs/AdvancedTab";
 import { AppearanceTab } from "./user/tabs/AppearanceTab";
 import { UpdatesTab } from "./user/tabs/UpdatesTab";
+import { LogsTab } from "./user/tabs/LogsTab";
+import { BugReportTab } from "./user/tabs/BugReportTab";
 import { currentPlatform } from "../presence/clientStatus";
 import { ServerAdminTab } from "./user/tabs/ServerAdminTab";
 import { isServerAdmin } from "../../core/admin/synapseAdmin";
@@ -81,6 +83,8 @@ const USER_NAV: SettingsNavSection[] = [
             { id: "appearance", label: "Appearance" },
             { id: "notifications", label: "Notifications" },
             { id: "audio", label: "Audio" },
+            { id: "logs", label: "Logs" },
+            { id: "report-bug", label: "Report a bug" },
         ],
     },
     {
@@ -339,6 +343,10 @@ export function SettingsOverlay({
                 );
             case "updates":
                 return <UpdatesTab />;
+            case "logs":
+                return <LogsTab />;
+            case "report-bug":
+                return <BugReportTab client={client} config={matrix.config} onToast={onToast} />;
             case "server-admin":
                 return <ServerAdminTab client={client} onToast={onToast} />;
             case "appearance":

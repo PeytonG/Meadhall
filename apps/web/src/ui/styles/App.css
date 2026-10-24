@@ -5739,3 +5739,55 @@ img.voice-ctrl-icon {
     gap: 8px;
     color: var(--text-muted);
 }
+
+/* "Call ended" notice: top centre so it never sits on the update banner (bottom right). */
+.desktop-update-banner.call-ended-notice {
+    top: 16px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(560px, calc(100vw - 32px));
+    border-left: 4px solid var(--danger);
+}
+
+.call-ended-notice span {
+    flex: 1;
+}
+
+/* Home → Group Chats: a pending invite with Accept / Decline. */
+.home-invite-row {
+    cursor: default;
+}
+
+.home-invite-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.home-invite-actions button {
+    padding: 3px 7px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-hover);
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.home-invite-actions .home-invite-accept {
+    background: var(--accent);
+    border-color: var(--accent-soft);
+    color: var(--on-primary);
+}
+
+/* Status unavailable: their homeserver doesn't share presence (presenceSupport.ts). */
+.avatar-presence-dot.is-unsupported {
+    display: grid;
+    place-items: center;
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    font-size: calc(var(--avatar-presence-size) - 2px);
+    font-weight: 700;
+    line-height: 1;
+}

@@ -45,8 +45,9 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 | Platform | File | How to install |
 |---|---|---|
 | 🪟 **Windows** 10/11 | `Meadhall-Setup-<version>.exe` | Run it. SmartScreen may warn because the app isn't code-signed yet: **More info → Run anyway**. |
-| 🐧 **Linux** (any distro) | `Meadhall-<version>-x86_64.AppImage` | `chmod +x Meadhall-*.AppImage`, then run it. |
-| 🎩 **Fedora / RHEL** | `Meadhall-<version>-x86_64.rpm` | `sudo dnf install ./Meadhall-*.rpm` |
+| 🎩 **Fedora / RHEL** | `Meadhall-<version>-x86_64.rpm` | See [Installing on Linux](#installing-on-linux). |
+| 🐧 **Debian / Ubuntu / Mint** | `Meadhall-<version>-amd64.deb` | See [Installing on Linux](#installing-on-linux). |
+| 🐧 **Any Linux** | `Meadhall-<version>-x86_64.AppImage` | See [Installing on Linux](#installing-on-linux). |
 | 🤖 **Android** 7+ | `Meadhall-<version>-android.apk` | See [Installing on Android](#installing-on-android) below. |
 | 🍎 **iOS (Beta)** | TestFlight | Invite only for now: see [iOS (Beta)](#ios). |
 | 🌐 **Web** | — | Use a Meadhall someone hosts, or [host your own](docs/self-hosting.md). |
@@ -54,6 +55,33 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 - **Desktop apps update themselves:** a notice offers **Update now**, then a one-time **What's new** shows what changed.
 - **Phones tell you when there's an update** and link straight to it (turn this off in Settings → Updates).
 - Every release has a `SHA256SUMS.txt` to check your downloads against.
+
+<a id="installing-on-linux"></a>
+<details>
+<summary><b>🐧 Installing on Linux</b> (and updating)</summary>
+
+Open a terminal in the folder you downloaded to (usually `cd ~/Downloads`), then:
+
+| Distro | Install |
+|---|---|
+| **Fedora, RHEL, Nobara** (.rpm) | `sudo dnf install ./Meadhall-*.rpm` |
+| **Debian, Ubuntu, Mint, Pop!_OS** (.deb) | `sudo apt install ./Meadhall-*.deb` |
+| **Anything else** (AppImage) | Install FUSE 2 once (below), then `chmod +x Meadhall-*.AppImage` and run `./Meadhall-*.AppImage` |
+
+AppImages need the FUSE 2 library, which many current distros no longer install by default (otherwise you'll see
+`dlopen(): error loading libfuse.so.2`):
+
+| Distro | Command |
+|---|---|
+| Fedora | `sudo dnf install fuse-libs` |
+| Ubuntu 24.04 and newer | `sudo apt install libfuse2t64` |
+| Ubuntu 22.04, Debian, Mint | `sudo apt install libfuse2` |
+| Arch, Manjaro | `sudo pacman -S fuse2` |
+
+**Updates:** Meadhall tells you when one is out. With the .rpm or .deb it asks for your password to install it (or
+shows the command to run if you'd rather do it yourself); the AppImage replaces itself.
+
+</details>
 
 <a id="installing-on-android"></a>
 <details>
@@ -96,6 +124,7 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
   and above **can talk** in. They're Matrix power levels, so the server enforces them, in Element too.
 - 🟢 **Status**: Online, Away, Do Not Disturb, Invisible and a custom status. You go Away after 10 minutes without
   input, people on the phone app show a 📱, and the desktop app shows **"Playing ..."** for games running in Steam.
+  People whose server doesn't share status show a **?**, and you can stop sharing yours in Settings → Privacy.
 - 🪪 **Profiles** with a banner (image or GIF, cropped to fit), About me, links, and the person's roles in every server
   you share. **Block** anyone from their profile.
 - 👥 **Multiple accounts**: sign in to accounts on different servers, switch from the user panel, and get
@@ -111,16 +140,21 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 - 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own (trim them to fit), played over your mic.
 - 🖥️ Screen sharing with **previews** of what you can share, several streams side by side, per-person volume up to 120%,
   mute and deafen any time.
-- 🔁 Dropped calls **rejoin by themselves**, and a call history says why a call ended.
+- 🔁 Dropped calls **rejoin by themselves**. If a call ends without you choosing to, Meadhall tells you why, and
+  Settings → Logs keeps the history.
 
 **Pixel art**
 - 🎨 A hand-made pixel theme. The **pixel color wheel** recolors the whole app; dark, light and **high contrast** themes.
 - 😀 Pixel emoji, pixel stickers, custom emoji packs per server and per person, and pixel fonts (or any font you have).
+- 🧱 Pixel-art icons, or smooth ones if you prefer (Settings → Appearance).
 
 **Yours**
-- 🔒 End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery.
+- 🔒 End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery. Rooms
+  without it are marked **Unencrypted** in red.
 - 🙈 No analytics, no telemetry. Run your own server or use any Matrix homeserver.
-- 🛡️ Server admins get an **admin panel**: invite tokens, new accounts, password resets.
+- 🛡️ Server admins get an **admin panel**: invite tokens, new accounts, password resets and **server notices**.
+- 🐞 **Report a bug** from Settings: it goes to the developer as a message from your account, with a screenshot and
+  your logs if you want, and stays out of your chats.
 - 🔔 Notifications on desktop (from the tray too: Mute, Deafen and Status are in the tray menu, and the taskbar icon
   shows an unread bubble) and on Android in the background, with no Google account needed.
 - ⏪ Desktop apps can **go back to an earlier version** from Settings → Updates if an update causes trouble.

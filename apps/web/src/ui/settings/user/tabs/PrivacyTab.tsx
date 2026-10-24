@@ -16,7 +16,7 @@ export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): Rea
         <div className="settings-tab">
             <h2 className="settings-tab-title">Privacy & Safety</h2>
             <p className="settings-tab-description">
-                Local placeholder settings. Backend privacy rules are TODO.
+                What other people can see about you, and who you have blocked.
             </p>
 
             <label className="settings-toggle">
@@ -37,7 +37,17 @@ export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): Rea
                 Allow DMs from server members (stub)
             </label>
 
-            {window.heorotDesktop?.getActivity ? (
+            <label className="settings-toggle">
+                <input
+                    type="checkbox"
+                    checked={settings.shareStatus}
+                    onChange={(event) => onChange({ ...settings, shareStatus: event.target.checked })}
+                    data-testid="share-status"
+                />
+                Share my status (off: you appear offline to everyone, with no status text, Do Not Disturb or game shown)
+            </label>
+
+            {window.heorotDesktop?.getActivity && settings.shareStatus ? (
                 <label className="settings-toggle">
                     <input
                         type="checkbox"

@@ -55,7 +55,8 @@ import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
 import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
-import { RECONNECT_DELAYS_MS, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
+import { RECONNECT_DELAYS_MS, announceCallEnded, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
+import { logAppError } from "../../logs/appLog";
 import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
@@ -685,6 +686,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     // Rejoining after an unexpected drop: how many tries so far, and the pending one.
     const reconnectRef = useRef<{ attempts: number; timer: number | null }>({ attempts: 0, timer: null });
     const joinVoiceRef = useRef<() => Promise<void>>(async () => undefined);
+    // Every error the call view shows also goes to Settings → Logs.
+    useEffect(() => {
+        if (error && error !== ALONE_LEFT_MESSAGE) logAppError("call", error);
+    }, [error]);
     // The soundboard's own audio track, published the first time a sound is played in this call.
     // The soundboard player for this call; sounds are mixed into the microphone (voiceChanger.ensureMicMixer).
     const soundboardRef = useRef<{ player: SoundboardPlayer } | null>(null);
@@ -1239,6 +1244,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     runIfCurrentJoin(() => {
                         const reason = membershipError instanceof Error ? membershipError.message : "unknown error";
                         logCallEvent("Left: call membership failed", reason);
+                        announceCallEnded(`Meadhall couldn't keep you in the call (${reason}).`);
                         void leaveVoice().then(() => setError(`Left the call: the call membership failed (${reason}).`));
                     });
                 };
@@ -2108,6 +2114,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         const delay = RECONNECT_DELAYS_MS[state.attempts];
         if (delay === undefined) {
             logCallEvent("Gave up rejoining", why);
+            announceCallEnded(`The call dropped (${why}) and Meadhall couldn't get back in.`);
             reconnectRef.current = { attempts: 0, timer: null };
             setError(`Lost the call connection (${why}) and couldn't get back in. Join again when you're ready.`);
             return;
@@ -2167,6 +2174,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     useEffect(() => {
         const watcher = createAloneWatcher(() => {
             logCallEvent("Left: alone in the call for 5 minutes");
+            announceCallEnded("Nobody else was in it for 5 minutes.");
             void leaveVoiceRef.current().then(() => setError(ALONE_LEFT_MESSAGE));
         });
         aloneWatcherRef.current = watcher;

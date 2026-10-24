@@ -33,3 +33,9 @@ rc_invites:
 
 # Lets the tests create server admins through /_synapse/admin/v1/register. Test-only secret, never reuse it.
 registration_shared_secret: "meadhall-test-only-shared-secret"
+
+# Server notices (Settings → Server admin → Server notices).
+server_notices:
+  system_mxid_localpart: notices
+  system_mxid_display_name: "Server notices"
+  room_name: "Server notices"
