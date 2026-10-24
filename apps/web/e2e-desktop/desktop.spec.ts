@@ -365,3 +365,9 @@ test("Open in the background at sign-in stays on when turned on (and off when tu
         await set(before);
     }
 });
+
+test("the app identifies itself as Meadhall (not the package name)", async () => {
+    const userAgent = await window.evaluate(() => navigator.userAgent);
+    expect(userAgent).toMatch(/ Meadhall\/\d+\.\d+\.\d+/);
+    expect(userAgent).not.toContain("heorot");
+});
