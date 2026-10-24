@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-# Builds Meadhall for Windows (NSIS .exe), Linux (AppImage + Fedora .rpm) and Android (.apk).
+# Builds Meadhall for Windows (NSIS .exe), Linux (AppImage, Fedora .rpm, Debian/Ubuntu .deb) and Android (.apk).
 #
 # Push a tag like v0.2.0 to publish: a draft GitHub Release is created, every build uploads to it, and it is
 # published only when all of them succeed (so the desktop auto-updater never sees a half-uploaded release).
@@ -113,10 +113,11 @@ jobs:
               apps/desktop/dist-electron/latest.yml
           - name: Linux
             os: ubuntu-24.04
-            args: --linux AppImage rpm
+            args: --linux AppImage rpm deb
             files: |
               apps/desktop/dist-electron/*.AppImage
               apps/desktop/dist-electron/*.rpm
+              apps/desktop/dist-electron/*.deb
               apps/desktop/dist-electron/latest-linux.yml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -244,10 +245,10 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           mkdir assets && cd assets
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "*.exe" --pattern "*.AppImage" --pattern "*.rpm" --pattern "*.apk"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "*.exe" --pattern "*.AppImage" --pattern "*.rpm" --pattern "*.deb" --pattern "*.apk"
           # Refuse to publish an incomplete release (the desktop auto-updater needs latest*.yml too).
           names=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
-          for pattern in '\.exe$' '\.exe\.blockmap$' '^latest\.yml$' '\.AppImage$' '\.rpm$' '^latest-linux\.yml$' '\.apk$'; do
+          for pattern in '\.exe$' '\.exe\.blockmap$' '^latest\.yml$' '\.AppImage$' '\.rpm$' '\.deb$' '^latest-linux\.yml$' '\.apk$'; do
             grep -qE "$pattern" <<< "$names" || { echo "::error::Release $TAG is missing a file matching $pattern"; exit 1; }
           done
           sha256sum * > SHA256SUMS.txt

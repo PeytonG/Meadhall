@@ -9,6 +9,7 @@
   "homepage": "https://github.com/PeytonG/Meadhall",
   "license": "AGPL-3.0-only",
   "description": "Meadhall desktop app",
+  "desktopName": "meadhall.desktop",
   "main": "dist/electron/main.js",
   "scripts": {
     "clean": "node ./scripts/clean.mjs",

@@ -2,6 +2,8 @@
 import { app, type BrowserWindow } from "electron";
 import { autoUpdater } from "electron-updater";
 
+import { installLinuxPackage, linuxPackageType } from "./linuxPackage";
+
 // Updates are published as GitHub Releases (see "publish" in electron-builder.json). Nothing is downloaded until
 // the user clicks "Update now"; the update is then downloaded, installed and the app restarted.
 
@@ -30,7 +32,25 @@ export function isAutoUpdateSupported(): boolean {
     return app.isPackaged && process.env.HEOROT_DISABLE_AUTO_UPDATE !== "1";
 }
 
+// The downloaded update file (for .rpm/.deb installs, which Meadhall runs itself; see linuxPackage.ts).
+let downloadedFile: string | null = null;
+
 function install(beforeQuit: () => void): void {
+    const packageType = linuxPackageType();
+    if (packageType && downloadedFile) {
+        const version = "version" in currentStatus ? currentStatus.version : "";
+        void installLinuxPackage(packageType, downloadedFile)
+            .then(() => {
+                beforeQuit();
+                app.relaunch();
+                app.exit(0);
+            })
+            .catch((error: unknown) => publish({ state: "error", message: error instanceof Error ? error.message : String(error) }))
+            .finally(() => {
+                if (currentStatus.state !== "error") publish({ state: "downloaded", version });
+            });
+        return;
+    }
     beforeQuit();
     // Silent so the assisted NSIS installer doesn't show its wizard; relaunch once installed.
     autoUpdater.quitAndInstall(true, true);
@@ -51,8 +71,9 @@ export function configureAutoUpdater(getWindow: () => BrowserWindow | null): voi
     };
 
     autoUpdater.autoDownload = false;
-    // An update the user started downloading but didn't restart for still installs on the next quit.
-    autoUpdater.autoInstallOnAppQuit = true;
+    // An update the user started downloading but didn't restart for still installs on the next quit (except .rpm/.deb,
+    // which need the password prompt and are installed by Meadhall itself).
+    autoUpdater.autoInstallOnAppQuit = linuxPackageType() === null;
     autoUpdater.on("checking-for-update", () => publish({ state: "checking" }));
     autoUpdater.on("update-not-available", () => publish({ state: "up-to-date", currentVersion: app.getVersion() }));
     autoUpdater.on("update-available", (info) => publish({ state: "available", version: info.version }));
@@ -61,6 +82,7 @@ export function configureAutoUpdater(getWindow: () => BrowserWindow | null): voi
         publish({ state: "downloading", version, percent: Math.round(progress.percent) });
     });
     autoUpdater.on("update-downloaded", (info) => {
+        downloadedFile = (info as { downloadedFile?: string }).downloadedFile ?? null;
         publish({ state: "downloaded", version: info.version });
         const pendingInstall = installWhenDownloaded;
         installWhenDownloaded = null;
