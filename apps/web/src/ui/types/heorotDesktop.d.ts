@@ -38,7 +38,8 @@ export interface HeorotDesktopBridge {
     onNotificationClicked?: (listener: (roomId: string) => void) => () => void;
     setTitleBarColors?: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp?: () => Promise<void>;
-    getDesktopCapturerSources?: () => Promise<HeorotDesktopCaptureSource[]>;
+    // previews: false returns at once without thumbnails (desktop 0.3.4+; older apps ignore it and include them).
+    getDesktopCapturerSources?: (options?: { previews?: boolean }) => Promise<HeorotDesktopCaptureSource[]>;
     setPreferredDisplayMediaSource?: (sourceId: string) => Promise<void>;
     getStartAtLogin?: () => Promise<boolean>;
     setStartAtLogin?: (enabled: boolean) => Promise<boolean>;

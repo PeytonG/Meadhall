@@ -5797,3 +5797,35 @@ img.voice-ctrl-icon {
     font-size: 11px;
     color: var(--text-muted);
 }
+
+/* Dialogs: only the body scrolls, so the title and the buttons (e.g. "Stream this") are always in view. */
+.room-dialog {
+    overflow: hidden;
+}
+
+.room-dialog-header,
+.room-dialog-footer {
+    flex-shrink: 0;
+}
+
+.room-dialog-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.screen-share-source-empty.is-loading {
+    animation: screen-share-preview-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes screen-share-preview-pulse {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .screen-share-source-empty.is-loading {
+        animation: none;
+    }
+}

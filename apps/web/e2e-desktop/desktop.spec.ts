@@ -310,3 +310,42 @@ test("desktop functions only answer Meadhall's own page", async () => {
     // The app itself still works.
     expect(await window.evaluate(() => window.heorotDesktop?.getAppVersion?.())).toMatch(/^\d+\.\d+\.\d+/);
 });
+
+test("the screen share picker gets its list at once and real previews right after", async () => {
+    const result = await window.evaluate(async () => {
+        const bridge = (globalThis as unknown as { heorotDesktop: { getDesktopCapturerSources: (options?: { previews?: boolean }) => Promise<Array<{ id: string; kind?: string; thumbnail?: string | null }>> } }).heorotDesktop;
+        const started = performance.now();
+        const quick = await bridge.getDesktopCapturerSources({ previews: false });
+        const quickMs = performance.now() - started;
+        const full = await bridge.getDesktopCapturerSources({ previews: true });
+        // How much of each screen's preview is near-black (a preview that failed is all black or missing).
+        const darkShare = async (dataUrl: string): Promise<number> => {
+            const image = new Image();
+            image.src = dataUrl;
+            await image.decode();
+            const canvas = document.createElement("canvas");
+            canvas.width = image.width;
+            canvas.height = image.height;
+            const context = canvas.getContext("2d")!;
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let dark = 0;
+            for (let index = 0; index < pixels.length; index += 4) if (pixels[index] + pixels[index + 1] + pixels[index + 2] < 15) dark += 1;
+            return dark / (pixels.length / 4);
+        };
+        const screens = full.filter((source) => source.kind === "screen");
+        return {
+            quickMs,
+            quickCount: quick.length,
+            quickThumbnails: quick.filter((source) => source.thumbnail).length,
+            screens: screens.length,
+            screenDark: await Promise.all(screens.map((source) => (source.thumbnail ? darkShare(source.thumbnail) : Promise.resolve(1)))),
+        };
+    });
+    expect(result.quickCount).toBeGreaterThan(0);
+    expect(result.quickThumbnails).toBe(0);
+    expect(result.quickMs).toBeLessThan(1500);
+    expect(result.screens).toBeGreaterThan(0);
+    // The desktop isn't black: at least one screen's preview shows something.
+    expect(Math.min(...result.screenDark)).toBeLessThan(0.9);
+});
