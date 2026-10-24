@@ -26,6 +26,8 @@ interface HomeSidebarProps {
     onNewConversation: () => void;
     // Invites to group chats and rooms outside any server (server notices among them).
     invites?: Room[];
+    // Bug reports people sent to this account (Settings → Report a bug); only the developer's account gets any.
+    bugReports?: Room[];
     onAcceptInvite?: (roomId: string) => void;
     onDeclineInvite?: (roomId: string) => void;
 }
@@ -107,6 +109,7 @@ export function HomeSidebar({
     onSelectRoom,
     onNewConversation,
     invites = [],
+    bugReports = [],
     onAcceptInvite,
     onDeclineInvite,
 }: HomeSidebarProps): React.ReactElement {
@@ -144,7 +147,7 @@ export function HomeSidebar({
         return inCall.length > 0 ? `In a call (${inCall.length})` : null;
     };
 
-    const renderRows = (rooms: Room[], kind: "direct" | "group"): React.ReactNode =>
+    const renderRows = (rooms: Room[], kind: "direct" | "group" | "report"): React.ReactNode =>
         rooms.map((room) => {
             const partner = partnerByRoomId.get(room.roomId) ?? null;
             const presence = partner ? presenceByUserId.get(partner) : undefined;
@@ -152,13 +155,16 @@ export function HomeSidebar({
             const invite = room.getMyMembership() === "invite";
             const memberCount = otherMembers(room, ownUserId).length + 1;
             // Status first (their custom status, presence, or member count), then the latest message.
+            const reporter = kind === "report" ? room.currentState.getStateEvents("m.room.create", "")?.getSender() ?? "" : "";
             const status =
-                kind === "group"
+                kind === "report"
+                    ? `From ${room.getMember(reporter)?.name ?? reporter}`
+                    : kind === "group"
                     ? `${memberCount} members`
                     : presenceEnabled && presence
                       ? presence.statusText ?? presence.primaryLabel
                       : "Direct message";
-            const snippet = invite ? null : lastMessageSnippet(room, ownUserId, { showSender: kind === "group" });
+            const snippet = invite ? null : lastMessageSnippet(room, ownUserId, { showSender: kind !== "direct" });
             const subtitle = call ?? (invite ? "Invite: open to accept" : snippet ? `${status} · ${snippet}` : status);
             return (
                 <HomeRow
@@ -200,6 +206,14 @@ export function HomeSidebar({
                         <p className="home-empty">{filter ? "No matches." : "No direct messages yet. Press + to start one."}</p>
                     )}
                 </section>
+                {bugReports.length > 0 ? (
+                    <section className="home-section" aria-label="Bug reports">
+                        <header className="home-section-header">
+                            <span>Bug reports</span>
+                        </header>
+                        {renderRows(bugReports.filter((room) => !filter.trim() || getRoomName(room).toLowerCase().includes(filter.trim().toLowerCase()) || (room.currentState.getStateEvents("m.room.create", "")?.getSender() ?? "").toLowerCase().includes(filter.trim().toLowerCase())), "report")}
+                    </section>
+                ) : null}
                 <section className="home-section" aria-label="Group chats">
                     <header className="home-section-header">
                         <span>Group Chats</span>

@@ -4,7 +4,7 @@
 import { expect, test } from "@playwright/test";
 
 import { SYNAPSE_URL, joinRoom, readMessages, readState, registerUser, type ApiUser } from "./support/matrixApi";
-import { signIn } from "./support/ui";
+import { signIn, waitForAppShell } from "./support/ui";
 
 // A 1x1 PNG.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
@@ -60,4 +60,41 @@ test("a bug report reaches the developer and disappears for the reporter", async
     await page.keyboard.press("Escape");
     await expect.poll(() => joinedRooms(alice), { timeout: 20_000 }).not.toContain(roomId);
     await expect(page.getByText("Meadhall bug report")).toHaveCount(0);
+});
+
+test("the developer sees reports under Home → Bug reports in Meadhall, joined automatically", async ({ page, browser }) => {
+    const developer = await registerUser("dev");
+    const alice = await registerUser("alice");
+    const pointAtDeveloper = async (target: typeof page): Promise<void> => {
+        await target.route("**/config.127.0.0.1.json*", async (route) => {
+            const response = await route.fetch();
+            await route.fulfill({ response, json: { ...(await response.json()), bug_report_recipient: developer.userId } });
+        });
+    };
+    await pointAtDeveloper(page);
+    await signIn(page, alice);
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
+    await page.getByRole("button", { name: "Report a bug", exact: true }).click();
+    const tab = page.getByTestId("bug-report-tab");
+    await tab.getByLabel("What kind of problem?").selectOption("Screen sharing");
+    await tab.getByLabel("What happened?").fill("The previews are black.");
+    await tab.getByRole("button", { name: "Send report" }).click();
+    await expect(page.getByTestId("bug-report-sent")).toBeVisible();
+
+    const devPage = await (await browser.newContext()).newPage();
+    await signIn(devPage, developer);
+    const reports = devPage.getByRole("region", { name: "Bug reports" });
+    const row = reports.getByTestId("home-row").filter({ hasText: "Meadhall bug report" });
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    await expect(row).toContainText(`From ${alice.username}`);
+    if (process.env.PREVIEW_DIR) await devPage.locator(".home-sidebar").screenshot({ path: `${process.env.PREVIEW_DIR}/bug-reports-inbox.png` });
+    await row.click();
+    await expect(devPage.locator(".timeline")).toContainText("The previews are black.");
+    await expect(devPage.getByRole("region", { name: "Group chats" })).not.toContainText("Meadhall bug report");
+
+    // The reporter's copy goes away once it's delivered; the developer's stays.
+    await expect.poll(() => joinedRooms(alice), { timeout: 20_000 }).toHaveLength(0);
+    await devPage.reload();
+    await waitForAppShell(devPage);
+    await expect(devPage.getByRole("region", { name: "Bug reports" }).getByTestId("home-row")).toHaveCount(1, { timeout: 20_000 });
 });

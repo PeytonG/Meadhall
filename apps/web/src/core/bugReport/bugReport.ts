@@ -52,6 +52,16 @@ export function isBugReportRoom(room: Room): boolean {
     }
 }
 
+// A report this account sent: hidden from the sender, who leaves it once it's delivered. Reports others sent to
+// this account (the developer's) are listed under Home → Bug reports instead.
+export function isSentBugReport(room: Room, ownUserId: string | null): boolean {
+    return isBugReportRoom(room) && room.currentState.getStateEvents("m.room.create", "")?.getSender() === ownUserId;
+}
+
+export function isReceivedBugReport(room: Room, ownUserId: string | null): boolean {
+    return isBugReportRoom(room) && !isSentBugReport(room, ownUserId);
+}
+
 function recentReports(): number[] {
     try {
         const stamps = JSON.parse(window.localStorage.getItem(RATE_LIMIT_KEY) ?? "[]") as unknown;
@@ -127,11 +137,16 @@ export async function sendBugReport(client: MatrixClient, recipient: string, rep
     noteReportSent();
 }
 
-// Leaves and forgets report rooms the developer has joined (or that are too old), and forgets ones already left.
+// Leaves and forgets reports this account sent once the developer has joined them (or they're too old), and forgets
+// ones already left. The developer joins reports sent to them automatically.
 export async function cleanUpBugReportRooms(client: MatrixClient): Promise<void> {
     const ownUserId = client.getUserId();
     for (const room of client.getRooms()) {
-        if (!isBugReportRoom(room)) continue;
+        if (isReceivedBugReport(room, ownUserId) && room.getMyMembership() === "invite") {
+            await client.joinRoom(room.roomId).catch(() => undefined);
+            continue;
+        }
+        if (!isSentBugReport(room, ownUserId)) continue;
         const membership = room.getMyMembership();
         if (membership === "leave" || membership === "ban") {
             await client.forget(room.roomId).catch(() => undefined);

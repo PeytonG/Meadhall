@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { ClientEvent, NotificationCountType, RoomEvent, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import meadhallIcon from "../assets/meadhall-icon.png";
-import { isBugReportRoom } from "../../core/bugReport/bugReport";
+import { isSentBugReport } from "../../core/bugReport/bugReport";
 
 export function badgeLabel(count: number): string {
     return count > 9 ? "9+" : String(count);
@@ -15,7 +15,7 @@ export function badgeLabel(count: number): string {
 // Everything the server says to notify about (messages in DMs and groups, mentions), across joined rooms.
 export function unreadNotificationTotal(client: MatrixClient): number {
     let total = 0;
-    for (const room of client.getRooms().filter((candidate) => !isBugReportRoom(candidate))) {
+    for (const room of client.getRooms().filter((candidate) => !isSentBugReport(candidate, client.getUserId()))) {
         if (room.getMyMembership() !== "join" || room.isSpaceRoom()) continue;
         total += room.getUnreadNotificationCount(NotificationCountType.Total) ?? 0;
     }

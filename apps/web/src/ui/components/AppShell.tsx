@@ -62,7 +62,7 @@ import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotific
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { captureGlobalErrors, logAppError } from "../logs/appLog";
 import { CallEndedNotice } from "./voice/CallEndedNotice";
-import { cleanUpBugReportRooms, isBugReportRoom } from "../../core/bugReport/bugReport";
+import { cleanUpBugReportRooms, isBugReportRoom, isReceivedBugReport, isSentBugReport } from "../../core/bugReport/bugReport";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
@@ -155,7 +155,7 @@ function getRoomName(room: Room): string {
 
 // Every room except the hidden bug-report rooms (Settings → Report a bug).
 function listedRooms(client: MatrixClient): Room[] {
-    return client.getRooms().filter((room) => !isBugReportRoom(room));
+    return client.getRooms().filter((room) => !isSentBugReport(room, client.getUserId()));
 }
 
 function isVisibleMembership(room: Room): boolean {
@@ -1174,6 +1174,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             ),
         [directRoomIds, spaces, visibleRooms],
     );
+    // Bug reports sent to this account get their own Home section.
+    const homeBugReports = useMemo(() => homeOtherRooms.filter((room) => isReceivedBugReport(room, client.getUserId())), [client, homeOtherRooms]);
+    const homeGroupRooms = useMemo(() => homeOtherRooms.filter((room) => !isReceivedBugReport(room, client.getUserId())), [client, homeOtherRooms]);
     const homeRooms = useMemo(() => [...peopleChannels, ...homeOtherRooms], [homeOtherRooms, peopleChannels]);
     // Invites to rooms outside any server that aren't DMs (group chats, server notices): shown under Group Chats to
     // accept or decline. DM invites are joined on open, and server channels join automatically.
@@ -2309,23 +2312,39 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     // Uncaught errors go to Settings → Logs too.
     useEffect(() => captureGlobalErrors(), []);
 
-    // Bug reports (Settings → Report a bug): leave each report's room once the developer has joined it.
+    // Bug reports (Settings → Report a bug): the sender leaves each report once the developer has joined it, and the
+    // developer's account joins reports sent to it.
     useEffect(() => {
         let running = false;
+        let again = false;
         const cleanUp = (): void => {
-            if (running) return;
+            if (running) {
+                again = true; // a change arrived mid-run: go round once more
+                return;
+            }
             running = true;
             void cleanUpBugReportRooms(client).finally(() => {
                 running = false;
+                if (again) {
+                    again = false;
+                    cleanUp();
+                }
             });
         };
         const onTimeline = (event: MatrixEvent, room: Room | undefined): void => {
             if (event.getType() === EventType.RoomMember && room && isBugReportRoom(room)) cleanUp();
         };
+        const onRoom = (room: Room): void => {
+            if (isBugReportRoom(room)) cleanUp();
+        };
         cleanUp();
         client.on(RoomEvent.Timeline, onTimeline);
+        client.on(ClientEvent.Room, onRoom);
+        client.on(RoomEvent.MyMembership, onRoom);
         return () => {
             client.removeListener(RoomEvent.Timeline, onTimeline);
+            client.removeListener(ClientEvent.Room, onRoom);
+            client.removeListener(RoomEvent.MyMembership, onRoom);
         };
     }, [client]);
 
@@ -2392,8 +2411,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     <HomeSidebar
                         client={client}
                         directRooms={peopleChannels}
-                        otherRooms={homeOtherRooms}
-                        invites={homeInvites}
+                        otherRooms={homeGroupRooms}
+                        bugReports={homeBugReports}
+                        invites={homeInvites.filter((room) => !isBugReportRoom(room))}
                         onAcceptInvite={(roomId) => {
                             void requestJoinRoom(roomId, { preferredSpaceId: null })
                                 .then(() => selectChannel(roomId))
