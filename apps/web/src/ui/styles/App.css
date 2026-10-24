@@ -6326,3 +6326,120 @@ img.voice-ctrl-icon {
     font-size: 11px;
     cursor: help;
 }
+
+/* Sharing (.meadhall): the share button on your sounds, the share dialog, and the card in chats. */
+.soundboard-share {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: var(--bg-pane);
+    color: var(--accent);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+}
+
+/* Transparent rather than hidden, so keyboards and screen readers can still reach it. */
+.soundboard-sound-wrap:hover .soundboard-share,
+.soundboard-share:focus-visible {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .soundboard-share {
+        opacity: 1;
+    }
+}
+
+.share-dialog-list {
+    max-height: 280px;
+    overflow-y: auto;
+    display: grid;
+    gap: 2px;
+    border: 1px solid var(--border);
+    padding: 4px;
+}
+
+.share-dialog-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+}
+
+.share-dialog-row:hover {
+    background: var(--bg-hover);
+}
+
+.share-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    max-width: 440px;
+    margin-top: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    background: var(--bg-pane);
+}
+
+.share-card-icon {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+    background: var(--bg-input);
+    color: var(--accent);
+}
+
+.share-card-text {
+    flex: 1;
+    min-width: 120px;
+    display: grid;
+    gap: 2px;
+}
+
+.share-card-text small,
+.share-card-off {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.share-card-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.share-card-button {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.share-card-button.is-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-primary);
+}
+
+.share-card-button:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+
+.share-card-error {
+    flex-basis: 100%;
+    color: var(--danger);
+}

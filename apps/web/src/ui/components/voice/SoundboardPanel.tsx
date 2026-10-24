@@ -27,9 +27,11 @@ interface SoundboardPanelProps {
     // 0-100.
     volume?: number;
     onVolumeChange?: (volume: number) => void;
+    // Sharing on (Settings → Privacy): a share button on each of your own sounds.
+    onShareSound?: (sound: CustomSound) => void;
 }
 
-export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in the call hears these.", volume, onVolumeChange }: SoundboardPanelProps): React.ReactElement {
+export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in the call hears these.", volume, onVolumeChange, onShareSound }: SoundboardPanelProps): React.ReactElement {
     const [custom, setCustom] = useState<CustomSound[]>(() => loadCustomSounds(client));
     const [adding, setAdding] = useState(false);
     const [file, setFile] = useState<File | null>(null);
@@ -169,6 +171,17 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
                             </span>
                             {sound.name}
                         </button>
+                        {onShareSound ? (
+                            <button
+                                type="button"
+                                className="soundboard-share"
+                                aria-label={`Share ${sound.name}`}
+                                title={`Share ${sound.name} with friends`}
+                                onClick={() => onShareSound(sound)}
+                            >
+                                ↗
+                            </button>
+                        ) : null}
                         <button
                             type="button"
                             className="soundboard-remove"

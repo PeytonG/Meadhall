@@ -352,6 +352,7 @@ export function SettingsOverlay({
             case "appearance":
                 return (
                     <AppearanceTab
+                        client={client}
                         settings={userSettings.appearance}
                         renderReactionImages={renderReactionImages}
                         onToggleRenderReactionImages={onToggleRenderReactionImages}

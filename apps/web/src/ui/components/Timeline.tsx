@@ -26,6 +26,8 @@ import { MessageActionsBar } from "./messages/MessageActionsBar";
 import { Toast, type ToastState } from "./Toast";
 import { ReactionsRow } from "./reactions/ReactionsRow";
 import { UserBadges } from "./badges/UserBadges";
+import { ShareCard } from "../sharing/ShareCard";
+import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhallFile";
 
 interface TimelineProps {
     client: MatrixClient;
@@ -2034,6 +2036,8 @@ export function Timeline({
                     const eventId = event.getId();
                     const senderId = event.getSender();
                     const mediaMsgType = isMediaMessageType(content.msgtype) ? content.msgtype : null;
+                    // A sound or style profile someone shared (.meadhall): a card with Adopt instead of a file link.
+                    const shareSummary = mediaMsgType === MsgType.File ? parseShareSummary((content as Record<string, unknown>)[SHARE_CONTENT_KEY]) : null;
                     const encryptedMediaFile = getEncryptedMediaFile(content);
                     const decryptQueueItem =
                         encryptedMediaFile !== null ? toDecryptQueueItem(event, content, encryptedMediaFile) : null;
@@ -2183,7 +2187,9 @@ export function Timeline({
                                     {edited ? <span className="timeline-edited">(edited)</span> : null}
                                 </div>
                             ) : null}
-                            {mediaMsgType === MsgType.Image && mediaUrl ? (
+                            {shareSummary ? (
+                                <ShareCard client={client} summary={shareSummary} mxc={typeof content.url === "string" ? content.url : null} fromMe={senderId === ownUserId} />
+                            ) : mediaMsgType === MsgType.Image && mediaUrl ? (
                                 <div className={`timeline-image-wrap${showHeader ? "" : " timeline-image-wrap-grouped"}${isStickerEvent(event) ? " timeline-sticker" : ""}`}>
                                     <button
                                         type="button"

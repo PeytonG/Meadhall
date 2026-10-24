@@ -1597,3 +1597,49 @@
     border: 1px solid var(--border);
     background: none;
 }
+
+/* Settings → Appearance → Style profiles */
+.style-profiles-save {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.style-profiles-save input {
+    flex: 1;
+    min-width: 0;
+}
+
+.style-profiles-list {
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.style-profiles-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--border);
+}
+
+.style-profile-swatch {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+}
+
+.style-profile-text {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+}
+
+.style-profile-text small {
+    color: var(--text-muted);
+    font-size: 11px;
+}

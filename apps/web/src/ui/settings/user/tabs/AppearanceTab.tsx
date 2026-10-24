@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { PixelColorWheel } from "../../../theme/PixelColorWheel";
+import { StyleProfilesSection } from "./StyleProfilesSection";
 import { FontPicker } from "./FontPicker";
 import type { AppearanceSettings } from "../settingsStore";
 
@@ -14,6 +16,8 @@ interface AppearanceTabProps {
     renderReactionImages: boolean;
     onToggleRenderReactionImages: (enabled: boolean) => void;
     onChange: (settings: AppearanceSettings) => void;
+    // For style profiles (saved in your account).
+    client?: MatrixClient | null;
 }
 
 export function AppearanceTab({
@@ -21,6 +25,7 @@ export function AppearanceTab({
     renderReactionImages,
     onToggleRenderReactionImages,
     onChange,
+    client,
 }: AppearanceTabProps): React.ReactElement {
     const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.heorotDesktop);
     // Start-at-login lives in the OS (owned by the desktop main process), not in local settings.
@@ -53,7 +58,8 @@ export function AppearanceTab({
     return (
         <div className="settings-tab">
             <h2 className="settings-tab-title">Appearance</h2>
-            <p className="settings-tab-description">Local-only UI preferences for this browser session profile.</p>
+            <p className="settings-tab-description">How Meadhall looks on this device. Save looks as style profiles to switch between them or share them.</p>
+            {client ? <StyleProfilesSection client={client} settings={settings} onChange={onChange} /> : null}
 
             <div className="settings-section-card">
                 <h3>Theme</h3>
