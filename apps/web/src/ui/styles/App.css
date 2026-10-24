@@ -5754,3 +5754,29 @@ img.voice-ctrl-icon {
 .call-ended-notice span {
     flex: 1;
 }
+
+/* Home → Group Chats: a pending invite with Accept / Decline. */
+.home-invite-row {
+    cursor: default;
+}
+
+.home-invite-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.home-invite-actions button {
+    padding: 3px 7px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-hover);
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.home-invite-actions .home-invite-accept {
+    background: var(--accent);
+    border-color: var(--accent-soft);
+    color: var(--on-primary);
+}

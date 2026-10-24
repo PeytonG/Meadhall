@@ -1174,6 +1174,20 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         [directRoomIds, spaces, visibleRooms],
     );
     const homeRooms = useMemo(() => [...peopleChannels, ...homeOtherRooms], [homeOtherRooms, peopleChannels]);
+    // Invites to rooms outside any server that aren't DMs (group chats, server notices): shown under Group Chats to
+    // accept or decline. DM invites are joined on open, and server channels join automatically.
+    const homeInvites = useMemo(
+        () =>
+            visibleRooms.filter(
+                (room) =>
+                    !room.isSpaceRoom() &&
+                    !directRoomIds.has(room.roomId) &&
+                    room.getMyMembership() === "invite" &&
+                    room.currentState.getStateEvents(EventType.SpaceParent).length === 0 &&
+                    !findParentSpaceIdForRoom(room.roomId, spaces),
+            ),
+        [directRoomIds, spaces, visibleRooms],
+    );
     const isRoomVoiceChannel = useCallback(
         (room: Room | null): boolean => Boolean(room && (isVoiceChannelRoom(room) || voiceChannelHintRoomIds.has(room.roomId))),
         [voiceChannelHintRoomIds],
@@ -2376,6 +2390,15 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         client={client}
                         directRooms={peopleChannels}
                         otherRooms={homeOtherRooms}
+                        invites={homeInvites}
+                        onAcceptInvite={(roomId) => {
+                            void requestJoinRoom(roomId, { preferredSpaceId: null })
+                                .then(() => selectChannel(roomId))
+                                .catch((joinError) => pushToast({ type: "error", message: describeJoinError(joinError, roomId) }));
+                        }}
+                        onDeclineInvite={(roomId) => {
+                            void client.leave(roomId).catch((leaveError) => pushToast({ type: "error", message: `Couldn't decline: ${leaveError instanceof Error ? leaveError.message : String(leaveError)}` }));
+                        }}
                         activeRoomId={activeRoomId}
                         roomCalls={roomCalls}
                         currentCallRoomId={hasActiveVoiceSession ? voiceSessionRoomId : null}

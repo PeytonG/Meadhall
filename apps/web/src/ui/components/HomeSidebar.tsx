@@ -24,6 +24,16 @@ interface HomeSidebarProps {
     currentCallRoomId: string | null;
     onSelectRoom: (roomId: string) => void;
     onNewConversation: () => void;
+    // Invites to group chats and rooms outside any server (server notices among them).
+    invites?: Room[];
+    onAcceptInvite?: (roomId: string) => void;
+    onDeclineInvite?: (roomId: string) => void;
+}
+
+function inviterName(room: Room, ownUserId: string): string {
+    const sender = room.getMember(ownUserId)?.events.member?.getSender();
+    if (!sender) return "Invitation";
+    return `Invited by ${room.getMember(sender)?.name ?? sender}`;
 }
 
 function getRoomName(room: Room): string {
@@ -96,6 +106,9 @@ export function HomeSidebar({
     currentCallRoomId,
     onSelectRoom,
     onNewConversation,
+    invites = [],
+    onAcceptInvite,
+    onDeclineInvite,
 }: HomeSidebarProps): React.ReactElement {
     const { config } = useMatrix();
     const ownUserId = client.getUserId() ?? "";
@@ -194,9 +207,26 @@ export function HomeSidebar({
                             <PixelIcon name="plus" size={12} />
                         </button>
                     </header>
+                    {invites.map((room) => (
+                        <div key={room.roomId} className="home-row home-invite-row" data-testid="home-invite">
+                            <Avatar className="home-row-avatar" name={getRoomName(room)} src={null} seed={room.roomId} />
+                            <span className="home-row-text">
+                                <span className="home-row-name">{getRoomName(room)}</span>
+                                <span className="home-row-subtitle">{inviterName(room, client.getUserId() ?? "")}</span>
+                            </span>
+                            <span className="home-invite-actions">
+                                <button type="button" className="home-invite-accept" onClick={() => onAcceptInvite?.(room.roomId)}>
+                                    Accept
+                                </button>
+                                <button type="button" className="home-invite-decline" onClick={() => onDeclineInvite?.(room.roomId)}>
+                                    Decline
+                                </button>
+                            </span>
+                        </div>
+                    ))}
                     {groups.length > 0 ? (
                         renderRows(groups, "group")
-                    ) : (
+                    ) : invites.length > 0 ? null : (
                         <p className="home-empty">{filter ? "No matches." : "No group chats yet. Add two or more people to start one."}</p>
                     )}
                 </section>

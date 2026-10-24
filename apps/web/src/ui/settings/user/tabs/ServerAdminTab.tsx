@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Settings -> Server admin (server admins only): what the Synapse admin page is used for, inside Meadhall.
 // Registration tokens (invite codes for sign-up) and user management: create accounts, reset passwords,
-// make admins, deactivate. Every action goes through the Synapse Admin API, which rejects non-admins.
+// make admins, deactivate. Server notices to everyone or chosen users. Every action goes through the Synapse Admin API, which rejects non-admins.
 import React, { useCallback, useEffect, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
@@ -12,9 +12,13 @@ import {
     deleteRegistrationToken,
     generatePassword,
     isServerAdmin,
+    isServerNoticesDisabled,
+    listActiveUserIds,
     listRegistrationTokens,
     listUsers,
+    parseNoticeRecipients,
     resetUserPassword,
+    sendServerNotice,
     setUserAdmin,
     type AdminUser,
     type RegistrationToken,
@@ -326,6 +330,117 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
     );
 }
 
+// Server notices, as in the Synapse admin page: a message from the server to everyone or to chosen users. They read
+// it in a "Server notices" room they can't reply in.
+function NoticesSection({ client, onToast }: ServerAdminTabProps): React.ReactElement {
+    const [message, setMessage] = useState("");
+    const [audience, setAudience] = useState<"everyone" | "users">("everyone");
+    const [recipients, setRecipients] = useState("");
+    const [progress, setProgress] = useState<string | null>(null);
+    const [result, setResult] = useState<{ sent: number; failed: string[] } | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const send = async (): Promise<void> => {
+        setError(null);
+        setResult(null);
+        const body = message.trim();
+        if (!body) return;
+        try {
+            setProgress("Finding users...");
+            const userIds = audience === "everyone" ? await listActiveUserIds(client) : parseNoticeRecipients(recipients, client.getDomain() ?? "");
+            if (userIds.length === 0) {
+                setError(audience === "everyone" ? "There are no active users." : "Enter at least one user.");
+                return;
+            }
+            const who = audience === "everyone" ? `everyone on ${client.getDomain()} (${userIds.length} users)` : `${userIds.length} user${userIds.length === 1 ? "" : "s"}`;
+            if (!window.confirm(`Send this server notice to ${who}?`)) return;
+            let sent = 0;
+            const failed: string[] = [];
+            for (const [index, userId] of userIds.entries()) {
+                setProgress(`Sending ${index + 1} of ${userIds.length}...`);
+                try {
+                    await sendServerNotice(client, userId, body);
+                    sent += 1;
+                } catch (sendError) {
+                    if (isServerNoticesDisabled(sendError)) {
+                        setError("Server notices aren't turned on for this server. Add a server_notices section to homeserver.yaml and restart Synapse.");
+                        return;
+                    }
+                    failed.push(`${userId}: ${errorText(sendError)}`);
+                }
+            }
+            setResult({ sent, failed });
+            if (sent > 0) {
+                setMessage("");
+                onToast({ type: "success", message: `Server notice sent to ${sent} user${sent === 1 ? "" : "s"}.` });
+            }
+        } catch (loadError) {
+            setError(errorText(loadError));
+        } finally {
+            setProgress(null);
+        }
+    };
+
+    return (
+        <div className="settings-section-card" data-testid="admin-notices">
+            <h3>Server notices</h3>
+            <p className="settings-tab-description">
+                Send a message from the server, for maintenance or announcements. It arrives in a Server notices room people
+                can't reply in.
+            </p>
+            <label className="settings-field">
+                Message
+                <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={4} disabled={progress !== null} />
+            </label>
+            <div className="settings-theme-row" role="radiogroup" aria-label="Send to">
+                {(["everyone", "users"] as const).map((option) => (
+                    <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={audience === option}
+                        className={`settings-theme-button${audience === option ? " is-active" : ""}`}
+                        onClick={() => setAudience(option)}
+                        disabled={progress !== null}
+                    >
+                        {option === "everyone" ? "Everyone" : "Specific users"}
+                    </button>
+                ))}
+            </div>
+            {audience === "users" ? (
+                <label className="settings-field">
+                    Users (names or Matrix IDs, separated by commas)
+                    <input type="text" value={recipients} onChange={(event) => setRecipients(event.target.value)} placeholder="alice, @bob:example.org" disabled={progress !== null} />
+                </label>
+            ) : null}
+            <div className="settings-actions-row">
+                <button type="button" className="settings-button" disabled={progress !== null || !message.trim()} onClick={() => void send()}>
+                    {progress ?? "Send notice"}
+                </button>
+            </div>
+            {error ? (
+                <p className="settings-inline-error" role="alert">
+                    {error}
+                </p>
+            ) : null}
+            {result ? (
+                <div role="status" data-testid="admin-notice-result">
+                    <p className="settings-inline-note">
+                        Sent to {result.sent} user{result.sent === 1 ? "" : "s"}.{result.failed.length > 0 ? ` ${result.failed.length} failed:` : ""}
+                    </p>
+                    {result.failed.length > 0 ? (
+                        <ul className="logs-list">
+                            {result.failed.map((line) => (
+                                <li key={line}>{line}</li>
+                            ))}
+                        </ul>
+                    ) : null}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 export function ServerAdminTab({ client, onToast }: ServerAdminTabProps): React.ReactElement {
     // Checked again here, so even a hand-crafted way into this tab shows nothing to non-admins.
     const [allowed, setAllowed] = useState<boolean | null>(null);
@@ -348,9 +463,10 @@ export function ServerAdminTab({ client, onToast }: ServerAdminTabProps): React.
                 <p className="settings-tab-description">Only server admins can use this page.</p>
             ) : (
                 <>
-                    <p className="settings-tab-description">Manage {client.getDomain()}: invite codes and accounts.</p>
+                    <p className="settings-tab-description">Manage {client.getDomain()}: invite codes, accounts and server notices.</p>
                     <TokensSection client={client} onToast={onToast} />
                     <UsersSection client={client} onToast={onToast} />
+                    <NoticesSection client={client} onToast={onToast} />
                 </>
             )}
         </div>
