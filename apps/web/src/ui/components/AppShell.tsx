@@ -62,6 +62,7 @@ import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotific
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { captureGlobalErrors, logAppError } from "../logs/appLog";
 import { CallEndedNotice } from "./voice/CallEndedNotice";
+import { RailSpaceIcon } from "./RailSpaceIcon";
 import { cleanUpBugReportRooms, isBugReportRoom, isReceivedBugReport, isSentBugReport } from "../../core/bugReport/bugReport";
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
@@ -2377,7 +2378,6 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </button>
                 <div className="rail-divider" aria-hidden="true" />
                 {spaces.map((space) => {
-                    const avatarUrl = thumbnailFromMxc(client, space.getMxcAvatarUrl(), 48, 48);
                     return (
                         <button
                             type="button"
@@ -2386,11 +2386,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             onClick={() => selectServer(space.roomId)}
                             title={getRoomName(space)}
                         >
-                            {avatarUrl ? (
-                                <img src={avatarUrl} alt="" className="rail-icon-avatar" />
-                            ) : (
-                                getSpaceGlyph(getRoomName(space))
-                            )}
+                            <RailSpaceIcon client={client} space={space} glyph={getSpaceGlyph(getRoomName(space))} />
                         </button>
                     );
                 })}
