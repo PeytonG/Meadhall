@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { SpaceBannerSection } from "./SpaceBannerSection";
 import { EventType, RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 
 import { mediaFromMxc, thumbnailFromMxc } from "../../../adapters/media";
@@ -247,6 +248,8 @@ export function OverviewTab({ client, spaceRoom, onToast }: OverviewTabProps): R
                     {saving ? "Saving..." : "Save changes"}
                 </button>
             </div>
+
+            <SpaceBannerSection client={client} spaceRoom={spaceRoom} onToast={onToast} />
         </div>
     );
 }

@@ -24,6 +24,7 @@ import { RightPanel } from "./rightPanel/RightPanel";
 import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpaceChannel } from "./RoomList";
 import { ContextMenu } from "./menus/ContextMenu";
 import { InboxPanel } from "./inbox/InboxPanel";
+import { getSpaceBanner } from "../../core/rooms/spaceBanner";
 import { useDesktopUpdates } from "../hooks/useDesktopUpdates";
 import { useMobileUpdates } from "../hooks/useMobileUpdates";
 import { channelMenuItems, spaceMenuItems } from "./menus/roomMenus";
@@ -1251,6 +1252,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         return getSpaceChannels(selectedSpaceRoom, roomById);
     }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
     const selectedSpaceView = useSpaceView(selectedSpaceId);
+    const selectedSpaceBannerMxc = getSpaceBanner(selectedSpaceRoom);
+    const selectedSpaceBannerUrl = selectedSpaceBannerMxc ? mediaFromMxc(client, selectedSpaceBannerMxc) : null;
     const listedChannels = useMemo(
         () =>
             selectedSpaceId !== PEOPLE_SPACE_ID && selectedSpaceView.hideMutedChannels
@@ -2610,6 +2613,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         ) : null}
                     </div>
                 </div>
+                {selectedSpaceBannerUrl ? (
+                    <div className="space-banner" data-testid="space-banner">
+                        <img src={selectedSpaceBannerUrl} alt="" />
+                    </div>
+                ) : null}
                 {showSpaceOnboarding ? (
                     <div className="space-onboarding-card">
                         <div className="space-onboarding-header">
