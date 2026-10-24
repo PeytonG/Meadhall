@@ -135,3 +135,35 @@ test("a channel's menu mutes it and marks it as read", async ({ page }) => {
     await expect(channelRow(page, "spam").locator(".room-item-unread")).toHaveCount(0);
     await expect(rail(page, "Quiet Hall").getByTestId("rail-badge")).toHaveCount(0);
 });
+
+test("channel settings turn on text chat in a voice channel and change a channel's type", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    // Alice owns the server, so she may edit its channels.
+    const hall = await space(alice, bob, "Settings Hall", [{ name: "general" }]);
+    const voiceId = await createRoom(alice, {
+        name: "Hangout",
+        preset: "private_chat",
+        initial_state: [
+            { type: "m.space.parent", state_key: hall.spaceId, content: { canonical: true, via: ["localhost"] } },
+            { type: "org.heorot.voice_channel", state_key: "", content: { enabled: true } },
+        ],
+    });
+    await sendState(alice, hall.spaceId, "m.space.child", voiceId, { via: ["localhost"], "org.heorot.channel_type": "voice", "org.heorot.voice_channel": true });
+    await signIn(page, alice);
+    await rail(page, "Settings Hall").click();
+
+    await channelRow(page, "Hangout").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Edit channel" }).click();
+    await page.getByTestId("voice-chat-toggle").check();
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect.poll(async () => (await readState(alice, voiceId, "io.github.peytong.meadhall.voice_chat").catch(() => ({}))).enabled).toBe(true);
+
+    await channelRow(page, "general").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Edit channel" }).click();
+    await page.getByLabel("Channel type").selectOption("news");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect.poll(async () => (await readState(alice, hall.channelIds[0]!, "io.github.peytong.meadhall.channel_type").catch(() => ({}))).type).toBe("news");
+    await expect.poll(async () => (await readState(alice, hall.spaceId, "m.space.child", hall.channelIds[0]!))["org.heorot.channel_type"]).toBe("news");
+    await expect(channelRow(page, "general").locator(".room-item-type-icon svg")).toBeVisible();
+});

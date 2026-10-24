@@ -25,6 +25,7 @@ import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpa
 import { ContextMenu } from "./menus/ContextMenu";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
+import { isVoiceChatEnabled } from "../../core/voice/voiceChat";
 import { useDesktopUpdates } from "../hooks/useDesktopUpdates";
 import { useMobileUpdates } from "../hooks/useMobileUpdates";
 import { channelMenuItems, spaceMenuItems } from "./menus/roomMenus";
@@ -1542,6 +1543,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         userSettings.privacy.showReadReceipts && selectedSpaceId === PEOPLE_SPACE_ID && isActiveRoomDirect;
     const isActiveRoomVoiceChannel = isRoomVoiceChannel(activeRoom);
     const shouldShowVoicePanel = Boolean(activeRoom && isActiveRoomVoiceChannel && voiceSessionRoomId === activeRoom.roomId);
+    // Voice channels with text chat turned on (channel settings) show it beside the call.
+    const voiceChatBeside = shouldShowVoicePanel && isVoiceChatEnabled(activeRoom);
     const shouldPrefixRoomWithHash = selectedSpaceId !== PEOPLE_SPACE_ID;
     const activeVoiceSessionRoom = useMemo(
         () => (voiceSessionRoomId ? roomById.get(voiceSessionRoomId) ?? client.getRoom(voiceSessionRoomId) ?? null : null),
@@ -2870,6 +2873,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             : undefined
                     }
                 />
+                <div className={`main-body${voiceChatBeside ? " has-voice-chat" : ""}`}>
                 {hasActiveVoiceSession && voiceSessionRoomId ? (
                     <div
                         className={`main-voice-slot${
@@ -2919,8 +2923,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         />
                     </div>
                 ) : null}
-                {!shouldShowVoicePanel ? (
-                    <div className="main-chat-stack">
+                {!shouldShowVoicePanel || voiceChatBeside ? (
+                    <div className="main-chat-stack" data-testid={voiceChatBeside ? "voice-channel-chat" : undefined}>
                         {isActiveRoomCallable && activeRoom && !isInActiveRoomCall && activeRoomCallOthers.length > 0 ? (
                             <div className="room-call-banner" role="status" data-testid="room-call-banner">
                                 <PixelIcon name="phone" size={18} />
@@ -2972,6 +2976,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         </div>
                     </div>
                 ) : null}
+                </div>
             </section>
 
             {shouldRenderRightPanel ? (

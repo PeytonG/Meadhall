@@ -6268,3 +6268,36 @@ img.voice-ctrl-icon {
     white-space: nowrap;
     border: 0;
 }
+
+/* The call and the chat (main-pane body). A voice channel with text chat on shows the chat beside the call. */
+.main-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-body.has-voice-chat {
+    flex-direction: row;
+}
+
+.main-body.has-voice-chat .main-voice-slot {
+    min-width: 0;
+}
+
+.main-body.has-voice-chat .main-chat-stack {
+    flex: 0 0 min(380px, 40%);
+    border-left: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+    .main-body.has-voice-chat {
+        flex-direction: column;
+    }
+
+    .main-body.has-voice-chat .main-chat-stack {
+        flex: 1 1 45%;
+        border-left: 0;
+        border-top: 1px solid var(--border);
+    }
+}
