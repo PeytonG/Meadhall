@@ -124,6 +124,7 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
   and above **can talk** in. They're Matrix power levels, so the server enforces them, in Element too.
 - 🟢 **Status**: Online, Away, Do Not Disturb, Invisible and a custom status. You go Away after 10 minutes without
   input, people on the phone app show a 📱, and the desktop app shows **"Playing ..."** for games running in Steam.
+  People whose server doesn't share status show a **?**, and you can stop sharing yours in Settings → Privacy.
 - 🪪 **Profiles** with a banner (image or GIF, cropped to fit), About me, links, and the person's roles in every server
   you share. **Block** anyone from their profile.
 - 👥 **Multiple accounts**: sign in to accounts on different servers, switch from the user panel, and get
@@ -139,16 +140,21 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 - 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own (trim them to fit), played over your mic.
 - 🖥️ Screen sharing with **previews** of what you can share, several streams side by side, per-person volume up to 120%,
   mute and deafen any time.
-- 🔁 Dropped calls **rejoin by themselves**, and a call history says why a call ended.
+- 🔁 Dropped calls **rejoin by themselves**. If a call ends without you choosing to, Meadhall tells you why, and
+  Settings → Logs keeps the history.
 
 **Pixel art**
 - 🎨 A hand-made pixel theme. The **pixel color wheel** recolors the whole app; dark, light and **high contrast** themes.
 - 😀 Pixel emoji, pixel stickers, custom emoji packs per server and per person, and pixel fonts (or any font you have).
+- 🧱 Pixel-art icons, or smooth ones if you prefer (Settings → Appearance).
 
 **Yours**
-- 🔒 End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery.
+- 🔒 End-to-end encryption by default (Matrix Rust crypto), device verification, key backup and recovery. Rooms
+  without it are marked **Unencrypted** in red.
 - 🙈 No analytics, no telemetry. Run your own server or use any Matrix homeserver.
-- 🛡️ Server admins get an **admin panel**: invite tokens, new accounts, password resets.
+- 🛡️ Server admins get an **admin panel**: invite tokens, new accounts, password resets and **server notices**.
+- 🐞 **Report a bug** from Settings: it goes to the developer as a message from your account, with a screenshot and
+  your logs if you want, and stays out of your chats.
 - 🔔 Notifications on desktop (from the tray too: Mute, Deafen and Status are in the tray menu, and the taskbar icon
   shows an unread bubble) and on Android in the background, with no Google account needed.
 - ⏪ Desktop apps can **go back to an earlier version** from Settings → Updates if an update causes trouble.

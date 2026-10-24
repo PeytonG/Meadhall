@@ -1184,6 +1184,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     !room.isSpaceRoom() &&
                     !directRoomIds.has(room.roomId) &&
                     room.getMyMembership() === "invite" &&
+                    // DM invites (is_direct) belong under Direct Messages, even before m.direct maps them.
+                    !(room as Room & { getDMInviter?: () => string | undefined }).getDMInviter?.() &&
                     room.currentState.getStateEvents(EventType.SpaceParent).length === 0 &&
                     !findParentSpaceIdForRoom(room.roomId, spaces),
             ),
