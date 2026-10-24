@@ -4,6 +4,20 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.3.5 (2026-10-24)
+
+### New
+- **Ringtone settings:** Settings → Notifications → Ringtone turns ringing off (the call card still shows) or rings with
+  your own sound instead of Meadhall's jingle, with a test button, like the message sound.
+
+### Fixed
+- **Sending GIFs, pictures and files failed with "Access token has expired"** after a few quiet minutes. Uploads now
+  renew the sign-in and try again.
+- **"Open in the background when you sign in to your computer"** unticked itself on Windows right after being turned
+  on. It stays on now.
+- The desktop app identified itself as "@heorot/desktop" (seen in bug reports); it says Meadhall now, and bug reports
+  get a readable version line.
+
 ## v0.3.4 (2026-10-24)
 
 ### New

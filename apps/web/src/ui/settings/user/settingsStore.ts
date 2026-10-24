@@ -32,6 +32,10 @@ export interface NotificationsSettings {
     audioNotificationsEnabled: boolean;
     customMessageSoundDataUrl: string | null;
     customMessageSoundName: string | null;
+    // Incoming calls: ring at all, and with your own sound instead of the built-in jingle.
+    ringtoneEnabled: boolean;
+    customRingtoneDataUrl: string | null;
+    customRingtoneName: string | null;
 }
 
 export interface PrivacySettings {
@@ -88,6 +92,9 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         audioNotificationsEnabled: true,
         customMessageSoundDataUrl: null,
         customMessageSoundName: null,
+        ringtoneEnabled: true,
+        customRingtoneDataUrl: null,
+        customRingtoneName: null,
     },
     privacy: {
         showReadReceipts: true,
@@ -170,6 +177,13 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             audioNotificationsEnabled: notifications.audioNotificationsEnabled !== false,
             customMessageSoundDataUrl,
             customMessageSoundName,
+            ringtoneEnabled: notifications.ringtoneEnabled !== false,
+            customRingtoneDataUrl:
+                typeof notifications.customRingtoneDataUrl === "string" && notifications.customRingtoneDataUrl.startsWith("data:audio/")
+                    ? notifications.customRingtoneDataUrl
+                    : null,
+            customRingtoneName:
+                typeof notifications.customRingtoneName === "string" && notifications.customRingtoneName.trim() ? notifications.customRingtoneName.slice(0, 80) : null,
         },
         privacy: {
             showReadReceipts: privacy.showReadReceipts !== false,

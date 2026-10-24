@@ -2,13 +2,16 @@ import React, { useRef, useState } from "react";
 
 import type { NotificationsSettings } from "../settingsStore";
 import { playNotificationSound } from "../../../notifications/sound";
+import { RingtoneSettings } from "./RingtoneSettings";
 
 interface NotificationsTabProps {
     settings: NotificationsSettings;
     onChange: (settings: NotificationsSettings) => void;
+    // The speaker ringtone tests play on (Settings → Audio).
+    speakerId?: string;
 }
 
-export function NotificationsTab({ settings, onChange }: NotificationsTabProps): React.ReactElement {
+export function NotificationsTab({ settings, onChange, speakerId }: NotificationsTabProps): React.ReactElement {
     const [error, setError] = useState<string | null>(null);
     const [testPending, setTestPending] = useState(false);
     const soundUploadRef = useRef<HTMLInputElement | null>(null);
@@ -185,6 +188,8 @@ export function NotificationsTab({ settings, onChange }: NotificationsTabProps):
                     </button>
                 </div>
             </div>
+
+            <RingtoneSettings settings={settings} speakerId={speakerId} onChange={onChange} />
 
             {error ? <p className="settings-inline-error">{error}</p> : null}
         </div>

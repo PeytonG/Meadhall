@@ -85,3 +85,30 @@ test("a GIF copied from a web page and pasted still loops (not the still frame t
     await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth), { timeout: 30_000 }).toBeGreaterThan(0);
     expect(await distinctFrames(image)).toBeGreaterThan(1);
 });
+
+test("a GIF still sends when the access token has expired (uploads refresh it and retry)", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await createSpaceWithChannel(bob, alice, { space: "Expiry Hall", channel: "gifs" });
+    await signIn(page, alice);
+    await page.getByTitle("Expiry Hall").click();
+    await page.getByText("#gifs", { exact: true }).first().click();
+    // The first upload gets exactly what the owner saw; later ones go through.
+    let rejected = 0;
+    await page.route("**/_matrix/media/*/upload**", (route) => {
+        if (rejected > 0) return route.continue();
+        rejected += 1;
+        return route.fulfill({
+            status: 401,
+            contentType: "application/json",
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: JSON.stringify({ errcode: "M_UNKNOWN_TOKEN", error: "Access token has expired", soft_logout: true }),
+        });
+    });
+    await page.locator(".composer-file-input").setInputFiles({ name: "cat-dance.gif", mimeType: "image/gif", buffer: GIF });
+    await page.getByPlaceholder(/^Message #gifs/).press("Enter");
+    const image = page.locator(".timeline-image").last();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth), { timeout: 30_000 }).toBeGreaterThan(0);
+    expect(rejected).toBe(1);
+    await expect(page.getByText("Upload failed")).toHaveCount(0);
+});

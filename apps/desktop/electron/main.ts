@@ -31,6 +31,10 @@ let closeOnWindowCloseMinimize = true;
 let isAppQuitting = false;
 let preferredDisplayMediaSourceId: string | null = null;
 
+// The browser identity (user agent) names the app after the package ("@heorot/desktop"); say Meadhall instead.
+// (The package name itself stays: the data folder is named after the product, but renaming risks moving it.)
+app.userAgentFallback = app.userAgentFallback.replace(/@heorot\/desktop\/\S+/, `Meadhall/${app.getVersion()}`);
+
 // Automated UI tests run the app with a throwaway profile so they never touch a real sign-in.
 if (process.env.MEADHALL_USER_DATA_DIR) {
     app.setPath("userData", process.env.MEADHALL_USER_DATA_DIR);

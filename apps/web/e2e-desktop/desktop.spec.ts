@@ -349,3 +349,25 @@ test("the screen share picker gets its list at once and real previews right afte
     // The desktop isn't black: at least one screen's preview shows something.
     expect(Math.min(...result.screenDark)).toBeLessThan(0.9);
 });
+
+test("Open in the background at sign-in stays on when turned on (and off when turned off)", async () => {
+    const read = (): Promise<boolean> => window.evaluate(() => (globalThis as unknown as { heorotDesktop: { getStartAtLogin: () => Promise<boolean> } }).heorotDesktop.getStartAtLogin());
+    const set = (enabled: boolean): Promise<boolean> =>
+        window.evaluate((value) => (globalThis as unknown as { heorotDesktop: { setStartAtLogin: (on: boolean) => Promise<boolean> } }).heorotDesktop.setStartAtLogin(value), enabled);
+    const before = await read();
+    try {
+        expect(await set(true)).toBe(true);
+        expect(await read()).toBe(true);
+        expect(await set(false)).toBe(false);
+        expect(await read()).toBe(false);
+    } finally {
+        // Leave this computer's login items as they were.
+        await set(before);
+    }
+});
+
+test("the app identifies itself as Meadhall (not the package name)", async () => {
+    const userAgent = await window.evaluate(() => navigator.userAgent);
+    expect(userAgent).toMatch(/ Meadhall\/\d+\.\d+\.\d+/);
+    expect(userAgent).not.toContain("heorot");
+});
