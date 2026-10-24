@@ -16,6 +16,7 @@ import { useIgnoredUsers } from "../../hooks/useIgnoredUsers";
 import { LinksCard } from "./cards/LinksCard";
 import { parseRichProfile } from "../../../core/profile/richProfile";
 import { isSentBugReport } from "../../../core/bugReport/bugReport";
+import { UserBadges } from "../badges/UserBadges";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -184,6 +185,7 @@ export function UserProfilePanel({
         <div className="right-panel-body right-panel-body-user">
             <ProfileHeader
                 displayName={displayName}
+                badges={<UserBadges client={client} userId={userId} size={18} />}
                 userId={userId}
                 avatarSources={avatarSources}
                 bannerUrl={rich.bannerMxc ? mediaFromMxc(client, rich.bannerMxc) : null}

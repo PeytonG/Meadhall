@@ -9,6 +9,8 @@ import { DEFAULT_BANNER_CROP, type BannerCrop } from "../../../core/profile/rich
 
 interface ProfileHeaderProps {
     displayName: string;
+    // Badges after the name (UserBadges).
+    badges?: React.ReactNode;
     userId: string;
     avatarSources: string[];
     // Their uploaded banner (image or GIF); otherwise a gradient from their user ID.
@@ -32,6 +34,7 @@ function hashToHue(value: string): number {
 
 export function ProfileHeader({
     displayName,
+    badges,
     userId,
     avatarSources,
     bannerUrl,
@@ -98,7 +101,10 @@ export function ProfileHeader({
                 presenceState={toAvatarPresenceState(presence)}
             />
             <div className="rp-profile-main">
-                <h2 className="rp-profile-name">{displayName}</h2>
+                <h2 className="rp-profile-name">
+                    {displayName}
+                    {badges}
+                </h2>
                 <div className="rp-profile-mxid">{userId}</div>
                 {presence ? <PresenceText presence={presence} className="rp-profile-presence" /> : null}
             </div>

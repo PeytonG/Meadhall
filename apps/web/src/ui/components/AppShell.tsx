@@ -108,6 +108,7 @@ import {
     type SelfVoiceState,
 } from "../voice/selfVoiceState";
 import { CHANNEL_ORDER_STATE_EVENT, readChannelOrder, writeChannelOrder } from "../stores/CategoryStore";
+import { loadBadgeList } from "../../core/badges/badges";
 
 interface AppShellProps {
     client: MatrixClient;
@@ -2395,6 +2396,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     // Uncaught errors go to Settings → Logs too.
     useEffect(() => captureGlobalErrors(), []);
+    // Official badges (the owner's signed list), refreshed every few hours.
+    useEffect(() => {
+        void loadBadgeList();
+        const timer = window.setInterval(() => void loadBadgeList(), 60 * 60 * 1000);
+        return () => window.clearInterval(timer);
+    }, []);
 
     // Bug reports (Settings → Report a bug): the sender leaves each report once the developer has joined it, and the
     // developer's account joins reports sent to it.

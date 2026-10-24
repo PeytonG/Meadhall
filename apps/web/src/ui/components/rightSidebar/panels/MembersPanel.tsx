@@ -11,6 +11,7 @@ import { usePresenceMap } from "../../../presence/usePresence";
 import { Avatar } from "../../Avatar";
 import { useRoomStateVersion } from "../../../hooks/useRoomStateVersion";
 import { ContextMenu, type ContextMenuItem } from "../../menus/ContextMenu";
+import { UserBadges } from "../../badges/UserBadges";
 
 interface MembersPanelProps {
     client: MatrixClient;
@@ -214,8 +215,11 @@ export function MembersPanel({ client, room, activeSpaceRoom, onSelectUser, onTo
                                             presenceState={presenceEnabled ? toAvatarPresenceState(presence) : null}
                                         />
                                         <span className="rs-member-meta">
-                                            <span className="rs-member-name" style={role ? { color: role.color } : undefined}>
-                                                {displayName}
+                                            <span className="rs-member-name-line">
+                                                <span className="rs-member-name" style={role ? { color: role.color } : undefined}>
+                                                    {displayName}
+                                                </span>
+                                                <UserBadges client={client} userId={member.userId} />
                                             </span>
                                             {/* Like Discord: their status (or what they're playing) under the name, else the user ID. */}
                                             <span className={`rs-member-id${presence?.statusText ? " is-status" : ""}`} title={member.userId}>

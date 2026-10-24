@@ -1,0 +1,4 @@
+{
+  "payload": "{\"version\":1,\"issued\":\"2026-10-24T11:07:08.180Z\",\"salt\":\"11hbU6YZAXZ4IgmIjNwzeA==\",\"iterations\":50000,\"entries\":{\"ZLCdMobNCYkZWASdYwuUH2E17uttz2w88czSoVd37S8\":[\"founder\"],\"I3NdbyBkVtcqh111LTtZPsSsBs5UP8w8sL-xHH2wNkA\":[\"founder\"],\"Qf3WxC_fQIpdMJb7PPhA26qkXT8yDShmDnso_EyAiPI\":[\"founder\"]}}",
+  "signature": "q082BeoONKBTTmrhLRkUuPP/OjTAJyTR9LTQTBrdcPiDQx2ouykn51V9ZjWResqcZqv56oHtCR6BP0dgn7G3KA=="
+}

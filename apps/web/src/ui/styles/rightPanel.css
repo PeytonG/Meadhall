@@ -968,3 +968,13 @@
         opacity: 1;
     }
 }
+
+.rs-member-name-line {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.rs-member-name-line .rs-member-name {
+    min-width: 0;
+}

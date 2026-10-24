@@ -6301,3 +6301,28 @@ img.voice-ctrl-icon {
         border-top: 1px solid var(--border);
     }
 }
+
+/* Badges after names (components/badges/UserBadges.tsx). */
+.user-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 5px;
+    vertical-align: -2px;
+    flex-shrink: 0;
+}
+
+.user-badge {
+    display: inline-flex;
+    line-height: 0;
+}
+
+.user-badge-unofficial {
+    line-height: 1;
+    padding: 0 4px;
+    border: 1px dashed var(--text-muted);
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: help;
+}

@@ -25,6 +25,7 @@ import { renderTextWithEmoji } from "../emoji/unicodeEmoji";
 import { MessageActionsBar } from "./messages/MessageActionsBar";
 import { Toast, type ToastState } from "./Toast";
 import { ReactionsRow } from "./reactions/ReactionsRow";
+import { UserBadges } from "./badges/UserBadges";
 
 interface TimelineProps {
     client: MatrixClient;
@@ -2176,6 +2177,7 @@ export function Timeline({
                                             userId={senderId || undefined}
                                         />
                                         <span className="timeline-sender">{senderName}</span>
+                                        {senderId ? <UserBadges client={client} userId={senderId} /> : null}
                                     </button>
                                     <span className="timeline-time">{timeLabel}</span>
                                     {edited ? <span className="timeline-edited">(edited)</span> : null}
