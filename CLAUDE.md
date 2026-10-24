@@ -406,11 +406,50 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   `CallEndedNotice` (rendered by AppShell) shows why until dismissed.
 - **Report a bug** (`core/bugReport/bugReport.ts`): sent from the reporter's account to
   `@peytongna:elementprojectzkypg.duckdns.org` (forks: `bug_report_recipient` in config.json), whose ID is never
-  shown. Each report is a fresh unencrypted room with creation type `io.github.peytong.meadhall.bug_report`, hidden
-  from the room list, DM suggestions, mutual rooms and the taskbar badge (`isBugReportRoom`). The reporter can't
-  leave straight away: once every local user has left, the owner's server can't join through ours. So AppShell
-  leaves and forgets it once anyone else has joined (`cleanUpBugReportRooms`, run on member timeline events) or
-  after 30 days. 3 reports an hour; images up to 8 MB.
+  shown. Each report is a fresh unencrypted room with creation type `io.github.peytong.meadhall.bug_report`. Only the
+  sender's copy is hidden (room list, DM suggestions, mutual rooms, taskbar badge: `isSentBugReport`, i.e. the type
+  and the create event's sender is us). The recipient's Meadhall auto-joins report invites and lists them under
+  Home → Bug reports (v0.3.4; before that they were hidden from the owner too). The reporter can't leave straight
+  away: once every local user has left, the owner's server can't join through ours. So AppShell leaves and forgets
+  the sender's copy once anyone else has joined (`cleanUpBugReportRooms`, run on member timeline events, new rooms
+  and membership changes) or after 30 days. 3 reports an hour; images up to 8 MB.
+
+### 7.19 Servers: menus, muting, channel types, inbox (v0.3.4)
+- **Right-click menus** (`components/menus/ContextMenu.tsx` + `roomMenus.ts`): server (rail) and channel menus,
+  and the member menu (`MembersPanel`). Submenus flip left near the window's right edge.
+- **Muting** (`notifications/roomActions.ts`) is push rules via `roomNotificationAdapter` (Matrix-standard, so
+  every device and Element). A server's level is account data `io.github.peytong.meadhall.space_notifications` and
+  applied to channels joined later. Muted rooms are dimmed and excluded from unread counts, rail badges and the inbox.
+- **View options** per server (hide muted channels, show all channels) are local (`stores/spaceView.ts`); the rail
+  order is account data `io.github.peytong.meadhall.space_order`.
+- **Channel types** (`core/rooms/channelType.ts`): state `io.github.peytong.meadhall.channel_type` in the channel,
+  copied into the space child's `org.heorot.channel_type` (voice keeps its own event). Rules/news set
+  `events_default: 50` with `m.reaction: 0`. Channel rows keep a visually hidden "#" so names still read "#general".
+- **Server banner**: state `io.github.peytong.meadhall.space_banner` `{url}` in the space, shown under the name.
+- **Voice channel chat**: state `io.github.peytong.meadhall.voice_chat` `{enabled}`; the chat renders beside the
+  call (`main-body.has-voice-chat`).
+- **Inbox** (`components/inbox/InboxPanel.tsx`, `notifications/unreadMessages.ts`): unread events after the read
+  receipt; rooms whose receipt isn't in the loaded history count only if the server's count says so.
+- **Calls** announce (ring/notify) only from Home rooms (`voice/callAnnouncement.ts`); server channels never do.
+
+### 7.20 Badges (v0.3.4)
+- Official list: `badges/badges.json` = `{payload, signature}`; payload has a fresh random salt per publish,
+  PBKDF2-SHA256 (50k) fingerprints of user IDs, ECDSA P-256 signature checked against `core/badges/badgeKey.ts`.
+  The app fetches it from raw.githubusercontent (main), caches it, never replaces a valid list with an invalid one.
+- The owner runs `node scripts/badges.mjs grant|revoke|list|publish`; the private key and the plain holder list live
+  in `~/Documents/Meadhall-badge-signing` (never in the repo). **Never write badge holders' IDs into the repo**
+  (tests read the private holder file when present). Claims from the profile field
+  `io.github.peytong.meadhall.badges` show only as "unofficial" behind "...".
+
+### 7.21 Profile style, style profiles and sharing (v0.3.4)
+- **Profile style** (`core/profile/profileStyle.ts`): profile field `io.github.peytong.meadhall.profile_style`
+  `{card, nameplate}`, each a preset name or two `#rrggbb` colors (nothing else reaches CSS). Pixel icon style
+  draws hard bands.
+- **Style profiles** (`ui/sharing/styleProfiles.ts`): account data `io.github.peytong.meadhall.style_profiles`.
+- **Sharing** (off by default, `ui/sharing/sharingSetting.ts`): `.meadhall` = JSON `{format:"meadhall",version:1,
+  kind:"sound"|"style",...}` (`core/sharing/meadhallFile.ts` validates strictly: audio types only, 1 MB; style
+  settings whitelisted). Shares are `m.file` messages with `io.github.peytong.meadhall.share` `{kind,name,emoji}`;
+  Adopt re-uploads sounds to the adopter's server via `addCustomSound`.
 
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
@@ -461,6 +500,12 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | `RoomStateEvent.Events` never fires for a member joining | Listen to `RoomEvent.Timeline` and check `m.room.member` instead |
 | `\b` in a regex became a backspace character | A `node` script with `"\\b"` in a template string; write regexes with Write/Edit and scan for control characters |
 | Smoke tests can't import `@testing-library/react` | Not installed: render with `createRoot` + `act` like the existing smoke tests |
+| Pixel icon is a solid blob in the channel header | The header's line-icon CSS (`stroke`, `fill: none`) applied to pixel rects; pixel icons are exempted |
+| Screen share previews always "No preview" | The picker was given only id and name. Pass the whole source; previews arrive in a second call |
+| Element hidden until hover can't be clicked by tests (or reached by keyboard) | `display: none` removes it from the accessibility tree; use `opacity: 0` |
+| A test toggling the Members panel closes it | The button toggles; check `is-active` before clicking |
+| Heredoc/`node -e` script fails on an apostrophe | The Bash tool quotes commands; write scripts with the Write tool |
+| An old scratchpad script runs instead of a new one | A file with that name already existed and Write refused; use a fresh name |
 
 ## 9. Status
 
@@ -485,7 +530,8 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | `v0.3.0`: desktop drag-region fix, themed window controls, roles, admin panel, ringing, pixel emoji, people search, desktop + Android notifications | ✅ published (PR #9): https://github.com/PeytonG/Meadhall/releases/tag/v0.3.0 |
 | `v0.3.1`: the whole §10.1 backlog except building iOS (status, profiles, accounts, soundboard, effects, talk permissions, Steam, What's new, high contrast, README) | ✅ released (PR #10); tests: 177 unit, 14 smoke, 8 integration, 45 E2E (incl. Android and iPhone sizes), 7 real-desktop |
 | `v0.3.2`: §10.2 | ✅ released |
-| `v0.3.3`: §10.3 (bug reports, logs, server notices, cross-server status, Linux packages and updates, taskbar icons) | ✅ tests: 202 unit, 22 smoke, 8 integration, 68 E2E (10 screenshot-only skipped), 10 real-desktop |
+| `v0.3.3`: §10.3 (bug reports, logs, server notices, cross-server status, Linux packages and updates, taskbar icons) | ✅ released |
+| `v0.3.4`: §10.4 (server menus, muting, channel types, inbox, badges, profile style, sharing, screen share fixes) | Branch `fix/v0.3.4` |
 
 ## 10. Open issues and roadmap
 
@@ -571,6 +617,28 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | Logs setting with helpful errors | §7.18 |
 | Windows taskbar shows Electron's icon | Stray dev `Electron.lnk` with our AUMID (§8); dev AUMID split; owner deletes the old shortcut |
 
+### 10.4 Owner's v0.3.4 list (2026-10-24)
+| Request | What was found / done |
+|---|---|
+| See bug reports in Meadhall | They were hidden for everyone; now only the sender's copy (§7.18) |
+| .meadhall sound sharing, customization profiles, share toggle (off) | §7.21 |
+| Some server pictures broken | Rail used one thumbnail URL; falls back to full image, then initials |
+| Server banners | §7.19 |
+| Inbox and update arrow | §7.19 |
+| Members sorted by rank, role control from the list | Role groups by rank; member menu → Roles |
+| Channel types with pixel icons | §7.19 |
+| Mute channels and servers | Push rules (§7.19) |
+| Badges, founder coin, unofficial "..." for forks | §7.20 |
+| Profile card gradients and member nameplates | §7.21 |
+| Right-click server dashboard | §7.19 |
+| GIFs don't loop | Uploads looped already; pasted GIFs were still PNGs from the clipboard. Fetch the original on paste |
+| Per-channel unread counts | Existed; added rail badges and pips |
+| Text chat in voice channels | §7.19 |
+| Channel calls mustn't ring everyone | Text-channel calls did notify; fixed (§7.19) |
+| In-call history only this call | Entries carry a call id (`beginCallLog`) |
+| Screen share picker lag, black previews, scrolling to Share | See §8; picker opens instantly, previews fill in, dialog footers pinned |
+| Taskbar icon must stay | Unchanged; checked by the real-desktop test |
+
 ## 11. Work log
 
 | Date | Work |
@@ -579,3 +647,4 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 2026-10-23 | v0.3.1 backlog (§10.1): ringtone and Windows notifications fixed; status/DND/Away, DM previews, phone icon; profiles (banner, bio, links, roles); talk permissions; tray menu; Steam activity; 12 voice effects; soundboard; several accounts; phone update notice and What's new; high contrast; iOS project; README overhaul with test-made screenshots; admin password reset fixed on desktop; status write races fixed. |
 | 2026-10-23 | v0.3.2 (§10.2): soundboard over the mic, volume, trimming and scrolling; call drops (alone timer, rejoin, call history); Steam display; status speed; call card clicks on desktop; taskbar icon and unread bubble; screen share previews and scaling; banner crop; Block / Ignore; earlier versions; CodeQL fixes and a security audit (IPC sender check); read-marker race; component harness for in-call tests and screenshots. |
 | 2026-10-23 | v0.3.3 (§10.3): Linux `.rpm`/`.deb` updates via the package manager, `.deb` package, declared deps, GNOME and Windows taskbar icons; verification fix; Unencrypted chip; icon style; Logs and call-ended notice; Report a bug; server notices and group-chat invites; cross-server status ? and Share my status; log redaction. Packages verified in clean Ubuntu 24.04 and Fedora 42 containers. |
+| 2026-10-24 | v0.3.4 (§10.4): bug reports visible to the developer; server menus, muting, channel types, banners, rail badges, inbox, update arrow; members by role with role editing; voice channel chat; badges (signed, fingerprinted list); profile style; style profiles and .meadhall sharing; screen share picker fixes; pasted GIFs; calls in channels no longer notify; per-call history; README screenshots. |
