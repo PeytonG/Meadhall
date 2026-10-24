@@ -16,6 +16,7 @@ import { formatMessageWithEmojis } from "../emoji/formatMessageWithEmojis";
 import { useRoomTyping } from "../hooks/useRoomTyping";
 import { mediaFromMxc } from "../adapters/media";
 import { mxcThumbnailToHttp } from "../utils/mxc";
+import { fetchPastedGif, findPastedGifUrl } from "../utils/pastedGif";
 import { ComposerBar } from "./composer/ComposerBar";
 import { EmojiPicker } from "./composer/EmojiPicker";
 import { sendSticker } from "../stickers/sendSticker";
@@ -1757,7 +1758,14 @@ export function Composer({
             }
 
             event.preventDefault();
-            enqueueFiles(event.clipboardData.files);
+            const files = Array.from(event.clipboardData.files);
+            // A copied GIF arrives as a still PNG; attach the original from its address instead, if we can get it.
+            const gifUrl = files.length === 1 && files[0]!.type === "image/png" ? findPastedGifUrl(event.clipboardData) : null;
+            if (!gifUrl) {
+                enqueueFiles(files);
+                return;
+            }
+            void fetchPastedGif(gifUrl).then((gif) => enqueueFiles(gif ? [gif] : files));
         },
         [enqueueFiles],
     );
