@@ -41,6 +41,8 @@ export async function shareToRooms(client: MatrixClient, roomIds: string[], item
 
 // Downloads and checks the shared file from a message (plain attachments only).
 export async function fetchSharedItem(client: MatrixClient, mxc: string): Promise<MeadhallItem> {
+    // Only Matrix media, fetched from your own homeserver (the access token never goes anywhere else).
+    if (!mxc.startsWith("mxc://")) throw new Error("This share isn't available.");
     const url = mediaFromMxc(client, mxc);
     if (!url) throw new Error("This share isn't available.");
     const token = client.getAccessToken();

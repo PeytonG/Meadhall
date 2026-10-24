@@ -143,7 +143,13 @@ export async function cleanUpBugReportRooms(client: MatrixClient): Promise<void>
     const ownUserId = client.getUserId();
     for (const room of client.getRooms()) {
         if (isReceivedBugReport(room, ownUserId) && room.getMyMembership() === "invite") {
-            await client.joinRoom(room.roomId).catch(() => undefined);
+            // Only what Report a bug sends: invited by the person who made the room, nobody else in it. Anything
+            // else typed as a report stays an invite to accept or decline by hand.
+            const creator = room.currentState.getStateEvents("m.room.create", "")?.getSender();
+            const inviter = ownUserId ? room.getMember(ownUserId)?.events.member?.getSender() : undefined;
+            if (creator && inviter === creator && room.getInvitedAndJoinedMemberCount() <= 2) {
+                await client.joinRoom(room.roomId).catch(() => undefined);
+            }
             continue;
         }
         if (!isSentBugReport(room, ownUserId)) continue;

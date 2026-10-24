@@ -679,6 +679,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [desktopCaptureDialogOpen, setDesktopCaptureDialogOpen] = useState(false);
     const [desktopCaptureSources, setDesktopCaptureSources] = useState<DesktopCaptureSource[]>([]);
     const [desktopCapturePreviewsLoading, setDesktopCapturePreviewsLoading] = useState(false);
+    const [desktopCaptureListLoading, setDesktopCaptureListLoading] = useState(false);
     const [selectedDesktopCaptureSourceId, setSelectedDesktopCaptureSourceId] = useState<string | null>(null);
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -2008,20 +2009,30 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             return true;
         }
 
+        // The picker opens at once ("Finding screens and windows..."): listing sources can take seconds (Linux), and
+        // previews longer still, so both are filled in as they arrive.
+        setDesktopCaptureListLoading(true);
+        const chosen = openDesktopCaptureSourceDialog([]);
+        const ourDialog = desktopCaptureSelectionResolverRef.current;
         try {
-            // The list without previews comes back at once, so the picker opens straight away; previews follow.
             const sources = await bridge.getDesktopCapturerSources({ previews: false });
+            setDesktopCaptureListLoading(false);
+            // Cancelled while we were looking.
+            if (desktopCaptureSelectionResolverRef.current !== ourDialog) return await chosen;
             if (sources.length === 0) {
+                closeDesktopCaptureDialog(false);
                 setError("No stream source is available.");
                 return false;
             }
 
             if (sources.length === 1) {
                 await bridge.setPreferredDisplayMediaSource(sources[0].id);
+                closeDesktopCaptureDialog(true);
                 return true;
             }
 
-            const chosen = openDesktopCaptureSourceDialog(sources.map((source) => ({ ...source, name: source.name || source.id })));
+            setDesktopCaptureSources(sources.map((source) => ({ ...source, name: source.name || source.id })));
+            setSelectedDesktopCaptureSourceId(sources[0]?.id ?? null);
             if (sources.some((source) => !source.thumbnail)) {
                 setDesktopCapturePreviewsLoading(true);
                 void bridge
@@ -2032,6 +2043,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             }
             return await chosen;
         } catch (captureSourceError) {
+            setDesktopCaptureListLoading(false);
+            if (desktopCaptureSelectionResolverRef.current === ourDialog) closeDesktopCaptureDialog(false);
             setError(captureSourceError instanceof Error ? captureSourceError.message : "Unable to prepare stream source selection.");
             return false;
         }
@@ -2921,6 +2934,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 <ScreenSharePicker
                     sources={desktopCaptureSources}
                     previewsLoading={desktopCapturePreviewsLoading}
+                    listLoading={desktopCaptureListLoading}
                     selectedId={selectedDesktopCaptureSourceId}
                     onSelect={setSelectedDesktopCaptureSourceId}
                     onConfirm={() => void confirmDesktopCaptureSourceSelection()}

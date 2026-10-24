@@ -11,6 +11,8 @@ interface ScreenSharePickerProps {
     onConfirm: () => void;
     // Previews are still being captured (they arrive a moment after the list).
     previewsLoading?: boolean;
+    // The list itself is still being fetched (the picker opens before it's ready).
+    listLoading?: boolean;
 }
 
 function SourceCard({
@@ -48,7 +50,7 @@ function SourceCard({
     );
 }
 
-export function ScreenSharePicker({ sources, selectedId, onSelect, onConfirm, previewsLoading = false }: ScreenSharePickerProps): React.ReactElement {
+export function ScreenSharePicker({ sources, selectedId, onSelect, onConfirm, previewsLoading = false, listLoading = false }: ScreenSharePickerProps): React.ReactElement {
     const screens = sources.filter((source) => source.kind === "screen" || source.id.startsWith("screen:"));
     const windows = sources.filter((source) => !screens.includes(source));
     const section = (title: string, items: HeorotDesktopCaptureSource[]): React.ReactElement | null =>
@@ -76,7 +78,11 @@ export function ScreenSharePicker({ sources, selectedId, onSelect, onConfirm, pr
         <div className="screen-share-picker" data-testid="screen-share-picker">
             {section("Screens", screens)}
             {section("Windows", windows)}
-            {sources.length === 0 ? <p className="settings-inline-note">Nothing to share was found.</p> : null}
+            {sources.length === 0 ? (
+                <p className={`settings-inline-note${listLoading ? " screen-share-finding" : ""}`} role="status">
+                    {listLoading ? "Finding screens and windows…" : "Nothing to share was found."}
+                </p>
+            ) : null}
         </div>
     );
 }

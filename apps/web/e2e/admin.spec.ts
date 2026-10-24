@@ -111,6 +111,6 @@ test("admins send server notices to chosen users", async ({ page, browser }) => 
     await expect(invite).toBeVisible({ timeout: 20_000 });
     if (process.env.PREVIEW_DIR) await bobPage.locator(".home-sidebar").screenshot({ path: `${process.env.PREVIEW_DIR}/notice-invite.png` });
     await invite.getByRole("button", { name: "Accept" }).click();
-    await expect(bobPage.getByText("Maintenance tonight at 22:00.")).toBeVisible({ timeout: 20_000 });
+    await expect(bobPage.locator(".timeline").getByText("Maintenance tonight at 22:00.")).toBeVisible({ timeout: 20_000 });
     await expect(bobPage.getByTestId("home-invite")).toHaveCount(0);
 });

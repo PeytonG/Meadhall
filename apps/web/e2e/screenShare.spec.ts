@@ -24,6 +24,13 @@ test("the share picker shows a preview for each screen and window, grouped, and 
     if (process.env.PREVIEW_DIR) await page.screenshot({ path: `${process.env.PREVIEW_DIR}/screen-share-picker.png` });
 });
 
+test("the picker opens before the list is ready and says it is looking", async ({ page }) => {
+    await openHarness(page, "screenShareHarness.tsx", { harnessMode: "finding" });
+    const dialog = page.getByRole("dialog", { name: "Choose stream source" });
+    await expect(dialog.getByRole("status")).toHaveText("Finding screens and windows…");
+    await expect(dialog.getByText("Nothing to share was found.")).toHaveCount(0);
+});
+
 test("with lots of windows, Stream this stays in view and previews show as loading", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await openHarness(page, "screenShareHarness.tsx", { harnessMode: "many" });

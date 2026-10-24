@@ -71,10 +71,12 @@ function Harness(): React.ReactElement {
         { hue: 130, label: "Hrothgar: Spreadsheet" },
         { hue: 300, label: "Wealhtheow: Map" },
     ].slice(0, streamCount);
-    if (mode === "picker" || mode === "many") {
+    if (mode === "picker" || mode === "many" || mode === "finding") {
         // "many": 30 windows still waiting for their previews, as when the picker has just opened on a busy desktop.
         const shown =
-            mode === "many"
+            mode === "finding"
+                ? []
+                : mode === "many"
                 ? Array.from({ length: 30 }, (_, index) => ({ id: `window:${index}:0`, name: `Window ${index + 1}`, kind: "window" as const, thumbnail: null, icon: null }))
                 : sources;
         return (
@@ -93,7 +95,7 @@ function Harness(): React.ReactElement {
                     </>
                 }
             >
-                <ScreenSharePicker sources={shown} selectedId={selected} onSelect={setSelected} onConfirm={() => undefined} previewsLoading={mode === "many"} />
+                <ScreenSharePicker sources={shown} selectedId={selected} onSelect={setSelected} onConfirm={() => undefined} previewsLoading={mode === "many"} listLoading={mode === "finding"} />
             </RoomDialog>
         );
     }
