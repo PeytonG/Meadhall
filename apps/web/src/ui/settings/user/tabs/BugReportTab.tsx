@@ -17,6 +17,7 @@ import { currentAppVersion } from "../../../../core/updates/mobileUpdates";
 import { readAppLog } from "../../../logs/appLog";
 import { currentPlatform } from "../../../presence/clientStatus";
 import { formatCallLog, readCallLog } from "../../../voice/callLog";
+import { environmentSummary } from "./environmentSummary";
 
 interface BugReportTabProps {
     client: MatrixClient;
@@ -26,7 +27,7 @@ interface BugReportTabProps {
 
 async function appDetails(includeLogs: boolean): Promise<string> {
     const version = (await window.heorotDesktop?.getAppVersion?.().catch(() => "")) || currentAppVersion() || "web";
-    const lines = [`Version: ${version} (${currentPlatform()}, ${navigator.userAgent})`];
+    const lines = [`Version: ${environmentSummary(navigator.userAgent, version === "web" ? "" : version, currentPlatform())}`];
     if (includeLogs) {
         const errors = readAppLog().slice(-15);
         const calls = readCallLog().slice(-15);

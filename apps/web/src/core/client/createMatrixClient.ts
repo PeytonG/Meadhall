@@ -10,6 +10,7 @@
 } from "matrix-js-sdk/src/matrix";
 
 import { storeNames } from "../storage/accounts";
+import { withUploadTokenRefresh } from "./uploadTokenRefresh";
 
 let indexedDBFactory: IDBFactory | undefined;
 try {
@@ -45,8 +46,10 @@ export function createMatrixClient(opts: ICreateClientOpts): MatrixClient {
         storeOpts.cryptoStore = new MemoryCryptoStore();
     }
 
-    return createClient({
-        ...storeOpts,
-        ...opts,
-    });
+    return withUploadTokenRefresh(
+        createClient({
+            ...storeOpts,
+            ...opts,
+        }),
+    );
 }

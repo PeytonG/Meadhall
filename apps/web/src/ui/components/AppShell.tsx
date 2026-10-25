@@ -3207,6 +3207,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     client={client}
                     call={incomingCall}
                     speakerId={userSettings.audio.preferredAudioOutputId}
+                    ringtone={{ enabled: userSettings.notifications.ringtoneEnabled, customDataUrl: userSettings.notifications.customRingtoneDataUrl }}
                     onJoin={() => {
                         const roomId = incomingCall.roomId;
                         focusRoom(roomId);

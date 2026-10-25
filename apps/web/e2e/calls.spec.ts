@@ -10,7 +10,7 @@ import { signIn } from "./support/ui";
 // Counts oscillators started and audio contexts closed, to tell whether the ringtone is playing.
 async function spyOnAudio(page: Page): Promise<void> {
     await page.addInitScript(() => {
-        const stats = { oscillators: 0, open: 0 };
+        const stats = { oscillators: 0, open: 0, sources: 0 };
         (window as unknown as { audioStats: typeof stats }).audioStats = stats;
         const Original = window.AudioContext;
         window.AudioContext = class extends Original {
@@ -21,6 +21,11 @@ async function spyOnAudio(page: Page): Promise<void> {
                 this.close = async () => {
                     stats.open -= 1;
                     return close();
+                };
+                const createSource = this.createBufferSource.bind(this);
+                this.createBufferSource = () => {
+                    stats.sources += 1;
+                    return createSource();
                 };
                 const create = this.createOscillator.bind(this);
                 this.createOscillator = () => {
@@ -142,4 +147,76 @@ test("on desktop, the incoming call card's buttons take clicks (not the window d
     }
     await card.getByRole("button", { name: "Dismiss call" }).click();
     await expect(card).toBeHidden();
+});
+
+// A quarter second of tone, as a WAV.
+function toneWav(): Buffer {
+    const rate = 8000;
+    const samples = 2000;
+    const buffer = Buffer.alloc(44 + samples * 2);
+    buffer.write("RIFF", 0);
+    buffer.writeUInt32LE(36 + samples * 2, 4);
+    buffer.write("WAVEfmt ", 8);
+    buffer.writeUInt32LE(16, 16);
+    buffer.writeUInt16LE(1, 20);
+    buffer.writeUInt16LE(1, 22);
+    buffer.writeUInt32LE(rate, 24);
+    buffer.writeUInt32LE(rate * 2, 28);
+    buffer.writeUInt16LE(2, 32);
+    buffer.writeUInt16LE(16, 34);
+    buffer.write("data", 36);
+    buffer.writeUInt32LE(samples * 2, 40);
+    for (let index = 0; index < samples; index += 1) buffer.writeInt16LE(Math.round(Math.sin(index / 3) * 8000), 44 + index * 2);
+    return buffer;
+}
+
+async function callFromBob(page: Page): Promise<{ bob: ApiUser; dm: string }> {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await setDisplayName(bob, "Bob");
+    const dm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [alice.userId] });
+    await joinRoom(alice, dm);
+    await setAccountData(alice, "m.direct", { [bob.userId]: [dm] });
+    await signIn(page, alice);
+    return { bob, dm };
+}
+
+const stats = (page: Page) => page.evaluate(() => (window as unknown as { audioStats: { oscillators: number; sources: number } }).audioStats);
+
+test("ringing can be turned off in Settings → Notifications: the call card still shows, silently", async ({ page }) => {
+    await spyOnAudio(page);
+    const { bob, dm } = await callFromBob(page);
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
+    await page.getByRole("button", { name: "Notifications", exact: true }).click();
+    await page.getByTestId("ringtone-toggle").uncheck();
+    await page.keyboard.press("Escape");
+
+    await ring(bob, dm);
+    await expect(page.getByTestId("incoming-call")).toBeVisible({ timeout: 15_000 });
+    await page.waitForTimeout(2_000);
+    expect(await stats(page)).toMatchObject({ oscillators: 0, sources: 0 });
+});
+
+test("a custom ringtone rings instead of the jingle, and Test plays it until stopped", async ({ page }) => {
+    await spyOnAudio(page);
+    const { bob, dm } = await callFromBob(page);
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
+    await page.getByRole("button", { name: "Notifications", exact: true }).click();
+    const ringtone = page.getByTestId("ringtone-settings");
+    await ringtone.getByLabel("Upload custom ringtone").setInputFiles({ name: "horn.wav", mimeType: "audio/wav", buffer: toneWav() });
+    await expect(ringtone).toContainText("Current: horn.wav");
+    await ringtone.getByTestId("ringtone-test").click();
+    await expect(ringtone.getByTestId("ringtone-test")).toHaveText("Stop");
+    await expect.poll(async () => (await stats(page)).sources).toBeGreaterThan(0);
+    await ringtone.getByTestId("ringtone-test").click();
+    await expect(ringtone.getByTestId("ringtone-test")).toHaveText("Test ringtone");
+    if (process.env.PREVIEW_DIR) await ringtone.screenshot({ path: `${process.env.PREVIEW_DIR}/ringtone-settings.png` });
+    await page.keyboard.press("Escape");
+
+    const before = await stats(page);
+    await ring(bob, dm);
+    await expect(page.getByTestId("incoming-call")).toBeVisible({ timeout: 15_000 });
+    await expect.poll(async () => (await stats(page)).sources).toBeGreaterThan(before.sources);
+    // Not the built-in jingle.
+    expect((await stats(page)).oscillators).toBe(before.oscillators);
 });

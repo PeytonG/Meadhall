@@ -27,6 +27,11 @@ export function getStartAtLogin(): boolean {
     if (process.platform === "linux") {
         return fs.existsSync(getLinuxAutostartPath());
     }
+    // Windows only reports an entry whose arguments match the ones asked about, and ours has --hidden: asking without
+    // it always said "off", so the setting unticked itself right after being turned on.
+    if (process.platform === "win32") {
+        return app.getLoginItemSettings({ args: [START_HIDDEN_ARG] }).openAtLogin || app.getLoginItemSettings().openAtLogin;
+    }
     return app.getLoginItemSettings().openAtLogin;
 }
 
