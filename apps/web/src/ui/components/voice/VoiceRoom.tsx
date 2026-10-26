@@ -113,6 +113,48 @@ interface VoiceParticipantState {
     hasCamera: boolean;
 }
 
+// A push-to-talk key code as people know it: KeyV -> V, Digit1 -> 1, Backquote -> `.
+export function formatPushToTalkKey(code: string): string {
+    const named: Record<string, string> = {
+        Backquote: "`",
+        Space: "Space",
+        CapsLock: "Caps Lock",
+        ShiftLeft: "Left Shift",
+        ShiftRight: "Right Shift",
+        ControlLeft: "Left Ctrl",
+        ControlRight: "Right Ctrl",
+        AltLeft: "Left Alt",
+        AltRight: "Right Alt",
+        Minus: "-",
+        Equal: "=",
+        BracketLeft: "[",
+        BracketRight: "]",
+        Backslash: "\\",
+        Semicolon: ";",
+        Quote: "'",
+        Comma: ",",
+        Period: ".",
+        Slash: "/",
+    };
+    if (named[code]) return named[code];
+    const match = /^(?:Key|Digit)(.)$/.exec(code) ?? /^Numpad(.+)$/.exec(code);
+    if (match) return code.startsWith("Numpad") ? `Numpad ${match[1]}` : match[1];
+    return code;
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+    const element = target as HTMLElement | null;
+    if (!element || typeof element.closest !== "function") return false;
+    return Boolean(element.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']"));
+}
+
+// While push to talk is on and the key isn't held: listens (locally only, nothing is sent) for
+// someone talking anyway, so they can be told their mic isn't on.
+// Talking = loud in at least 3 of the last 15 checks (100 ms apart): speech has gaps, a single click does not count.
+const PTT_TALK_LEVEL = 0.02;
+const PTT_TALK_WINDOW = 15;
+const PTT_TALK_LOUD_TICKS = 3;
+
 // A camera that's on and has a video track here (subscribed, for others).
 function participantHasCamera(participant: Participant | LocalParticipant): boolean {
     const publication = participant.getTrackPublication(Track.Source.Camera);
@@ -724,6 +766,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const sharingEnabled = useSharingEnabled();
     const [sharingSound, setSharingSound] = useState<CustomSound | null>(null);
     const [soundboardNotice, setSoundboardNotice] = useState<string | null>(null);
+    const pttHeldRef = useRef(false);
+    const pttChainRef = useRef<Promise<void>>(Promise.resolve());
+    const [pttHeld, setPttHeld] = useState(false);
+    const [pttNotice, setPttNotice] = useState(false);
+    const [capturingPttKey, setCapturingPttKey] = useState(false);
     const [soundboardVersion, setSoundboardVersion] = useState(0);
     // People in the Matrix call other than us (MatrixRTC memberships), whichever call server they're on.
     const [rtcOtherMembers, setRtcOtherMembers] = useState(0);
@@ -1593,7 +1640,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             }
 
             // Joining muted (or deafened) never opens the mic; unmuting later publishes it.
-            const startMuted = joinMutedRef.current || joinDeafenedRef.current;
+            const startMuted = joinMutedRef.current || joinDeafenedRef.current || audioSettings.pushToTalk;
             if (!startMuted) {
                 await withTimeout(
                     room.localParticipant.setMicrophoneEnabled(
@@ -2022,11 +2069,15 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const toggleMute = async (): Promise<void> => {
+        await setMicrophoneOn(micMuted);
+    };
+
+    const setMicrophoneOn = async (on: boolean): Promise<void> => {
         const room = roomRef.current;
         if (!room) {
             return;
         }
-        const nextMuted = !micMuted;
+        const nextMuted = !on;
         if (nextMuted) {
             await room.localParticipant.setMicrophoneEnabled(false);
         } else {
@@ -2040,6 +2091,121 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         setMicMuted(nextMuted);
         refreshAudioDiagnostics(room);
     };
+
+    // Push to talk: the mic follows the key. Presses are queued so a quick tap can't leave it on.
+    const connectedForPtt = connectionState === ConnectionState.Connected && audioSettings.pushToTalk;
+    const syncPttMicrophone = (): void => {
+        pttChainRef.current = pttChainRef.current
+            .then(() => (roomRef.current?.localParticipant.isMicrophoneEnabled ?? false) === pttHeldRef.current ? undefined : setMicrophoneOn(pttHeldRef.current))
+            .catch((pttError: unknown) => setError(pttError instanceof Error ? pttError.message : "Push to talk couldn't turn the mic on."));
+    };
+    const syncPttMicrophoneRef = useRef(syncPttMicrophone);
+    syncPttMicrophoneRef.current = syncPttMicrophone;
+
+    useEffect(() => {
+        if (!connectedForPtt) {
+            return undefined;
+        }
+        // Turning push to talk on mid-call closes the mic until the key is held.
+        pttHeldRef.current = false;
+        setPttHeld(false);
+        syncPttMicrophoneRef.current();
+        const key = audioSettings.pushToTalkKey;
+        const press = (held: boolean): void => {
+            if (pttHeldRef.current === held) return;
+            pttHeldRef.current = held;
+            setPttHeld(held);
+            if (held) setPttNotice(false);
+            syncPttMicrophoneRef.current();
+        };
+        const onKeyDown = (event: KeyboardEvent): void => {
+            if (event.code !== key || event.repeat || capturingPttKeyRef.current) return;
+            // A letter/number key types in the chat box instead (Shift, Ctrl, ` etc. still talk).
+            if (event.key.length === 1 && /[\p{L}\p{N}]/u.test(event.key) && isTypingTarget(event.target)) return;
+            press(true);
+        };
+        const onKeyUp = (event: KeyboardEvent): void => {
+            if (event.code === key) press(false);
+        };
+        const release = (): void => press(false);
+        window.addEventListener("keydown", onKeyDown, true);
+        window.addEventListener("keyup", onKeyUp, true);
+        window.addEventListener("blur", release);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown, true);
+            window.removeEventListener("keyup", onKeyUp, true);
+            window.removeEventListener("blur", release);
+            pttHeldRef.current = false;
+            setPttHeld(false);
+            setPttNotice(false);
+        };
+    }, [connectedForPtt, audioSettings.pushToTalkKey]);
+
+    // "You're talking but push to talk is on": a private level meter on the mic while the key isn't held.
+    useEffect(() => {
+        if (!connectedForPtt || pttHeld || audioMuted || typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+            return undefined;
+        }
+        let stopped = false;
+        let stream: MediaStream | null = null;
+        let context: AudioContext | null = null;
+        let timer: number | undefined;
+        let hideTimer: number | undefined;
+        const deviceId = audioSettings.preferredAudioInputId;
+        void navigator.mediaDevices
+            .getUserMedia({ audio: deviceId && deviceId !== "default" ? { deviceId: { exact: deviceId } } : true })
+            .then((mediaStream) => {
+                if (stopped) {
+                    mediaStream.getTracks().forEach((track) => track.stop());
+                    return;
+                }
+                stream = mediaStream;
+                context = new AudioContext();
+                const analyser = context.createAnalyser();
+                analyser.fftSize = 1024;
+                context.createMediaStreamSource(mediaStream).connect(analyser);
+                const samples = new Float32Array(analyser.fftSize);
+                const recent: boolean[] = [];
+                timer = window.setInterval(() => {
+                    analyser.getFloatTimeDomainData(samples);
+                    let sum = 0;
+                    for (const sample of samples) sum += sample * sample;
+                    const level = Math.sqrt(sum / samples.length);
+                    recent.push(level >= PTT_TALK_LEVEL);
+                    if (recent.length > PTT_TALK_WINDOW) recent.shift();
+                    if (recent.filter(Boolean).length >= PTT_TALK_LOUD_TICKS) {
+                        recent.length = 0;
+                        setPttNotice(true);
+                        window.clearTimeout(hideTimer);
+                        hideTimer = window.setTimeout(() => setPttNotice(false), 4000);
+                    }
+                }, 100);
+            })
+            .catch(() => undefined);
+        return () => {
+            stopped = true;
+            window.clearInterval(timer);
+            window.clearTimeout(hideTimer);
+            stream?.getTracks().forEach((track) => track.stop());
+            void context?.close().catch(() => undefined);
+        };
+    }, [connectedForPtt, pttHeld, audioMuted, audioSettings.preferredAudioInputId]);
+
+    // Choosing the key: the next key pressed (Escape cancels).
+    const capturingPttKeyRef = useRef(false);
+    capturingPttKeyRef.current = capturingPttKey;
+    useEffect(() => {
+        if (!capturingPttKey) return undefined;
+        const onKeyDown = (event: KeyboardEvent): void => {
+            event.preventDefault();
+            event.stopPropagation();
+            setCapturingPttKey(false);
+            if (event.code === "Escape" || !/^[A-Za-z0-9]{1,32}$/.test(event.code)) return;
+            onAudioSettingsChange({ ...audioSettings, pushToTalkKey: event.code });
+        };
+        window.addEventListener("keydown", onKeyDown, true);
+        return () => window.removeEventListener("keydown", onKeyDown, true);
+    }, [capturingPttKey, audioSettings, onAudioSettingsChange]);
 
     const toggleAudioMute = async (): Promise<void> => {
         const nextAudioMuted = !audioMuted;
@@ -2444,6 +2610,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     return (
         <section className="voice-room-panel">
+            {pttNotice ? (
+                <div className="voice-room-ptt-notice" role="status" data-testid="ptt-notice">
+                    Push to talk is on: hold <kbd>{formatPushToTalkKey(audioSettings.pushToTalkKey)}</kbd> to talk
+                </div>
+            ) : null}
             {/* Main scrollable content */}
             <div className="voice-room-content">
                 {/* Screen share stage */}
@@ -2835,6 +3006,31 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 Copy for a bug report
                             </button>
                         </details>
+                        <div className="voice-room-ptt-settings">
+                            <label className="voice-room-ptt-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={audioSettings.pushToTalk}
+                                    data-testid="call-ptt-toggle"
+                                    onChange={(event) => onAudioSettingsChange({ ...audioSettings, pushToTalk: event.target.checked })}
+                                />
+                                <span>Push to talk</span>
+                            </label>
+                            <button
+                                type="button"
+                                className="voice-room-ptt-key"
+                                data-testid="call-ptt-key"
+                                aria-label="Push to talk key"
+                                onClick={() => setCapturingPttKey(true)}
+                            >
+                                {capturingPttKey ? "Press a key…" : <>Key: <kbd>{formatPushToTalkKey(audioSettings.pushToTalkKey)}</kbd></>}
+                            </button>
+                            <small className="voice-room-ptt-hint">
+                                {audioSettings.pushToTalk
+                                    ? "Your mic only sends while you hold the key (while Meadhall is focused)."
+                                    : "When on, your mic only sends while you hold the key."}
+                            </small>
+                        </div>
                         <label className="settings-field">
                             <span>Other people&apos;s soundboards: {audioSettings.othersSoundboardVolume}%</span>
                             <input
@@ -3005,7 +3201,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                     d="M12 2a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4ZM4 11a8 8 0 0 0 16 0M12 19v3m0 0h3m-3 0H9" />
                             </svg>
                         )}
-                        <span className="voice-ctrl-label">{micMuted ? "Unmute" : "Mute"}</span>
+                        <span className="voice-ctrl-label">
+                            {audioSettings.pushToTalk && micMuted ? `PTT ${formatPushToTalkKey(audioSettings.pushToTalkKey)}` : micMuted ? "Unmute" : "Mute"}
+                        </span>
                     </button>
 
                     {/* Camera */}

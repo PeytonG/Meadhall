@@ -3566,6 +3566,7 @@ textarea {
 }
 
 .voice-room-panel {
+    position: relative;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -6482,4 +6483,58 @@ img.voice-ctrl-icon {
     position: absolute;
     left: 6px;
     bottom: 6px;
+}
+
+/* Push to talk */
+.voice-room-ptt-notice {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: var(--bg-pane);
+    border: 1px solid var(--accent);
+    color: var(--text-main);
+    font-size: 13px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+.voice-room-ptt-notice kbd,
+.voice-room-ptt-key kbd {
+    padding: 0 5px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    font-family: inherit;
+}
+
+.voice-room-ptt-settings {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+
+.voice-room-ptt-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.voice-room-ptt-key {
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.voice-room-ptt-hint {
+    flex-basis: 100%;
+    opacity: 0.75;
 }

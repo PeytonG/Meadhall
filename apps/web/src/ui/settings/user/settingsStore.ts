@@ -66,6 +66,9 @@ export interface AudioSettings {
     soundboardVolume: number;
     // Other people's soundboard sounds in calls, 0-100 (their voices aren't affected).
     othersSoundboardVolume: number;
+    // Push to talk: the mic only sends while this key (a KeyboardEvent.code) is held.
+    pushToTalk: boolean;
+    pushToTalkKey: string;
 }
 
 export interface UserLocalSettings {
@@ -112,6 +115,8 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
     audio: {
         preferredAudioInputId: "default",
         preferredVideoInputId: "default",
+        pushToTalk: false,
+        pushToTalkKey: "Backquote",
         preferredAudioOutputId: "default",
         micTestLoopbackEnabled: false,
         autoGainControlEnabled: true,
@@ -202,6 +207,9 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             shareStatus: privacy.shareStatus !== false,
         },
         audio: {
+            pushToTalk: audio.pushToTalk === true,
+            pushToTalkKey:
+                typeof audio.pushToTalkKey === "string" && /^[A-Za-z0-9]{1,32}$/.test(audio.pushToTalkKey) ? audio.pushToTalkKey : "Backquote",
             preferredVideoInputId:
                 typeof audio.preferredVideoInputId === "string" && audio.preferredVideoInputId.trim().length > 0 ? audio.preferredVideoInputId : "default",
             preferredAudioInputId:
