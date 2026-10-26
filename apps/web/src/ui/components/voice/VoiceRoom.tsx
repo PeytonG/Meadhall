@@ -1798,6 +1798,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         element.muted = audioMuted || (isScreenShareAudio && screenShareAudioMuted);
         setElementVolumePercent(element, participantVolumePercent);
         element.dataset.lkTrackSid = trackSid;
+        element.dataset.source = publication.source;
         element.dataset.voiceParticipantKey = participantVolumeKey;
         if (participant && publication.source === Track.Source.Microphone) {
             voiceActivityTrackOwnerRef.current.set(trackSid, participant.sid);
@@ -2486,6 +2487,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             return (
                                 <li
                                     key={p.identity}
+                                    data-testid="call-participant"
+                                    data-identity={p.identity}
                                     className={`voice-room-participant${p.isSpeaking ? " is-speaking" : ""}${p.isScreenSharing ? " is-sharing" : ""}`}
                                 >
                                     <div className="voice-room-participant-avatar-wrap">
