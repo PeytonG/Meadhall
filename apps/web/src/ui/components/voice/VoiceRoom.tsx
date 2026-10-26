@@ -54,11 +54,12 @@ import { mergeCapturePreviews } from "../../voice/capturePreviews";
 import { stageGridStyle } from "../../voice/stageGrid";
 import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
-import { decodeCustomSound, SoundboardPlayer, type CustomSound } from "../../voice/soundboard/soundboard";
+import { decodeCustomSound, type CustomSound } from "../../voice/soundboard/soundboard";
+import { SoundboardTrack, isSoundboardTrack } from "../../voice/soundboard/soundboardTrack";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { RECONNECT_DELAYS_MS, announceCallEnded, beginCallLog, currentCallLogId, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
 import { logAppError } from "../../logs/appLog";
-import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
+import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 import { useSharingEnabled } from "../../sharing/sharingSetting";
 import { ShareDialog } from "../../sharing/ShareDialog";
 import { adoptSharedSound, soundToShare } from "../../sharing/sharedSounds";
@@ -703,10 +704,30 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         if (error && error !== ALONE_LEFT_MESSAGE) logAppError("call", error);
     }, [error]);
     // The soundboard's own audio track, published the first time a sound is played in this call.
-    // The soundboard player for this call; sounds are mixed into the microphone (voiceChanger.ensureMicMixer).
-    const soundboardRef = useRef<{ player: SoundboardPlayer } | null>(null);
+    // The soundboard's own track for this call (voice/soundboard/soundboardTrack.ts), created on the first sound.
+    const soundboardRef = useRef<SoundboardTrack | null>(null);
     // Bumped when the mic gets Meadhall's processor, so the speaking indicator follows the processed (mixed) audio.
     const [micProcessorRevision, setMicProcessorRevision] = useState(0);
+    // Per-person soundboard volume (0-100), remembered on this device.
+    const [soundVolumeByUserKey, setSoundVolumeByUserKey] = useState<Record<string, number>>(() => {
+        try {
+            return JSON.parse(window.localStorage.getItem("meadhall.call_sound_volumes.v1") ?? "{}") as Record<string, number>;
+        } catch {
+            return {};
+        }
+    });
+    const setSoundVolume = (participantKey: string, percent: number): void => {
+        setSoundVolumeByUserKey((current) => {
+            const next = { ...current, [participantKey]: Math.max(0, Math.min(100, Math.round(percent))) };
+            if (next[participantKey] === 100) delete next[participantKey];
+            try {
+                window.localStorage.setItem("meadhall.call_sound_volumes.v1", JSON.stringify(next));
+            } catch {
+                // This call only.
+            }
+            return next;
+        });
+    };
     const [callAccessFixPending, setCallAccessFixPending] = useState(false);
     const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
@@ -759,7 +780,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         const speakingSids = speakingSidsRef.current;
         const isParticipantSpeaking = (participant: Participant | LocalParticipant): boolean => {
             // Measured locally first (reacts in ~50 ms); the server's speaker updates are the fallback.
-            if (voiceActivityRef.current?.isSpeaking(participant.sid)) {
+            if (voiceActivityRef.current?.isSpeaking(participant.sid) || voiceActivityRef.current?.isSpeaking(`${participant.sid}:soundboard`)) {
                 return true;
             }
             const byEvent = speakingSids.has(participant.sid);
@@ -869,8 +890,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         if (!track) {
             return;
         }
-        // Once the soundboard has been used, keep the processor even for "off": sounds are mixed in there.
-        void applyVoiceEffect(track, audioSettings.voiceEffect, soundboardRef.current !== null)
+        void applyVoiceEffect(track, audioSettings.voiceEffect)
             .then(() => setMicProcessorRevision((revision) => revision + 1))
             .catch((effectError) => {
             setError(effectError instanceof Error ? `Voice changer: ${effectError.message}` : "Voice changer failed.");
@@ -1109,9 +1129,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         for (const audioElement of remoteAudioElementsByTrackSidRef.current.values()) {
             const participantKey = audioElement.dataset.voiceParticipantKey || "";
             const volumePercent = participantVolumeByUserKey[participantKey] ?? PARTICIPANT_VOLUME_DEFAULT_PERCENT;
-            setElementVolumePercent(audioElement, volumePercent);
+            setElementVolumePercent(audioElement, audioElement.dataset.source === "soundboard" ? soundboardVolumeFor(participantKey) : volumePercent);
         }
-    }, [participantVolumeByUserKey]);
+    }, [participantVolumeByUserKey, soundVolumeByUserKey, audioSettings.othersSoundboardVolume]);
 
     useEffect(() => {
         const handleFullscreenChange = (): void => {
@@ -1715,6 +1735,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         setMicTrackSettingsSummary(micSummaryParts.length > 0 ? micSummaryParts.join(" | ") : null);
     };
 
+    // Someone's soundboard: their voice volume x "Other people's soundboards" (Settings → Audio) x their own "Sounds"
+    // slider (in the participant list).
+    const soundboardVolumeFor = (participantKey: string): number => {
+        const voice = participantVolumeByUserKey[participantKey] ?? PARTICIPANT_VOLUME_DEFAULT_PERCENT;
+        const theirs = soundVolumeByUserKey[participantKey] ?? 100;
+        return Math.round((voice * (audioSettings.othersSoundboardVolume / 100) * theirs) / 100);
+    };
+
     const getParticipantVolumePercent = useCallback(
         (participantKey: string): number => participantVolumeByUserKey[participantKey] ?? PARTICIPANT_VOLUME_DEFAULT_PERCENT,
         [participantVolumeByUserKey],
@@ -1798,7 +1826,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         element.muted = audioMuted || (isScreenShareAudio && screenShareAudioMuted);
         setElementVolumePercent(element, participantVolumePercent);
         element.dataset.lkTrackSid = trackSid;
-        element.dataset.source = publication.source;
+        element.dataset.source = isSoundboardTrack(publication.trackName) ? "soundboard" : publication.source;
+        if (element.dataset.source === "soundboard") {
+            setElementVolumePercent(element, soundboardVolumeFor(participantVolumeKey));
+            if (participant) {
+                voiceActivityTrackOwnerRef.current.set(trackSid, `${participant.sid}:soundboard`);
+                voiceActivityRef.current?.track(`${participant.sid}:soundboard`, track.mediaStreamTrack);
+            }
+        }
         element.dataset.voiceParticipantKey = participantVolumeKey;
         if (participant && publication.source === Track.Source.Microphone) {
             voiceActivityTrackOwnerRef.current.set(trackSid, participant.sid);
@@ -1925,7 +1960,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         clearRemoteAudioElements();
         clearScreenSharePreview();
-        soundboardRef.current?.player.close();
+        void soundboardRef.current?.close();
         soundboardRef.current = null;
         setSoundboardOpen(false);
         setConnectionState(ConnectionState.Disconnected);
@@ -2178,17 +2213,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         },
         [],
     );
+    // Sounds go out on their own track, so others can turn them down separately from your voice (and they play
+    // even with your microphone muted).
     const playSoundboardSound = async (choice: SoundChoice): Promise<void> => {
         const room = roomRef.current;
         if (!room) return;
-        const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
-        if (micMuted || !micTrack) {
-            throw new Error("Unmute your microphone to play sounds: they're sent as part of your voice.");
-        }
         if (!soundboardRef.current) {
-            const context = await ensureMicMixer(micTrack, audioSettings.voiceEffect);
-            soundboardRef.current = { player: new SoundboardPlayer(context, soundboardBus(context)) };
-            setMicProcessorRevision((revision) => revision + 1);
+            soundboardRef.current = new SoundboardTrack(room);
+            const localSid = room.localParticipant.sid;
+            const monitor = voiceActivityRef.current;
+            if (monitor && localSid) monitor.track(`${localSid}:soundboard`, soundboardRef.current.mediaStreamTrack);
         }
         const soundboard = soundboardRef.current;
         soundboard.player.setVolume(audioSettings.soundboardVolume);
@@ -2197,7 +2231,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             choice.kind === "builtin"
                 ? await renderBuiltinSound(choice.id, soundboard.player.context.sampleRate)
                 : await decodeCustomSound(client, choice.sound, soundboard.player.context);
-        await soundboard.player.play(buffer);
+        await soundboard.play(buffer);
     };
     // Others in the call: whoever we can see on the call server, or in the Matrix call (people on another
     // homeserver's call server aren't visible to LiveKit here, and counting only those made calls with them
@@ -2545,6 +2579,23 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                             <span className="voice-room-participant-volume-value">{participantVolumePercent}%</span>
                                         </label>
                                     ) : null}
+                                    {!isYou ? (
+                                        <label className="voice-room-participant-volume">
+                                            <span className="voice-room-participant-volume-label">Sounds</span>
+                                            <input
+                                                className="voice-room-participant-volume-slider"
+                                                type="range"
+                                                min={0}
+                                                max={100}
+                                                step={5}
+                                                value={soundVolumeByUserKey[participantVolumeKey] ?? 100}
+                                                aria-label={`${info.displayName}'s soundboard volume`}
+                                                data-testid="participant-sounds-volume"
+                                                onChange={(event) => setSoundVolume(participantVolumeKey, Number(event.target.value))}
+                                            />
+                                            <span className="voice-room-participant-volume-value">{soundVolumeByUserKey[participantVolumeKey] ?? 100}%</span>
+                                        </label>
+                                    ) : null}
                                 </li>
                             );
                         })}
@@ -2664,7 +2715,22 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             </button>
                         </details>
                         <label className="settings-field">
-                            <span>Soundboard volume: {audioSettings.soundboardVolume}%</span>
+                            <span>Other people&apos;s soundboards: {audioSettings.othersSoundboardVolume}%</span>
+                            <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={audioSettings.othersSoundboardVolume}
+                                aria-label="Other people's soundboards"
+                                data-testid="call-others-soundboard-volume"
+                                onChange={(event) =>
+                                    onAudioSettingsChange({ ...audioSettings, othersSoundboardVolume: Number(event.target.value) })
+                                }
+                            />
+                        </label>
+                        <label className="settings-field">
+                            <span>Your soundboard volume: {audioSettings.soundboardVolume}%</span>
                             <input
                                 type="range"
                                 min={0}

@@ -62,6 +62,8 @@ export interface AudioSettings {
     voiceEffect: VoiceEffect;
     // Soundboard volume, 0-100 (what you and the call hear).
     soundboardVolume: number;
+    // Other people's soundboard sounds in calls, 0-100 (their voices aren't affected).
+    othersSoundboardVolume: number;
 }
 
 export interface UserLocalSettings {
@@ -116,6 +118,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         micProfile: "speech",
         voiceEffect: "off",
         soundboardVolume: 80,
+        othersSoundboardVolume: 100,
     },
 };
 
@@ -211,6 +214,10 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             voiceIsolationEnabled: audio.voiceIsolationEnabled !== false,
             micProfile: audio.micProfile === "music" ? "music" : "speech",
             voiceEffect: normalizeVoiceEffect(audio.voiceEffect),
+            othersSoundboardVolume:
+                typeof audio.othersSoundboardVolume === "number" && Number.isFinite(audio.othersSoundboardVolume)
+                    ? Math.max(0, Math.min(100, Math.round(audio.othersSoundboardVolume)))
+                    : 100,
             soundboardVolume:
                 typeof audio.soundboardVolume === "number" && Number.isFinite(audio.soundboardVolume)
                     ? Math.max(0, Math.min(100, Math.round(audio.soundboardVolume)))
