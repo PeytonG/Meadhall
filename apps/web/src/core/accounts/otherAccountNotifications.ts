@@ -53,6 +53,36 @@ function describe(event: NonNullable<NonNullable<NotificationsResponse["notifica
     return body.length > 140 ? `${body.slice(0, 139)}…` : body || "New message";
 }
 
+// Calls send a stream of encrypted events (keys, signals) the server counts as notifying, and they can't be told
+// apart from messages without the account's keys. So per check: one notification per conversation (a readable
+// message wins over "New encrypted message"), call signals other than a ring dropped, and "New encrypted message"
+// at most once a minute per conversation.
+const ENCRYPTED_COOLDOWN_MS = 60_000;
+const lastEncryptedNotice = new Map<string, number>();
+
+type NotificationItem = NonNullable<NotificationsResponse["notifications"]>[number];
+
+export function collapse(items: NotificationItem[], accountUserId: string, now = Date.now()): NotificationItem[] {
+    const byRoom = new Map<string, NotificationItem>();
+    for (const item of items) {
+        const type = item.event?.type ?? "";
+        if (type.includes("rtc.notification") && item.event?.content?.notification_type !== "ring") continue;
+        if (type.includes("call.member") || type.includes("encryption_keys")) continue;
+        const roomId = item.room_id ?? "";
+        const current = byRoom.get(roomId);
+        const encrypted = type === "m.room.encrypted";
+        // Keep the newest readable one; an encrypted one only if there's nothing readable.
+        if (!current || !encrypted || current.event?.type === "m.room.encrypted") byRoom.set(roomId, item);
+    }
+    return [...byRoom.values()].filter((item) => {
+        if (item.event?.type !== "m.room.encrypted") return true;
+        const key = `${accountUserId}|${item.room_id}`;
+        if (now - (lastEncryptedNotice.get(key) ?? 0) < ENCRYPTED_COOLDOWN_MS) return false;
+        lastEncryptedNotice.set(key, now);
+        return true;
+    });
+}
+
 const names = new Map<string, string>();
 
 async function displayName(homeserverUrl: string, token: string, userId: string): Promise<string> {
@@ -127,7 +157,7 @@ export async function checkOtherAccounts(platform = new WebPlatform()): Promise<
             // Server timestamps only, so a computer clock that's off can't hide new notifications.
             const all = (result.response.notifications ?? []).map((item) => item.ts ?? 0);
             seen[account.userId] = since === undefined ? Math.max(0, ...all) : Math.max(since, ...fresh.map((item) => item.ts ?? 0));
-            for (const item of fresh.reverse()) {
+            for (const item of collapse(fresh.reverse(), account.userId)) {
                 const event = item.event!;
                 const sender = event.sender ? await displayName(account.homeserverUrl, result.token, event.sender) : "Someone";
                 found.push({
