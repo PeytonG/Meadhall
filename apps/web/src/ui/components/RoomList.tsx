@@ -1229,9 +1229,14 @@ export function RoomList({
                 </div>
             </div>
             <div className="room-list-items">
-                {uncategorized.map((room, index) =>
-                    renderRoomItem(room, { indexInGroup: index, groupSize: uncategorized.length, catId: null }),
-                )}
+                {/* Each group of channels is a list, so screen readers say "item 2 of 5". */}
+                {uncategorized.length > 0 ? (
+                    <div role="list" aria-label="Channels" className="room-list-group">
+                        {uncategorized.map((room, index) =>
+                            renderRoomItem(room, { indexInGroup: index, groupSize: uncategorized.length, catId: null }),
+                        )}
+                    </div>
+                ) : null}
                 {categorizedGroups.map(({ cat, rooms: catRooms, collapsed }) => (
                     <div key={cat.id} className="room-category">
                         <div
@@ -1334,7 +1339,7 @@ export function RoomList({
                             ) : null}
                         </div>
                         <div className={`room-category-channels${collapsed ? " is-collapsed" : ""}`}>
-                            <div className="room-category-channels-inner">
+                            <div className="room-category-channels-inner" role="list" aria-label={cat.name}>
                                 {catRooms.map((room, index) =>
                                     renderRoomItem(room, { indexInGroup: index, groupSize: catRooms.length, catId: cat.id }),
                                 )}

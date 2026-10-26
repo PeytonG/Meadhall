@@ -3,6 +3,7 @@ import { DEFAULT_ACTIVITY_SETTINGS, normalizeActivitySettings, type ActivitySett
 import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 import { setIconStyle, type IconStyle } from "../../theme/iconStyle";
+import { setReduceMotionSetting } from "../../theme/motion";
 
 // "contrast": high contrast for people who find the other themes hard to see (pure black, white text, bold outlines).
 export type AppTheme = "dark" | "light" | "contrast";
@@ -25,6 +26,8 @@ export interface AppearanceSettings {
     iconStyle: IconStyle;
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
+    // Stop animations (campfire, animated banners, transitions) even if the system doesn't ask for it.
+    reduceMotion: boolean;
 }
 
 export interface NotificationsSettings {
@@ -100,6 +103,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         iconStyle: "pixel",
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
+        reduceMotion: false,
     },
     notifications: {
         // On by default: the desktop and Android apps ask for permission; browsers ask when you turn them on.
@@ -193,6 +197,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             iconStyle: appearance.iconStyle === "smooth" ? "smooth" : "pixel",
             chatLineLengthCh,
             showSpaceChannelAvatars,
+            reduceMotion: appearance.reduceMotion === true,
         },
         notifications: {
             notificationsEnabled: notifications.notificationsEnabled !== false,
@@ -285,6 +290,7 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     root.setAttribute("data-pixel-emoji", settings.pixelEmoji === false ? "off" : "on");
     root.setAttribute("data-icon-style", settings.iconStyle === "smooth" ? "smooth" : "pixel");
     setIconStyle(settings.iconStyle === "smooth" ? "smooth" : "pixel");
+    setReduceMotionSetting(settings.reduceMotion === true);
     if (settings.fontStyle === "custom" && settings.customFontFamily) {
         root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));
     } else {

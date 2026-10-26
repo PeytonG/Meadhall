@@ -111,6 +111,7 @@ import {
 import { CHANNEL_ORDER_STATE_EVENT, readChannelOrder, writeChannelOrder } from "../stores/CategoryStore";
 import { loadBadgeList } from "../../core/badges/badges";
 import { setSoundStyle } from "../notifications/soundStyle";
+import { MotionImage } from "./MotionImage";
 import { closeExpiredPolls } from "../polls/pollActions";
 
 interface AppShellProps {
@@ -2661,7 +2662,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </div>
                 {selectedSpaceBannerUrl ? (
                     <div className="space-banner" data-testid="space-banner">
-                        <img src={selectedSpaceBannerUrl} alt="" />
+                        <MotionImage src={selectedSpaceBannerUrl} alt="" />
                     </div>
                 ) : null}
                 {showSpaceOnboarding ? (

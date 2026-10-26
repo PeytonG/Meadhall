@@ -931,7 +931,8 @@ textarea {
     display: block;
 }
 
-.room-list-items > * + * {
+.room-list-items > * + *,
+.room-list-group > * + * {
     margin-top: 4px;
 }
 
@@ -6873,4 +6874,29 @@ ol.message-renderer-format {
     border-radius: 6px;
     background: var(--bg-input);
     color: var(--text-main);
+}
+
+/* Reduced motion (system setting or Settings -> Appearance; see theme/motion.ts) */
+:root[data-reduce-motion="on"] *,
+:root[data-reduce-motion="on"] *::before,
+:root[data-reduce-motion="on"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+:root[data-reduce-motion="on"] .pixel-campfire.is-burning .pixel-campfire-frame {
+    animation: none !important;
+}
+
+:root[data-reduce-motion="on"] .pixel-campfire.is-burning .pixel-campfire-frame-0 {
+    opacity: 1;
+}
+
+.space-banner canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }

@@ -116,6 +116,20 @@ export function AppearanceTab({
             </div>
 
             <div className="settings-section-card">
+                <h3>Motion</h3>
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={settings.reduceMotion}
+                        onChange={(event) => onChange({ ...settings, reduceMotion: event.target.checked })}
+                        data-testid="reduce-motion-toggle"
+                    />
+                    Reduce motion: still campfires, banners and GIF profile art, no sliding or popping animations
+                </label>
+                <p className="settings-field-help">Always on when your system asks for reduced motion.</p>
+            </div>
+
+            <div className="settings-section-card">
                 <h3>Emoji</h3>
                 <label className="settings-toggle">
                     <input

@@ -335,6 +335,8 @@ export function LoginView({
                 <div className="login-mode-switch" role="tablist" aria-label="Authentication flow">
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={mode === "sign_in"}
                         className={`login-mode-button${mode === "sign_in" ? " is-active" : ""}`}
                         onClick={() => switchMode("sign_in")}
                     >
@@ -342,6 +344,8 @@ export function LoginView({
                     </button>
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={mode === "register"}
                         className={`login-mode-button${mode === "register" ? " is-active" : ""}`}
                         onClick={() => switchMode("register")}
                     >
