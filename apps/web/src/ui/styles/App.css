@@ -6269,7 +6269,8 @@ img.voice-ctrl-icon {
     border: 0;
 }
 
-/* The call and the chat (main-pane body). A voice channel with text chat on shows the chat beside the call. */
+/* The call and the chat (main-pane body). A voice channel with text chat on shows the chat below the call, laid out
+   like a DM (messages, then the message box at the bottom). */
 .main-body {
     flex: 1;
     min-height: 0;
@@ -6277,29 +6278,15 @@ img.voice-ctrl-icon {
     flex-direction: column;
 }
 
-.main-body.has-voice-chat {
-    flex-direction: row;
-}
-
 .main-body.has-voice-chat .main-voice-slot {
-    min-width: 0;
+    flex: 1 1 55%;
+    min-height: 200px;
 }
 
 .main-body.has-voice-chat .main-chat-stack {
-    flex: 0 0 min(380px, 40%);
-    border-left: 1px solid var(--border);
-}
-
-@media (max-width: 900px) {
-    .main-body.has-voice-chat {
-        flex-direction: column;
-    }
-
-    .main-body.has-voice-chat .main-chat-stack {
-        flex: 1 1 45%;
-        border-left: 0;
-        border-top: 1px solid var(--border);
-    }
+    flex: 1 1 45%;
+    min-height: 180px;
+    border-top: 1px solid var(--border);
 }
 
 /* Badges after names (components/badges/UserBadges.tsx). */
@@ -6442,4 +6429,12 @@ img.voice-ctrl-icon {
 .share-card-error {
     flex-basis: 100%;
     color: var(--danger);
+}
+
+.soundboard-import {
+    display: grid;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
 }

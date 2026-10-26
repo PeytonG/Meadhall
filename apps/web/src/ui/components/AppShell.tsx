@@ -109,6 +109,7 @@ import {
 } from "../voice/selfVoiceState";
 import { CHANNEL_ORDER_STATE_EVENT, readChannelOrder, writeChannelOrder } from "../stores/CategoryStore";
 import { loadBadgeList } from "../../core/badges/badges";
+import { setSoundStyle } from "../notifications/soundStyle";
 
 interface AppShellProps {
     client: MatrixClient;
@@ -2393,6 +2394,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         settings: userSettings.notifications,
         onOpenRoom: focusRoom,
     });
+
+    // Sound style (Settings → Notifications) for the message sound, ringtone and call sounds.
+    useEffect(() => setSoundStyle(userSettings.notifications.soundStyle), [userSettings.notifications.soundStyle]);
 
     // Uncaught errors go to Settings → Logs too.
     useEffect(() => captureGlobalErrors(), []);

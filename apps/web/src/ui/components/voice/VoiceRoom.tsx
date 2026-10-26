@@ -54,11 +54,15 @@ import { mergeCapturePreviews } from "../../voice/capturePreviews";
 import { stageGridStyle } from "../../voice/stageGrid";
 import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
-import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
+import { decodeCustomSound, SoundboardPlayer, type CustomSound } from "../../voice/soundboard/soundboard";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { RECONNECT_DELAYS_MS, announceCallEnded, beginCallLog, currentCallLogId, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
 import { logAppError } from "../../logs/appLog";
 import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
+import { useSharingEnabled } from "../../sharing/sharingSetting";
+import { ShareDialog } from "../../sharing/ShareDialog";
+import { adoptSharedSound, soundToShare } from "../../sharing/sharedSounds";
+import { downloadMeadhallFile, readMeadhallFile } from "../../../core/sharing/share";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
 
@@ -684,6 +688,11 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [soundboardOpen, setSoundboardOpen] = useState(false);
+    // Sharing (Settings → Privacy & Safety): share your sounds and import .meadhall sounds from the call too.
+    const sharingEnabled = useSharingEnabled();
+    const [sharingSound, setSharingSound] = useState<CustomSound | null>(null);
+    const [soundboardNotice, setSoundboardNotice] = useState<string | null>(null);
+    const [soundboardVersion, setSoundboardVersion] = useState(0);
     // People in the Matrix call other than us (MatrixRTC memberships), whichever call server they're on.
     const [rtcOtherMembers, setRtcOtherMembers] = useState(0);
     // Rejoining after an unexpected drop: how many tries so far, and the pending one.
@@ -2845,11 +2854,39 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </button>
                         {soundboardOpen ? (
                             <SoundboardPanel
+                                key={soundboardVersion}
                                 client={client}
                                 onPlay={playSoundboardSound}
                                 onClose={() => setSoundboardOpen(false)}
                                 volume={audioSettings.soundboardVolume}
                                 onVolumeChange={(soundboardVolume) => onAudioSettingsChange({ ...audioSettings, soundboardVolume })}
+                                onShareSound={sharingEnabled ? setSharingSound : undefined}
+                                hint={soundboardNotice ?? undefined}
+                                footer={
+                                    sharingEnabled ? (
+                                        <label className="soundboard-import">
+                                            <span>Import a .meadhall sound</span>
+                                            <input
+                                                type="file"
+                                                accept=".meadhall,application/x-meadhall"
+                                                data-testid="call-meadhall-import"
+                                                onChange={(event) => {
+                                                    const file = event.target.files?.[0];
+                                                    event.currentTarget.value = "";
+                                                    if (!file) return;
+                                                    void readMeadhallFile(file)
+                                                        .then(async (item) => {
+                                                            if (item.kind !== "sound") throw new Error("That's a style profile: import it in Settings → Appearance.");
+                                                            await adoptSharedSound(client, item);
+                                                            setSoundboardVersion((value) => value + 1);
+                                                            setSoundboardNotice(`Added "${item.name}" to your soundboard.`);
+                                                        })
+                                                        .catch((importError: unknown) => setSoundboardNotice(importError instanceof Error ? importError.message : "Couldn't import that file."));
+                                                }}
+                                            />
+                                        </label>
+                                    ) : null
+                                }
                             />
                         ) : null}
                     </div>
@@ -2905,6 +2942,17 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             ) : null}
 
             <div ref={audioSinkRef} aria-hidden="true" style={{ display: "none" }} />
+
+            {sharingSound ? (
+                <ShareDialog
+                    client={client}
+                    title={`Share "${sharingSound.name}"`}
+                    prepare={() => soundToShare(client, sharingSound)}
+                    onExport={async () => downloadMeadhallFile(await soundToShare(client, sharingSound))}
+                    onClose={() => setSharingSound(null)}
+                    onToast={(toast) => setSoundboardNotice(toast.message)}
+                />
+            ) : null}
 
             <RoomDialog
                 open={desktopCaptureDialogOpen}

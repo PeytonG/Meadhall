@@ -34,6 +34,8 @@ export interface NotificationsSettings {
     customMessageSoundName: string | null;
     // Incoming calls: ring at all, and with your own sound instead of the built-in jingle.
     ringtoneEnabled: boolean;
+    // The tunes as 8-bit chiptune (default) or smooth bell tones.
+    soundStyle: "pixel" | "smooth";
     customRingtoneDataUrl: string | null;
     customRingtoneName: string | null;
 }
@@ -93,6 +95,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         customMessageSoundDataUrl: null,
         customMessageSoundName: null,
         ringtoneEnabled: true,
+        soundStyle: "pixel",
         customRingtoneDataUrl: null,
         customRingtoneName: null,
     },
@@ -178,6 +181,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             customMessageSoundDataUrl,
             customMessageSoundName,
             ringtoneEnabled: notifications.ringtoneEnabled !== false,
+            soundStyle: notifications.soundStyle === "smooth" ? "smooth" : "pixel",
             customRingtoneDataUrl:
                 typeof notifications.customRingtoneDataUrl === "string" && notifications.customRingtoneDataUrl.startsWith("data:audio/")
                     ? notifications.customRingtoneDataUrl

@@ -29,9 +29,11 @@ interface SoundboardPanelProps {
     onVolumeChange?: (volume: number) => void;
     // Sharing on (Settings → Privacy): a share button on each of your own sounds.
     onShareSound?: (sound: CustomSound) => void;
+    // Extra controls under the sounds (e.g. importing a .meadhall sound in a call).
+    footer?: React.ReactNode;
 }
 
-export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in the call hears these.", volume, onVolumeChange, onShareSound }: SoundboardPanelProps): React.ReactElement {
+export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in the call hears these.", volume, onVolumeChange, onShareSound, footer }: SoundboardPanelProps): React.ReactElement {
     const [custom, setCustom] = useState<CustomSound[]>(() => loadCustomSounds(client));
     const [adding, setAdding] = useState(false);
     const [file, setFile] = useState<File | null>(null);
@@ -235,6 +237,7 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
                 </div>
             ) : null}
             {error ? <p className="settings-inline-error">{error}</p> : null}
+            {footer}
         </div>
     );
 }

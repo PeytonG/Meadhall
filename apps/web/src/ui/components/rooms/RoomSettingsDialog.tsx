@@ -82,6 +82,8 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
     );
 
     const isVoice = isVoiceChannelRoom(room);
+    // Channel types only mean something in a server (DMs and group chats are just chats).
+    const isServerChannel = Boolean(room && room.currentState.getStateEvents(EventType.SpaceParent).length > 0);
     const canEditVoiceChat = Boolean(room && myUserId && room.currentState.maySendStateEvent(VOICE_CHAT_EVENT, myUserId));
     const canEditChannelType = Boolean(room && myUserId && room.currentState.maySendStateEvent(CHANNEL_TYPE_EVENT, myUserId));
     // The server the channel belongs to (its type is also listed there).
@@ -254,9 +256,9 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
                         disabled={saving || !canEditVoiceChat}
                         data-testid="voice-chat-toggle"
                     />
-                    Text chat in this voice channel (shown beside the call)
+                    Text chat in this voice channel (shown below the call)
                 </label>
-            ) : (
+            ) : isServerChannel ? (
                 <label className="room-dialog-field">
                     <span>Channel type</span>
                     <select
@@ -272,7 +274,7 @@ export function RoomSettingsDialog({ client, room, open, onClose }: RoomSettings
                         ))}
                     </select>
                 </label>
-            )}
+            ) : null}
 
             <label className="room-dialog-checkbox">
                 <input

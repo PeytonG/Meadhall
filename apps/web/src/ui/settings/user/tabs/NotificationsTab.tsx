@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import type { NotificationsSettings } from "../settingsStore";
 import { playNotificationSound } from "../../../notifications/sound";
 import { RingtoneSettings } from "./RingtoneSettings";
+import { setSoundStyle } from "../../../notifications/soundStyle";
 
 interface NotificationsTabProps {
     settings: NotificationsSettings;
@@ -187,6 +188,31 @@ export function NotificationsTab({ settings, onChange, speakerId }: Notification
                         {testPending ? "Testing..." : "Test sound"}
                     </button>
                 </div>
+            </div>
+
+            <div className="settings-section-card">
+                <h3>Sound style</h3>
+                <div className="settings-theme-row" role="radiogroup" aria-label="Sound style">
+                    {([
+                        ["pixel", "8-bit"],
+                        ["smooth", "Smooth"],
+                    ] as const).map(([style, label]) => (
+                        <button
+                            key={style}
+                            type="button"
+                            role="radio"
+                            aria-checked={settings.soundStyle === style}
+                            className={`settings-theme-button${settings.soundStyle === style ? " is-active" : ""}`}
+                            onClick={() => {
+                                setSoundStyle(style);
+                                onChange({ ...settings, soundStyle: style });
+                            }}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+                <p className="settings-field-help">The message sound, ringtone and call sounds: the same tunes as chiptune or as soft bell tones.</p>
             </div>
 
             <RingtoneSettings settings={settings} speakerId={speakerId} onChange={onChange} />
