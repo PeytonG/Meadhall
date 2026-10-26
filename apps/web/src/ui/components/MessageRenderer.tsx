@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { renderTextWithEmoji } from "../emoji/unicodeEmoji";
 import { mxidLocalpart, tokenizeMatrixMentions } from "../mentions/mentionTokens";
+import { CodeBlock, InlineCode } from "../code/CodeBlock";
 
 interface MessageRendererProps {
     body: string;
@@ -174,6 +175,22 @@ function handleSanitizedImageError(event: React.SyntheticEvent<HTMLImageElement>
     image.src = withCacheBuster(currentSource);
 }
 
+const FORMATTING_TAGS: Record<string, keyof React.JSX.IntrinsicElements> = {
+    b: "strong",
+    strong: "strong",
+    i: "em",
+    em: "em",
+    u: "u",
+    s: "del",
+    del: "del",
+    strike: "del",
+    blockquote: "blockquote",
+    ul: "ul",
+    ol: "ol",
+    li: "li",
+    p: "p",
+};
+
 function sanitizeNodes(
     nodes: NodeListOf<ChildNode>,
     keyPrefix: string,
@@ -207,6 +224,36 @@ function sanitizeNodes(
 
         if (tagName === "br") {
             rendered.push(<br key={key} />);
+            return;
+        }
+
+        // Code from other apps (Element sends <pre><code class="language-js">): a highlighted block / inline code.
+        if (tagName === "pre") {
+            const codeElement = element.querySelector("code");
+            const languageClass = [...(codeElement?.classList ?? [])].find((name) => name.startsWith("language-"));
+            const language = languageClass ? languageClass.slice("language-".length).slice(0, 32) : null;
+            rendered.push(<CodeBlock key={key} code={(element.textContent ?? "").replace(/\n$/, "")} language={language} />);
+            return;
+        }
+        if (tagName === "code") {
+            rendered.push(<InlineCode key={key}>{element.textContent ?? ""}</InlineCode>);
+            return;
+        }
+        // Basic formatting keeps its tag (never its attributes).
+        const FormatTag = FORMATTING_TAGS[tagName];
+        if (FormatTag) {
+            rendered.push(
+                <FormatTag key={key} className="message-renderer-format">
+                    {sanitizeNodes(
+                        element.childNodes as NodeListOf<ChildNode>,
+                        `${key}_child`,
+                        resolveImageSource,
+                        resolveImageFallbackSource,
+                        resolveMentionDisplayName,
+                        ownUserId,
+                    )}
+                </FormatTag>,
+            );
             return;
         }
 

@@ -30,6 +30,23 @@ export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): Rea
                 What other people can see about you, and who you have blocked.
             </p>
 
+            <label className="settings-field">
+                <span>Link previews</span>
+                <select
+                    value={settings.linkPreviews}
+                    onChange={(event) => onChange({ ...settings, linkPreviews: event.target.value as PrivacySettings["linkPreviews"] })}
+                    data-testid="link-previews"
+                >
+                    <option value="unencrypted">Only in chats that aren&apos;t encrypted (recommended)</option>
+                    <option value="all">Everywhere</option>
+                    <option value="off">Off</option>
+                </select>
+                <small className="settings-hint">
+                    To show a preview, your homeserver fetches the page, so it sees the link. In encrypted chats that would
+                    let it see links it otherwise couldn&apos;t.
+                </small>
+            </label>
+
             <label className="settings-toggle">
                 <input
                     type="checkbox"

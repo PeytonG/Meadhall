@@ -2981,6 +2981,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
                             customReactionImagesEnabled={renderReactionImages}
                             showReadReceipts={shouldShowReadReceipts}
+                            linkPreviews={userSettings.privacy.linkPreviews}
                         />
                         <div className="main-chat-composer">
                             <Composer

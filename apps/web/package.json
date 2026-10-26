@@ -18,6 +18,7 @@
     "@fontsource/pixelify-sans": "5.3.0",
     "@fontsource/silkscreen": "5.3.0",
     "@matrix-org/matrix-sdk-crypto-wasm": "^17.1.0",
+    "highlight.js": "11.11.1",
     "livekit-client": "^2.23.0",
     "matrix-encrypt-attachment": "1.0.3",
     "matrix-js-sdk": "^40.2.0",

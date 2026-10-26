@@ -27,6 +27,9 @@ import { Toast, type ToastState } from "./Toast";
 import { ReactionsRow } from "./reactions/ReactionsRow";
 import { UserBadges } from "./badges/UserBadges";
 import { ShareCard } from "../sharing/ShareCard";
+import { CodeBlock, InlineCode } from "../code/CodeBlock";
+import { splitCode } from "../code/codeMarkdown";
+import type { LinkPreviewMode } from "../settings/user/settingsStore";
 import { PollCard, PollEndNotice } from "../polls/PollCard";
 import { isPollEndType, isPollStartType } from "../polls/pollModel";
 import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhallFile";
@@ -42,6 +45,7 @@ interface TimelineProps {
     activeSpaceId: string | null;
     customReactionImagesEnabled: boolean;
     showReadReceipts: boolean;
+    linkPreviews?: LinkPreviewMode;
 }
 
 interface LightboxState {
@@ -1172,7 +1176,30 @@ function renderTextSegmentWithMentionsAndCustomEmojis(
     return rendered;
 }
 
+// Code first (```blocks``` and `inline`), then links, mentions and emoji in the rest.
 function renderMessageBody(
+    client: MatrixClient,
+    room: Room,
+    ownUserId: string | null,
+    body: string,
+    emojiSourcesByShortcode: ReadonlyMap<string, string>,
+): React.ReactNode {
+    const parts = splitCode(body);
+    if (parts.length === 1 && parts[0]!.type === "text") {
+        return renderTextBody(client, room, ownUserId, body, emojiSourcesByShortcode);
+    }
+    return parts.map((part, index) =>
+        part.type === "block" ? (
+            <CodeBlock key={`code_${index}`} code={part.value} language={part.language} />
+        ) : part.type === "inline" ? (
+            <InlineCode key={`code_${index}`}>{part.value}</InlineCode>
+        ) : (
+            <React.Fragment key={`code_${index}`}>{renderTextBody(client, room, ownUserId, part.value, emojiSourcesByShortcode)}</React.Fragment>
+        ),
+    );
+}
+
+function renderTextBody(
     client: MatrixClient,
     room: Room,
     ownUserId: string | null,
@@ -1251,6 +1278,7 @@ export function Timeline({
     activeSpaceId,
     customReactionImagesEnabled,
     showReadReceipts,
+    linkPreviews = "unencrypted",
 }: TimelineProps): React.ReactElement {
     const decryptTuning = useMemo<DecryptTuning>(() => loadDecryptTuning(), []);
     const handleImageError = useMemo(() => createImageErrorHandler(client), [client]);
@@ -1770,8 +1798,13 @@ export function Timeline({
         };
     }, [room?.roomId]);
 
+    // Link previews make the homeserver fetch the page (it sees the link): in encrypted chats only if you said so.
+    const previewsAllowed = linkPreviews === "all" || (linkPreviews === "unencrypted" && !room?.hasEncryptionStateEvent());
     useEffect(() => {
         let cancelled = false;
+        if (!previewsAllowed) {
+            return undefined;
+        }
 
         const fetchLinkPreview = async (url: string): Promise<void> => {
             try {
@@ -1794,6 +1827,11 @@ export function Timeline({
         };
 
         for (const event of events) {
+            // Right after switching rooms, the list can still hold the last room's messages: never preview those
+            // under this room's rules (an encrypted chat's links would go to the server).
+            if (event.getRoomId() !== room?.roomId) {
+                continue;
+            }
             const { content } = getDisplayContentForEvent(event, latestEditEventsByTarget);
             if (isMediaMessageType(content.msgtype)) {
                 continue;
@@ -1823,7 +1861,7 @@ export function Timeline({
         return () => {
             cancelled = true;
         };
-    }, [client, events, latestEditEventsByTarget]);
+    }, [client, events, latestEditEventsByTarget, previewsAllowed, room]);
 
     useEffect(() => {
         if (!room) {
@@ -2080,7 +2118,7 @@ export function Timeline({
                     const hasTextBody = body.trim().length > 0;
                     const imageAlt = hasTextBody ? body : "image";
                     const previewUrl = hasTextBody && !mediaMsgType ? getFirstPreviewableUrl(body) : null;
-                    const linkPreview = previewUrl ? linkPreviewByUrlRef.current[previewUrl] : null;
+                    const linkPreview = previewUrl && previewsAllowed ? linkPreviewByUrlRef.current[previewUrl] : null;
                     const format = typeof content.format === "string" ? content.format : undefined;
                     const formattedBody = typeof content.formatted_body === "string" ? content.formatted_body : undefined;
                     const hasFormattedBody = format === "org.matrix.custom.html" && typeof formattedBody === "string";

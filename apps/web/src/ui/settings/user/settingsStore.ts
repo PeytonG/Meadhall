@@ -47,7 +47,11 @@ export interface PrivacySettings {
     shareActivity: boolean;
     // Off: you appear offline to everyone, with no status text, Do Not Disturb or game shown.
     shareStatus: boolean;
+    // Link previews ask your homeserver to fetch the page, so the server sees the link. Off in encrypted chats by default.
+    linkPreviews: LinkPreviewMode;
 }
+
+export type LinkPreviewMode = "all" | "unencrypted" | "off";
 
 export interface AudioSettings {
     preferredAudioInputId: string;
@@ -111,6 +115,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         allowDmsFromServerMembers: true,
         shareActivity: true,
         shareStatus: true,
+        linkPreviews: "unencrypted",
     },
     audio: {
         preferredAudioInputId: "default",
@@ -205,6 +210,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             allowDmsFromServerMembers: privacy.allowDmsFromServerMembers !== false,
             shareActivity: privacy.shareActivity !== false,
             shareStatus: privacy.shareStatus !== false,
+            linkPreviews: privacy.linkPreviews === "all" || privacy.linkPreviews === "off" ? privacy.linkPreviews : "unencrypted",
         },
         audio: {
             pushToTalk: audio.pushToTalk === true,
