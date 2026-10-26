@@ -110,6 +110,7 @@ import {
 import { CHANNEL_ORDER_STATE_EVENT, readChannelOrder, writeChannelOrder } from "../stores/CategoryStore";
 import { loadBadgeList } from "../../core/badges/badges";
 import { setSoundStyle } from "../notifications/soundStyle";
+import { closeExpiredPolls } from "../polls/pollActions";
 
 interface AppShellProps {
     client: MatrixClient;
@@ -2386,6 +2387,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
     }, []);
+
+    // Your polls with a time limit: when it's up, your app posts the results in the channel.
+    useEffect(() => {
+        closeExpiredPolls(client);
+        const timer = window.setInterval(() => closeExpiredPolls(client), 15_000);
+        return () => window.clearInterval(timer);
+    }, [client]);
 
     useElementLikeNotifications({
         client,

@@ -21,6 +21,9 @@ import { ComposerBar } from "./composer/ComposerBar";
 import { EmojiPicker } from "./composer/EmojiPicker";
 import { sendSticker } from "../stickers/sendSticker";
 import { StickerButton } from "../stickers/StickerButton";
+import { CreatePollDialog } from "../polls/CreatePollDialog";
+import { sendPoll } from "../polls/pollActions";
+import { PixelIcon } from "./PixelIcon";
 import { Toast, type ToastState } from "./Toast";
 import { TypingIndicator } from "./typing/TypingIndicator";
 
@@ -826,6 +829,7 @@ export function Composer({
     const lastTypingTrueSentAtRef = useRef(0);
     const typingRoomIdRef = useRef<string | null>(null);
     const currentRoomIdRef = useRef<string | null>(room?.roomId ?? null);
+    const [pollDialogOpen, setPollDialogOpen] = useState(false);
     const replySenderName = replyToEvent ? getReplySenderName(room, replyToEvent) : null;
     const replySnippet = replyToEvent ? getReplySnippet(replyToEvent) : null;
     const editingEventId = editingEvent?.getId() ?? null;
@@ -1963,6 +1967,13 @@ export function Composer({
                     </button>
                 </div>
             ) : null}
+            <CreatePollDialog
+                open={pollDialogOpen}
+                onClose={() => setPollDialogOpen(false)}
+                onCreate={async (poll) => {
+                    if (room) await sendPoll(client, room.roomId, poll);
+                }}
+            />
             <TypingIndicator client={client} room={room} typingUserIds={typingUserIds} />
             <ComposerBar
                 disabled={!room}
@@ -1993,12 +2004,25 @@ export function Composer({
                 onSend={() => void sendMessage()}
                 canSend={text.trim().length > 0 || uploads.some((upload) => upload.roomId === room?.roomId && upload.status === "queued")}
                 stickerControl={
-                    <StickerButton
-                        disabled={!room}
-                        onSend={async (sticker) => {
-                            if (room) await sendSticker(client, room.roomId, sticker);
-                        }}
-                    />
+                    <>
+                        <button
+                            type="button"
+                            className="composer-action-button composer-poll-button"
+                            onClick={() => setPollDialogOpen(true)}
+                            disabled={!room}
+                            aria-label="Create poll"
+                            title="Poll"
+                            data-testid="composer-poll"
+                        >
+                            <PixelIcon name="poll" size={18} />
+                        </button>
+                        <StickerButton
+                            disabled={!room}
+                            onSend={async (sticker) => {
+                                if (room) await sendSticker(client, room.roomId, sticker);
+                            }}
+                        />
+                    </>
                 }
                 emojiPicker={
                     emojiPickerOpen && room ? (

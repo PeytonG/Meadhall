@@ -27,6 +27,8 @@ import { Toast, type ToastState } from "./Toast";
 import { ReactionsRow } from "./reactions/ReactionsRow";
 import { UserBadges } from "./badges/UserBadges";
 import { ShareCard } from "../sharing/ShareCard";
+import { PollCard, PollEndNotice } from "../polls/PollCard";
+import { isPollEndType, isPollStartType } from "../polls/pollModel";
 import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhallFile";
 
 interface TimelineProps {
@@ -622,6 +624,10 @@ function collectLatestEditEventsByTarget(room: Room | null): Map<string, MatrixE
 }
 
 function isRenderableMessage(event: MatrixEvent): boolean {
+    // Polls: the poll itself, and the "poll closed" line with its results (votes aren't shown as messages).
+    if (isPollStartType(event.getType()) || isPollEndType(event.getType())) {
+        return true;
+    }
     if (event.getType() !== EventType.RoomMessage && !isStickerEvent(event)) {
         return false;
     }
@@ -2320,6 +2326,10 @@ export function Timeline({
                                 >
                                     🔒 Couldn&apos;t decrypt this message on this device. Restore your keys in Settings → Encryption &amp; Recovery.
                                 </div>
+                            ) : isPollStartType(event.getType()) ? (
+                                <PollCard client={client} room={room} event={event} />
+                            ) : isPollEndType(event.getType()) ? (
+                                <PollEndNotice event={event} />
                             ) : !mediaMsgType ? (
                                 <>
                                     {hasTextBody ? (

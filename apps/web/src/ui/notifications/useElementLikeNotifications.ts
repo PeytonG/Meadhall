@@ -17,6 +17,7 @@ import {
 
 import { mediaFromMxc, thumbnailFromMxc } from "../adapters/media";
 import type { NotificationsSettings } from "../settings/user/settingsStore";
+import { isPollEndType, isPollStartType, parsePollStart } from "../polls/pollModel";
 import { playNotificationSound } from "./sound";
 
 interface UseElementLikeNotificationsOptions {
@@ -98,6 +99,14 @@ function notificationMessageForEvent(event: MatrixEvent): string | null {
     const body = typeof content.body === "string" ? stripPlainReplyFallback(content.body).trim() : "";
     const msgType = typeof content.msgtype === "string" ? content.msgtype : null;
 
+    const pollQuestion = pollQuestionOf(event);
+    if (pollQuestion !== null) {
+        return `📊 Poll: ${pollQuestion}`;
+    }
+    if (isPollEndType(event.getType())) {
+        return body || "Poll closed";
+    }
+
     if (msgType === MsgType.Image) {
         return body ? `[Image] ${body}` : "[Image]";
     }
@@ -127,10 +136,15 @@ function notificationMessageForEvent(event: MatrixEvent): string | null {
     return null;
 }
 
+function pollQuestionOf(event: MatrixEvent): string | null {
+    if (!isPollStartType(event.getType())) return null;
+    return parsePollStart(event.getContent())?.question ?? "";
+}
+
 // What notifies at all: messages, stickers, polls and invites to you. Calls ring through their own card.
 function isNotifiableEvent(event: MatrixEvent, ownUserId: string | null): boolean {
     const type = event.getType();
-    if (type === EventType.RoomMessage || type === EventType.Sticker || type === "m.poll.start" || type === "org.matrix.msc3381.poll.start") {
+    if (type === EventType.RoomMessage || type === EventType.Sticker || isPollStartType(type) || isPollEndType(type)) {
         return !event.isRedacted();
     }
     return type === EventType.RoomMember && event.getStateKey() === ownUserId && event.getContent()?.membership === "invite";
