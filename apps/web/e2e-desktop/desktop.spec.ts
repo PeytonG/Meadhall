@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
-import { canLogIn, createRoom, joinRoom, makeServerAdmin, readPresence, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
+import { canLogIn, createRoom, joinRoom, makeServerAdmin, readPresence, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, setProfileField, type ApiUser } from "../e2e/support/matrixApi";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "desktop");
 const electronBinary = createRequire(path.join(desktopDir, "package.json"))("electron") as unknown as string;
@@ -370,4 +370,23 @@ test("the app identifies itself as Meadhall (not the package name)", async () =>
     const userAgent = await window.evaluate(() => navigator.userAgent);
     expect(userAgent).toMatch(/ Meadhall\/\d+\.\d+\.\d+/);
     expect(userAgent).not.toContain("heorot");
+});
+
+test("the window controls take the color of a profile card's gradient under them", async () => {
+    test.skip(process.platform !== "win32", "the window-controls overlay is drawn by Windows");
+    await setProfileField(bob, "io.github.peytong.meadhall.profile_style", { card: { preset: "ember" } });
+    const bobDm = (globalThis as unknown as { bobDm: string }).bobDm;
+    await sendMessage(bob, bobDm, "check out my card");
+    await window.evaluate(() => {
+        document.documentElement.setAttribute("data-theme", "dark");
+        window.dispatchEvent(new Event("resize"));
+    });
+    await window.getByTestId("home-row").filter({ hasText: "Bob" }).click();
+    await window.locator(".timeline .timeline-sender").filter({ hasText: "Bob" }).first().click();
+    await expect(window.getByTestId("profile-card")).toHaveClass(/has-card-style/, { timeout: 20_000 });
+    await window.waitForTimeout(1200);
+    // Ember starts at #ff7a18: the minimize button's background should be that color.
+    const overlay = await windowPixel(100, 4);
+    expect(distance(overlay, [0xff, 0x7a, 0x18]), `overlay ${overlay}`).toBeLessThanOrEqual(6);
+    await window.keyboard.press("Escape");
 });

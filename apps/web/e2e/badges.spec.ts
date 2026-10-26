@@ -36,3 +36,25 @@ test("badges claimed outside the official list show as unofficial, never as the 
     await expect(header.locator('[data-badge="founder"]')).toHaveCount(0);
     expect(fetched).toBe(true);
 });
+
+test("badges show on profile cards even when the name is too long to fit", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await setDisplayName(bob, "Bob With An Extremely Long Display Name That Never Fits");
+    await setProfileField(bob, "io.github.peytong.meadhall.badges", ["Staff"]);
+    const hall = await createSpaceWithChannel(bob, alice, { space: "Card Hall", channel: "general" });
+    await sendMessage(bob, hall.channelId, "look at my card");
+    await page.route("https://raw.githubusercontent.com/PeytonG/Meadhall/main/badges/badges.json", (route) =>
+        route.fulfill({ status: 200, contentType: "application/json", body: published }),
+    );
+    await signIn(page, alice);
+    await page.getByTitle("Card Hall").click();
+    await page.getByText("#general", { exact: true }).first().click();
+    await page.locator(".timeline .timeline-sender").filter({ hasText: "Bob With" }).first().click();
+    const card = page.getByTestId("profile-card");
+    const badge = card.locator(".rp-profile-name-row").getByTestId("unofficial-badges");
+    await expect(badge).toBeVisible({ timeout: 20_000 });
+    const cardBox = (await card.boundingBox())!;
+    const badgeBox = (await badge.boundingBox())!;
+    expect(badgeBox.x + badgeBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width);
+});

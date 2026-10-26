@@ -101,10 +101,13 @@ export function ProfileHeader({
                 presenceState={toAvatarPresenceState(presence)}
             />
             <div className="rp-profile-main">
-                <h2 className="rp-profile-name">
-                    {displayName}
+                {/* The name shortens with "…" when long; the badges sit outside it so they're never cut off. */}
+                <div className="rp-profile-name-row">
+                    <h2 className="rp-profile-name" title={displayName}>
+                        {displayName}
+                    </h2>
                     {badges}
-                </h2>
+                </div>
                 <div className="rp-profile-mxid">{userId}</div>
                 {presence ? <PresenceText presence={presence} className="rp-profile-presence" /> : null}
             </div>

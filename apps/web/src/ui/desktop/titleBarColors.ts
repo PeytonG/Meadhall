@@ -23,6 +23,12 @@ export function readTitleBarColors(): { color: string; symbolColor: string } | n
     const y = 12;
     let color: string | null = null;
     for (const element of document.elementsFromPoint(x, y)) {
+        // Gradients (e.g. a profile card style) have no background color: they say what color is at the top right.
+        const declared = element instanceof HTMLElement ? element.dataset.titlebarColor : undefined;
+        if (declared && /^#[0-9a-f]{6}$/i.test(declared)) {
+            color = declared.toLowerCase();
+            break;
+        }
         color = toHex(getComputedStyle(element).backgroundColor);
         if (color) {
             break;
