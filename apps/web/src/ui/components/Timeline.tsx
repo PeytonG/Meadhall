@@ -622,8 +622,12 @@ function collectLatestEditEventsByTarget(room: Room | null): Map<string, MatrixE
 }
 
 function isRenderableMessage(event: MatrixEvent): boolean {
-    if ((event.getType() !== EventType.RoomMessage && !isStickerEvent(event)) || event.isRedacted()) {
+    if (event.getType() !== EventType.RoomMessage && !isStickerEvent(event)) {
         return false;
+    }
+    // Deleted messages stay as a "Message deleted" line (with who deleted it), instead of vanishing without a trace.
+    if (event.isRedacted()) {
+        return true;
     }
 
     if (isEditEvent(event)) {
@@ -632,6 +636,13 @@ function isRenderableMessage(event: MatrixEvent): boolean {
 
     const content = getMessageContent(event);
     return isRenderableMessageContent(content);
+}
+
+// "Message deleted", naming who deleted it when it wasn't the person who sent it.
+function deletedLabel(room: Room | null, event: MatrixEvent): string {
+    const deleter = (event.getUnsigned()?.redacted_because as { sender?: unknown } | undefined)?.sender;
+    if (typeof deleter !== "string" || deleter === event.getSender()) return "Message deleted";
+    return `Message deleted by ${room?.getMember(deleter)?.name ?? deleter}`;
 }
 
 function extractMessageEvents(room: Room | null): MatrixEvent[] {
@@ -1846,6 +1857,11 @@ export function Timeline({
             }
 
             refreshEvents();
+            // Events that aren't shown (call signals, keys, edits...) still count as unread on the server: when
+            // you're reading at the bottom, mark them read too, or the chat would stay unread.
+            if (stickToBottomRef.current && document.visibilityState === "visible") {
+                void markReadRef.current();
+            }
         };
 
         const onEventDecrypted = (event: MatrixEvent): void => {
@@ -1898,7 +1914,7 @@ export function Timeline({
     }, [focusBottomNonce, room?.roomId]);
 
     const markActiveRoomReadToLatest = useCallback(async (): Promise<void> => {
-        if (!room || events.length === 0) {
+        if (!room) {
             return;
         }
 
@@ -1907,7 +1923,10 @@ export function Timeline({
             return;
         }
 
-        const latestEvent = events[events.length - 1];
+        // The newest event of any kind that the server knows about (not only the newest shown message), so hidden
+        // events after it (call signals, keys) can't leave the conversation unread.
+        const liveEvents = room.getLiveTimeline().getEvents();
+        const latestEvent = [...liveEvents].reverse().find((event) => event.getId()?.startsWith("$")) ?? events[events.length - 1];
         const latestEventId = latestEvent?.getId();
         if (!latestEvent || !latestEventId) {
             return;
@@ -2289,7 +2308,19 @@ export function Timeline({
                                     {mediaLabel} unavailable
                                 </div>
                             ) : null}
-                            {!mediaMsgType ? (
+                            {event.isRedacted() ? (
+                                <div className={`timeline-body timeline-deleted${showHeader ? "" : " timeline-body-grouped"}`} data-testid="message-deleted">
+                                    {deletedLabel(room, event)}
+                                </div>
+                            ) : content.msgtype === "m.bad.encrypted" ? (
+                                <div
+                                    className={`timeline-body timeline-undecryptable${showHeader ? "" : " timeline-body-grouped"}`}
+                                    data-testid="message-undecryptable"
+                                    title="This device doesn't have the key for this message. Restore your keys with your recovery key in Settings → Encryption & Recovery, or verify this device from another one."
+                                >
+                                    🔒 Couldn&apos;t decrypt this message on this device. Restore your keys in Settings → Encryption &amp; Recovery.
+                                </div>
+                            ) : !mediaMsgType ? (
                                 <>
                                     {hasTextBody ? (
                                         <div

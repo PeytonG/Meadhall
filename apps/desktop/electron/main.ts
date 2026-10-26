@@ -30,6 +30,7 @@ let appProtocolConfigured = false;
 let closeOnWindowCloseMinimize = true;
 let isAppQuitting = false;
 let preferredDisplayMediaSourceId: string | null = null;
+const shownNotifications = new Map<string, Set<Notification>>();
 
 // The browser identity (user agent) names the app after the package ("@heorot/desktop"); say Meadhall instead.
 // (The package name itself stays: the data folder is named after the product, but renaming risks moving it.)
@@ -481,16 +482,36 @@ function registerIpc(): void {
             urgency: value.urgent === true ? "critical" : "normal",
             timeoutType: value.urgent === true ? "never" : "default",
         });
+        const roomId = typeof value.roomId === "string" ? value.roomId : "";
+        // Kept per conversation, so opening it can clear them (and so they aren't garbage-collected while showing).
+        const forRoom = shownNotifications.get(roomId) ?? new Set<Notification>();
+        forRoom.add(notification);
+        shownNotifications.set(roomId, forRoom);
+        const forget = (): void => {
+            forRoom.delete(notification);
+            if (forRoom.size === 0) shownNotifications.delete(roomId);
+        };
+        notification.on("close", forget);
         notification.on("click", () => {
+            forget();
             if (window.isMinimized()) window.restore();
             window.show();
             window.focus();
-            if (typeof value.roomId === "string") {
-                window.webContents.send("heorot:notificationClicked", value.roomId);
+            if (roomId) {
+                window.webContents.send("heorot:notificationClicked", roomId);
             }
         });
         notification.show();
         return true;
+    });
+
+    // Opening a conversation (or reading it elsewhere) clears its notifications; no room clears them all.
+    handleFromApp("heorot:clearNotifications", (_event, roomId: unknown) => {
+        const rooms = typeof roomId === "string" ? [roomId] : [...shownNotifications.keys()];
+        for (const room of rooms) {
+            for (const notification of shownNotifications.get(room) ?? []) notification.close();
+            shownNotifications.delete(room);
+        }
     });
 
     // Taskbar badge: the app draws its icon with an unread bubble (top-right, like Discord); 0 restores the plain

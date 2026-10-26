@@ -35,6 +35,7 @@ export interface HeorotDesktopBridge {
     onTrayAction: (listener: (action: { type: string; status?: string }) => void) => () => void;
     // Native OS notification; resolves false if the platform can't show one (then the web API is used).
     showNotification: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
+    clearNotifications: (roomId?: string) => Promise<void>;
     onNotificationClicked: (listener: (roomId: string) => void) => () => void;
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
@@ -71,6 +72,9 @@ const bridge: HeorotDesktopBridge = {
     },
     setCloseOnWindowCloseMinimize: async (enabled: boolean): Promise<void> => {
         await ipcRenderer.invoke("heorot:setCloseOnWindowCloseMinimize", enabled);
+    },
+    clearNotifications: async (roomId?: string): Promise<void> => {
+        await ipcRenderer.invoke("heorot:clearNotifications", roomId);
     },
     showNotification: async (payload: { title: string; body: string; roomId?: string; urgent?: boolean }): Promise<boolean> => {
         return (await ipcRenderer.invoke("heorot:showNotification", payload)) === true;

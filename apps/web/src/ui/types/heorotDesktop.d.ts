@@ -35,6 +35,8 @@ export interface HeorotDesktopBridge {
     setTrayState?: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
     onTrayAction?: (listener: (action: { type: string; status?: string }) => void) => () => void;
     showNotification?: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
+    // Closes a conversation's notifications (all of them without a room). Desktop 0.4.0+.
+    clearNotifications?: (roomId?: string) => Promise<void>;
     onNotificationClicked?: (listener: (roomId: string) => void) => () => void;
     setTitleBarColors?: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp?: () => Promise<void>;

@@ -6438,3 +6438,11 @@ img.voice-ctrl-icon {
     font-size: 12px;
     color: var(--text-muted);
 }
+
+/* Deleted and undecryptable messages: a muted line in the message's place. */
+.timeline-deleted,
+.timeline-undecryptable {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 13px;
+}

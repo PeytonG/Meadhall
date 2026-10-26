@@ -86,6 +86,8 @@ async function createLocalNotificationSettingsIfNeeded(
     });
 }
 
+const SOUND_COOLDOWN_MS = 1500;
+
 function notificationMessageForEvent(event: MatrixEvent): string | null {
     const content = event.getContent() as {
         body?: unknown;
@@ -115,21 +117,23 @@ function notificationMessageForEvent(event: MatrixEvent): string | null {
         return body;
     }
 
-    if (event.getType() === EventType.RoomMember) {
-        const membership = typeof content.membership === "string" ? content.membership : "updated";
-        const displayName = typeof content.displayname === "string" && content.displayname.length > 0
-            ? content.displayname
-            : senderDisplayName(event);
-        if (membership === "join") {
-            return `${displayName} joined the room`;
-        }
-        if (membership === "leave") {
-            return `${displayName} left the room`;
-        }
-        return `${displayName} membership updated`;
+    // Only invites to you notify (see isNotifiableEvent); joins and leaves don't.
+    if (event.getType() === EventType.RoomMember && content.membership === "invite") {
+        return `${senderDisplayName(event)} invited you`;
     }
 
-    return event.getType();
+    // Anything else (call signals, encryption keys, state changes...) isn't worth a notification. This used to show
+    // the raw event type, so every call join, leave and key exchange popped up and played a sound.
+    return null;
+}
+
+// What notifies at all: messages, stickers, polls and invites to you. Calls ring through their own card.
+function isNotifiableEvent(event: MatrixEvent, ownUserId: string | null): boolean {
+    const type = event.getType();
+    if (type === EventType.RoomMessage || type === EventType.Sticker || type === "m.poll.start" || type === "org.matrix.msc3381.poll.start") {
+        return !event.isRedacted();
+    }
+    return type === EventType.RoomMember && event.getStateKey() === ownUserId && event.getContent()?.membership === "invite";
 }
 
 function buildAvatarUrl(client: MatrixClient, event: MatrixEvent): string | null {
@@ -160,6 +164,7 @@ export function useElementLikeNotifications({
             }),
         [],
     );
+    const lastSoundAtRef = useRef(0);
     const activeRoomIdRef = useRef(activeRoomId);
     const hasOpenDialogRef = useRef(hasOpenDialog);
     const pendingEncryptedEventIdsRef = useRef<string[]>([]);
@@ -174,6 +179,11 @@ export function useElementLikeNotifications({
 
     useEffect(() => {
         activeRoomIdRef.current = activeRoomId;
+        // Opening a conversation clears its notifications (browser ones here, the desktop app's through its bridge).
+        if (!activeRoomId) return;
+        for (const notification of notifsByRoomRef.current[activeRoomId] ?? []) notification.close();
+        delete notifsByRoomRef.current[activeRoomId];
+        void window.heorotDesktop?.clearNotifications?.(activeRoomId).catch(() => undefined);
     }, [activeRoomId]);
 
     useEffect(() => {
@@ -249,6 +259,7 @@ export function useElementLikeNotifications({
         };
 
         const clearRoomNotifications = (roomId: string): void => {
+            void window.heorotDesktop?.clearNotifications?.(roomId).catch(() => undefined);
             const list = notifsByRoomRef.current[roomId];
             if (!list || list.length === 0) {
                 return;
@@ -340,7 +351,11 @@ export function useElementLikeNotifications({
                 return;
             }
 
-            const actions = client.getPushActionsForEvent(event);
+            if (!isNotifiableEvent(event, client.getUserId())) {
+                return;
+            }
+            // Recalculated: for encrypted events the server's verdict was made before decryption.
+            const actions = client.getPushActionsForEvent(event, true);
             if (!actions?.notify) {
                 return;
             }
@@ -356,7 +371,9 @@ export function useElementLikeNotifications({
 
             displayPopupNotification(event, room);
 
-            if (actions.tweaks?.sound) {
+            // One sound per burst: several messages arriving together don't each ping.
+            if (actions.tweaks?.sound && Date.now() - lastSoundAtRef.current > SOUND_COOLDOWN_MS) {
+                lastSoundAtRef.current = Date.now();
                 void playAudioNotification().catch(() => undefined);
             }
         };
