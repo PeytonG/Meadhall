@@ -51,6 +51,8 @@ export interface PrivacySettings {
 
 export interface AudioSettings {
     preferredAudioInputId: string;
+    // The camera for video in calls.
+    preferredVideoInputId: string;
     preferredAudioOutputId: string;
     micTestLoopbackEnabled: boolean;
     autoGainControlEnabled: boolean;
@@ -109,6 +111,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
     },
     audio: {
         preferredAudioInputId: "default",
+        preferredVideoInputId: "default",
         preferredAudioOutputId: "default",
         micTestLoopbackEnabled: false,
         autoGainControlEnabled: true,
@@ -199,6 +202,8 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             shareStatus: privacy.shareStatus !== false,
         },
         audio: {
+            preferredVideoInputId:
+                typeof audio.preferredVideoInputId === "string" && audio.preferredVideoInputId.trim().length > 0 ? audio.preferredVideoInputId : "default",
             preferredAudioInputId:
                 typeof audio.preferredAudioInputId === "string" && audio.preferredAudioInputId.trim().length > 0
                     ? audio.preferredAudioInputId

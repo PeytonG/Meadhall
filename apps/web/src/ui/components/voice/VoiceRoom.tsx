@@ -110,6 +110,34 @@ interface VoiceParticipantState {
     isLocal: boolean;
     isSpeaking: boolean;
     isScreenSharing: boolean;
+    hasCamera: boolean;
+}
+
+// A camera that's on and has a video track here (subscribed, for others).
+function participantHasCamera(participant: Participant | LocalParticipant): boolean {
+    const publication = participant.getTrackPublication(Track.Source.Camera);
+    return Boolean(publication && !publication.isMuted && publication.videoTrack);
+}
+
+// Someone's camera in the call's video grid (your own is mirrored, like a mirror).
+function CameraTile({ participant, label, isLocal, revision }: { participant: Participant | LocalParticipant; label: string; isLocal: boolean; revision: number }): React.ReactElement {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    useEffect(() => {
+        const video = videoRef.current;
+        const track = participant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+        if (!video || !track) return undefined;
+        track.attach(video);
+        return () => {
+            track.detach(video);
+            video.srcObject = null;
+        };
+    }, [participant, revision]);
+    return (
+        <div className={`voice-room-camera-tile${isLocal ? " is-local" : ""}`} data-testid="camera-tile" data-local={isLocal ? "true" : undefined}>
+            <video ref={videoRef} className="voice-room-camera-video" autoPlay playsInline muted />
+            <span className="voice-room-stage-tile-name">{isLocal ? `${label} (you)` : label}</span>
+        </div>
+    );
 }
 
 type DesktopCaptureSource = HeorotDesktopCaptureSource;
@@ -666,6 +694,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [audioMuted, setAudioMuted] = useState(false);
     const [participants, setParticipants] = useState<VoiceParticipantState[]>([]);
     const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
+    const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
+    const [cameraOn, setCameraOn] = useState(false);
+    const [cameraBusy, setCameraBusy] = useState(false);
     const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
     const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
     const [localAudioPublished, setLocalAudioPublished] = useState(false);
@@ -754,12 +785,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     const refreshDevices = async (): Promise<void> => {
         try {
-            const [inputs, outputs] = await Promise.all([
+            const [inputs, outputs, cameras] = await Promise.all([
                 Room.getLocalDevices("audioinput"),
                 Room.getLocalDevices("audiooutput"),
+                Room.getLocalDevices("videoinput").catch(() => [] as MediaDeviceInfo[]),
             ]);
             setAudioInputs(inputs);
             setAudioOutputs(outputs);
+            setVideoInputs(cameras);
         } catch (deviceError) {
             setError(deviceError instanceof Error ? deviceError.message : "Unable to enumerate audio devices.");
         }
@@ -800,6 +833,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 isLocal: true,
                 isSpeaking: isParticipantSpeaking(room.localParticipant),
                 isScreenSharing: isParticipantScreenSharing(room.localParticipant),
+                hasCamera: participantHasCamera(room.localParticipant),
             });
         }
         for (const participant of room.remoteParticipants.values()) {
@@ -813,6 +847,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 isLocal: false,
                 isSpeaking: isParticipantSpeaking(participant),
                 isScreenSharing: isParticipantScreenSharing(participant),
+                hasCamera: participantHasCamera(participant),
             });
         }
         setParticipants((current) => (areParticipantListsEqual(current, next) ? current : next));
@@ -1351,14 +1386,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     if (
                         (publication.kind === Track.Kind.Audio ||
                             publication.source === Track.Source.ScreenShare ||
-                            publication.source === Track.Source.ScreenShareAudio) &&
+                            publication.source === Track.Source.ScreenShareAudio ||
+                            publication.source === Track.Source.Camera) &&
                         !publication.isSubscribed
                     ) {
                         publication.setSubscribed(true);
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                     }
@@ -1378,7 +1415,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1395,7 +1433,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     detachRemoteAudioTrack(track, publication);
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1421,7 +1460,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1437,7 +1477,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1911,14 +1952,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 if (
                     (publication.kind === Track.Kind.Audio ||
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio) &&
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera) &&
                     !publication.isSubscribed
                 ) {
                     publication.setSubscribed(true);
                 }
                 if (
                     publication.source === Track.Source.ScreenShare ||
-                    publication.source === Track.Source.ScreenShareAudio
+                    publication.source === Track.Source.ScreenShareAudio ||
+                    publication.source === Track.Source.Camera
                 ) {
                     hasScreenSharePublication = true;
                 }
@@ -1962,6 +2005,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         clearScreenSharePreview();
         void soundboardRef.current?.close();
         soundboardRef.current = null;
+        setCameraOn(false);
         setSoundboardOpen(false);
         setConnectionState(ConnectionState.Disconnected);
         setParticipants([]);
@@ -2094,6 +2138,52 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             return false;
         }
     };
+
+    // Webcam: on/off for everyone in the call (simulcast, so people on slow links get a smaller version).
+    const toggleCamera = async (): Promise<void> => {
+        const room = roomRef.current;
+        if (!room || cameraBusy) return;
+        const enable = !cameraOn;
+        setCameraBusy(true);
+        try {
+            const deviceId = audioSettings.preferredVideoInputId && audioSettings.preferredVideoInputId !== "default" ? audioSettings.preferredVideoInputId : undefined;
+            await room.localParticipant.setCameraEnabled(
+                enable,
+                enable ? { deviceId, resolution: VideoPresets.h720.resolution } : undefined,
+                enable ? { simulcast: true, videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360] } : undefined,
+            );
+            setCameraOn(enable);
+            setScreenShareTrackRevision((current) => current + 1);
+            syncParticipants();
+            if (enable) void refreshDevices();
+        } catch (cameraError) {
+            const name = (cameraError as { name?: string }).name;
+            setError(
+                name === "NotAllowedError"
+                    ? "Meadhall isn't allowed to use your camera. Allow it in your system's privacy settings, then try again."
+                    : name === "NotFoundError" || name === "NotReadableError"
+                      ? "No camera is available (it may be in use by another app)."
+                      : `Camera: ${cameraError instanceof Error ? cameraError.message : "couldn't start"}`,
+            );
+        } finally {
+            setCameraBusy(false);
+        }
+    };
+
+    // Switching cameras in settings mid-call moves the video to the new one (only on a change:
+    // switching restarts the camera, which would end the track just published).
+    const appliedVideoInputRef = useRef(audioSettings.preferredVideoInputId);
+    useEffect(() => {
+        const id = audioSettings.preferredVideoInputId;
+        if (appliedVideoInputRef.current === id) return;
+        appliedVideoInputRef.current = id;
+        const room = roomRef.current;
+        if (!room || !cameraOn) return;
+        void room
+            .switchActiveDevice("videoinput", id && id !== "default" ? id : "default")
+            .then(() => setScreenShareTrackRevision((current) => current + 1))
+            .catch(() => undefined);
+    }, [audioSettings.preferredVideoInputId, cameraOn]);
 
     const toggleScreenShare = async (): Promise<void> => {
         const room = roomRef.current;
@@ -2349,7 +2439,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         leave: leaveVoice,
         toggleMute,
         toggleAudioMute,
-        toggleCamera: () => Promise.resolve(),
+        toggleCamera: () => toggleCamera(),
     }));
 
     return (
@@ -2487,6 +2577,21 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 {/* Participant tile grid */}
                 {connected ? (
                     <>
+                        {participants.some((participant) => participant.hasCamera) ? (
+                            <div className="voice-room-camera-grid" style={stageGridStyle(participants.filter((participant) => participant.hasCamera).length)} data-testid="camera-grid">
+                                {participants
+                                    .filter((participant) => participant.hasCamera)
+                                    .map((participant) => (
+                                        <CameraTile
+                                            key={`camera-${participant.identity}`}
+                                            participant={participant.participant}
+                                            label={getParticipantDisplayInfo(matrixRoom, participant.identity, participant.matrixUserId, participant.isLocal, ownProfile).displayName}
+                                            isLocal={participant.isLocal}
+                                            revision={screenShareTrackRevision}
+                                        />
+                                    ))}
+                            </div>
+                        ) : null}
                         <div className="voice-room-participants-toolbar">
                             <p className="voice-room-participants-toolbar-note">
                                 Per-user volume is saved for this channel.
@@ -2675,6 +2780,22 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             >
                                 <option value="default">System default</option>
                                 {audioInputs.map((device) => (
+                                    <option key={device.deviceId} value={device.deviceId}>
+                                        {formatDeviceLabel(device)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="settings-field">
+                            <span>Camera</span>
+                            <select
+                                className="room-dialog-input"
+                                value={audioSettings.preferredVideoInputId}
+                                aria-label="Camera"
+                                onChange={(event) => onAudioSettingsChange({ ...audioSettings, preferredVideoInputId: event.target.value })}
+                            >
+                                <option value="default">System default</option>
+                                {videoInputs.map((device) => (
                                     <option key={device.deviceId} value={device.deviceId}>
                                         {formatDeviceLabel(device)}
                                     </option>
@@ -2885,6 +3006,20 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             </svg>
                         )}
                         <span className="voice-ctrl-label">{micMuted ? "Unmute" : "Mute"}</span>
+                    </button>
+
+                    {/* Camera */}
+                    <button
+                        type="button"
+                        className={`voice-ctrl-btn${cameraOn ? " is-active" : ""}`}
+                        onClick={() => void toggleCamera()}
+                        title={cameraOn ? "Turn camera off" : "Turn camera on"}
+                        aria-pressed={cameraOn}
+                        disabled={cameraBusy}
+                        data-testid="camera-toggle"
+                    >
+                        <span className="voice-ctrl-icon"><PixelIcon name="camera" slashed={!cameraOn} size={20} /></span>
+                        <span className="voice-ctrl-label">{cameraOn ? "Camera off" : "Camera"}</span>
                     </button>
 
                     {/* Screen share */}
