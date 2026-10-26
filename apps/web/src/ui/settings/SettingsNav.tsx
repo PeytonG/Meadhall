@@ -1,5 +1,7 @@
 import React from "react";
 
+import { t, useLanguage } from "../i18n";
+
 export interface SettingsNavItem {
     id: string;
     label: string;
@@ -17,11 +19,12 @@ interface SettingsNavProps {
 }
 
 export function SettingsNav({ sections, activeTab, onChangeTab }: SettingsNavProps): React.ReactElement {
+    useLanguage();
     return (
-        <nav className="settings-nav" aria-label="Settings sections">
+        <nav className="settings-nav" aria-label={t("Settings sections")}>
             {sections.map((section) => (
                 <section className="settings-nav-section" key={section.title}>
-                    <h3 className="settings-nav-title">{section.title}</h3>
+                    <h3 className="settings-nav-title">{t(section.title)}</h3>
                     <div className="settings-nav-items">
                         {section.items.map((item) => (
                             <button
@@ -30,7 +33,7 @@ export function SettingsNav({ sections, activeTab, onChangeTab }: SettingsNavPro
                                 className={`settings-nav-item${activeTab === item.id ? " is-active" : ""}`}
                                 onClick={() => onChangeTab(item.id)}
                             >
-                                {item.label}
+                                {t(item.label)}
                             </button>
                         ))}
                     </div>

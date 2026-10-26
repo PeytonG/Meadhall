@@ -18,6 +18,7 @@ import { mediaFromMxc } from "../adapters/media";
 import { mxcThumbnailToHttp } from "../utils/mxc";
 import { fetchPastedGif, findPastedGifUrl } from "../utils/pastedGif";
 import { ComposerBar } from "./composer/ComposerBar";
+import { t, useLanguage } from "../i18n";
 import { EmojiPicker } from "./composer/EmojiPicker";
 import { sendSticker } from "../stickers/sendSticker";
 import { StickerButton } from "../stickers/StickerButton";
@@ -539,16 +540,16 @@ function getDirectMessageTargetName(client: MatrixClient, room: Room): string | 
 
 function getComposerPlaceholder(client: MatrixClient, room: Room | null): string {
     if (!room) {
-        return "Select a room to start chatting";
+        return t("Select a room to start chatting");
     }
 
     const dmTargetName = getDirectMessageTargetName(client, room);
     if (dmTargetName) {
         const normalizedTarget = dmTargetName.startsWith("@") ? dmTargetName : `@${dmTargetName}`;
-        return `Message ${normalizedTarget}`;
+        return t("Message {target}", { target: normalizedTarget });
     }
 
-    return `Message #${room.name || room.roomId}`;
+    return t("Message {target}", { target: `#${room.name || room.roomId}` });
 }
 
 const MENTION_BOUNDARY_PUNCTUATION = new Set([
@@ -833,7 +834,8 @@ export function Composer({
     const replySenderName = replyToEvent ? getReplySenderName(room, replyToEvent) : null;
     const replySnippet = replyToEvent ? getReplySnippet(replyToEvent) : null;
     const editingEventId = editingEvent?.getId() ?? null;
-    const placeholder = useMemo(() => getComposerPlaceholder(client, room), [client, room]);
+    const language = useLanguage();
+    const placeholder = useMemo(() => getComposerPlaceholder(client, room), [client, room, language]);
     const typingUserIds = useRoomTyping(client, room);
     const customEmojiSourceByShortcode = useMemo(() => {
         const sourceByShortcode = new Map<string, string>();

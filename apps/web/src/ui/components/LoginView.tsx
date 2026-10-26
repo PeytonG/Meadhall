@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LANGUAGES, chosenLanguage, setLanguage, t, useLanguage } from "../i18n";
 import { AuthType, MatrixError, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { addingAccountFrom } from "../../core/storage/accounts";
@@ -48,6 +49,7 @@ export function LoginView({
     onLogin,
     onLoginWithCredentials,
 }: LoginViewProps): React.ReactElement {
+    useLanguage(); // re-render in the chosen language
     const [mode, setMode] = useState<AuthMode>("sign_in");
     // Adding another account: offer the way back to the one already signed in.
     const [addingFrom] = useState(addingAccountFrom);
@@ -340,7 +342,7 @@ export function LoginView({
                         className={`login-mode-button${mode === "sign_in" ? " is-active" : ""}`}
                         onClick={() => switchMode("sign_in")}
                     >
-                        Sign in
+                        {t("Sign in")}
                     </button>
                     <button
                         type="button"
@@ -349,17 +351,28 @@ export function LoginView({
                         className={`login-mode-button${mode === "register" ? " is-active" : ""}`}
                         onClick={() => switchMode("register")}
                     >
-                        Register
+                        {t("Register")}
                     </button>
                 </div>
+                <label className="login-language">
+                    <span>{t("Language")}</span>
+                    <select value={chosenLanguage()} onChange={(event) => setLanguage(event.target.value)} data-testid="login-language">
+                        <option value="system">{t("System default")}</option>
+                        {LANGUAGES.map((language) => (
+                            <option key={language.code} value={language.code}>
+                                {language.name}
+                            </option>
+                        ))}
+                    </select>
+                </label>
                 <div className="login-flow-shell" style={flowHeight === null ? undefined : { height: `${flowHeight}px` }}>
                     <div className="login-flow-content" ref={flowContentRef}>
                         {mode === "sign_in" ? (
                     <form onSubmit={handleSignInSubmit}>
-                        <p className="login-subtitle">Sign in to continue</p>
+                        <p className="login-subtitle">{t("Sign in to continue")}</p>
 
                         <label>
-                            Homeserver
+                            {t("Homeserver")}
                             <input
                                 type="url"
                                 value={homeserver}
@@ -371,7 +384,7 @@ export function LoginView({
                         </label>
 
                         <label>
-                            Username or email
+                            {t("Username or email")}
                             <input
                                 type="text"
                                 value={username}
@@ -382,7 +395,7 @@ export function LoginView({
                         </label>
 
                         <label>
-                            Password
+                            {t("Password")}
                             <input
                                 type={showPassword ? "text" : "password"}
                                 value={password}
@@ -398,20 +411,20 @@ export function LoginView({
                                 checked={showPassword}
                                 onChange={(event) => setShowPassword(event.target.checked)}
                             />
-                            <span>Show password</span>
+                            <span>{t("Show password")}</span>
                         </label>
 
                         {displayError && <p className="login-error">{displayError}</p>}
 
                         <button type="submit" disabled={!canSignIn}>
-                            {loading ? "Signing in..." : "Sign in"}
+                            {loading ? t("Signing in...") : t("Sign in")}
                         </button>
                     </form>
                 ) : registerStep === "form" ? (
                     <form onSubmit={handleRegisterSubmit}>
-                        <p className="login-subtitle">Create a Matrix account with Matrix-native verification stages.</p>
+                        <p className="login-subtitle">{t("Create a Matrix account with Matrix-native verification stages.")}</p>
                         <label>
-                            Homeserver
+                            {t("Homeserver")}
                             <input
                                 type="url"
                                 value={homeserver}
@@ -423,7 +436,7 @@ export function LoginView({
                         </label>
 
                         <label>
-                            Username
+                            {t("Username")}
                             <input
                                 type="text"
                                 value={registerUsername}
@@ -435,12 +448,12 @@ export function LoginView({
 
                         {tokenUsage !== "none" ? (
                             <label>
-                                {tokenUsage === "required" ? "Registration token" : "Registration token (if you have one)"}
+                                {tokenUsage === "required" ? t("Registration token") : t("Registration token (if you have one)")}
                                 <input
                                     type="text"
                                     value={registerToken}
                                     onChange={(event) => setRegisterToken(event.target.value)}
-                                    placeholder="From your server admin"
+                                    placeholder={t("From your server admin")}
                                     autoComplete="off"
                                     spellCheck={false}
                                     data-testid="registration-token"
@@ -449,7 +462,7 @@ export function LoginView({
                         ) : null}
 
                         <label>
-                            Email (optional)
+                            {t("Email (optional)")}
                             <input
                                 type="email"
                                 value={registerEmail}
@@ -460,23 +473,23 @@ export function LoginView({
                         </label>
 
                         <label>
-                            Password
+                            {t("Password")}
                             <input
                                 type={showRegisterPassword ? "text" : "password"}
                                 value={registerPassword}
                                 onChange={(event) => setRegisterPassword(event.target.value)}
-                                placeholder="At least 8 characters"
+                                placeholder={t("At least 8 characters")}
                                 autoComplete="new-password"
                             />
                         </label>
 
                         <label>
-                            Confirm password
+                            {t("Confirm password")}
                             <input
                                 type={showRegisterPassword ? "text" : "password"}
                                 value={registerPasswordConfirm}
                                 onChange={(event) => setRegisterPasswordConfirm(event.target.value)}
-                                placeholder="Repeat password"
+                                placeholder={t("Repeat password")}
                                 autoComplete="new-password"
                             />
                         </label>
@@ -487,19 +500,19 @@ export function LoginView({
                                 checked={showRegisterPassword}
                                 onChange={(event) => setShowRegisterPassword(event.target.checked)}
                             />
-                            <span>Show passwords</span>
+                            <span>{t("Show passwords")}</span>
                         </label>
 
                         {displayError && <p className="login-error">{displayError}</p>}
 
                         {registerSsoUrl ? (
                             <button type="button" className="login-secondary-button" onClick={() => (window.location.href = registerSsoUrl)}>
-                                Continue with SSO registration
+                                {t("Continue with SSO registration")}
                             </button>
                         ) : null}
 
                         <button type="submit" disabled={!canStartRegistration}>
-                            {registerBusy ? "Preparing registration..." : "Create account"}
+                            {registerBusy ? t("Preparing registration...") : t("Create account")}
                         </button>
                     </form>
                 ) : registerClient ? (

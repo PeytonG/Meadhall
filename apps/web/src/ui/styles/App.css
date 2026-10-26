@@ -6900,3 +6900,18 @@ ol.message-renderer-format {
     height: 100%;
     object-fit: cover;
 }
+
+/* Language picker on the sign-in card */
+.login-card label.login-language {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.login-card label.login-language select {
+    width: auto;
+    padding: 4px 6px;
+}
