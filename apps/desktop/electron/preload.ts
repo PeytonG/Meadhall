@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import type { DesktopActivity } from "./activity";
 
 import type { DesktopUpdateStatus } from "./updater";
 
@@ -30,6 +31,8 @@ export interface HeorotDesktopBridge {
     setUnreadBadge: (badge: { count: number; icon: string | null }) => Promise<void>;
     // The game Steam is running, if any.
     getActivity: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
+    getActivities: (options: { steam: boolean; richPresence: boolean; games: boolean; media: boolean }) => Promise<DesktopActivity[]>;
+    setRichPresence: (enabled: boolean) => Promise<void>;
     // The tray menu's Mute / Deafen / Status: the app reports its state and handles the menu's choices.
     setTrayState: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
     onTrayAction: (listener: (action: { type: string; status?: string }) => void) => () => void;
@@ -91,6 +94,9 @@ const bridge: HeorotDesktopBridge = {
     },
     getSystemIdleSeconds: async (): Promise<number> => ipcRenderer.invoke("heorot:getSystemIdleSeconds"),
     getActivity: async (): Promise<{ name: string; appId: string; source: "steam" } | null> => ipcRenderer.invoke("heorot:getActivity"),
+    getActivities: async (options: { steam: boolean; richPresence: boolean; games: boolean; media: boolean }): Promise<DesktopActivity[]> =>
+        ipcRenderer.invoke("heorot:getActivities", options),
+    setRichPresence: async (enabled: boolean): Promise<void> => ipcRenderer.invoke("heorot:setRichPresence", enabled),
     setUnreadBadge: async (badge: { count: number; icon: string | null }): Promise<void> => {
         await ipcRenderer.invoke("heorot:setUnreadBadge", badge);
     },

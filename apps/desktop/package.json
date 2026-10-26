@@ -38,6 +38,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "arrpc": "3.6.0",
     "electron-updater": "^6.8.9"
   }
 }

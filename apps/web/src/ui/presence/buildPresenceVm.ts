@@ -1,3 +1,5 @@
+import { activityText } from "./activitySharing";
+
 export type PresenceState = "online" | "idle" | "dnd" | "offline" | "unknown";
 
 export interface PresenceVm {
@@ -21,7 +23,7 @@ export interface PresenceSource {
     published?: {
         state: "online" | "idle" | "dnd" | null;
         platform: "mobile" | "desktop" | "web";
-        activity?: { name: string; since: number } | null;
+        activity?: { name: string; since: number; kind?: "playing" | "listening" | "watching" | "competing"; details?: string } | null;
     } | null;
     currentlyActive?: boolean | null;
     lastActiveAgo?: number | null;
@@ -160,13 +162,13 @@ export function buildPresenceVm(source: PresenceSource | null | undefined): Pres
         }
     }
 
-    // A custom status wins; otherwise what they're playing (only while they're around).
-    const activityName = state !== "offline" && state !== "unknown" ? published?.activity?.name ?? null : null;
+    // A custom status wins; otherwise what they're doing (only while they're around).
+    const activity = state !== "offline" && state !== "unknown" ? published?.activity ?? null : null;
     const statusText =
         typeof source?.statusMessage === "string" && source.statusMessage.trim()
             ? source.statusMessage.trim()
-            : activityName
-              ? `Playing ${activityName}`
+            : activity
+              ? activityText(activity)
               : null;
     return {
         state,

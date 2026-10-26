@@ -6,6 +6,8 @@ import { app, BrowserWindow, desktopCapturer, ipcMain, nativeImage, type IpcMain
 import { getStartAtLogin, setStartAtLogin, wasLaunchedHidden } from "./loginItem";
 import { configurePermissionHandlers } from "./permissions";
 import { currentActivity } from "./steamActivity";
+import { currentActivities, parseActivityOptions, setRichPresenceEnabled } from "./activity";
+import { stopRichPresence } from "./activity/richPresence";
 import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
 import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, installVersion, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
@@ -542,6 +544,9 @@ function registerIpc(): void {
 
     // "Playing ..." from Steam (the app polls this when sharing activity is on).
     handleFromApp("heorot:getActivity", () => currentActivity());
+    // Settings → Privacy → Activity: which sources to read (each only runs while it's on).
+    handleFromApp("heorot:getActivities", (_event, options: unknown) => currentActivities(parseActivityOptions(options)));
+    handleFromApp("heorot:setRichPresence", (_event, enabled: unknown) => setRichPresenceEnabled(enabled === true));
 
     // For automatic Away: input anywhere on the computer counts, not just in Meadhall.
     handleFromApp("heorot:getSystemIdleSeconds", () => powerMonitor.getSystemIdleTime());
@@ -660,6 +665,7 @@ async function bootstrap(): Promise<void> {
     });
 
     app.on("will-quit", () => {
+        stopRichPresence();
         destroyTray();
     });
 

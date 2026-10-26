@@ -9,6 +9,7 @@
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { isAndroidApp } from "../../core/platform/android";
+import { activityText, onPrivateActivityChange, parseSharedActivity, privateActivityFor, type ActivityAudience, type ActivityKind } from "./activitySharing";
 
 export const STATUS_PROFILE_KEY = "io.github.peytong.meadhall.status";
 const LOCAL_KEY = "heorot.own_status.v1";
@@ -33,6 +34,9 @@ export interface PublishedStatus {
 export interface PublishedActivity {
     name: string;
     since: number;
+    kind?: ActivityKind;
+    // Only with "Show details" on, e.g. "In a match · 3 of 5".
+    details?: string;
 }
 
 export const DEFAULT_OWN_STATUS: OwnStatus = { state: "auto", text: "" };
@@ -119,6 +123,9 @@ export async function applyOwnStatus(
     away = false,
     activity: PublishedActivity | null = null,
     share = true,
+    // Who sees the activity (see activitySharing.ts): only "everyone" puts it in your profile, and only
+    // "everyone" and "contacts" put it in your status text. "dms" is sent separately, encrypted.
+    audience: ActivityAudience = "everyone",
 ): Promise<void> {
     try {
         window.localStorage.setItem(LOCAL_KEY, JSON.stringify(chosen));
@@ -128,13 +135,15 @@ export async function applyOwnStatus(
     const own: OwnStatus = share ? chosen : { state: "invisible", text: "" };
     const presence = matrixPresenceFor(own.state === "auto" && away ? "idle" : own.state);
     client.setSyncPresence(presence as never);
-    const published = publishedStatusFor(own, currentPlatform(), activity);
-    cache.set(client.getSafeUserId(), { status: published, fetchedAt: Date.now() });
+    const published = publishedStatusFor(own, currentPlatform(), audience === "everyone" ? activity : null);
+    // You always see your own activity.
+    cache.set(client.getSafeUserId(), { status: { ...published, activity: own.state === "invisible" ? null : activity }, fetchedAt: Date.now() });
     notify();
     // Independent: presence can be waiting out a rate limit, which mustn't hold up the profile field.
     // With no custom status, what you're playing is the status text: it arrives over sync right away (the profile
     // field is only re-read now and then), and Element shows it too.
-    const statusText = own.text.trim() || (published.activity ? `Playing ${published.activity.name}` : "");
+    const inStatusText = own.state !== "invisible" && activity && (audience === "everyone" || audience === "contacts") ? activity : null;
+    const statusText = own.text.trim() || (inStatusText ? activityText(inStatusText) : "");
     await Promise.all([sendPresence(client, { presence, status_msg: statusText }), publishStatus(client, published)]);
 }
 
@@ -178,7 +187,11 @@ function notify(): void {
 
 export function onPublishedStatusChange(listener: () => void): () => void {
     listeners.add(listener);
-    return () => listeners.delete(listener);
+    const stopPrivate = onPrivateActivityChange(listener);
+    return () => {
+        listeners.delete(listener);
+        stopPrivate();
+    };
 }
 
 export function parsePublishedStatus(value: unknown): PublishedStatus | null {
@@ -186,16 +199,15 @@ export function parsePublishedStatus(value: unknown): PublishedStatus | null {
     const record = value as Record<string, unknown>;
     const state = record.state === "online" || record.state === "idle" || record.state === "dnd" ? record.state : null;
     const platform = record.platform === "mobile" || record.platform === "desktop" ? record.platform : "web";
-    const activityRecord = record.activity && typeof record.activity === "object" ? (record.activity as Record<string, unknown>) : null;
-    const activity =
-        activityRecord && typeof activityRecord.name === "string" && activityRecord.name.trim()
-            ? { name: activityRecord.name.trim().slice(0, 128), since: typeof activityRecord.since === "number" ? activityRecord.since : 0 }
-            : null;
-    return { state, platform, activity };
+    return { state, platform, activity: parseSharedActivity(record.activity) };
 }
 
+// Their published status, with what they shared with you privately (DMs-only activity) when there is some.
 export function cachedPublishedStatus(userId: string): PublishedStatus | null {
-    return cache.get(userId)?.status ?? null;
+    const status = cache.get(userId)?.status ?? null;
+    const shared = privateActivityFor(userId);
+    if (!shared) return status;
+    return { state: status?.state ?? null, platform: status?.platform ?? "desktop", activity: shared };
 }
 
 export function refreshPublishedStatus(client: MatrixClient, userId: string, force = false): void {

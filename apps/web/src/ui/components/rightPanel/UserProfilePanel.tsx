@@ -139,7 +139,7 @@ export function UserProfilePanel({
     const rich = useMemo(() => parseRichProfile(profile as Record<string, unknown> | null), [profile]);
     // Their profile style: the card's gradient.
     const iconStyle = useIconStyle();
-    const cardColors = gradientColors(useProfileStyle(client, userId).card);
+    const cardColors = gradientColors(useProfileStyle(client, userId, true).card);
     // Desktop: the window controls over the card take its color (and go back when it closes).
     useEffect(() => {
         const frame = window.requestAnimationFrame(() => syncDesktopTitleBarColors());

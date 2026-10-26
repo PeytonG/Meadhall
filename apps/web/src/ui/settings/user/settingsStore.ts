@@ -1,4 +1,5 @@
 import { normalizeVoiceEffect, type VoiceEffect } from "../../voice/voiceChanger";
+import { DEFAULT_ACTIVITY_SETTINGS, normalizeActivitySettings, type ActivitySettings } from "../../presence/activitySharing";
 import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 import { setIconStyle, type IconStyle } from "../../theme/iconStyle";
@@ -49,6 +50,8 @@ export interface PrivacySettings {
     shareStatus: boolean;
     // Link previews ask your homeserver to fetch the page, so the server sees the link. Off in encrypted chats by default.
     linkPreviews: LinkPreviewMode;
+    // What you're doing and who sees it (presence/activitySharing.ts). shareActivity is the master switch.
+    activity: ActivitySettings;
 }
 
 export type LinkPreviewMode = "all" | "unencrypted" | "off";
@@ -116,6 +119,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         shareActivity: true,
         shareStatus: true,
         linkPreviews: "unencrypted",
+        activity: DEFAULT_ACTIVITY_SETTINGS,
     },
     audio: {
         preferredAudioInputId: "default",
@@ -211,6 +215,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             shareActivity: privacy.shareActivity !== false,
             shareStatus: privacy.shareStatus !== false,
             linkPreviews: privacy.linkPreviews === "all" || privacy.linkPreviews === "off" ? privacy.linkPreviews : "unencrypted",
+            activity: normalizeActivitySettings(privacy.activity),
         },
         audio: {
             pushToTalk: audio.pushToTalk === true,

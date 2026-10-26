@@ -97,6 +97,7 @@ import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery
 import { useRoomCalls } from "../hooks/useRoomCalls";
 import { useIncomingCall } from "../hooks/useIncomingCall";
 import { applyOwnStatus, currentPlatform, loadOwnStatus, type OwnStatus, type PublishedActivity } from "../presence/clientStatus";
+import { listenForPrivateActivity, pickActivity, resendIntervalMs, setDetectedActivities, shareActivityWithDms } from "../presence/activitySharing";
 import { startAwayTracker } from "../presence/autoAway";
 import { StatusMenu } from "./StatusMenu";
 import { IncomingCallCard } from "./voice/IncomingCallCard";
@@ -925,36 +926,59 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             systemIdleMs: desktopIdle ? async () => (await desktopIdle()) * 1000 : undefined,
         });
     }, [ownStatus.state]);
-    // Desktop: the game Steam is running, as "Playing ..." (Settings → Privacy can turn this off).
+    // Desktop: what you're doing ("Playing ...", "Listening to ..."), from the sources you turned on, minus what you
+    // hid, shared with the audience you chose (Settings → Privacy → Activity).
     const [activity, setActivity] = useState<PublishedActivity | null>(null);
     const shareActivity = userSettings.privacy.shareActivity;
+    const activitySettings = userSettings.privacy.activity;
+    const activitySettingsKey = JSON.stringify(activitySettings);
     useEffect(() => {
-        const getActivity = window.heorotDesktop?.getActivity;
-        if (!getActivity || !shareActivity) {
+        const desktop = window.heorotDesktop;
+        if (!desktop?.getActivities || !shareActivity) {
             setActivity(null);
+            setDetectedActivities([]);
+            void desktop?.setRichPresence?.(false).catch(() => undefined);
             return undefined;
         }
+        const settings = activitySettings;
+        void desktop.setRichPresence?.(settings.richPresence).catch(() => undefined);
+        const options = { steam: settings.steam, richPresence: settings.richPresence, games: settings.games, media: settings.media };
         let cancelled = false;
         const poll = (): void => {
-            void getActivity()
-                .catch(() => null)
+            void desktop.getActivities!(options)
+                .catch(() => [])
                 .then((found) => {
                     if (cancelled) return;
-                    // Keep "since" while the same game keeps running.
-                    setActivity((current) => (found ? (current?.name === found.name ? current : { name: found.name, since: Date.now() }) : null));
+                    setDetectedActivities(found);
+                    setActivity((current) => {
+                        const next = pickActivity(found, settings, current);
+                        return JSON.stringify(next) === JSON.stringify(current) ? current : next;
+                    });
                 });
         };
         poll();
-        const timer = window.setInterval(poll, 30_000);
+        // Rich Presence apps change often (song, level); Steam and process scans are cached on the desktop side.
+        const timer = window.setInterval(poll, settings.richPresence || settings.media ? 15_000 : 30_000);
         return () => {
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [shareActivity]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shareActivity, activitySettingsKey]);
     const shareStatus = userSettings.privacy.shareStatus;
+    const activityAudience = activitySettings.audience;
     useEffect(() => {
-        void applyOwnStatus(client, ownStatus, autoAway, activity, shareStatus);
-    }, [client, ownStatus, autoAway, activity, shareStatus]);
+        void applyOwnStatus(client, ownStatus, autoAway, activityAudience === "nobody" ? null : activity, shareStatus, activityAudience);
+    }, [client, ownStatus, autoAway, activity, shareStatus, activityAudience]);
+    // "Only people I have DMs with": sent to them encrypted (and cleared when it stops), re-sent while it lasts.
+    useEffect(() => {
+        const shared = activityAudience === "dms" && shareStatus && ownStatus.state !== "invisible" ? activity : null;
+        void shareActivityWithDms(client, shared).catch(() => undefined);
+        if (!shared) return undefined;
+        const timer = window.setInterval(() => void shareActivityWithDms(client, shared, true).catch(() => undefined), resendIntervalMs());
+        return () => window.clearInterval(timer);
+    }, [client, activity, activityAudience, shareStatus, ownStatus.state]);
+    useEffect(() => listenForPrivateActivity(client), [client]);
     const ownStatusDot =
         ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {

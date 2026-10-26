@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The real desktop app: signs in to the test Synapse and checks what only Electron shows, like the window-controls
 // strip (minimize/maximize/close) matching the theme. Build first: pnpm --dir apps/desktop run build
+import crypto from "node:crypto";
 import fs from "node:fs";
+import http from "node:http";
+import net from "node:net";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -28,6 +31,12 @@ test.beforeAll(async () => {
         ...process.env,
         MEADHALL_USER_DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "meadhall-desktop-test-")),
         MEADHALL_STEAM_DIR: steamDir,
+        // A one-game list for Rich Presence (the real one is arRPC's ~4 MB list).
+        MEADHALL_DETECTABLE_DB: (() => {
+            const file = path.join(steamDir, "detectable.json");
+            fs.writeFileSync(file, JSON.stringify([{ id: "1234567890123", name: "Pixel Quest", executables: [{ name: "pixelquest.exe", os: "win32" }] }]));
+            return file;
+        })(),
     };
     delete env.ELECTRON_RUN_AS_NODE;
     app = await electron.launch({ executablePath: electronBinary, args: [desktopDir], env });
@@ -190,16 +199,36 @@ test("the game Steam is running is shared as Playing ..., and Privacy can turn i
     expect(await window.evaluate(() => window.heorotDesktop?.getActivity?.())).toEqual({ name: "Stardew Valley", appId: "413150", source: "steam" });
     // Under your own name in the user panel.
     await expect(window.getByTestId("own-status-text")).toHaveText("Playing Stardew Valley", { timeout: 40_000 });
-    // Others get it in your presence (live over sync, and what Element shows) and your profile field.
+    // By default only people you share a chat or server with see it: in your presence (live over sync, and what
+    // Element shows), not in your profile, which anyone can read.
     await expect
         .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 20_000 })
         .toBe("Playing Stardew Valley");
     await expect
         .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
-        .toMatchObject({ activity: { name: "Stardew Valley" } });
+        .toMatchObject({ activity: null });
 
+    // "Everyone" also puts it in the profile.
     await window.getByRole("button", { name: "User settings", exact: true }).click();
     await window.getByRole("button", { name: "Privacy & Safety", exact: true }).click();
+    await window.getByTestId("activity-audience").selectOption("everyone");
+    await expect
+        .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
+        .toMatchObject({ activity: { name: "Stardew Valley", kind: "playing" } });
+    // "Nobody": gone from both, but Settings still shows you what it found.
+    await window.getByTestId("activity-audience").selectOption("nobody");
+    await expect(window.getByTestId("activity-preview")).toHaveText("Only you see: Playing Stardew Valley");
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 20_000 })
+        .toBe("");
+    await expect
+        .poll(() => readProfileField(bob, deskUser.userId, "io.github.peytong.meadhall.status").catch(() => null), { timeout: 20_000 })
+        .toMatchObject({ activity: null });
+    await window.getByTestId("activity-audience").selectOption("contacts");
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 20_000 })
+        .toBe("Playing Stardew Valley");
+
     await window.getByTestId("share-activity").uncheck();
     await window.keyboard.press("Escape");
     await expect
@@ -388,5 +417,126 @@ test("the window controls take the color of a profile card's gradient under them
     // Ember starts at #ff7a18: the minimize button's background should be that color.
     const overlay = await windowPixel(100, 4);
     expect(distance(overlay, [0xff, 0x7a, 0x18]), `overlay ${overlay}`).toBeLessThanOrEqual(6);
+    await window.keyboard.press("Escape");
+});
+
+// A game talking to the Rich Presence server the way it would talk to Discord (the discord-ipc pipe/socket).
+function frame(type: number, data: unknown): Buffer {
+    const json = Buffer.from(JSON.stringify(data));
+    const header = Buffer.alloc(8);
+    header.writeInt32LE(type, 0);
+    header.writeInt32LE(json.length, 4);
+    return Buffer.concat([header, json]);
+}
+
+async function connectAsGame(clientId: string): Promise<net.Socket> {
+    for (let index = 0; index < 10; index += 1) {
+        const socketPath = process.platform === "win32" ? `\\\\?\\pipe\\discord-ipc-${index}` : path.join(process.env.XDG_RUNTIME_DIR || process.env.TMPDIR || "/tmp", `discord-ipc-${index}`);
+        const socket = await new Promise<net.Socket | null>((resolve) => {
+            const candidate = net.createConnection(socketPath);
+            let data = Buffer.alloc(0);
+            const timer = setTimeout(() => {
+                candidate.destroy();
+                resolve(null);
+            }, 2000);
+            candidate.on("error", () => {
+                clearTimeout(timer);
+                resolve(null);
+            });
+            candidate.on("connect", () => candidate.write(frame(0, { v: 1, client_id: clientId })));
+            candidate.on("data", (chunk) => {
+                data = Buffer.concat([data, chunk]);
+                // Meadhall's server, not a real Discord that happens to be running.
+                if (data.includes("READY") && data.includes('"meadhall"')) {
+                    clearTimeout(timer);
+                    candidate.removeAllListeners("data");
+                    resolve(candidate);
+                }
+            });
+        });
+        if (socket) return socket;
+    }
+    throw new Error("Meadhall's Rich Presence server isn't listening");
+}
+
+// A WebSocket handshake with a chosen Origin: true if Meadhall's server answered READY (accepted it).
+function websocketHandshake(port: number, origin: string | null): Promise<boolean> {
+    return new Promise((resolve) => {
+        const request = http.request({
+            host: "127.0.0.1",
+            port,
+            path: "/?v=1&encoding=json&client_id=1234567890123",
+            headers: {
+                Connection: "Upgrade",
+                Upgrade: "websocket",
+                "Sec-WebSocket-Version": "13",
+                "Sec-WebSocket-Key": crypto.randomBytes(16).toString("base64"),
+                ...(origin ? { Origin: origin } : {}),
+            },
+        });
+        request.on("error", () => resolve(false));
+        request.on("response", () => resolve(false));
+        request.on("upgrade", (_response, socket) => {
+            let data = "";
+            socket.on("data", (chunk: Buffer) => {
+                data += chunk.toString("latin1");
+            });
+            setTimeout(() => {
+                socket.destroy();
+                resolve(data.includes('"meadhall"'));
+            }, 1000);
+        });
+        request.end();
+    });
+}
+
+// Meadhall's port in Discord's range (a running Discord may hold the first one).
+async function richPresencePort(): Promise<number | null> {
+    for (let port = 6463; port <= 6472; port += 1) if (await websocketHandshake(port, null)) return port;
+    return null;
+}
+
+test("Rich Presence: a game's activity is shared (named from the local list), can be hidden, and web pages can't use it", async () => {
+    await window.getByRole("button", { name: "User settings", exact: true }).click();
+    await window.getByRole("button", { name: "Privacy & Safety", exact: true }).click();
+    await window.getByTestId("share-activity").check();
+    await window.getByTestId("activity-rich-presence").check();
+
+    const game = await connectAsGame("1234567890123");
+    game.write(
+        frame(1, {
+            cmd: "SET_ACTIVITY",
+            nonce: "1",
+            args: { pid: 4242, activity: { details: "In a match", state: "3 of 5", timestamps: { start: Math.floor(Date.now() / 1000) } } },
+        }),
+    );
+    // Named from the game list (the game only sends its id), before Steam's game; details only when allowed.
+    await expect(window.getByTestId("activity-now")).toContainText("Pixel Quest", { timeout: 30_000 });
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 40_000 })
+        .toBe("Playing Pixel Quest");
+    await window.getByTestId("activity-details").check();
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 40_000 })
+        .toBe("Playing Pixel Quest · In a match · 3 of 5");
+    if (process.env.PREVIEW_DIR) await window.getByTestId("activity-settings").screenshot({ path: `${process.env.PREVIEW_DIR}/activity-settings.png` });
+
+    // "Never share this": the next thing (Steam's game) is shared instead.
+    await window.getByTestId("activity-now").locator(".activity-now-row").filter({ hasText: "Pixel Quest" }).getByTestId("activity-hide").click();
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 40_000 })
+        .toBe("Playing Stardew Valley");
+
+    // Local apps (no Origin) may connect; a web page (any other Origin) may not.
+    const port = await richPresencePort();
+    expect(port).not.toBeNull();
+    expect(await websocketHandshake(port!, "https://evil.example")).toBe(false);
+    expect(await websocketHandshake(port!, null)).toBe(true);
+
+    // Turning Rich Presence off closes the server.
+    game.destroy();
+    await window.getByTestId("activity-rich-presence").uncheck();
+    await expect.poll(() => richPresencePort(), { timeout: 15_000 }).toBeNull();
+    await window.getByTestId("activity-details").uncheck();
     await window.keyboard.press("Escape");
 });

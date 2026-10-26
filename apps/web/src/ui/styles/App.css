@@ -6821,3 +6821,56 @@ ul.message-renderer-format,
 ol.message-renderer-format {
     padding-left: 20px;
 }
+
+/* Settings -> Privacy -> Activity */
+.activity-now,
+.activity-hidden {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.activity-now-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.activity-hidden-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.activity-hidden-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.activity-hidden-chip button {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.activity-hidden-add {
+    display: flex;
+    gap: 6px;
+}
+
+.activity-hidden-add input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+}
