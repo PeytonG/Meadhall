@@ -634,6 +634,11 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 - No OIDC-native sign-in (Matrix Authentication Service). matrix.org uses MAS: password sign-in works through its
   compatibility layer and Register falls back to its SSO page (checked against matrix.org on 2026-10-23).
 - Soundboard has no cooldown; "talk" permissions are ranked (role and above), not exact sets (§7.6).
+- **Bug (owner report, 2026-10-27, not yet fixed): "Playing …" gets stuck.** After you quit a game and start
+  another, the status keeps showing the first game. Start in `ui/presence/activitySharing.ts` (`pickActivity`, which
+  source wins) and the desktop side `electron/activity/` (`currentActivities`; Rich Presence keeps the last
+  `SET_ACTIVITY` until an explicit clear or the socket closes, game detection's process scan, Steam's last game).
+  Check that a stale source is dropped when its game ends, and that a newer game wins over an older one.
 
 ### 10.1 Owner's v0.3.1 backlog (requested 2026-10-22/23; done on branch `v0.3.1`)
 Each item shipped with tests; the design reasons are in §7. Numbers are the owner's.

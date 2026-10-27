@@ -17,10 +17,10 @@ export async function soundToShare(client: MatrixClient, sound: CustomSound): Pr
     return { kind: "sound", name: sound.name, emoji: sound.emoji, mime: mime.startsWith("audio/") ? mime : "audio/wav", audio: bytesToBase64(new Uint8Array(await response.arrayBuffer())) };
 }
 
-export async function adoptSharedSound(client: MatrixClient, shared: SharedSound): Promise<CustomSound> {
+export async function adoptSharedSound(client: MatrixClient, shared: SharedSound, source?: string): Promise<CustomSound> {
     const extension = shared.mime.split("/")[1]?.replace(/^x-/, "") ?? "wav";
     const file = new File([base64ToBytes(shared.audio)], `${shared.name}.${extension}`, { type: shared.mime });
-    return addCustomSound(client, file, shared.name, shared.emoji);
+    return addCustomSound(client, file, shared.name, shared.emoji, source);
 }
 
 // Plays a shared sound for you only (the card's preview button).

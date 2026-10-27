@@ -18,6 +18,8 @@ export interface CustomSound {
     name: string;
     emoji: string;
     mxc: string;
+    // The share (chat message file) it was adopted from, so the share card can say it's already added.
+    source?: string;
 }
 
 export function parseCustomSounds(content: unknown): CustomSound[] {
@@ -30,6 +32,7 @@ export function parseCustomSounds(content: unknown): CustomSound[] {
             name: typeof sound.name === "string" ? sound.name.slice(0, 32) : "Sound",
             emoji: typeof sound.emoji === "string" ? [...sound.emoji].slice(0, 2).join("") : "🔊",
             mxc: typeof sound.mxc === "string" ? sound.mxc : "",
+            ...(typeof sound.source === "string" ? { source: sound.source } : {}),
         }))
         .filter((sound) => sound.id && sound.mxc.startsWith("mxc://"))
         .slice(0, MAX_CUSTOM_SOUNDS);
@@ -44,7 +47,7 @@ async function saveCustomSounds(client: MatrixClient, sounds: CustomSound[]): Pr
 }
 
 // Checks the file is a short, playable sound, then uploads it and adds it to your list.
-export async function addCustomSound(client: MatrixClient, file: File, name: string, emoji: string): Promise<CustomSound> {
+export async function addCustomSound(client: MatrixClient, file: File, name: string, emoji: string, source?: string): Promise<CustomSound> {
     const existing = loadCustomSounds(client);
     if (existing.length >= MAX_CUSTOM_SOUNDS) throw new Error(`You can keep up to ${MAX_CUSTOM_SOUNDS} sounds.`);
     if (file.size > MAX_SOUND_BYTES) throw new Error("Sounds can be up to 1 MB.");
@@ -62,6 +65,7 @@ export async function addCustomSound(client: MatrixClient, file: File, name: str
         name: name.trim().slice(0, 32) || file.name.replace(/\.[^.]+$/, "").slice(0, 32) || "Sound",
         emoji: [...emoji.trim()].slice(0, 2).join("") || "🔊",
         mxc: upload.content_uri,
+        ...(source ? { source } : {}),
     };
     await saveCustomSounds(client, [...existing, sound]);
     return sound;

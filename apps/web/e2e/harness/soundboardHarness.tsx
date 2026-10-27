@@ -8,9 +8,11 @@ import "./styles";
 
 import { SoundboardPanel } from "../../src/ui/components/voice/SoundboardPanel";
 
-const sounds = Array.from({ length: 20 }, (_, index) => ({
+// Tests can pass their own names (window.soundNames), e.g. very long ones.
+const soundNames = (window as unknown as { soundNames?: string[] }).soundNames;
+const sounds = Array.from({ length: soundNames?.length ?? 20 }, (_, index) => ({
     id: `sound-${index}`,
-    name: `Custom sound ${index + 1}`,
+    name: soundNames?.[index] ?? `Custom sound ${index + 1}`,
     emoji: "🔊",
     mxc: `mxc://example.org/sound${index}`,
 }));
