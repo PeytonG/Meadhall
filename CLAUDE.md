@@ -464,6 +464,29 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   settings whitelisted). Shares are `m.file` messages with `io.github.peytong.meadhall.share` `{kind,name,emoji}`;
   Adopt re-uploads sounds to the adopter's server via `addCustomSound`.
 
+### 7.23 Threads and cross-app verification (v0.4.1)
+- **Threads** (`ui/threads`): the client runs with `threadSupport`, so the SDK moves `m.thread` replies out of the
+  main timeline into per-thread timelines. `Timeline` takes `threadRootId` (thread panel: the thread's events, root
+  first; threaded receipts; paginates the thread timeline) or `onOpenThread` (main chat: "N replies" bar, Reply in
+  thread). The composer sends with `threadId`. In a thread, `m.in_reply_to` with `is_falling_back` is not a reply.
+  Unread: the SDK's `Thread.getEventReadUpTo` calls every thread read until you send a threaded receipt, so the inbox
+  goes by `getThreadUnreadNotificationCount`. "Mark read" sends one **unthreaded** receipt on the newest event in the
+  room or any thread (`markRoomReadEverywhere`); a main-timeline receipt alone left thread replies unread forever.
+- **Verification** (`core/crypto/securityRecoveryFlow.ts`): other apps trust a session when it carries a signature
+  from the account's self-signing key. "This device verified" = own device `crossSigningVerified` (the device list's
+  `verified` is always true for the current device: local trust). Entering the recovery key also runs
+  `adoptCrossSigningWithRecoveryKey` (checks the key against the default secret-storage key, then
+  `bootstrapCrossSigning({})`, which imports the keys from secret storage and signs this device; it only creates keys
+  when none are in secret storage, which is checked first). A fresh `/keys/query` (`userHasCrossSigningKeys(me, true)`)
+  is needed before the new signature shows locally. **Never** make a new recovery key when one exists and this
+  session lacks the cross-signing private keys (`EXISTING_RECOVERY_KEY_MESSAGE`): that orphans them. A Meadhall-only
+  account gets cross-signing keys created at recovery-key setup (first upload needs no UIA).
+- **Verify this device** (SAS): don't call `generateQRCode()` on Ready; with Rust crypto it switches the request to
+  QR and it gets cancelled. After verification, `refreshTrustStatus` (not `refreshDeviceVerification`, which re-runs
+  the sign-in screens); `UserTrustStatusChanged` / `KeyBackupDecryptionKeyCached` pick up shared keys later.
+- Tests: `e2e/threads.spec.ts`, `e2e/verification.spec.ts`, `e2e/verificationSas.spec.ts` (a Node Rust-crypto client
+  stands in for FluffyChat: `setUpEncryptionLikeAnotherApp`).
+
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
 brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requires 7:1 against its background
@@ -563,6 +586,9 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | Someone's new profile card shows only after 10 min | Style cache TTL; the profile panel now re-reads (`useProfileStyle(…, fresh)`) |
 | Login helper "strict mode violation: 2 Sign in buttons" | A button named "Sign in with …" inside the form; keep extra buttons outside the `<form>` |
 | Flatpak build: "state dir not on the same filesystem" | Pass `--state-dir` on the build's filesystem; runtime 24.08 is end-of-life, use 25.08 |
+| Bot replies ping but never show; inbox "✓" does nothing | Thread replies (`m.thread`) live in thread timelines; see §7.23 |
+| Meadhall and FluffyChat disagree about who is verified | The session wasn't cross-signed; the recovery key now signs it (§7.23) |
+| "Verify this device" cancels as soon as the other side answers | `generateQRCode()` on Ready; removed (§7.23) |
 
 ## 9. Status
 
@@ -590,6 +616,7 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.3.3`: §10.3 (bug reports, logs, server notices, cross-server status, Linux packages and updates, taskbar icons) | ✅ released |
 | `v0.3.4`: §10.4 (server menus, muting, channel types, inbox, badges, profile style, sharing, screen share fixes) | ✅ tests: 216 unit, 25 smoke, 8 integration, 87 E2E (11 screenshot-only skipped), 11 real-desktop; Linux .rpm screen-share previews checked in Fedora |
 | `v0.4.0`: §10.5 (webcam, push to talk, polls, code blocks, activity audiences, QR sign-in, translations, reduce motion, provenance, Flatpak/F-Droid prep) | ✅ tests: 248 unit, 25 smoke, 8 integration, 105 E2E (11 screenshot-only skipped), 4 real LiveKit calls, 15 real-desktop; Flatpak built and linted in Flathub's image; release workflow dry run (Windows, Linux, Android) green |
+| `v0.4.1`: threads, inbox clearing, cross-app verification (§7.23) | ✅ tests: 251 unit, 25 smoke, 111 E2E (11 screenshot-only skipped), incl. verification against a Rust-crypto client standing in for FluffyChat |
 
 ## 10. Open issues and roadmap
 
@@ -732,4 +759,5 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 2026-10-23 | v0.3.2 (§10.2): soundboard over the mic, volume, trimming and scrolling; call drops (alone timer, rejoin, call history); Steam display; status speed; call card clicks on desktop; taskbar icon and unread bubble; screen share previews and scaling; banner crop; Block / Ignore; earlier versions; CodeQL fixes and a security audit (IPC sender check); read-marker race; component harness for in-call tests and screenshots. |
 | 2026-10-23 | v0.3.3 (§10.3): Linux `.rpm`/`.deb` updates via the package manager, `.deb` package, declared deps, GNOME and Windows taskbar icons; verification fix; Unencrypted chip; icon style; Logs and call-ended notice; Report a bug; server notices and group-chat invites; cross-server status ? and Share my status; log redaction. Packages verified in clean Ubuntu 24.04 and Fedora 42 containers. |
 | 2026-10-26 | v0.4.0 (§10.5): sound style, soundboard track and volumes, 10 voice effects, notification fixes, deletion placeholders, webcam, push to talk, polls, code blocks and preview privacy, Rich Presence/game detection/MPRIS with audiences, reduce motion and axe checks, translations, QR sign-in, provenance attestations, Flatpak (built in Flathub's CI image) and F-Droid metadata, SignPath plan. Power cut mid-work: repaired a zeroed branch ref. |
+| 2026-10-27 | v0.4.1: threads (bot replies via baibot were invisible), inbox mark-read for thread replies, verification fixes (recovery key now cross-signs the session, SAS no longer cancelled by QR generation, no orphaning another app's recovery key). |
 | 2026-10-24 | v0.3.4 (§10.4): bug reports visible to the developer; server menus, muting, channel types, banners, rail badges, inbox, update arrow; members by role with role editing; voice channel chat; badges (signed, fingerprinted list); profile style; style profiles and .meadhall sharing; screen share picker fixes; pasted GIFs; calls in channels no longer notify; per-call history; README screenshots. |
