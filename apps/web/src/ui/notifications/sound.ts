@@ -1,4 +1,5 @@
 let activeAudio: HTMLAudioElement | null = null;
+import { getSoundStyle, leadWave, shapeNote, softWave } from "./soundStyle";
 
 function stopActiveAudio(): void {
     if (!activeAudio) {
@@ -22,7 +23,7 @@ function makeOscillator(
     start: number,
     end: number,
     peak = 0.08,
-    type: OscillatorType = "triangle",
+    type: OscillatorType = softWave(),
 ): void {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -41,33 +42,31 @@ function makeOscillator(
     oscillator.stop(end + 0.01);
 }
 
+// The message sound: two quick rising notes. 8-bit (square) or smooth (sine bell), same notes (Settings → Notifications).
 function playDefaultTone(): Promise<void> {
     const context = getAudioContext();
     if (!context) return Promise.resolve();
-
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = 880;
-    gain.gain.value = 0.0001;
-
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-
-    const now = context.currentTime;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-
-    oscillator.start(now);
-    oscillator.stop(now + 0.21);
-
-    return new Promise<void>((resolve) => {
-        oscillator.onended = () => {
-            void context.close().catch(() => undefined);
-            resolve();
-        };
-    });
+    const start = context.currentTime + 0.01;
+    for (const [index, frequency] of [880, 1318.5].entries()) {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = leadWave();
+        oscillator.frequency.value = frequency;
+        oscillator.connect(gain).connect(context.destination);
+        const at = start + index * 0.09;
+        shapeNote(gain.gain, at, 0.12, getSoundStyle() === "smooth" ? 0.22 : 0.07);
+        oscillator.start(at);
+        oscillator.stop(at + 0.45);
+        if (index === 1) {
+            return new Promise<void>((resolve) => {
+                oscillator.onended = () => {
+                    void context.close().catch(() => undefined);
+                    resolve();
+                };
+            });
+        }
+    }
+    return Promise.resolve();
 }
 
 function playVoiceJoinTone(): Promise<void> {

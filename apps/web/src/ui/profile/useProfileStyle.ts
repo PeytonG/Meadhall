@@ -9,9 +9,9 @@ const cache = new Map<string, { at: number; value: Promise<ProfileStyle> }>();
 const listeners = new Set<() => void>();
 const TTL_MS = 10 * 60_000;
 
-export function readProfileStyle(client: MatrixClient, userId: string): Promise<ProfileStyle> {
+export function readProfileStyle(client: MatrixClient, userId: string, maxAgeMs = TTL_MS): Promise<ProfileStyle> {
     const cached = cache.get(userId);
-    if (cached && Date.now() - cached.at < TTL_MS) return cached.value;
+    if (cached && Date.now() - cached.at < maxAgeMs) return cached.value;
     const value = client
         .getExtendedProfileProperty(userId, STYLE_KEY)
         .then(parseProfileStyle)
@@ -28,7 +28,8 @@ export async function saveOwnProfileStyle(client: MatrixClient, style: ProfileSt
     listeners.forEach((listener) => listener());
 }
 
-export function useProfileStyle(client: MatrixClient, userId: string | null | undefined): ProfileStyle {
+// `fresh`: re-read it now (opening someone's profile shows their current card; the cached one shows meanwhile).
+export function useProfileStyle(client: MatrixClient, userId: string | null | undefined, fresh = false): ProfileStyle {
     const [style, setStyle] = useState<ProfileStyle>(EMPTY_PROFILE_STYLE);
     const [version, setVersion] = useState(0);
     useEffect(() => {
@@ -41,12 +42,18 @@ export function useProfileStyle(client: MatrixClient, userId: string | null | un
     useEffect(() => {
         if (!userId) return undefined;
         let cancelled = false;
-        void readProfileStyle(client, userId).then((value) => {
+        const cached = cache.get(userId);
+        if (fresh && cached) {
+            void cached.value.then((value) => {
+                if (!cancelled) setStyle(value);
+            });
+        }
+        void readProfileStyle(client, userId, fresh ? 5_000 : TTL_MS).then((value) => {
             if (!cancelled) setStyle(value);
         });
         return () => {
             cancelled = true;
         };
-    }, [client, userId, version]);
+    }, [client, userId, version, fresh]);
     return style;
 }

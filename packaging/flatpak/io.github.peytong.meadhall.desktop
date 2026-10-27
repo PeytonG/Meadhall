@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Meadhall
+GenericName=Chat
+Comment=Chat, voice and video on Matrix, Discord-style
+Exec=meadhall %U
+Icon=io.github.peytong.meadhall
+Terminal=false
+Categories=Network;InstantMessaging;Chat;
+Keywords=matrix;chat;voice;discord;
+StartupWMClass=Meadhall

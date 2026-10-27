@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { LANGUAGES, chosenLanguage, setLanguage, t, useLanguage } from "../../../i18n";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { PixelColorWheel } from "../../../theme/PixelColorWheel";
@@ -18,6 +19,25 @@ interface AppearanceTabProps {
     onChange: (settings: AppearanceSettings) => void;
     // For style profiles (saved in your account).
     client?: MatrixClient | null;
+}
+
+// The app's language (saved on this device; also on the sign-in screen). Not every screen is translated yet.
+function LanguageCard(): React.ReactElement {
+    useLanguage();
+    return (
+        <div className="settings-section-card">
+            <h3>{t("Language")}</h3>
+            <select className="settings-select" value={chosenLanguage()} onChange={(event) => setLanguage(event.target.value)} data-testid="language-select">
+                <option value="system">{t("System default")}</option>
+                {LANGUAGES.map((language) => (
+                    <option key={language.code} value={language.code}>
+                        {language.name}
+                    </option>
+                ))}
+            </select>
+            <p className="settings-field-help">Translations cover sign-in, settings, the message box and call controls so far; the rest is still English.</p>
+        </div>
+    );
 }
 
 export function AppearanceTab({
@@ -113,6 +133,22 @@ export function AppearanceTab({
                     ))}
                 </div>
                 <p className="settings-field-help">The buttons and controls: pixel art to match the theme, or smooth lines.</p>
+            </div>
+
+            <LanguageCard />
+
+            <div className="settings-section-card">
+                <h3>Motion</h3>
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={settings.reduceMotion}
+                        onChange={(event) => onChange({ ...settings, reduceMotion: event.target.checked })}
+                        data-testid="reduce-motion-toggle"
+                    />
+                    Reduce motion: still campfires, banners and GIF profile art, no sliding or popping animations
+                </label>
+                <p className="settings-field-help">Always on when your system asks for reduced motion.</p>
             </div>
 
             <div className="settings-section-card">

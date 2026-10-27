@@ -2,9 +2,8 @@
 // Soundboard: built-in sounds plus your own, played into a call for everyone (and for you).
 //
 // Your own sounds are uploaded to your homeserver's media repository and listed in your account data, so they
-// follow you to every device. In a call, sounds are mixed into your microphone (voiceChanger.soundboardBus), so
-// they're heard as your voice and light up your speaking indicator; that also means they need your mic unmuted.
-// (An earlier version published a separate track, which LiveKit reported as "publishing silence" between sounds.)
+// follow you to every device. In a call, sounds go out on their own track (soundboardTrack.ts),
+// so others can turn them down without turning down your voice, and they play with your mic muted.
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { mediaFromMxc } from "../../../core/media/media";
@@ -92,8 +91,7 @@ export async function decodeCustomSound(client: MatrixClient, sound: CustomSound
     return context.decodeAudioData((await download).slice(0));
 }
 
-// Plays sounds to you and, in a call, into the microphone mix (`callBus`, see voiceChanger.soundboardBus), so they
-// go out as part of your voice. Volume is 0-100 (Settings → Audio, or the call settings).
+// Plays sounds to you and, in a call, into `callBus` (the soundboard track). Volume is 0-100 (Settings → Audio, or the call settings).
 export class SoundboardPlayer {
     readonly context: AudioContext;
     private readonly ownsContext: boolean;

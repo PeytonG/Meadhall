@@ -31,9 +31,12 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 
 - 🏰 **Servers, channels and DMs like Discord**, on Matrix: sign in with any Matrix account, or host your own.
 - 🔒 **End-to-end encrypted** messages and calls, with device verification and key backup.
-- 🎙️ **Voice that works with Element Call**: voice channels, DM and group calls, screen sharing.
+- 🎙️ **Voice and video that work with Element Call**: voice channels, DM and group calls, webcam, screen sharing,
+  push to talk.
 - 🔥 **Pixel art everywhere**: a pixel theme, pixel emoji and stickers, and a campfire that burns while you talk.
-- 🎭 **Roles, statuses and profiles** with banners, bios, links and "Playing ..." from Steam.
+- 🎭 **Roles, statuses and profiles** with banners, bios, links and "Playing ..." (Steam, Rich Presence), shared
+  only with whom you choose.
+- 📊 **Polls, code blocks and translations**: polls with time limits, highlighted code, and the app in 5 languages.
 - 🖥️ **Every platform**: Windows, Linux, Android and the web, with notifications and self-updating desktop apps.
 
 <a id="download"></a>
@@ -44,17 +47,21 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 
 | Platform | File | How to install |
 |---|---|---|
-| 🪟 **Windows** 10/11 | `Meadhall-Setup-<version>.exe` | Run it. SmartScreen may warn because the app isn't code-signed yet: **More info → Run anyway**. |
+| 🪟 **Windows** 10/11 | `Meadhall-Setup-<version>.exe` | Run it. SmartScreen may warn because the app isn't code-signed yet (signing comes with v1.0.0, see the [code signing policy](docs/code-signing.md)): **More info → Run anyway**. |
 | 🎩 **Fedora / RHEL** | `Meadhall-<version>-x86_64.rpm` | See [Installing on Linux](#installing-on-linux). |
 | 🐧 **Debian / Ubuntu / Mint** | `Meadhall-<version>-amd64.deb` | See [Installing on Linux](#installing-on-linux). |
 | 🐧 **Any Linux** | `Meadhall-<version>-x86_64.AppImage` | See [Installing on Linux](#installing-on-linux). |
-| 🤖 **Android** 7+ | `Meadhall-<version>-android.apk` | See [Installing on Android](#installing-on-android) below. |
+| 🤖 **Android** 7+ | `Meadhall-<version>-android.apk` | See [Installing on Android](#installing-on-android) below, or let [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/PeytonG/Meadhall) install and update it. |
 | 🍎 **iOS (Beta)** | TestFlight | Invite only for now: see [iOS (Beta)](#ios). |
 | 🌐 **Web** | — | Use a Meadhall someone hosts, or [host your own](docs/self-hosting.md). |
 
 - **Desktop apps update themselves:** a notice offers **Update now**, then a one-time **What's new** shows what changed.
 - **Phones tell you when there's an update** and link straight to it (turn this off in Settings → Updates).
-- Every release has a `SHA256SUMS.txt` to check your downloads against.
+- Every release has a `SHA256SUMS.txt` to check your downloads against, and (from v0.4.0) signed build provenance:
+  `gh attestation verify <file> --repo PeytonG/Meadhall` proves the file was built from this repository by its
+  release workflow.
+- Coming: Flathub and F-Droid ([packaging](packaging/README.md)). [Code signing policy](docs/code-signing.md) ·
+  [Privacy policy](docs/privacy.md).
 
 <a id="installing-on-linux"></a>
 <details>
@@ -128,13 +135,22 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
   and above **can talk** in. They're Matrix power levels, so the server enforces them, in Element too. The member
   list groups people by role, highest rank first, and admins change roles right from it.
 - 🟢 **Status**: Online, Away, Do Not Disturb, Invisible and a custom status. You go Away after 10 minutes without
-  input, people on the phone app show a 📱, and the desktop app shows **"Playing ..."** for games running in Steam.
-  People whose server doesn't share status show a **?**, and you can stop sharing yours in Settings → Privacy.
+  input, people on the phone app show a 📱. People whose server doesn't share status show a **?**, and you can stop
+  sharing yours in Settings → Privacy.
+- 🎮 **Activity** (desktop): **"Playing ..."** from Steam, apps with **Discord Rich Presence** (via arRPC), games
+  recognised on your PC, and **"Listening to ..."** from Linux media players. You choose the sources, whether details
+  show, a never-share list, and **who sees it**: people you share a chat with, only your DMs (end-to-end encrypted),
+  everyone, or nobody.
+- 📊 **Polls**: one or several answers, anonymous, results live or at the end, and a **time limit** after which the
+  results are posted in the chat. Works with Element's polls.
+- 💻 **Code blocks** with syntax highlighting (```ts), and **link previews** that stay off in encrypted chats unless
+  you allow them.
 - 🪪 **Profiles** with a banner (image or GIF, cropped to fit), About me, links, and the person's roles in every server
   you share, a **card gradient** and a **nameplate** behind your name in member lists, and **badges** (founding members
   of Meadhall wear a gold coin). **Block** anyone from their profile.
 - 👥 **Multiple accounts**: sign in to accounts on different servers, switch from the user panel, and get
   notifications for all of them.
+- 📱 **Sign in with a QR code**: show a one-time code on a device you're signed in on and scan it with the new one.
 - ↩️ Replies, edits, reactions, pins, read receipts, typing indicators, search and a member list.
 
 **Voice and calls**
@@ -142,8 +158,11 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 - 🔊 Voice channels are **hangouts**: click to join, no ringing. DMs and group chats have calls that **ring** with an
   8-bit ringtone.
 - 🔥 A pixel **campfire** burns around whoever is talking, in their color (or a simple ring, if you prefer).
-- 🎛️ A **voice changer** with 18 effects (Giant, Pixie, Robot, Dragon, Ghost, Cave, Underwater, Alien, Choir...).
-- 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own (trim them to fit), played over your mic.
+- 📷 **Webcam** in any call, alongside screen sharing.
+- 🎚️ **Push to talk** with your own key, and a reminder if you talk without holding it.
+- 🎛️ A **voice changer** with 29 effects (Giant, Pixie, Robot, Dragon, Ghost, Demon, Knight, Announcer, Whisper...).
+- 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own (trim them to fit). Sounds play even
+  while you're muted, and everyone can turn other people's sounds down (for all, or per person) without their voice.
 - 🖥️ Screen sharing with **previews** of what you can share, several streams side by side, per-person volume up to 120%,
   mute and deafen any time.
 - 💬 Voice channels can have **text chat** beside the call. Calls in a server's channels never ring everyone.
@@ -153,7 +172,10 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 **Pixel art**
 - 🎨 A hand-made pixel theme. The **pixel color wheel** recolors the whole app; dark, light and **high contrast** themes.
 - 😀 Pixel emoji, pixel stickers, custom emoji packs per server and per person, and pixel fonts (or any font you have).
-- 🧱 Pixel-art icons, or smooth ones if you prefer (Settings → Appearance).
+- 🧱 Pixel-art icons, or smooth ones if you prefer (Settings → Appearance), and 8-bit or smooth notification sounds.
+- 🌍 **Languages**: English, Español, Deutsch, Français and Português (Brasil) for the main screens so far.
+- ♿ **Reduce motion** (still campfire, still GIF banners, no animations), screen-reader-friendly lists, and every
+  release checked with axe.
 - 🎁 **Style profiles**: save your look and switch between looks. Turn on **Sharing** to send friends your soundboard
   sounds and styles; they add them with one click (or as `.meadhall` files).
 
@@ -171,6 +193,43 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 <a id="screenshots"></a>
 
 ## 🖼️ Screenshots
+
+### New in v0.4.0
+
+<table>
+<tr>
+<td width="50%"><a href="docs/screenshots/webcam.png"><img src="docs/screenshots/webcam.png" alt="A webcam in a call" /></a></td>
+<td width="50%"><a href="docs/screenshots/push-to-talk.png"><img src="docs/screenshots/push-to-talk.png" alt="Push to talk settings and reminder" /></a></td>
+</tr>
+<tr>
+<td><b>Webcam</b> in calls, for everyone in the call.</td>
+<td><b>Push to talk</b>, with a reminder when you talk without the key.</td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/poll.png"><img src="docs/screenshots/poll.png" alt="An anonymous poll with percentages" /></a></td>
+<td><a href="docs/screenshots/code-blocks.png"><img src="docs/screenshots/code-blocks.png" alt="Highlighted code blocks" /></a></td>
+</tr>
+<tr>
+<td><b>Polls:</b> anonymous or not, percentages, time limits.</td>
+<td><b>Code blocks</b> highlighted, with a Copy button.</td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/activity-settings.png"><img src="docs/screenshots/activity-settings.png" alt="Activity privacy settings" /></a></td>
+<td><a href="docs/screenshots/qr-login.png"><img src="docs/screenshots/qr-login.png" alt="A sign-in QR code" /></a></td>
+</tr>
+<tr>
+<td><b>Activity:</b> Rich Presence, Steam and more, shared only with whom you choose.</td>
+<td><b>Sign in with a QR code</b> from a device you're already signed in on.</td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/language.png"><img src="docs/screenshots/language.png" alt="Settings in Spanish" /></a></td>
+<td></td>
+</tr>
+<tr>
+<td><b>Languages:</b> the main screens in 5 languages.</td>
+<td></td>
+</tr>
+</table>
 
 ### New in v0.3.4
 
@@ -356,9 +415,14 @@ builds Windows, Linux and Android and publishes them with checksums once every b
   on another homeserver's SFU can hear you, but you won't hear them yet.
 - **Voice needs UDP** access to LiveKit (or a TURN server).
 - The Windows app isn't code-signed yet, and the **iOS app is a beta** (TestFlight invites, no notifications while closed).
+- **Switching accounts reloads the app**, which ends a call you're in.
+- **Push to talk** only works while Meadhall is the focused window.
+- **QR sign-in** needs your homeserver to allow it (Synapse: `login_via_existing_session`).
 
 ## 🗺️ Roadmap
 
+- **v1.0.0**: the first non-beta release, with a code-signed Windows installer ([code signing policy](docs/code-signing.md))
+- Meadhall on Flathub and F-Droid
 - iOS (Beta) → public release, with notifications
 - Calls across homeservers (multi-SFU)
 - Push notifications

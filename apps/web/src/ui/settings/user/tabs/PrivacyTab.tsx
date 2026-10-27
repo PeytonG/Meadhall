@@ -4,6 +4,7 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import { useIgnoredUsers } from "../../../hooks/useIgnoredUsers";
 import type { PrivacySettings } from "../settingsStore";
 import { setSharingEnabled, useSharingEnabled } from "../../../sharing/sharingSetting";
+import { ActivitySettingsCard } from "./ActivitySettingsCard";
 
 interface PrivacyTabProps {
     client: MatrixClient;
@@ -29,6 +30,23 @@ export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): Rea
             <p className="settings-tab-description">
                 What other people can see about you, and who you have blocked.
             </p>
+
+            <label className="settings-field">
+                <span>Link previews</span>
+                <select
+                    value={settings.linkPreviews}
+                    onChange={(event) => onChange({ ...settings, linkPreviews: event.target.value as PrivacySettings["linkPreviews"] })}
+                    data-testid="link-previews"
+                >
+                    <option value="unencrypted">Only in chats that aren&apos;t encrypted (recommended)</option>
+                    <option value="all">Everywhere</option>
+                    <option value="off">Off</option>
+                </select>
+                <small className="settings-hint">
+                    To show a preview, your homeserver fetches the page, so it sees the link. In encrypted chats that would
+                    let it see links it otherwise couldn&apos;t.
+                </small>
+            </label>
 
             <label className="settings-toggle">
                 <input
@@ -58,17 +76,7 @@ export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): Rea
                 Share my status (off: you appear offline to everyone, with no status text, Do Not Disturb or game shown)
             </label>
 
-            {window.heorotDesktop?.getActivity && settings.shareStatus ? (
-                <label className="settings-toggle">
-                    <input
-                        type="checkbox"
-                        checked={settings.shareActivity}
-                        onChange={(event) => onChange({ ...settings, shareActivity: event.target.checked })}
-                        data-testid="share-activity"
-                    />
-                    Show what I&apos;m playing (games running in Steam appear as &quot;Playing ...&quot; under your name)
-                </label>
-            ) : null}
+            {window.heorotDesktop?.getActivities && settings.shareStatus ? <ActivitySettingsCard settings={settings} onChange={onChange} /> : null}
 
             <SharingToggle />
 

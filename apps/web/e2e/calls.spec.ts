@@ -220,3 +220,37 @@ test("a custom ringtone rings instead of the jingle, and Test plays it until sto
     // Not the built-in jingle.
     expect((await stats(page)).oscillators).toBe(before.oscillators);
 });
+
+test("Sound style Smooth plays the same ringtone as soft sine tones instead of 8-bit square waves", async ({ page }) => {
+    await page.addInitScript(() => {
+        const waves: string[] = [];
+        (window as unknown as { waves: string[] }).waves = waves;
+        const Original = window.AudioContext;
+        window.AudioContext = class extends Original {
+            constructor(...args: ConstructorParameters<typeof AudioContext>) {
+                super(...args);
+                const create = this.createOscillator.bind(this);
+                this.createOscillator = () => {
+                    const oscillator = create();
+                    queueMicrotask(() => waves.push(oscillator.type));
+                    return oscillator;
+                };
+            }
+        } as typeof AudioContext;
+    });
+    const { bob, dm } = await callFromBob(page);
+    await page.getByRole("button", { name: "User settings", exact: true }).click();
+    await page.getByRole("button", { name: "Notifications", exact: true }).click();
+    await page.getByTestId("ringtone-test").click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { waves: string[] }).waves.includes("square"))).toBe(true);
+    await page.getByTestId("ringtone-test").click();
+
+    await page.getByRole("radiogroup", { name: "Sound style" }).getByRole("radio", { name: "Smooth" }).click();
+    await page.evaluate(() => ((window as unknown as { waves: string[] }).waves.length = 0));
+    await page.keyboard.press("Escape");
+    await ring(bob, dm);
+    await expect(page.getByTestId("incoming-call")).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => page.evaluate(() => (window as unknown as { waves: string[] }).waves.length)).toBeGreaterThan(0);
+    const waves = await page.evaluate(() => (window as unknown as { waves: string[] }).waves);
+    expect(waves.every((wave) => wave === "sine")).toBe(true);
+});

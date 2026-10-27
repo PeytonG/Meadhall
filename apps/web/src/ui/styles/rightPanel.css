@@ -1006,3 +1006,19 @@
 .right-panel-body-user.has-card-style :is(.rp-section, .rp-card, .rp-server-roles, .rp-profile-about) {
     background: color-mix(in srgb, var(--bg-pane) 72%, transparent);
 }
+
+.rp-profile-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.rp-profile-name-row .rp-profile-name {
+    min-width: 0;
+}
+
+.rp-profile-name-row .user-badges {
+    margin-left: 0;
+    flex-shrink: 0;
+}

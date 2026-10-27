@@ -27,7 +27,17 @@ export type VoiceEffect =
     | "megaphone"
     | "choir"
     | "wobble"
-    | "bard";
+    | "bard"
+    | "elf"
+    | "orc"
+    | "witch"
+    | "demon"
+    | "spirit"
+    | "knight"
+    | "arcade"
+    | "stadium"
+    | "announcer"
+    | "whisper";
 
 export const VOICE_EFFECTS: ReadonlyArray<{ id: VoiceEffect; label: string; description: string }> = [
     { id: "off", label: "Off", description: "Your normal voice" },
@@ -49,6 +59,16 @@ export const VOICE_EFFECTS: ReadonlyArray<{ id: VoiceEffect; label: string; desc
     { id: "choir", label: "Choir", description: "You, three times over" },
     { id: "wobble", label: "Wobble", description: "Seasick vibrato" },
     { id: "bard", label: "Bard", description: "Bright, with a little hall echo" },
+    { id: "elf", label: "Elf", description: "Higher, bright and clear" },
+    { id: "orc", label: "Orc", description: "Deep, rough and snarling" },
+    { id: "witch", label: "Witch", description: "High, with a cackling waver" },
+    { id: "demon", label: "Demon", description: "Very deep, buzzing and distorted" },
+    { id: "spirit", label: "Spirit", description: "Light, wavering and echoing" },
+    { id: "knight", label: "Knight", description: "Talking inside a metal helmet" },
+    { id: "arcade", label: "Arcade", description: "Crunchy 8-bit, like an old console" },
+    { id: "stadium", label: "Stadium", description: "Booming across a huge arena" },
+    { id: "announcer", label: "Announcer", description: "Punchy and up-front, like on air" },
+    { id: "whisper", label: "Whisper", description: "Breathy, thin and close" },
 ];
 
 export function normalizeVoiceEffect(value: unknown): VoiceEffect {
@@ -76,6 +96,16 @@ export function pitchFactorFor(effect: VoiceEffect): number {
             return 1.25;
         case "bard":
             return 1.06;
+        case "elf":
+            return 1.22;
+        case "orc":
+            return 0.66;
+        case "witch":
+            return 1.32;
+        case "demon":
+            return 0.55;
+        case "spirit":
+            return 1.15;
         default:
             return 1;
     }
@@ -365,6 +395,120 @@ export function buildVoiceEffect(context: BaseAudioContext, effect: VoiceEffect)
             tail = buildEchoes(context, sparkle, [[0.16, 0.22], [0.32, 0.1]], 3500);
             break;
         }
+        case "elf": {
+            const bright = filter(context, "highshelf", 2500, { gain: 3 });
+            tail.connect(bright);
+            tail = bright;
+            break;
+        }
+        case "orc": {
+            const snarl = context.createWaveShaper();
+            snarl.curve = distortionCurve(9);
+            const chest = filter(context, "lowshelf", 220, { gain: 6 });
+            const tame = filter(context, "lowpass", 3000);
+            tail.connect(snarl).connect(chest).connect(tame);
+            const level = context.createGain();
+            level.gain.value = 0.3;
+            tame.connect(level);
+            tail = level;
+            break;
+        }
+        case "witch": {
+            const cackle = buildVibrato(context, 6.5, 0.0035, sources);
+            const nasal = filter(context, "peaking", 1800, { q: 2, gain: 7 });
+            tail.connect(cackle).connect(nasal);
+            tail = nasal;
+            break;
+        }
+        case "demon": {
+            // Ring modulation at a low buzz plus heavy distortion and a dark low end.
+            const modulated = context.createGain();
+            modulated.gain.value = 0.6;
+            const carrier = context.createOscillator();
+            carrier.frequency.value = 38;
+            const carrierDepth = context.createGain();
+            carrierDepth.gain.value = 0.4;
+            carrier.connect(carrierDepth).connect(modulated.gain);
+            carrier.start();
+            sources.push(carrier);
+            const burn = context.createWaveShaper();
+            burn.curve = distortionCurve(18);
+            const dark = filter(context, "lowpass", 2200);
+            tail.connect(modulated).connect(burn).connect(dark);
+            const level = context.createGain();
+            level.gain.value = 0.4;
+            dark.connect(level);
+            tail = buildEchoes(context, level, [[0.07, 0.3]], 1200);
+            break;
+        }
+        case "spirit": {
+            const waver = buildVibrato(context, 2.2, 0.003, sources);
+            const air = filter(context, "highshelf", 4000, { gain: 5 });
+            tail.connect(waver).connect(air);
+            tail = buildEchoes(context, air, [[0.2, 0.4], [0.4, 0.25], [0.6, 0.12]], 5000);
+            break;
+        }
+        case "knight": {
+            // A helmet: a narrow resonant band and a very short metallic comb echo.
+            const band = filter(context, "bandpass", 1100, { q: 1.4 });
+            const comb = context.createDelay(0.05);
+            comb.delayTime.value = 0.009;
+            const feedback = context.createGain();
+            feedback.gain.value = 0.55;
+            const mix = context.createGain();
+            tail.connect(band);
+            band.connect(mix);
+            band.connect(comb);
+            comb.connect(feedback).connect(comb);
+            comb.connect(mix);
+            const level = context.createGain();
+            level.gain.value = 1.4;
+            mix.connect(level);
+            tail = level;
+            break;
+        }
+        case "arcade": {
+            // Bit-crushing: the waveform rounded to a few levels, then softened a little.
+            const crush = context.createWaveShaper();
+            const steps = 8;
+            const curve = new Float32Array(new ArrayBuffer(1024 * 4));
+            for (let index = 0; index < curve.length; index += 1) {
+                const x = (index * 2) / curve.length - 1;
+                curve[index] = Math.round(x * steps) / steps;
+            }
+            crush.curve = curve;
+            const lowpass = filter(context, "lowpass", 3800);
+            tail.connect(crush).connect(lowpass);
+            tail = lowpass;
+            break;
+        }
+        case "stadium": {
+            tail = buildEchoes(context, tail, [[0.18, 0.45], [0.36, 0.32], [0.54, 0.22], [0.8, 0.14], [1.1, 0.08]], 2200);
+            break;
+        }
+        case "announcer": {
+            const presence = filter(context, "peaking", 3000, { q: 1, gain: 5 });
+            const body = filter(context, "lowshelf", 160, { gain: 4 });
+            const compressor = context.createDynamicsCompressor();
+            compressor.threshold.value = -28;
+            compressor.ratio.value = 6;
+            compressor.attack.value = 0.003;
+            compressor.release.value = 0.15;
+            const level = context.createGain();
+            level.gain.value = 1.5;
+            tail.connect(body).connect(presence).connect(compressor).connect(level);
+            tail = level;
+            break;
+        }
+        case "whisper": {
+            const thin = filter(context, "highpass", 1100);
+            const breath = filter(context, "highshelf", 5000, { gain: 4 });
+            const level = context.createGain();
+            level.gain.value = 1.2;
+            tail.connect(thin).connect(breath).connect(level);
+            tail = level;
+            break;
+        }
         default:
             break;
     }
@@ -387,19 +531,6 @@ export function buildVoiceEffect(context: BaseAudioContext, effect: VoiceEffect)
     };
 }
 
-// The soundboard plays into this bus; every microphone processor on the context mixes it into what it sends, so
-// sounds go out as part of your voice (heard by everyone, and lighting up your speaking indicator).
-const soundboardBuses = new WeakMap<BaseAudioContext, GainNode>();
-
-export function soundboardBus(context: BaseAudioContext): GainNode {
-    let bus = soundboardBuses.get(context);
-    if (!bus) {
-        bus = context.createGain();
-        soundboardBuses.set(context, bus);
-    }
-    return bus;
-}
-
 // A livekit processor that runs the microphone through an effect before it is published. livekit re-runs
 // `restart` when the mic track is restarted (device or processing change), so the effect survives those.
 export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
@@ -407,19 +538,9 @@ export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor
     let source: MediaStreamAudioSourceNode | null = null;
     let destination: MediaStreamAudioDestinationNode | null = null;
 
-    let mixedBus: { bus: GainNode; destination: MediaStreamAudioDestinationNode } | null = null;
-
     const teardown = (): void => {
         chain?.dispose();
         source?.disconnect();
-        if (mixedBus) {
-            try {
-                mixedBus.bus.disconnect(mixedBus.destination);
-            } catch {
-                // Already disconnected.
-            }
-            mixedBus = null;
-        }
         chain = null;
         source = null;
         destination = null;
@@ -438,9 +559,6 @@ export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor
             chain = buildVoiceEffect(audioContext, effect);
             source.connect(chain.input);
             chain.output.connect(destination);
-            const bus = soundboardBus(audioContext);
-            bus.connect(destination);
-            mixedBus = { bus, destination };
             processor.processedTrack = destination.stream.getAudioTracks()[0];
         },
         restart: async (options) => {
@@ -457,7 +575,7 @@ export function createVoiceChangerProcessor(effect: VoiceEffect): TrackProcessor
 let processorContext: AudioContext | null = null;
 
 // Puts the effect on (or takes it off) a published microphone track, live: no rejoin needed. With `keepMixer` the
-// processor stays even for "off" (a straight wire), because the soundboard is mixed in there.
+// processor stays even for "off" (a straight wire).
 export async function applyVoiceEffect(track: LocalAudioTrack, effect: VoiceEffect, keepMixer = false): Promise<void> {
     const current = track.getProcessor()?.name;
     if (effect === "off" && !keepMixer) {
@@ -474,10 +592,3 @@ export async function applyVoiceEffect(track: LocalAudioTrack, effect: VoiceEffe
     await track.setProcessor(createVoiceChangerProcessor(effect));
 }
 
-// Makes sure the microphone runs through Meadhall's processor so soundboard sounds can be mixed in, and returns
-// the audio context the soundboard should play on.
-export async function ensureMicMixer(track: LocalAudioTrack, effect: VoiceEffect): Promise<AudioContext> {
-    await applyVoiceEffect(track, effect, true);
-    if (processorContext?.state === "suspended") await processorContext.resume().catch(() => undefined);
-    return processorContext!;
-}

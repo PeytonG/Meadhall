@@ -305,6 +305,27 @@ export function AudioTab({ client, settings, onChange }: AudioTabProps): React.R
             />
 
             <div className="settings-section-card">
+                <h3>Other people&apos;s soundboards</h3>
+                <label className="settings-field">
+                    <span>Volume: {settings.othersSoundboardVolume}%</span>
+                    <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={settings.othersSoundboardVolume}
+                        aria-label="Other people's soundboards"
+                        data-testid="others-soundboard-volume"
+                        onChange={(event) => onChange({ ...settings, othersSoundboardVolume: Number(event.target.value) })}
+                    />
+                </label>
+                <p className="settings-field-help">
+                    The sounds others play in calls, without changing their voices. 0% mutes them. In a call you can also set it per
+                    person (Sounds, next to their volume).
+                </p>
+            </div>
+
+            <div className="settings-section-card">
                 <h3>Voice changer</h3>
                 <p className="settings-tab-description">
                     Changes your voice for everyone in a call, Element users included. Switch any time, even mid-call.

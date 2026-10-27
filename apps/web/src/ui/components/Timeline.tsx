@@ -27,6 +27,11 @@ import { Toast, type ToastState } from "./Toast";
 import { ReactionsRow } from "./reactions/ReactionsRow";
 import { UserBadges } from "./badges/UserBadges";
 import { ShareCard } from "../sharing/ShareCard";
+import { CodeBlock, InlineCode } from "../code/CodeBlock";
+import { splitCode } from "../code/codeMarkdown";
+import type { LinkPreviewMode } from "../settings/user/settingsStore";
+import { PollCard, PollEndNotice } from "../polls/PollCard";
+import { isPollEndType, isPollStartType } from "../polls/pollModel";
 import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhallFile";
 
 interface TimelineProps {
@@ -40,6 +45,7 @@ interface TimelineProps {
     activeSpaceId: string | null;
     customReactionImagesEnabled: boolean;
     showReadReceipts: boolean;
+    linkPreviews?: LinkPreviewMode;
 }
 
 interface LightboxState {
@@ -622,8 +628,16 @@ function collectLatestEditEventsByTarget(room: Room | null): Map<string, MatrixE
 }
 
 function isRenderableMessage(event: MatrixEvent): boolean {
-    if ((event.getType() !== EventType.RoomMessage && !isStickerEvent(event)) || event.isRedacted()) {
+    // Polls: the poll itself, and the "poll closed" line with its results (votes aren't shown as messages).
+    if (isPollStartType(event.getType()) || isPollEndType(event.getType())) {
+        return true;
+    }
+    if (event.getType() !== EventType.RoomMessage && !isStickerEvent(event)) {
         return false;
+    }
+    // Deleted messages stay as a "Message deleted" line (with who deleted it), instead of vanishing without a trace.
+    if (event.isRedacted()) {
+        return true;
     }
 
     if (isEditEvent(event)) {
@@ -632,6 +646,13 @@ function isRenderableMessage(event: MatrixEvent): boolean {
 
     const content = getMessageContent(event);
     return isRenderableMessageContent(content);
+}
+
+// "Message deleted", naming who deleted it when it wasn't the person who sent it.
+function deletedLabel(room: Room | null, event: MatrixEvent): string {
+    const deleter = (event.getUnsigned()?.redacted_because as { sender?: unknown } | undefined)?.sender;
+    if (typeof deleter !== "string" || deleter === event.getSender()) return "Message deleted";
+    return `Message deleted by ${room?.getMember(deleter)?.name ?? deleter}`;
 }
 
 function extractMessageEvents(room: Room | null): MatrixEvent[] {
@@ -1155,7 +1176,30 @@ function renderTextSegmentWithMentionsAndCustomEmojis(
     return rendered;
 }
 
+// Code first (```blocks``` and `inline`), then links, mentions and emoji in the rest.
 function renderMessageBody(
+    client: MatrixClient,
+    room: Room,
+    ownUserId: string | null,
+    body: string,
+    emojiSourcesByShortcode: ReadonlyMap<string, string>,
+): React.ReactNode {
+    const parts = splitCode(body);
+    if (parts.length === 1 && parts[0]!.type === "text") {
+        return renderTextBody(client, room, ownUserId, body, emojiSourcesByShortcode);
+    }
+    return parts.map((part, index) =>
+        part.type === "block" ? (
+            <CodeBlock key={`code_${index}`} code={part.value} language={part.language} />
+        ) : part.type === "inline" ? (
+            <InlineCode key={`code_${index}`}>{part.value}</InlineCode>
+        ) : (
+            <React.Fragment key={`code_${index}`}>{renderTextBody(client, room, ownUserId, part.value, emojiSourcesByShortcode)}</React.Fragment>
+        ),
+    );
+}
+
+function renderTextBody(
     client: MatrixClient,
     room: Room,
     ownUserId: string | null,
@@ -1234,6 +1278,7 @@ export function Timeline({
     activeSpaceId,
     customReactionImagesEnabled,
     showReadReceipts,
+    linkPreviews = "unencrypted",
 }: TimelineProps): React.ReactElement {
     const decryptTuning = useMemo<DecryptTuning>(() => loadDecryptTuning(), []);
     const handleImageError = useMemo(() => createImageErrorHandler(client), [client]);
@@ -1753,8 +1798,13 @@ export function Timeline({
         };
     }, [room?.roomId]);
 
+    // Link previews make the homeserver fetch the page (it sees the link): in encrypted chats only if you said so.
+    const previewsAllowed = linkPreviews === "all" || (linkPreviews === "unencrypted" && !room?.hasEncryptionStateEvent());
     useEffect(() => {
         let cancelled = false;
+        if (!previewsAllowed) {
+            return undefined;
+        }
 
         const fetchLinkPreview = async (url: string): Promise<void> => {
             try {
@@ -1777,6 +1827,11 @@ export function Timeline({
         };
 
         for (const event of events) {
+            // Right after switching rooms, the list can still hold the last room's messages: never preview those
+            // under this room's rules (an encrypted chat's links would go to the server).
+            if (event.getRoomId() !== room?.roomId) {
+                continue;
+            }
             const { content } = getDisplayContentForEvent(event, latestEditEventsByTarget);
             if (isMediaMessageType(content.msgtype)) {
                 continue;
@@ -1806,7 +1861,7 @@ export function Timeline({
         return () => {
             cancelled = true;
         };
-    }, [client, events, latestEditEventsByTarget]);
+    }, [client, events, latestEditEventsByTarget, previewsAllowed, room]);
 
     useEffect(() => {
         if (!room) {
@@ -1846,6 +1901,11 @@ export function Timeline({
             }
 
             refreshEvents();
+            // Events that aren't shown (call signals, keys, edits...) still count as unread on the server: when
+            // you're reading at the bottom, mark them read too, or the chat would stay unread.
+            if (stickToBottomRef.current && document.visibilityState === "visible") {
+                void markReadRef.current();
+            }
         };
 
         const onEventDecrypted = (event: MatrixEvent): void => {
@@ -1898,7 +1958,7 @@ export function Timeline({
     }, [focusBottomNonce, room?.roomId]);
 
     const markActiveRoomReadToLatest = useCallback(async (): Promise<void> => {
-        if (!room || events.length === 0) {
+        if (!room) {
             return;
         }
 
@@ -1907,7 +1967,10 @@ export function Timeline({
             return;
         }
 
-        const latestEvent = events[events.length - 1];
+        // The newest event of any kind that the server knows about (not only the newest shown message), so hidden
+        // events after it (call signals, keys) can't leave the conversation unread.
+        const liveEvents = room.getLiveTimeline().getEvents();
+        const latestEvent = [...liveEvents].reverse().find((event) => event.getId()?.startsWith("$")) ?? events[events.length - 1];
         const latestEventId = latestEvent?.getId();
         if (!latestEvent || !latestEventId) {
             return;
@@ -2055,7 +2118,7 @@ export function Timeline({
                     const hasTextBody = body.trim().length > 0;
                     const imageAlt = hasTextBody ? body : "image";
                     const previewUrl = hasTextBody && !mediaMsgType ? getFirstPreviewableUrl(body) : null;
-                    const linkPreview = previewUrl ? linkPreviewByUrlRef.current[previewUrl] : null;
+                    const linkPreview = previewUrl && previewsAllowed ? linkPreviewByUrlRef.current[previewUrl] : null;
                     const format = typeof content.format === "string" ? content.format : undefined;
                     const formattedBody = typeof content.formatted_body === "string" ? content.formatted_body : undefined;
                     const hasFormattedBody = format === "org.matrix.custom.html" && typeof formattedBody === "string";
@@ -2289,7 +2352,23 @@ export function Timeline({
                                     {mediaLabel} unavailable
                                 </div>
                             ) : null}
-                            {!mediaMsgType ? (
+                            {event.isRedacted() ? (
+                                <div className={`timeline-body timeline-deleted${showHeader ? "" : " timeline-body-grouped"}`} data-testid="message-deleted">
+                                    {deletedLabel(room, event)}
+                                </div>
+                            ) : content.msgtype === "m.bad.encrypted" ? (
+                                <div
+                                    className={`timeline-body timeline-undecryptable${showHeader ? "" : " timeline-body-grouped"}`}
+                                    data-testid="message-undecryptable"
+                                    title="This device doesn't have the key for this message. Restore your keys with your recovery key in Settings → Encryption & Recovery, or verify this device from another one."
+                                >
+                                    🔒 Couldn&apos;t decrypt this message on this device. Restore your keys in Settings → Encryption &amp; Recovery.
+                                </div>
+                            ) : isPollStartType(event.getType()) ? (
+                                <PollCard client={client} room={room} event={event} />
+                            ) : isPollEndType(event.getType()) ? (
+                                <PollEndNotice event={event} />
+                            ) : !mediaMsgType ? (
                                 <>
                                     {hasTextBody ? (
                                         <div

@@ -24,7 +24,7 @@ for (const [label, viewport] of [
     test(`layout preview (${label})`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.goto("/");
-        await page.getByRole("button", { name: "Register" }).click();
+        await page.getByRole("tab", { name: "Register" }).click();
         await shot(page, `${label}-0-register`);
         const { viewer } = await seedHall();
         await signIn(page, viewer);

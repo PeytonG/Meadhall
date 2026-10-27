@@ -21,11 +21,23 @@ function ownProfile(client: MatrixClient | null): { displayName?: string; avatar
     return { displayName: user?.displayName ?? userId ?? undefined, avatarMxc: user?.avatarUrl ?? null };
 }
 
+// Switching reloads the app, which ends a call: ask first while one is going (set by AppShell).
+let inCall = false;
+
+export function setInCallForSwitching(value: boolean): void {
+    inCall = value;
+}
+
+function okToLeaveCall(): boolean {
+    return !inCall || window.confirm("Switching accounts restarts Meadhall, which ends your call. Switch anyway?");
+}
+
 function reload(): void {
     window.location.reload();
 }
 
 export async function switchAccount(client: MatrixClient | null, userId: string, openRoomId?: string): Promise<void> {
+    if (!okToLeaveCall()) return;
     client?.stopClient();
     await switchToAccount(userId, ownProfile(client));
     if (openRoomId) {
@@ -39,6 +51,7 @@ export async function switchAccount(client: MatrixClient | null, userId: string,
 }
 
 export async function addAccount(client: MatrixClient | null): Promise<void> {
+    if (!okToLeaveCall()) return;
     client?.stopClient();
     await startAddingAccount(ownProfile(client));
     reload();

@@ -4,6 +4,62 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.4.0 (2026-10-26)
+
+### New
+- **Webcam:** turn your camera on in any call; everyone sees it next to the people in the call. Pick the camera in
+  the call settings.
+- **Push to talk:** in the call settings, with a key of your choice. If you talk without holding it, a small
+  reminder says push to talk is on.
+- **Polls:** the poll button in the message box. Several answers or one, anonymous (Meadhall shows only totals),
+  results live or only at the end, and a time limit: when it's up, the results are posted in the chat. Change your
+  vote any time before it closes. Works with Element's polls.
+- **Code blocks** with syntax highlighting: write ` ```ts ` (or python, rust, json...) and the code is colored, with
+  a Copy button. Inline `code` too. Formatting from other apps (bold, italic, lists, quotes, code) now shows.
+- **Activity, your way** (desktop, Settings → Privacy → Activity): besides Steam, Meadhall can show what apps with
+  **Discord Rich Presence** report (games, music players, editors) and games it recognises on your PC, and on Linux
+  **"Listening to ..."** from your media player. These are off until you turn them on. Choose whether details show,
+  keep a **never share** list, and choose **who sees it**: people you share a chat or server with (new default),
+  only people you have DMs with (sent end-to-end encrypted), everyone, or nobody.
+- **Other people's soundboards:** turn everyone's sounds down in Settings → Audio or the call settings, or one
+  person's with the new **Sounds** slider under their name, without turning their voice down. Your sounds now play
+  even while you're muted.
+- **Share sounds from a call:** the soundboard in a call has the share button too.
+- **Sound style:** Settings → Notifications → 8-bit or **smooth** versions of the message and call tunes.
+- **10 more voice effects** (29 in all): Elf, Orc, Witch, Demon, Spirit, Knight, Arcade, Stadium, Announcer and
+  Whisper.
+- **Sign in with a QR code:** Settings → Devices → Sign in another device shows a one-time code; on the new device
+  choose **Sign in with QR code** and scan it (or paste it). Your homeserver has to allow it.
+- **Languages:** Español, Deutsch, Français and Português (Brasil) for sign-in, settings, the message box and call
+  controls (more to come). Pick one on the sign-in screen or in Settings → Appearance.
+- **Reduce motion** (Settings → Appearance, or your system setting): stops the campfire, animations and GIF banners.
+- **Voice channel chat** now sits under the call, like a DM, instead of in a narrow column.
+
+### Changed
+- **Link previews** are off in encrypted chats by default, because your server has to fetch the page to make one
+  (Settings → Privacy → Link previews).
+- **What you're playing** is no longer saved in your public profile unless you choose **Everyone**.
+- The channel type option only appears for server channels.
+- **Switching accounts during a call** now asks first, since switching restarts Meadhall and ends the call. Keeping
+  the call going while you switch is planned.
+
+### Fixed
+- **Too many notifications during calls:** joining, leaving and call signals no longer pop up or play sounds.
+- **Notifications didn't clear:** opening a conversation now clears its notifications on desktop, and marks it read
+  reliably.
+- **Deleted messages vanished without a trace:** they now say "Message deleted by ...". Messages this device can't
+  decrypt say so instead of showing nothing.
+- **Badges** now show on profile cards even with long names, and the window buttons take the color of a profile
+  card's gradient under them.
+- Opening someone's profile shows their current card style (it could be up to 10 minutes old).
+- Screen readers: channel lists are announced as lists, and sign-in / register as tabs.
+
+### Security and releases
+- Every release file now has **signed build provenance**: `gh attestation verify <file> --repo PeytonG/Meadhall`.
+- The Android app no longer includes Google's services plugin. Meadhall is getting ready for **Flathub** and
+  **F-Droid**; Android users can already use **Obtainium**.
+- Windows code signing (through the SignPath Foundation) is planned for **v1.0.0**, the first non-beta release.
+
 ## v0.3.5 (2026-10-24)
 
 ### New

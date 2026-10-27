@@ -5,3 +5,6 @@
 70917b10010cb680e10b57469f579252d30f713b:apps/web/src/ui/settings/user/settingsStore.ts:generic-api-key:231
 # Made-up access token in the log-redaction test (appLog.test.ts); the test now builds it from parts.
 7ff0b10eb6c11fe94636604f7f3a289236cd5de0:apps/web/test/unit-tests/ui/appLog.test.ts:generic-api-key:31
+# Made-up login token in the QR sign-in unit test (not a real credential).
+1fc630a764a8f032b4d44f4aa1fc189ef49f79db:apps/web/test/unit-tests/ui/qrLogin.test.ts:generic-api-key:31
+1fc630a764a8f032b4d44f4aa1fc189ef49f79db:apps/web/test/unit-tests/ui/qrLogin.test.ts:generic-api-key:32

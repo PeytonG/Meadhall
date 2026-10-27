@@ -1,7 +1,9 @@
 import { normalizeVoiceEffect, type VoiceEffect } from "../../voice/voiceChanger";
+import { DEFAULT_ACTIVITY_SETTINGS, normalizeActivitySettings, type ActivitySettings } from "../../presence/activitySharing";
 import { cssFontStack, sanitizeFontFamily } from "../../theme/systemFonts";
 import { DEFAULT_ACCENT_COLOR, accentTokens, normalizeHexColor } from "../../theme/accentColor";
 import { setIconStyle, type IconStyle } from "../../theme/iconStyle";
+import { setReduceMotionSetting } from "../../theme/motion";
 
 // "contrast": high contrast for people who find the other themes hard to see (pure black, white text, bold outlines).
 export type AppTheme = "dark" | "light" | "contrast";
@@ -24,6 +26,8 @@ export interface AppearanceSettings {
     iconStyle: IconStyle;
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
+    // Stop animations (campfire, animated banners, transitions) even if the system doesn't ask for it.
+    reduceMotion: boolean;
 }
 
 export interface NotificationsSettings {
@@ -34,6 +38,8 @@ export interface NotificationsSettings {
     customMessageSoundName: string | null;
     // Incoming calls: ring at all, and with your own sound instead of the built-in jingle.
     ringtoneEnabled: boolean;
+    // The tunes as 8-bit chiptune (default) or smooth bell tones.
+    soundStyle: "pixel" | "smooth";
     customRingtoneDataUrl: string | null;
     customRingtoneName: string | null;
 }
@@ -45,10 +51,18 @@ export interface PrivacySettings {
     shareActivity: boolean;
     // Off: you appear offline to everyone, with no status text, Do Not Disturb or game shown.
     shareStatus: boolean;
+    // Link previews ask your homeserver to fetch the page, so the server sees the link. Off in encrypted chats by default.
+    linkPreviews: LinkPreviewMode;
+    // What you're doing and who sees it (presence/activitySharing.ts). shareActivity is the master switch.
+    activity: ActivitySettings;
 }
+
+export type LinkPreviewMode = "all" | "unencrypted" | "off";
 
 export interface AudioSettings {
     preferredAudioInputId: string;
+    // The camera for video in calls.
+    preferredVideoInputId: string;
     preferredAudioOutputId: string;
     micTestLoopbackEnabled: boolean;
     autoGainControlEnabled: boolean;
@@ -60,6 +74,11 @@ export interface AudioSettings {
     voiceEffect: VoiceEffect;
     // Soundboard volume, 0-100 (what you and the call hear).
     soundboardVolume: number;
+    // Other people's soundboard sounds in calls, 0-100 (their voices aren't affected).
+    othersSoundboardVolume: number;
+    // Push to talk: the mic only sends while this key (a KeyboardEvent.code) is held.
+    pushToTalk: boolean;
+    pushToTalkKey: string;
 }
 
 export interface UserLocalSettings {
@@ -84,6 +103,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         iconStyle: "pixel",
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
+        reduceMotion: false,
     },
     notifications: {
         // On by default: the desktop and Android apps ask for permission; browsers ask when you turn them on.
@@ -93,6 +113,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         customMessageSoundDataUrl: null,
         customMessageSoundName: null,
         ringtoneEnabled: true,
+        soundStyle: "pixel",
         customRingtoneDataUrl: null,
         customRingtoneName: null,
     },
@@ -101,9 +122,14 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         allowDmsFromServerMembers: true,
         shareActivity: true,
         shareStatus: true,
+        linkPreviews: "unencrypted",
+        activity: DEFAULT_ACTIVITY_SETTINGS,
     },
     audio: {
         preferredAudioInputId: "default",
+        preferredVideoInputId: "default",
+        pushToTalk: false,
+        pushToTalkKey: "Backquote",
         preferredAudioOutputId: "default",
         micTestLoopbackEnabled: false,
         autoGainControlEnabled: true,
@@ -113,6 +139,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         micProfile: "speech",
         voiceEffect: "off",
         soundboardVolume: 80,
+        othersSoundboardVolume: 100,
     },
 };
 
@@ -170,6 +197,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             iconStyle: appearance.iconStyle === "smooth" ? "smooth" : "pixel",
             chatLineLengthCh,
             showSpaceChannelAvatars,
+            reduceMotion: appearance.reduceMotion === true,
         },
         notifications: {
             notificationsEnabled: notifications.notificationsEnabled !== false,
@@ -178,6 +206,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             customMessageSoundDataUrl,
             customMessageSoundName,
             ringtoneEnabled: notifications.ringtoneEnabled !== false,
+            soundStyle: notifications.soundStyle === "smooth" ? "smooth" : "pixel",
             customRingtoneDataUrl:
                 typeof notifications.customRingtoneDataUrl === "string" && notifications.customRingtoneDataUrl.startsWith("data:audio/")
                     ? notifications.customRingtoneDataUrl
@@ -190,8 +219,15 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             allowDmsFromServerMembers: privacy.allowDmsFromServerMembers !== false,
             shareActivity: privacy.shareActivity !== false,
             shareStatus: privacy.shareStatus !== false,
+            linkPreviews: privacy.linkPreviews === "all" || privacy.linkPreviews === "off" ? privacy.linkPreviews : "unencrypted",
+            activity: normalizeActivitySettings(privacy.activity),
         },
         audio: {
+            pushToTalk: audio.pushToTalk === true,
+            pushToTalkKey:
+                typeof audio.pushToTalkKey === "string" && /^[A-Za-z0-9]{1,32}$/.test(audio.pushToTalkKey) ? audio.pushToTalkKey : "Backquote",
+            preferredVideoInputId:
+                typeof audio.preferredVideoInputId === "string" && audio.preferredVideoInputId.trim().length > 0 ? audio.preferredVideoInputId : "default",
             preferredAudioInputId:
                 typeof audio.preferredAudioInputId === "string" && audio.preferredAudioInputId.trim().length > 0
                     ? audio.preferredAudioInputId
@@ -207,6 +243,10 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             voiceIsolationEnabled: audio.voiceIsolationEnabled !== false,
             micProfile: audio.micProfile === "music" ? "music" : "speech",
             voiceEffect: normalizeVoiceEffect(audio.voiceEffect),
+            othersSoundboardVolume:
+                typeof audio.othersSoundboardVolume === "number" && Number.isFinite(audio.othersSoundboardVolume)
+                    ? Math.max(0, Math.min(100, Math.round(audio.othersSoundboardVolume)))
+                    : 100,
             soundboardVolume:
                 typeof audio.soundboardVolume === "number" && Number.isFinite(audio.soundboardVolume)
                     ? Math.max(0, Math.min(100, Math.round(audio.soundboardVolume)))
@@ -250,6 +290,7 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     root.setAttribute("data-pixel-emoji", settings.pixelEmoji === false ? "off" : "on");
     root.setAttribute("data-icon-style", settings.iconStyle === "smooth" ? "smooth" : "pixel");
     setIconStyle(settings.iconStyle === "smooth" ? "smooth" : "pixel");
+    setReduceMotionSetting(settings.reduceMotion === true);
     if (settings.fontStyle === "custom" && settings.customFontFamily) {
         root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));
     } else {

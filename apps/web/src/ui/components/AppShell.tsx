@@ -75,7 +75,7 @@ import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSess
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import { MobileUpdateBanner } from "./MobileUpdateBanner";
 import { WhatsNewDialog } from "./WhatsNewDialog";
-import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
+import { addAccount, setInCallForSwitching, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { captureGlobalErrors, logAppError } from "../logs/appLog";
@@ -97,6 +97,7 @@ import { clearVoiceDiscovery, initVoiceDiscovery } from "../voice/voiceDiscovery
 import { useRoomCalls } from "../hooks/useRoomCalls";
 import { useIncomingCall } from "../hooks/useIncomingCall";
 import { applyOwnStatus, currentPlatform, loadOwnStatus, type OwnStatus, type PublishedActivity } from "../presence/clientStatus";
+import { listenForPrivateActivity, pickActivity, resendIntervalMs, setDetectedActivities, shareActivityWithDms } from "../presence/activitySharing";
 import { startAwayTracker } from "../presence/autoAway";
 import { StatusMenu } from "./StatusMenu";
 import { IncomingCallCard } from "./voice/IncomingCallCard";
@@ -109,6 +110,9 @@ import {
 } from "../voice/selfVoiceState";
 import { CHANNEL_ORDER_STATE_EVENT, readChannelOrder, writeChannelOrder } from "../stores/CategoryStore";
 import { loadBadgeList } from "../../core/badges/badges";
+import { setSoundStyle } from "../notifications/soundStyle";
+import { MotionImage } from "./MotionImage";
+import { closeExpiredPolls } from "../polls/pollActions";
 
 interface AppShellProps {
     client: MatrixClient;
@@ -923,36 +927,61 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             systemIdleMs: desktopIdle ? async () => (await desktopIdle()) * 1000 : undefined,
         });
     }, [ownStatus.state]);
-    // Desktop: the game Steam is running, as "Playing ..." (Settings → Privacy can turn this off).
+    // Desktop: what you're doing ("Playing ...", "Listening to ..."), from the sources you turned on, minus what you
+    // hid, shared with the audience you chose (Settings → Privacy → Activity).
     const [activity, setActivity] = useState<PublishedActivity | null>(null);
     const shareActivity = userSettings.privacy.shareActivity;
+    const activitySettings = userSettings.privacy.activity;
+    const activitySettingsKey = JSON.stringify(activitySettings);
     useEffect(() => {
-        const getActivity = window.heorotDesktop?.getActivity;
-        if (!getActivity || !shareActivity) {
+        const desktop = window.heorotDesktop;
+        if (!desktop?.getActivities || !shareActivity) {
             setActivity(null);
+            setDetectedActivities([]);
+            void desktop?.setRichPresence?.(false).catch(() => undefined);
             return undefined;
         }
+        const settings = activitySettings;
+        void desktop.setRichPresence?.(settings.richPresence).catch(() => undefined);
+        const options = { steam: settings.steam, richPresence: settings.richPresence, games: settings.games, media: settings.media };
         let cancelled = false;
         const poll = (): void => {
-            void getActivity()
-                .catch(() => null)
+            void desktop.getActivities!(options)
+                .catch(() => [])
                 .then((found) => {
                     if (cancelled) return;
-                    // Keep "since" while the same game keeps running.
-                    setActivity((current) => (found ? (current?.name === found.name ? current : { name: found.name, since: Date.now() }) : null));
+                    setDetectedActivities(found);
+                    setActivity((current) => {
+                        const next = pickActivity(found, settings, current);
+                        return JSON.stringify(next) === JSON.stringify(current) ? current : next;
+                    });
                 });
         };
         poll();
-        const timer = window.setInterval(poll, 30_000);
+        // Rich Presence apps change often (song, level); Steam and process scans are cached on the desktop side.
+        const timer = window.setInterval(poll, settings.richPresence || settings.media ? 15_000 : 30_000);
         return () => {
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [shareActivity]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shareActivity, activitySettingsKey]);
     const shareStatus = userSettings.privacy.shareStatus;
+    const activityAudience = activitySettings.audience;
     useEffect(() => {
-        void applyOwnStatus(client, ownStatus, autoAway, activity, shareStatus);
-    }, [client, ownStatus, autoAway, activity, shareStatus]);
+        void applyOwnStatus(client, ownStatus, autoAway, activityAudience === "nobody" ? null : activity, shareStatus, activityAudience);
+    }, [client, ownStatus, autoAway, activity, shareStatus, activityAudience]);
+    // "Only people I have DMs with": sent to them encrypted (and cleared when it stops), re-sent while it lasts.
+    useEffect(() => {
+        const shared = activityAudience === "dms" && shareStatus && ownStatus.state !== "invisible" ? activity : null;
+        void shareActivityWithDms(client, shared).catch(() => undefined);
+        if (!shared) return undefined;
+        const timer = window.setInterval(() => void shareActivityWithDms(client, shared, true).catch(() => undefined), resendIntervalMs());
+        return () => window.clearInterval(timer);
+    }, [client, activity, activityAudience, shareStatus, ownStatus.state]);
+    useEffect(() => listenForPrivateActivity(client), [client]);
+    // Switching accounts reloads the app (ending a call), so it asks first during one.
+    useEffect(() => setInCallForSwitching(voiceSessionStatus !== "disconnected"), [voiceSessionStatus]);
     const ownStatusDot =
         ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {
@@ -2386,6 +2415,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         return () => window.removeEventListener("resize", onResize);
     }, []);
 
+    // Your polls with a time limit: when it's up, your app posts the results in the channel.
+    useEffect(() => {
+        closeExpiredPolls(client);
+        const timer = window.setInterval(() => closeExpiredPolls(client), 15_000);
+        return () => window.clearInterval(timer);
+    }, [client]);
+
     useElementLikeNotifications({
         client,
         activeRoomId,
@@ -2393,6 +2429,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         settings: userSettings.notifications,
         onOpenRoom: focusRoom,
     });
+
+    // Sound style (Settings → Notifications) for the message sound, ringtone and call sounds.
+    useEffect(() => setSoundStyle(userSettings.notifications.soundStyle), [userSettings.notifications.soundStyle]);
 
     // Uncaught errors go to Settings → Logs too.
     useEffect(() => captureGlobalErrors(), []);
@@ -2625,7 +2664,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </div>
                 {selectedSpaceBannerUrl ? (
                     <div className="space-banner" data-testid="space-banner">
-                        <img src={selectedSpaceBannerUrl} alt="" />
+                        <MotionImage src={selectedSpaceBannerUrl} alt="" />
                     </div>
                 ) : null}
                 {showSpaceOnboarding ? (
@@ -2969,6 +3008,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
                             customReactionImagesEnabled={renderReactionImages}
                             showReadReceipts={shouldShowReadReceipts}
+                            linkPreviews={userSettings.privacy.linkPreviews}
                         />
                         <div className="main-chat-composer">
                             <Composer

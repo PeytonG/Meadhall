@@ -1,0 +1,1 @@
+Webcam in calls, push to talk, polls with time limits, code blocks with highlighting, sign in with a QR code, translations (Spanish, German, French, Portuguese), reduce motion, and quieter notifications.

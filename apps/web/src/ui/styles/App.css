@@ -931,7 +931,8 @@ textarea {
     display: block;
 }
 
-.room-list-items > * + * {
+.room-list-items > * + *,
+.room-list-group > * + * {
     margin-top: 4px;
 }
 
@@ -3566,6 +3567,7 @@ textarea {
 }
 
 .voice-room-panel {
+    position: relative;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -6269,7 +6271,8 @@ img.voice-ctrl-icon {
     border: 0;
 }
 
-/* The call and the chat (main-pane body). A voice channel with text chat on shows the chat beside the call. */
+/* The call and the chat (main-pane body). A voice channel with text chat on shows the chat below the call, laid out
+   like a DM (messages, then the message box at the bottom). */
 .main-body {
     flex: 1;
     min-height: 0;
@@ -6277,29 +6280,15 @@ img.voice-ctrl-icon {
     flex-direction: column;
 }
 
-.main-body.has-voice-chat {
-    flex-direction: row;
-}
-
 .main-body.has-voice-chat .main-voice-slot {
-    min-width: 0;
+    flex: 1 1 55%;
+    min-height: 200px;
 }
 
 .main-body.has-voice-chat .main-chat-stack {
-    flex: 0 0 min(380px, 40%);
-    border-left: 1px solid var(--border);
-}
-
-@media (max-width: 900px) {
-    .main-body.has-voice-chat {
-        flex-direction: column;
-    }
-
-    .main-body.has-voice-chat .main-chat-stack {
-        flex: 1 1 45%;
-        border-left: 0;
-        border-top: 1px solid var(--border);
-    }
+    flex: 1 1 45%;
+    min-height: 180px;
+    border-top: 1px solid var(--border);
 }
 
 /* Badges after names (components/badges/UserBadges.tsx). */
@@ -6442,4 +6431,522 @@ img.voice-ctrl-icon {
 .share-card-error {
     flex-basis: 100%;
     color: var(--danger);
+}
+
+.soundboard-import {
+    display: grid;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Deleted and undecryptable messages: a muted line in the message's place. */
+.timeline-deleted,
+.timeline-undecryptable {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 13px;
+}
+
+/* Cameras in a call: a grid above the participant list, tiles kept 16:9 like screen shares. */
+.voice-room-camera-grid {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(var(--stage-columns, 1), minmax(0, 1fr));
+    gap: 8px;
+    width: min(100%, calc(var(--stage-columns, 1) * 440px));
+    margin: 0 auto;
+}
+
+.voice-room-camera-tile {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--border);
+}
+
+.voice-room-camera-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.voice-room-camera-tile.is-local .voice-room-camera-video {
+    transform: scaleX(-1);
+}
+
+.voice-room-camera-tile .voice-room-stage-tile-name {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+}
+
+/* Push to talk */
+.voice-room-ptt-notice {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: var(--bg-pane);
+    border: 1px solid var(--accent);
+    color: var(--text-main);
+    font-size: 13px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+.voice-room-ptt-notice kbd,
+.voice-room-ptt-key kbd {
+    padding: 0 5px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    font-family: inherit;
+}
+
+.voice-room-ptt-settings {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+
+.voice-room-ptt-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.voice-room-ptt-key {
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.voice-room-ptt-hint {
+    flex-basis: 100%;
+    opacity: 0.75;
+}
+
+/* Polls */
+.poll-card {
+    margin: 4px 0;
+    max-width: 520px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-pane);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.poll-card-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.poll-tag {
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.poll-card-question {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.poll-answers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.poll-answer {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    column-gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+}
+
+.poll-answer:hover:not(:disabled) {
+    border-color: var(--accent);
+}
+
+.poll-answer:disabled {
+    cursor: default;
+}
+
+.poll-answer.is-selected {
+    border-color: var(--accent);
+}
+
+.poll-answer-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--accent-soft);
+    pointer-events: none;
+    transition: width var(--motion-normal, 200ms) var(--motion-ease-standard, ease);
+}
+
+.poll-answer.is-winner .poll-answer-fill {
+    background: var(--accent);
+    opacity: 0.35;
+}
+
+.poll-answer > :not(.poll-answer-fill) {
+    position: relative;
+}
+
+.poll-answer-mark {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--text-muted);
+    border-radius: 50%;
+}
+
+.poll-answer-mark.is-check {
+    border-radius: 3px;
+}
+
+.poll-answer.is-selected .poll-answer-mark {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: inset 0 0 0 2px var(--bg-input);
+}
+
+.poll-answer-text {
+    overflow-wrap: anywhere;
+}
+
+.poll-answer-result {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.poll-answer-result small {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.poll-answer-voters {
+    grid-column: 2 / -1;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.poll-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.poll-end-button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.poll-card-error {
+    font-size: 12px;
+    color: var(--danger);
+}
+
+.poll-end-notice {
+    color: var(--text-muted);
+}
+
+.poll-end-lines {
+    margin-top: 2px;
+    font-size: 12px;
+}
+
+.poll-dialog-answers {
+    gap: 6px;
+}
+
+.poll-dialog-answer {
+    display: flex;
+    gap: 6px;
+}
+
+.poll-dialog-remove {
+    flex: 0 0 auto;
+    width: 32px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.poll-dialog-add {
+    align-self: flex-start;
+}
+
+/* Code in messages */
+.inline-code {
+    padding: 0 4px;
+    border-radius: 3px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    font-family: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+}
+
+.code-block {
+    margin: 4px 0;
+    max-width: min(100%, 760px);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    overflow: hidden;
+}
+
+.code-block-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 2px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.code-block-language {
+    text-transform: lowercase;
+}
+
+.code-block-copy {
+    padding: 2px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.code-block-copy:hover {
+    color: var(--text-main);
+}
+
+.code-block-pre {
+    margin: 0;
+    padding: 8px 10px;
+    max-height: 420px;
+    overflow: auto;
+    font-family: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre;
+    tab-size: 4;
+    color: var(--text-main);
+}
+
+/* Highlighting colours (work on dark and light themes) */
+.code-block .hljs-keyword,
+.code-block .hljs-selector-tag,
+.code-block .hljs-built_in,
+.code-block .hljs-literal { color: #c678dd; }
+.code-block .hljs-string,
+.code-block .hljs-regexp,
+.code-block .hljs-addition { color: #4fae4f; }
+.code-block .hljs-number,
+.code-block .hljs-symbol,
+.code-block .hljs-variable.language_ { color: #d19a66; }
+.code-block .hljs-comment,
+.code-block .hljs-quote { color: #8b8f98; font-style: italic; }
+.code-block .hljs-title,
+.code-block .hljs-title.function_,
+.code-block .hljs-section { color: #4b9fea; }
+.code-block .hljs-title.class_,
+.code-block .hljs-type { color: #d4a72c; }
+.code-block .hljs-attr,
+.code-block .hljs-attribute,
+.code-block .hljs-property,
+.code-block .hljs-name,
+.code-block .hljs-selector-class { color: #e06c75; }
+.code-block .hljs-meta { color: #56b6c2; }
+.code-block .hljs-deletion { color: #e05561; }
+.code-block .hljs-emphasis { font-style: italic; }
+.code-block .hljs-strong { font-weight: 700; }
+
+.message-renderer-format:is(p, blockquote, ul, ol) {
+    margin: 0;
+}
+
+blockquote.message-renderer-format {
+    padding-left: 8px;
+    border-left: 3px solid var(--border);
+    color: var(--text-muted);
+}
+
+ul.message-renderer-format,
+ol.message-renderer-format {
+    padding-left: 20px;
+}
+
+/* Settings -> Privacy -> Activity */
+.activity-now,
+.activity-hidden {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.activity-now-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.activity-hidden-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.activity-hidden-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.activity-hidden-chip button {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.activity-hidden-add {
+    display: flex;
+    gap: 6px;
+}
+
+.activity-hidden-add input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+}
+
+/* Reduced motion (system setting or Settings -> Appearance; see theme/motion.ts) */
+:root[data-reduce-motion="on"] *,
+:root[data-reduce-motion="on"] *::before,
+:root[data-reduce-motion="on"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+:root[data-reduce-motion="on"] .pixel-campfire.is-burning .pixel-campfire-frame {
+    animation: none !important;
+}
+
+:root[data-reduce-motion="on"] .pixel-campfire.is-burning .pixel-campfire-frame-0 {
+    opacity: 1;
+}
+
+.space-banner canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Language picker on the sign-in card */
+.login-card label.login-language {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.login-card label.login-language select {
+    width: auto;
+    padding: 4px 6px;
+}
+
+/* Sign in with a QR code */
+.qr-login-canvas {
+    display: block;
+    width: 220px;
+    height: 220px;
+    image-rendering: pixelated;
+    background: #fff;
+}
+
+.qr-login-text {
+    display: block;
+    margin: 6px 0;
+    word-break: break-all;
+    font-size: 11px;
+}
+
+.qr-login-scan {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.qr-login-video {
+    width: 100%;
+    max-height: 260px;
+    border-radius: 8px;
+    background: #000;
+    object-fit: cover;
+}
+
+.login-qr-button {
+    width: 100%;
+    margin-top: 10px;
 }

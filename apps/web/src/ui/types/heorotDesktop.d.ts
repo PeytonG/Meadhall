@@ -31,10 +31,18 @@ export interface HeorotDesktopBridge {
     showWindow?: () => Promise<void>;
     getSystemIdleSeconds?: () => Promise<number>;
     getActivity?: () => Promise<{ name: string; appId: string; source: "steam" } | null>;
+    // Desktop 0.4.0+: Steam, Rich Presence apps, recognised games and Linux media, each only when asked for.
+    getActivities?: (options: { steam: boolean; richPresence: boolean; games: boolean; media: boolean }) => Promise<
+        Array<{ source: "rpc" | "steam" | "game" | "media"; kind: "playing" | "listening" | "watching" | "competing"; name: string; details?: string; state?: string; appId?: string; startedAt?: number }>
+    >;
+    // Starts/stops the local Discord Rich Presence server.
+    setRichPresence?: (enabled: boolean) => Promise<void>;
     setUnreadBadge?: (badge: { count: number; icon: string | null }) => Promise<void>;
     setTrayState?: (state: { muted: boolean; deafened: boolean; status: string }) => Promise<void>;
     onTrayAction?: (listener: (action: { type: string; status?: string }) => void) => () => void;
     showNotification?: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
+    // Closes a conversation's notifications (all of them without a room). Desktop 0.4.0+.
+    clearNotifications?: (roomId?: string) => Promise<void>;
     onNotificationClicked?: (listener: (roomId: string) => void) => () => void;
     setTitleBarColors?: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp?: () => Promise<void>;

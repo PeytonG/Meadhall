@@ -54,6 +54,10 @@
     "strictVerify": true,
     "entitlements": "electron/entitlements.mac.plist",
     "entitlementsInherit": "electron/entitlements.mac.plist",
+    "extendInfo": {
+      "NSMicrophoneUsageDescription": "Meadhall uses your microphone in voice channels and calls.",
+      "NSCameraUsageDescription": "Meadhall uses your camera when you turn it on in a call."
+    },
     "mergeASARs": true
   },
   "dmg": {},

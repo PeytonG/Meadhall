@@ -20,6 +20,7 @@ import { UserBadges } from "../badges/UserBadges";
 import { gradientColors, gradientCss } from "../../../core/profile/profileStyle";
 import { useProfileStyle } from "../../profile/useProfileStyle";
 import { useIconStyle } from "../../theme/iconStyle";
+import { syncDesktopTitleBarColors } from "../../desktop/titleBarColors";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -138,7 +139,15 @@ export function UserProfilePanel({
     const rich = useMemo(() => parseRichProfile(profile as Record<string, unknown> | null), [profile]);
     // Their profile style: the card's gradient.
     const iconStyle = useIconStyle();
-    const cardColors = gradientColors(useProfileStyle(client, userId).card);
+    const cardColors = gradientColors(useProfileStyle(client, userId, true).card);
+    // Desktop: the window controls over the card take its color (and go back when it closes).
+    useEffect(() => {
+        const frame = window.requestAnimationFrame(() => syncDesktopTitleBarColors());
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.requestAnimationFrame(() => syncDesktopTitleBarColors());
+        };
+    }, [cardColors?.[0]]);
     const aboutText = useMemo(() => {
         if (rich.about.trim().length > 0) {
             return rich.about;
@@ -191,6 +200,7 @@ export function UserProfilePanel({
         <div
             className={`right-panel-body right-panel-body-user${cardColors ? " has-card-style" : ""}`}
             style={cardColors ? { backgroundImage: gradientCss(cardColors, { pixel: iconStyle === "pixel" }) } : undefined}
+            data-titlebar-color={cardColors?.[0]}
             data-testid="profile-card"
         >
             <ProfileHeader

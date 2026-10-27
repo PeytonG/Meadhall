@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { getSoundStyle, leadWave, shapeNote, softWave } from "../notifications/soundStyle";
 // The Meadhall ringtone: an original 8-bit jingle (a rising horn call answered by a tavern bounce), synthesized
 // with square and triangle waves like an old console. Plays only for the person being called, looping with a
 // pause until they join, dismiss, or the call stops ringing.
@@ -34,15 +35,11 @@ function scheduleVoice(context: BaseAudioContext, destination: AudioNode, notes:
             oscillator.type = type;
             oscillator.frequency.value = frequency(semitones);
             const envelope = context.createGain();
-            // Chiptune envelope: instant attack, short decay to a sustain, quick release.
-            envelope.gain.setValueAtTime(0, time);
-            envelope.gain.linearRampToValueAtTime(level, time + 0.005);
-            envelope.gain.linearRampToValueAtTime(level * 0.7, time + Math.min(0.06, duration / 2));
-            envelope.gain.setValueAtTime(level * 0.7, time + duration * 0.85);
-            envelope.gain.linearRampToValueAtTime(0, time + duration * 0.98);
+            // 8-bit: a flat chiptune block. Smooth: a bell that rings out (getSoundStyle, Settings → Notifications).
+            shapeNote(envelope.gain, time, duration, level);
             oscillator.connect(envelope).connect(destination);
             oscillator.start(time);
-            oscillator.stop(time + duration);
+            oscillator.stop(time + (getSoundStyle() === "smooth" ? Math.max(duration * 1.6, 0.25) : duration));
         }
         time += duration;
     }
@@ -51,8 +48,9 @@ function scheduleVoice(context: BaseAudioContext, destination: AudioNode, notes:
 
 // Schedules one pass of the jingle at `start`; returns its length in seconds.
 export function scheduleRingtone(context: BaseAudioContext, destination: AudioNode, start: number): number {
-    const melody = scheduleVoice(context, destination, MELODY, start, "square", 0.09);
-    const bass = scheduleVoice(context, destination, BASS, start, "triangle", 0.12);
+    const smooth = getSoundStyle() === "smooth";
+    const melody = scheduleVoice(context, destination, MELODY, start, leadWave(), smooth ? 0.16 : 0.09);
+    const bass = scheduleVoice(context, destination, BASS, start, softWave(), smooth ? 0.1 : 0.12);
     return Math.max(melody, bass);
 }
 

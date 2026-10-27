@@ -48,17 +48,23 @@ import { SpeakingCampfire } from "./PixelCampfire";
 import { VoiceActivityMonitor } from "../../voice/voiceActivity";
 import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
 import { PixelIcon } from "../PixelIcon";
+import { t, useLanguage } from "../../i18n";
 import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
 import { ScreenSharePicker } from "./ScreenSharePicker";
 import { mergeCapturePreviews } from "../../voice/capturePreviews";
 import { stageGridStyle } from "../../voice/stageGrid";
 import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
 import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
-import { decodeCustomSound, SoundboardPlayer } from "../../voice/soundboard/soundboard";
+import { decodeCustomSound, type CustomSound } from "../../voice/soundboard/soundboard";
+import { SoundboardTrack, isSoundboardTrack } from "../../voice/soundboard/soundboardTrack";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { RECONNECT_DELAYS_MS, announceCallEnded, beginCallLog, currentCallLogId, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
 import { logAppError } from "../../logs/appLog";
-import { applyVoiceEffect, ensureMicMixer, soundboardBus, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
+import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
+import { useSharingEnabled } from "../../sharing/sharingSetting";
+import { ShareDialog } from "../../sharing/ShareDialog";
+import { adoptSharedSound, soundToShare } from "../../sharing/sharedSounds";
+import { downloadMeadhallFile, readMeadhallFile } from "../../../core/sharing/share";
 
 export type VoiceSessionStatus = "disconnected" | "joining" | "connected";
 
@@ -105,6 +111,76 @@ interface VoiceParticipantState {
     isLocal: boolean;
     isSpeaking: boolean;
     isScreenSharing: boolean;
+    hasCamera: boolean;
+}
+
+// A push-to-talk key code as people know it: KeyV -> V, Digit1 -> 1, Backquote -> `.
+export function formatPushToTalkKey(code: string): string {
+    const named: Record<string, string> = {
+        Backquote: "`",
+        Space: "Space",
+        CapsLock: "Caps Lock",
+        ShiftLeft: "Left Shift",
+        ShiftRight: "Right Shift",
+        ControlLeft: "Left Ctrl",
+        ControlRight: "Right Ctrl",
+        AltLeft: "Left Alt",
+        AltRight: "Right Alt",
+        Minus: "-",
+        Equal: "=",
+        BracketLeft: "[",
+        BracketRight: "]",
+        Backslash: "\\",
+        Semicolon: ";",
+        Quote: "'",
+        Comma: ",",
+        Period: ".",
+        Slash: "/",
+    };
+    if (named[code]) return named[code];
+    const match = /^(?:Key|Digit)(.)$/.exec(code) ?? /^Numpad(.+)$/.exec(code);
+    if (match) return code.startsWith("Numpad") ? `Numpad ${match[1]}` : match[1];
+    return code;
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+    const element = target as HTMLElement | null;
+    if (!element || typeof element.closest !== "function") return false;
+    return Boolean(element.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']"));
+}
+
+// While push to talk is on and the key isn't held: listens (locally only, nothing is sent) for
+// someone talking anyway, so they can be told their mic isn't on.
+// Talking = loud in at least 3 of the last 15 checks (100 ms apart): speech has gaps, a single click does not count.
+const PTT_TALK_LEVEL = 0.02;
+const PTT_TALK_WINDOW = 15;
+const PTT_TALK_LOUD_TICKS = 3;
+
+// A camera that's on and has a video track here (subscribed, for others).
+function participantHasCamera(participant: Participant | LocalParticipant): boolean {
+    const publication = participant.getTrackPublication(Track.Source.Camera);
+    return Boolean(publication && !publication.isMuted && publication.videoTrack);
+}
+
+// Someone's camera in the call's video grid (your own is mirrored, like a mirror).
+function CameraTile({ participant, label, isLocal, revision }: { participant: Participant | LocalParticipant; label: string; isLocal: boolean; revision: number }): React.ReactElement {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    useEffect(() => {
+        const video = videoRef.current;
+        const track = participant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+        if (!video || !track) return undefined;
+        track.attach(video);
+        return () => {
+            track.detach(video);
+            video.srcObject = null;
+        };
+    }, [participant, revision]);
+    return (
+        <div className={`voice-room-camera-tile${isLocal ? " is-local" : ""}`} data-testid="camera-tile" data-local={isLocal ? "true" : undefined}>
+            <video ref={videoRef} className="voice-room-camera-video" autoPlay playsInline muted />
+            <span className="voice-room-stage-tile-name">{isLocal ? `${label} (you)` : label}</span>
+        </div>
+    );
 }
 
 type DesktopCaptureSource = HeorotDesktopCaptureSource;
@@ -661,6 +737,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [audioMuted, setAudioMuted] = useState(false);
     const [participants, setParticipants] = useState<VoiceParticipantState[]>([]);
     const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
+    const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
+    const [cameraOn, setCameraOn] = useState(false);
+    const [cameraBusy, setCameraBusy] = useState(false);
     const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
     const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
     const [localAudioPublished, setLocalAudioPublished] = useState(false);
@@ -684,6 +763,17 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [soundboardOpen, setSoundboardOpen] = useState(false);
+    // Sharing (Settings → Privacy & Safety): share your sounds and import .meadhall sounds from the call too.
+    const sharingEnabled = useSharingEnabled();
+    const [sharingSound, setSharingSound] = useState<CustomSound | null>(null);
+    useLanguage(); // labels follow the chosen language
+    const [soundboardNotice, setSoundboardNotice] = useState<string | null>(null);
+    const pttHeldRef = useRef(false);
+    const pttChainRef = useRef<Promise<void>>(Promise.resolve());
+    const [pttHeld, setPttHeld] = useState(false);
+    const [pttNotice, setPttNotice] = useState(false);
+    const [capturingPttKey, setCapturingPttKey] = useState(false);
+    const [soundboardVersion, setSoundboardVersion] = useState(0);
     // People in the Matrix call other than us (MatrixRTC memberships), whichever call server they're on.
     const [rtcOtherMembers, setRtcOtherMembers] = useState(0);
     // Rejoining after an unexpected drop: how many tries so far, and the pending one.
@@ -694,10 +784,30 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         if (error && error !== ALONE_LEFT_MESSAGE) logAppError("call", error);
     }, [error]);
     // The soundboard's own audio track, published the first time a sound is played in this call.
-    // The soundboard player for this call; sounds are mixed into the microphone (voiceChanger.ensureMicMixer).
-    const soundboardRef = useRef<{ player: SoundboardPlayer } | null>(null);
+    // The soundboard's own track for this call (voice/soundboard/soundboardTrack.ts), created on the first sound.
+    const soundboardRef = useRef<SoundboardTrack | null>(null);
     // Bumped when the mic gets Meadhall's processor, so the speaking indicator follows the processed (mixed) audio.
     const [micProcessorRevision, setMicProcessorRevision] = useState(0);
+    // Per-person soundboard volume (0-100), remembered on this device.
+    const [soundVolumeByUserKey, setSoundVolumeByUserKey] = useState<Record<string, number>>(() => {
+        try {
+            return JSON.parse(window.localStorage.getItem("meadhall.call_sound_volumes.v1") ?? "{}") as Record<string, number>;
+        } catch {
+            return {};
+        }
+    });
+    const setSoundVolume = (participantKey: string, percent: number): void => {
+        setSoundVolumeByUserKey((current) => {
+            const next = { ...current, [participantKey]: Math.max(0, Math.min(100, Math.round(percent))) };
+            if (next[participantKey] === 100) delete next[participantKey];
+            try {
+                window.localStorage.setItem("meadhall.call_sound_volumes.v1", JSON.stringify(next));
+            } catch {
+                // This call only.
+            }
+            return next;
+        });
+    };
     const [callAccessFixPending, setCallAccessFixPending] = useState(false);
     const [callAccessFixedRoomId, setCallAccessFixedRoomId] = useState<string | null>(null);
     const desktopCaptureSelectionResolverRef = useRef<((selected: boolean) => void) | null>(null);
@@ -724,12 +834,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
 
     const refreshDevices = async (): Promise<void> => {
         try {
-            const [inputs, outputs] = await Promise.all([
+            const [inputs, outputs, cameras] = await Promise.all([
                 Room.getLocalDevices("audioinput"),
                 Room.getLocalDevices("audiooutput"),
+                Room.getLocalDevices("videoinput").catch(() => [] as MediaDeviceInfo[]),
             ]);
             setAudioInputs(inputs);
             setAudioOutputs(outputs);
+            setVideoInputs(cameras);
         } catch (deviceError) {
             setError(deviceError instanceof Error ? deviceError.message : "Unable to enumerate audio devices.");
         }
@@ -750,7 +862,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         const speakingSids = speakingSidsRef.current;
         const isParticipantSpeaking = (participant: Participant | LocalParticipant): boolean => {
             // Measured locally first (reacts in ~50 ms); the server's speaker updates are the fallback.
-            if (voiceActivityRef.current?.isSpeaking(participant.sid)) {
+            if (voiceActivityRef.current?.isSpeaking(participant.sid) || voiceActivityRef.current?.isSpeaking(`${participant.sid}:soundboard`)) {
                 return true;
             }
             const byEvent = speakingSids.has(participant.sid);
@@ -770,6 +882,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 isLocal: true,
                 isSpeaking: isParticipantSpeaking(room.localParticipant),
                 isScreenSharing: isParticipantScreenSharing(room.localParticipant),
+                hasCamera: participantHasCamera(room.localParticipant),
             });
         }
         for (const participant of room.remoteParticipants.values()) {
@@ -783,6 +896,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 isLocal: false,
                 isSpeaking: isParticipantSpeaking(participant),
                 isScreenSharing: isParticipantScreenSharing(participant),
+                hasCamera: participantHasCamera(participant),
             });
         }
         setParticipants((current) => (areParticipantListsEqual(current, next) ? current : next));
@@ -860,8 +974,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         if (!track) {
             return;
         }
-        // Once the soundboard has been used, keep the processor even for "off": sounds are mixed in there.
-        void applyVoiceEffect(track, audioSettings.voiceEffect, soundboardRef.current !== null)
+        void applyVoiceEffect(track, audioSettings.voiceEffect)
             .then(() => setMicProcessorRevision((revision) => revision + 1))
             .catch((effectError) => {
             setError(effectError instanceof Error ? `Voice changer: ${effectError.message}` : "Voice changer failed.");
@@ -1100,9 +1213,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         for (const audioElement of remoteAudioElementsByTrackSidRef.current.values()) {
             const participantKey = audioElement.dataset.voiceParticipantKey || "";
             const volumePercent = participantVolumeByUserKey[participantKey] ?? PARTICIPANT_VOLUME_DEFAULT_PERCENT;
-            setElementVolumePercent(audioElement, volumePercent);
+            setElementVolumePercent(audioElement, audioElement.dataset.source === "soundboard" ? soundboardVolumeFor(participantKey) : volumePercent);
         }
-    }, [participantVolumeByUserKey]);
+    }, [participantVolumeByUserKey, soundVolumeByUserKey, audioSettings.othersSoundboardVolume]);
 
     useEffect(() => {
         const handleFullscreenChange = (): void => {
@@ -1322,14 +1435,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     if (
                         (publication.kind === Track.Kind.Audio ||
                             publication.source === Track.Source.ScreenShare ||
-                            publication.source === Track.Source.ScreenShareAudio) &&
+                            publication.source === Track.Source.ScreenShareAudio ||
+                            publication.source === Track.Source.Camera) &&
                         !publication.isSubscribed
                     ) {
                         publication.setSubscribed(true);
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                     }
@@ -1349,7 +1464,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1366,7 +1482,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     detachRemoteAudioTrack(track, publication);
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1392,7 +1509,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1408,7 +1526,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     }
                     if (
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera
                     ) {
                         setScreenShareTrackRevision((current) => current + 1);
                         syncParticipants();
@@ -1523,7 +1642,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             }
 
             // Joining muted (or deafened) never opens the mic; unmuting later publishes it.
-            const startMuted = joinMutedRef.current || joinDeafenedRef.current;
+            const startMuted = joinMutedRef.current || joinDeafenedRef.current || audioSettings.pushToTalk;
             if (!startMuted) {
                 await withTimeout(
                     room.localParticipant.setMicrophoneEnabled(
@@ -1706,6 +1825,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         setMicTrackSettingsSummary(micSummaryParts.length > 0 ? micSummaryParts.join(" | ") : null);
     };
 
+    // Someone's soundboard: their voice volume x "Other people's soundboards" (Settings → Audio) x their own "Sounds"
+    // slider (in the participant list).
+    const soundboardVolumeFor = (participantKey: string): number => {
+        const voice = participantVolumeByUserKey[participantKey] ?? PARTICIPANT_VOLUME_DEFAULT_PERCENT;
+        const theirs = soundVolumeByUserKey[participantKey] ?? 100;
+        return Math.round((voice * (audioSettings.othersSoundboardVolume / 100) * theirs) / 100);
+    };
+
     const getParticipantVolumePercent = useCallback(
         (participantKey: string): number => participantVolumeByUserKey[participantKey] ?? PARTICIPANT_VOLUME_DEFAULT_PERCENT,
         [participantVolumeByUserKey],
@@ -1789,6 +1916,14 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         element.muted = audioMuted || (isScreenShareAudio && screenShareAudioMuted);
         setElementVolumePercent(element, participantVolumePercent);
         element.dataset.lkTrackSid = trackSid;
+        element.dataset.source = isSoundboardTrack(publication.trackName) ? "soundboard" : publication.source;
+        if (element.dataset.source === "soundboard") {
+            setElementVolumePercent(element, soundboardVolumeFor(participantVolumeKey));
+            if (participant) {
+                voiceActivityTrackOwnerRef.current.set(trackSid, `${participant.sid}:soundboard`);
+                voiceActivityRef.current?.track(`${participant.sid}:soundboard`, track.mediaStreamTrack);
+            }
+        }
         element.dataset.voiceParticipantKey = participantVolumeKey;
         if (participant && publication.source === Track.Source.Microphone) {
             voiceActivityTrackOwnerRef.current.set(trackSid, participant.sid);
@@ -1866,14 +2001,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 if (
                     (publication.kind === Track.Kind.Audio ||
                         publication.source === Track.Source.ScreenShare ||
-                        publication.source === Track.Source.ScreenShareAudio) &&
+                        publication.source === Track.Source.ScreenShareAudio ||
+                        publication.source === Track.Source.Camera) &&
                     !publication.isSubscribed
                 ) {
                     publication.setSubscribed(true);
                 }
                 if (
                     publication.source === Track.Source.ScreenShare ||
-                    publication.source === Track.Source.ScreenShareAudio
+                    publication.source === Track.Source.ScreenShareAudio ||
+                    publication.source === Track.Source.Camera
                 ) {
                     hasScreenSharePublication = true;
                 }
@@ -1915,8 +2052,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         clearRemoteAudioElements();
         clearScreenSharePreview();
-        soundboardRef.current?.player.close();
+        void soundboardRef.current?.close();
         soundboardRef.current = null;
+        setCameraOn(false);
         setSoundboardOpen(false);
         setConnectionState(ConnectionState.Disconnected);
         setParticipants([]);
@@ -1933,11 +2071,15 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const toggleMute = async (): Promise<void> => {
+        await setMicrophoneOn(micMuted);
+    };
+
+    const setMicrophoneOn = async (on: boolean): Promise<void> => {
         const room = roomRef.current;
         if (!room) {
             return;
         }
-        const nextMuted = !micMuted;
+        const nextMuted = !on;
         if (nextMuted) {
             await room.localParticipant.setMicrophoneEnabled(false);
         } else {
@@ -1951,6 +2093,121 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         setMicMuted(nextMuted);
         refreshAudioDiagnostics(room);
     };
+
+    // Push to talk: the mic follows the key. Presses are queued so a quick tap can't leave it on.
+    const connectedForPtt = connectionState === ConnectionState.Connected && audioSettings.pushToTalk;
+    const syncPttMicrophone = (): void => {
+        pttChainRef.current = pttChainRef.current
+            .then(() => (roomRef.current?.localParticipant.isMicrophoneEnabled ?? false) === pttHeldRef.current ? undefined : setMicrophoneOn(pttHeldRef.current))
+            .catch((pttError: unknown) => setError(pttError instanceof Error ? pttError.message : "Push to talk couldn't turn the mic on."));
+    };
+    const syncPttMicrophoneRef = useRef(syncPttMicrophone);
+    syncPttMicrophoneRef.current = syncPttMicrophone;
+
+    useEffect(() => {
+        if (!connectedForPtt) {
+            return undefined;
+        }
+        // Turning push to talk on mid-call closes the mic until the key is held.
+        pttHeldRef.current = false;
+        setPttHeld(false);
+        syncPttMicrophoneRef.current();
+        const key = audioSettings.pushToTalkKey;
+        const press = (held: boolean): void => {
+            if (pttHeldRef.current === held) return;
+            pttHeldRef.current = held;
+            setPttHeld(held);
+            if (held) setPttNotice(false);
+            syncPttMicrophoneRef.current();
+        };
+        const onKeyDown = (event: KeyboardEvent): void => {
+            if (event.code !== key || event.repeat || capturingPttKeyRef.current) return;
+            // A letter/number key types in the chat box instead (Shift, Ctrl, ` etc. still talk).
+            if (event.key.length === 1 && /[\p{L}\p{N}]/u.test(event.key) && isTypingTarget(event.target)) return;
+            press(true);
+        };
+        const onKeyUp = (event: KeyboardEvent): void => {
+            if (event.code === key) press(false);
+        };
+        const release = (): void => press(false);
+        window.addEventListener("keydown", onKeyDown, true);
+        window.addEventListener("keyup", onKeyUp, true);
+        window.addEventListener("blur", release);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown, true);
+            window.removeEventListener("keyup", onKeyUp, true);
+            window.removeEventListener("blur", release);
+            pttHeldRef.current = false;
+            setPttHeld(false);
+            setPttNotice(false);
+        };
+    }, [connectedForPtt, audioSettings.pushToTalkKey]);
+
+    // "You're talking but push to talk is on": a private level meter on the mic while the key isn't held.
+    useEffect(() => {
+        if (!connectedForPtt || pttHeld || audioMuted || typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+            return undefined;
+        }
+        let stopped = false;
+        let stream: MediaStream | null = null;
+        let context: AudioContext | null = null;
+        let timer: number | undefined;
+        let hideTimer: number | undefined;
+        const deviceId = audioSettings.preferredAudioInputId;
+        void navigator.mediaDevices
+            .getUserMedia({ audio: deviceId && deviceId !== "default" ? { deviceId: { exact: deviceId } } : true })
+            .then((mediaStream) => {
+                if (stopped) {
+                    mediaStream.getTracks().forEach((track) => track.stop());
+                    return;
+                }
+                stream = mediaStream;
+                context = new AudioContext();
+                const analyser = context.createAnalyser();
+                analyser.fftSize = 1024;
+                context.createMediaStreamSource(mediaStream).connect(analyser);
+                const samples = new Float32Array(analyser.fftSize);
+                const recent: boolean[] = [];
+                timer = window.setInterval(() => {
+                    analyser.getFloatTimeDomainData(samples);
+                    let sum = 0;
+                    for (const sample of samples) sum += sample * sample;
+                    const level = Math.sqrt(sum / samples.length);
+                    recent.push(level >= PTT_TALK_LEVEL);
+                    if (recent.length > PTT_TALK_WINDOW) recent.shift();
+                    if (recent.filter(Boolean).length >= PTT_TALK_LOUD_TICKS) {
+                        recent.length = 0;
+                        setPttNotice(true);
+                        window.clearTimeout(hideTimer);
+                        hideTimer = window.setTimeout(() => setPttNotice(false), 4000);
+                    }
+                }, 100);
+            })
+            .catch(() => undefined);
+        return () => {
+            stopped = true;
+            window.clearInterval(timer);
+            window.clearTimeout(hideTimer);
+            stream?.getTracks().forEach((track) => track.stop());
+            void context?.close().catch(() => undefined);
+        };
+    }, [connectedForPtt, pttHeld, audioMuted, audioSettings.preferredAudioInputId]);
+
+    // Choosing the key: the next key pressed (Escape cancels).
+    const capturingPttKeyRef = useRef(false);
+    capturingPttKeyRef.current = capturingPttKey;
+    useEffect(() => {
+        if (!capturingPttKey) return undefined;
+        const onKeyDown = (event: KeyboardEvent): void => {
+            event.preventDefault();
+            event.stopPropagation();
+            setCapturingPttKey(false);
+            if (event.code === "Escape" || !/^[A-Za-z0-9]{1,32}$/.test(event.code)) return;
+            onAudioSettingsChange({ ...audioSettings, pushToTalkKey: event.code });
+        };
+        window.addEventListener("keydown", onKeyDown, true);
+        return () => window.removeEventListener("keydown", onKeyDown, true);
+    }, [capturingPttKey, audioSettings, onAudioSettingsChange]);
 
     const toggleAudioMute = async (): Promise<void> => {
         const nextAudioMuted = !audioMuted;
@@ -2049,6 +2306,52 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             return false;
         }
     };
+
+    // Webcam: on/off for everyone in the call (simulcast, so people on slow links get a smaller version).
+    const toggleCamera = async (): Promise<void> => {
+        const room = roomRef.current;
+        if (!room || cameraBusy) return;
+        const enable = !cameraOn;
+        setCameraBusy(true);
+        try {
+            const deviceId = audioSettings.preferredVideoInputId && audioSettings.preferredVideoInputId !== "default" ? audioSettings.preferredVideoInputId : undefined;
+            await room.localParticipant.setCameraEnabled(
+                enable,
+                enable ? { deviceId, resolution: VideoPresets.h720.resolution } : undefined,
+                enable ? { simulcast: true, videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360] } : undefined,
+            );
+            setCameraOn(enable);
+            setScreenShareTrackRevision((current) => current + 1);
+            syncParticipants();
+            if (enable) void refreshDevices();
+        } catch (cameraError) {
+            const name = (cameraError as { name?: string }).name;
+            setError(
+                name === "NotAllowedError"
+                    ? "Meadhall isn't allowed to use your camera. Allow it in your system's privacy settings, then try again."
+                    : name === "NotFoundError" || name === "NotReadableError"
+                      ? "No camera is available (it may be in use by another app)."
+                      : `Camera: ${cameraError instanceof Error ? cameraError.message : "couldn't start"}`,
+            );
+        } finally {
+            setCameraBusy(false);
+        }
+    };
+
+    // Switching cameras in settings mid-call moves the video to the new one (only on a change:
+    // switching restarts the camera, which would end the track just published).
+    const appliedVideoInputRef = useRef(audioSettings.preferredVideoInputId);
+    useEffect(() => {
+        const id = audioSettings.preferredVideoInputId;
+        if (appliedVideoInputRef.current === id) return;
+        appliedVideoInputRef.current = id;
+        const room = roomRef.current;
+        if (!room || !cameraOn) return;
+        void room
+            .switchActiveDevice("videoinput", id && id !== "default" ? id : "default")
+            .then(() => setScreenShareTrackRevision((current) => current + 1))
+            .catch(() => undefined);
+    }, [audioSettings.preferredVideoInputId, cameraOn]);
 
     const toggleScreenShare = async (): Promise<void> => {
         const room = roomRef.current;
@@ -2168,17 +2471,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         },
         [],
     );
+    // Sounds go out on their own track, so others can turn them down separately from your voice (and they play
+    // even with your microphone muted).
     const playSoundboardSound = async (choice: SoundChoice): Promise<void> => {
         const room = roomRef.current;
         if (!room) return;
-        const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
-        if (micMuted || !micTrack) {
-            throw new Error("Unmute your microphone to play sounds: they're sent as part of your voice.");
-        }
         if (!soundboardRef.current) {
-            const context = await ensureMicMixer(micTrack, audioSettings.voiceEffect);
-            soundboardRef.current = { player: new SoundboardPlayer(context, soundboardBus(context)) };
-            setMicProcessorRevision((revision) => revision + 1);
+            soundboardRef.current = new SoundboardTrack(room);
+            const localSid = room.localParticipant.sid;
+            const monitor = voiceActivityRef.current;
+            if (monitor && localSid) monitor.track(`${localSid}:soundboard`, soundboardRef.current.mediaStreamTrack);
         }
         const soundboard = soundboardRef.current;
         soundboard.player.setVolume(audioSettings.soundboardVolume);
@@ -2187,7 +2489,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             choice.kind === "builtin"
                 ? await renderBuiltinSound(choice.id, soundboard.player.context.sampleRate)
                 : await decodeCustomSound(client, choice.sound, soundboard.player.context);
-        await soundboard.player.play(buffer);
+        await soundboard.play(buffer);
     };
     // Others in the call: whoever we can see on the call server, or in the Matrix call (people on another
     // homeserver's call server aren't visible to LiveKit here, and counting only those made calls with them
@@ -2305,11 +2607,16 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         leave: leaveVoice,
         toggleMute,
         toggleAudioMute,
-        toggleCamera: () => Promise.resolve(),
+        toggleCamera: () => toggleCamera(),
     }));
 
     return (
         <section className="voice-room-panel">
+            {pttNotice ? (
+                <div className="voice-room-ptt-notice" role="status" data-testid="ptt-notice">
+                    Push to talk is on: hold <kbd>{formatPushToTalkKey(audioSettings.pushToTalkKey)}</kbd> to talk
+                </div>
+            ) : null}
             {/* Main scrollable content */}
             <div className="voice-room-content">
                 {/* Screen share stage */}
@@ -2443,6 +2750,21 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 {/* Participant tile grid */}
                 {connected ? (
                     <>
+                        {participants.some((participant) => participant.hasCamera) ? (
+                            <div className="voice-room-camera-grid" style={stageGridStyle(participants.filter((participant) => participant.hasCamera).length)} data-testid="camera-grid">
+                                {participants
+                                    .filter((participant) => participant.hasCamera)
+                                    .map((participant) => (
+                                        <CameraTile
+                                            key={`camera-${participant.identity}`}
+                                            participant={participant.participant}
+                                            label={getParticipantDisplayInfo(matrixRoom, participant.identity, participant.matrixUserId, participant.isLocal, ownProfile).displayName}
+                                            isLocal={participant.isLocal}
+                                            revision={screenShareTrackRevision}
+                                        />
+                                    ))}
+                            </div>
+                        ) : null}
                         <div className="voice-room-participants-toolbar">
                             <p className="voice-room-participants-toolbar-note">
                                 Per-user volume is saved for this channel.
@@ -2477,6 +2799,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             return (
                                 <li
                                     key={p.identity}
+                                    data-testid="call-participant"
+                                    data-identity={p.identity}
                                     className={`voice-room-participant${p.isSpeaking ? " is-speaking" : ""}${p.isScreenSharing ? " is-sharing" : ""}`}
                                 >
                                     <div className="voice-room-participant-avatar-wrap">
@@ -2531,6 +2855,23 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                                 </button>
                                             ) : null}
                                             <span className="voice-room-participant-volume-value">{participantVolumePercent}%</span>
+                                        </label>
+                                    ) : null}
+                                    {!isYou ? (
+                                        <label className="voice-room-participant-volume">
+                                            <span className="voice-room-participant-volume-label">Sounds</span>
+                                            <input
+                                                className="voice-room-participant-volume-slider"
+                                                type="range"
+                                                min={0}
+                                                max={100}
+                                                step={5}
+                                                value={soundVolumeByUserKey[participantVolumeKey] ?? 100}
+                                                aria-label={`${info.displayName}'s soundboard volume`}
+                                                data-testid="participant-sounds-volume"
+                                                onChange={(event) => setSoundVolume(participantVolumeKey, Number(event.target.value))}
+                                            />
+                                            <span className="voice-room-participant-volume-value">{soundVolumeByUserKey[participantVolumeKey] ?? 100}%</span>
                                         </label>
                                     ) : null}
                                 </li>
@@ -2619,6 +2960,22 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             </select>
                         </label>
                         <label className="settings-field">
+                            <span>Camera</span>
+                            <select
+                                className="room-dialog-input"
+                                value={audioSettings.preferredVideoInputId}
+                                aria-label="Camera"
+                                onChange={(event) => onAudioSettingsChange({ ...audioSettings, preferredVideoInputId: event.target.value })}
+                            >
+                                <option value="default">System default</option>
+                                {videoInputs.map((device) => (
+                                    <option key={device.deviceId} value={device.deviceId}>
+                                        {formatDeviceLabel(device)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="settings-field">
                             <span>Speaker</span>
                             <select
                                 className="room-dialog-input"
@@ -2651,8 +3008,48 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 Copy for a bug report
                             </button>
                         </details>
+                        <div className="voice-room-ptt-settings">
+                            <label className="voice-room-ptt-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={audioSettings.pushToTalk}
+                                    data-testid="call-ptt-toggle"
+                                    onChange={(event) => onAudioSettingsChange({ ...audioSettings, pushToTalk: event.target.checked })}
+                                />
+                                <span>Push to talk</span>
+                            </label>
+                            <button
+                                type="button"
+                                className="voice-room-ptt-key"
+                                data-testid="call-ptt-key"
+                                aria-label="Push to talk key"
+                                onClick={() => setCapturingPttKey(true)}
+                            >
+                                {capturingPttKey ? "Press a key…" : <>Key: <kbd>{formatPushToTalkKey(audioSettings.pushToTalkKey)}</kbd></>}
+                            </button>
+                            <small className="voice-room-ptt-hint">
+                                {audioSettings.pushToTalk
+                                    ? "Your mic only sends while you hold the key (while Meadhall is focused)."
+                                    : "When on, your mic only sends while you hold the key."}
+                            </small>
+                        </div>
                         <label className="settings-field">
-                            <span>Soundboard volume: {audioSettings.soundboardVolume}%</span>
+                            <span>Other people&apos;s soundboards: {audioSettings.othersSoundboardVolume}%</span>
+                            <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={audioSettings.othersSoundboardVolume}
+                                aria-label="Other people's soundboards"
+                                data-testid="call-others-soundboard-volume"
+                                onChange={(event) =>
+                                    onAudioSettingsChange({ ...audioSettings, othersSoundboardVolume: Number(event.target.value) })
+                                }
+                            />
+                        </label>
+                        <label className="settings-field">
+                            <span>Your soundboard volume: {audioSettings.soundboardVolume}%</span>
                             <input
                                 type="range"
                                 min={0}
@@ -2806,7 +3203,23 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                     d="M12 2a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4ZM4 11a8 8 0 0 0 16 0M12 19v3m0 0h3m-3 0H9" />
                             </svg>
                         )}
-                        <span className="voice-ctrl-label">{micMuted ? "Unmute" : "Mute"}</span>
+                        <span className="voice-ctrl-label">
+                            {audioSettings.pushToTalk && micMuted ? `PTT ${formatPushToTalkKey(audioSettings.pushToTalkKey)}` : micMuted ? t("Unmute") : t("Mute")}
+                        </span>
+                    </button>
+
+                    {/* Camera */}
+                    <button
+                        type="button"
+                        className={`voice-ctrl-btn${cameraOn ? " is-active" : ""}`}
+                        onClick={() => void toggleCamera()}
+                        title={cameraOn ? "Turn camera off" : "Turn camera on"}
+                        aria-pressed={cameraOn}
+                        disabled={cameraBusy}
+                        data-testid="camera-toggle"
+                    >
+                        <span className="voice-ctrl-icon"><PixelIcon name="camera" slashed={!cameraOn} size={20} /></span>
+                        <span className="voice-ctrl-label">{cameraOn ? t("Camera off") : t("Camera")}</span>
                     </button>
 
                     {/* Screen share */}
@@ -2826,7 +3239,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                     d="M4 5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h6v2H8a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2h-2v-2h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4Zm0 2h16v9H4V7Zm8.7 2.3a1 1 0 0 0-1.4 1.4l.6.6H8a1 1 0 1 0 0 2h3.9l-.6.6a1 1 0 1 0 1.4 1.4l2.3-2.3a1 1 0 0 0 0-1.4l-2.3-2.3Z" />
                             )}
                         </svg>
-                        <span className="voice-ctrl-label">{localScreenSharing ? "Stop" : "Share"}</span>
+                        <span className="voice-ctrl-label">{localScreenSharing ? t("Stop") : t("Share")}</span>
                     </button>
 
                     {/* Soundboard */}
@@ -2841,15 +3254,43 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             data-testid="soundboard-toggle"
                         >
                             <span className="voice-ctrl-icon"><PixelIcon name="soundboard" size={20} /></span>
-                            <span className="voice-ctrl-label">Sounds</span>
+                            <span className="voice-ctrl-label">{t("Sounds")}</span>
                         </button>
                         {soundboardOpen ? (
                             <SoundboardPanel
+                                key={soundboardVersion}
                                 client={client}
                                 onPlay={playSoundboardSound}
                                 onClose={() => setSoundboardOpen(false)}
                                 volume={audioSettings.soundboardVolume}
                                 onVolumeChange={(soundboardVolume) => onAudioSettingsChange({ ...audioSettings, soundboardVolume })}
+                                onShareSound={sharingEnabled ? setSharingSound : undefined}
+                                hint={soundboardNotice ?? undefined}
+                                footer={
+                                    sharingEnabled ? (
+                                        <label className="soundboard-import">
+                                            <span>Import a .meadhall sound</span>
+                                            <input
+                                                type="file"
+                                                accept=".meadhall,application/x-meadhall"
+                                                data-testid="call-meadhall-import"
+                                                onChange={(event) => {
+                                                    const file = event.target.files?.[0];
+                                                    event.currentTarget.value = "";
+                                                    if (!file) return;
+                                                    void readMeadhallFile(file)
+                                                        .then(async (item) => {
+                                                            if (item.kind !== "sound") throw new Error("That's a style profile: import it in Settings → Appearance.");
+                                                            await adoptSharedSound(client, item);
+                                                            setSoundboardVersion((value) => value + 1);
+                                                            setSoundboardNotice(`Added "${item.name}" to your soundboard.`);
+                                                        })
+                                                        .catch((importError: unknown) => setSoundboardNotice(importError instanceof Error ? importError.message : "Couldn't import that file."));
+                                                }}
+                                            />
+                                        </label>
+                                    ) : null
+                                }
                             />
                         ) : null}
                     </div>
@@ -2870,7 +3311,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                     d="M11.553 3.064A.75.75 0 0 1 12 3.75v16.5a.75.75 0 0 1-1.255.555L5.46 16H2.75A1.75 1.75 0 0 1 1 14.25v-4.5C1 8.784 1.784 8 2.75 8H5.46l5.285-4.805a.75.75 0 0 1 .808-.13ZM18.5 12a6.5 6.5 0 0 0-1.905-4.628 1 1 0 0 0-1.395 1.437A4.5 4.5 0 0 1 16.5 12a4.5 4.5 0 0 1-1.3 3.192 1 1 0 1 0 1.395 1.436A6.5 6.5 0 0 0 18.5 12Z" />
                             </svg>
                         )}
-                        <span className="voice-ctrl-label">{audioMuted ? "Undeafen" : "Deafen"}</span>
+                        <span className="voice-ctrl-label">{audioMuted ? t("Undeafen") : t("Deafen")}</span>
                     </button>
 
                     {/* Settings */}
@@ -2885,7 +3326,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
                                 d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                         </svg>
-                        <span className="voice-ctrl-label">Settings</span>
+                        <span className="voice-ctrl-label">{t("Settings")}</span>
                     </button>
 
                     {/* Leave */}
@@ -2899,12 +3340,23 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             <path fill="currentColor"
                                 d="M10.68 5.146a1 1 0 0 1 .096 1.412L8.374 9H15.5a6.5 6.5 0 0 1 0 13H12a1 1 0 1 1 0-2h3.5a4.5 4.5 0 0 0 0-9H8.374l2.402 2.442a1 1 0 0 1-1.428 1.402l-4.1-4.167a1 1 0 0 1 .019-1.423l4.1-3.833a1 1 0 0 1 1.313.725Z" />
                         </svg>
-                        <span className="voice-ctrl-label">Leave</span>
+                        <span className="voice-ctrl-label">{t("Leave")}</span>
                     </button>
                 </div>
             ) : null}
 
             <div ref={audioSinkRef} aria-hidden="true" style={{ display: "none" }} />
+
+            {sharingSound ? (
+                <ShareDialog
+                    client={client}
+                    title={`Share "${sharingSound.name}"`}
+                    prepare={() => soundToShare(client, sharingSound)}
+                    onExport={async () => downloadMeadhallFile(await soundToShare(client, sharingSound))}
+                    onClose={() => setSharingSound(null)}
+                    onToast={(toast) => setSoundboardNotice(toast.message)}
+                />
+            ) : null}
 
             <RoomDialog
                 open={desktopCaptureDialogOpen}

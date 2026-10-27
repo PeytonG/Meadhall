@@ -264,3 +264,7 @@ export async function downloadMedia(user: ApiUser, mxc: string): Promise<Uint8Ar
 export async function invite(user: ApiUser, roomId: string, userId: string): Promise<void> {
     await request(user, "POST", `/rooms/${encodeURIComponent(roomId)}/invite`, { user_id: userId });
 }
+
+export async function redact(user: ApiUser, roomId: string, eventId: string): Promise<void> {
+    await request(user, "PUT", `/rooms/${encodeURIComponent(roomId)}/redact/${encodeURIComponent(eventId)}/${crypto.randomUUID()}`, {});
+}

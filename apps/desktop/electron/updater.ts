@@ -28,7 +28,9 @@ export function getUpdateStatus(): DesktopUpdateStatus {
     return currentStatus;
 }
 
+// Flatpak (Flathub) and Snap installs are updated by their store, never by Meadhall itself.
 export function isAutoUpdateSupported(): boolean {
+    if (process.env.FLATPAK_ID || process.env.SNAP) return false;
     return app.isPackaged && process.env.HEOROT_DISABLE_AUTO_UPDATE !== "1";
 }
 

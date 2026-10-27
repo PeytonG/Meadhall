@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // A profile banner cropped the way its owner chose (point to keep in view + zoom), done with CSS so GIFs keep
-// moving. The profile card and the settings preview both use this, at the same shape, so the preview is exact.
+// moving (or still, with reduced motion). The profile card and the settings preview both use this, at the same shape, so the preview is exact.
 import React from "react";
 
 import type { BannerCrop } from "../../../core/profile/richProfile";
+import { MotionImage } from "../MotionImage";
 
 export function BannerImage({ url, crop, className }: { url: string; crop: BannerCrop; className?: string }): React.ReactElement {
     return (
-        <img
+        <MotionImage
             className={className}
             src={url}
             alt=""
