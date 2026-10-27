@@ -6950,3 +6950,143 @@ ol.message-renderer-format {
     width: 100%;
     margin-top: 10px;
 }
+
+/* Threads (ui/threads): the "N replies" bar under a message, and the thread beside the chat. */
+.thread-summary {
+    margin: 6px 0 0 50px;
+    max-width: min(520px, calc(100% - 50px));
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.thread-summary:hover,
+.thread-summary:focus-visible {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.thread-summary-count {
+    flex-shrink: 0;
+    color: var(--accent-soft);
+    font-weight: 700;
+}
+
+.thread-summary-last {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--text-muted);
+}
+
+.thread-summary-last strong {
+    color: var(--text-main);
+}
+
+.thread-summary-unread {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+}
+
+.thread-summary-arrow {
+    margin-left: auto;
+    color: var(--text-muted);
+}
+
+.inbox-message-thread {
+    color: var(--text-muted);
+}
+
+.main-body {
+    position: relative;
+}
+
+.main-body.has-thread {
+    padding-right: min(420px, 45%);
+}
+
+.thread-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 45%);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-left: 1px solid var(--border);
+    background: var(--bg-main);
+    z-index: 5;
+}
+
+.thread-panel .timeline {
+    flex: 1;
+    min-height: 0;
+}
+
+.thread-panel-composer {
+    flex-shrink: 0;
+}
+
+.thread-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    min-width: 0;
+}
+
+.thread-panel-title {
+    flex-shrink: 0;
+    font-weight: 700;
+}
+
+.thread-panel-root {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.thread-panel-close {
+    margin-left: auto;
+    flex-shrink: 0;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.thread-panel-close:hover {
+    color: var(--text-main);
+}
+
+/* Narrow windows and phones: the thread covers the chat instead of sharing the width. */
+@media (max-width: 860px) {
+    .main-body.has-thread {
+        padding-right: 0;
+    }
+
+    .thread-panel {
+        width: 100%;
+        border-left: none;
+    }
+}

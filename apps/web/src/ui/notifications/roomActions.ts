@@ -6,6 +6,7 @@
 import type { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
 
 import { RoomNotificationMode, getRoomNotificationMode, setRoomNotificationMode } from "../adapters/roomNotificationAdapter";
+import { markRoomReadEverywhere } from "../threads/threads";
 
 export const SPACE_NOTIFICATIONS_TYPE = "io.github.peytong.meadhall.space_notifications";
 
@@ -56,18 +57,16 @@ export async function applySpaceNotificationMode(client: MatrixClient, spaceId: 
     }
 }
 
-// Moves the read marker to the newest message in each room.
+// Moves the read marker to the newest message in each room, threads included. Rooms whose newest message already
+// looks read are still marked when the server counts something unread (a thread reply, say), or they'd never clear.
 export async function markRoomsRead(client: MatrixClient, rooms: Room[]): Promise<void> {
     const ownUserId = client.getUserId();
+    if (!ownUserId) return;
     for (const room of rooms) {
         const events = room.getLiveTimeline().getEvents();
-        const latest = events[events.length - 1];
-        const latestId = latest?.getId();
-        if (!latest || !latestId || !ownUserId || room.hasUserReadEvent(ownUserId, latestId)) continue;
-        try {
-            await client.setRoomReadMarkers(room.roomId, latestId, latest);
-        } catch {
-            await client.sendReadReceipt(latest, undefined, true).catch(() => undefined);
-        }
+        const latestId = events[events.length - 1]?.getId();
+        const looksRead = !latestId || room.hasUserReadEvent(ownUserId, latestId);
+        if (looksRead && room.getUnreadNotificationCount() === 0 && !room.hasThreadUnreadNotification()) continue;
+        await markRoomReadEverywhere(client, room).catch(() => undefined);
     }
 }

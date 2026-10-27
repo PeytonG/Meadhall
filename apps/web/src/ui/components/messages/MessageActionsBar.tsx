@@ -23,6 +23,8 @@ interface MessageActionsBarProps {
     onCloseContextMenu: () => void;
     onReply: (event: MatrixEvent) => void;
     onEdit: (event: MatrixEvent) => void;
+    // Main chat only: start (or open) a thread on this message.
+    onReplyInThread?: () => void;
     onToast: (toast: Omit<ToastState, "id">) => void;
 }
 
@@ -37,6 +39,7 @@ export function MessageActionsBar({
     onCloseContextMenu,
     onReply,
     onEdit,
+    onReplyInThread,
     onToast,
 }: MessageActionsBarProps): React.ReactElement {
     const {
@@ -227,6 +230,17 @@ export function MessageActionsBar({
                 >
                     ↩
                 </button>
+                {onReplyInThread ? (
+                    <button
+                        type="button"
+                        className="message-actions-button"
+                        title="Reply in thread"
+                        aria-label="Reply in thread"
+                        onClick={onReplyInThread}
+                    >
+                        🧵
+                    </button>
+                ) : null}
                 {canEdit ? (
                     <button
                         type="button"
@@ -295,6 +309,7 @@ export function MessageActionsBar({
                 onClose={onCloseContextMenu}
                 onReact={openReactFromContextMenu}
                 onReply={() => onReply(event)}
+                onReplyInThread={onReplyInThread}
                 onEdit={() => onEdit(event)}
                 onDelete={() => {
                     void handleDelete();

@@ -36,6 +36,8 @@ interface ComposerProps {
     onCancelEdit: () => void;
     replyToEvent: MatrixEvent | null;
     onCancelReply: () => void;
+    // The thread panel's composer: messages and files go into this thread (no polls or stickers there).
+    threadId?: string | null;
 }
 
 interface ImageDimensions {
@@ -801,6 +803,7 @@ export function Composer({
     onCancelEdit,
     replyToEvent,
     onCancelReply,
+    threadId = null,
 }: ComposerProps): React.ReactElement {
     const ownUserId = client.getUserId() ?? "";
     const [text, setText] = useState("");
@@ -835,7 +838,10 @@ export function Composer({
     const replySnippet = replyToEvent ? getReplySnippet(replyToEvent) : null;
     const editingEventId = editingEvent?.getId() ?? null;
     const language = useLanguage();
-    const placeholder = useMemo(() => getComposerPlaceholder(client, room), [client, room, language]);
+    const placeholder = useMemo(
+        () => (threadId ? t("Reply in thread") : getComposerPlaceholder(client, room)),
+        [client, room, language, threadId],
+    );
     const typingUserIds = useRoomTyping(client, room);
     const customEmojiSourceByShortcode = useMemo(() => {
         const sourceByShortcode = new Map<string, string>();
@@ -1492,6 +1498,7 @@ export function Composer({
                     const editContent = buildEditMessageContent(editingEventId, newContent, mentions);
                     await client.sendEvent(
                         room.roomId,
+                        threadId,
                         EventType.RoomMessage,
                         editContent as any,
                         "",
@@ -1507,6 +1514,7 @@ export function Composer({
 
                     await client.sendEvent(
                         room.roomId,
+                        threadId,
                         EventType.RoomMessage,
                         content as any,
                         "",
@@ -1691,6 +1699,7 @@ export function Composer({
 
                 await client.sendEvent(
                     room.roomId,
+                    threadId,
                     EventType.RoomMessage,
                     content as any,
                     "",
@@ -2006,7 +2015,7 @@ export function Composer({
                 onSend={() => void sendMessage()}
                 canSend={text.trim().length > 0 || uploads.some((upload) => upload.roomId === room?.roomId && upload.status === "queued")}
                 stickerControl={
-                    <>
+                    threadId ? null : <>
                         <button
                             type="button"
                             className="composer-action-button composer-poll-button"
