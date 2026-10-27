@@ -238,6 +238,17 @@ export async function bootstrapSecretStorageSetup(
         throw new Error("Encryption is not available for this session.");
     }
 
+    // A recovery key made in another app (Element, FluffyChat...) guards your cross-signing keys. Replacing it from a
+    // session that doesn't hold those keys would lock them away for good, and your other apps would stop trusting
+    // new sessions: use the existing key instead.
+    if ((await client.secretStorage.hasKey()) && !(await hasCrossSigningKeysLocally(client))) {
+        throw new Error(EXISTING_RECOVERY_KEY_MESSAGE);
+    }
+    // No cross-signing identity on the account yet (a Meadhall-only account): create one along with the recovery
+    // key, so your sessions can vouch for each other. Never when one exists, which would reset it everywhere.
+    const userId = client.getUserId();
+    const needsCrossSigning = Boolean(userId) && !(await crypto.userHasCrossSigningKeys(userId ?? undefined, true));
+
     const backupInfo = await crypto.getKeyBackupInfo();
     await withSecretStorageKeyProvider(
         async ({ keyIds }) => {
@@ -254,7 +265,126 @@ export async function bootstrapSecretStorageSetup(
                 setupNewSecretStorage: true,
                 setupNewKeyBackup: !backupInfo?.version,
             });
+            if (needsCrossSigning) {
+                // The first upload of signing keys needs no password (the account has none yet); the new keys are
+                // saved under the recovery key just made, and this session is signed with them.
+                await crypto.bootstrapCrossSigning({});
+            }
         },
     );
+}
+
+export const EXISTING_RECOVERY_KEY_MESSAGE =
+    "Your account already has a recovery key (set up in Meadhall or another app). Enter that key to restore this session, or verify it from another session, before changing it.";
+
+async function hasCrossSigningKeysLocally(client: MatrixClient): Promise<boolean> {
+    const status = await client.getCrypto()?.getCrossSigningStatus();
+    const local = status?.privateKeysCachedLocally;
+    return Boolean(local?.masterKey && local.selfSigningKey && local.userSigningKey);
+}
+
+// Cross-signing: other apps trust a session when it carries a signature from your account's self-signing key. With
+// the recovery key, fetch your cross-signing keys from secret storage (where Element, FluffyChat and Meadhall keep
+// them) and sign this session, so it shows as verified everywhere and trusts your other sessions in turn.
+// Returns whether this session ends up signed. Never creates new keys.
+export async function adoptCrossSigningWithRecoveryKey(client: MatrixClient, recoveryKey: string): Promise<boolean> {
+    const crypto = client.getCrypto();
+    const userId = client.getUserId();
+    const deviceId = client.getDeviceId();
+    if (!crypto || !userId || !deviceId) {
+        return false;
+    }
+
+    const status = await crypto.getCrossSigningStatus();
+    if (!(await hasCrossSigningKeysLocally(client))) {
+        if (!status.privateKeysInSecretStorage) {
+            return false;
+        }
+        const keyId = await client.secretStorage.getDefaultKeyId();
+        const keyDescription = keyId ? await client.secretStorage.getKey(keyId) : null;
+        if (!keyId || !keyDescription) {
+            return false;
+        }
+        let privateKey: Uint8Array<ArrayBuffer>;
+        try {
+            privateKey = decodeRecoveryKey(recoveryKey.trim());
+        } catch {
+            return false;
+        }
+        try {
+            if (!(await client.secretStorage.checkKey(privateKey, keyDescription[1]))) {
+                return false;
+            }
+            // The keys are in secret storage and not here, so this imports them and signs this session (it only
+            // makes new keys when there are none in secret storage, which was checked above).
+            await withSecretStorageKeyProvider(
+                async ({ keyIds }) => (keyIds.includes(keyId) ? [keyId, privateKey] : null),
+                async () => {
+                    await crypto.bootstrapCrossSigning({});
+                },
+            );
+        } finally {
+            privateKey.fill(0);
+        }
+    }
+
+    return signThisSessionIfNeeded(client);
+}
+
+// With the cross-signing keys here, make sure this session carries their signature (other apps look for it).
+export async function signThisSessionIfNeeded(client: MatrixClient): Promise<boolean> {
+    const crypto = client.getCrypto();
+    const userId = client.getUserId();
+    const deviceId = client.getDeviceId();
+    if (!crypto || !userId || !deviceId) {
+        return false;
+    }
+    const signedByOwner = async (): Promise<boolean> =>
+        Boolean((await crypto.getDeviceVerificationStatus(userId, deviceId))?.signedByOwner);
+    // A signature just uploaded (here or by bootstrapping) only shows once our own keys are fetched again; asking
+    // whether we have cross-signing keys, with downloading allowed, does that.
+    const refreshOwnKeys = async (): Promise<void> => {
+        await crypto.userHasCrossSigningKeys(userId, true);
+    };
+    if (await signedByOwner()) {
+        return true;
+    }
+    if (!(await hasCrossSigningKeysLocally(client)) || !(await crypto.isCrossSigningReady())) {
+        return false;
+    }
+    await refreshOwnKeys();
+    if (await signedByOwner()) {
+        return true;
+    }
+    await crypto.crossSignDevice(deviceId);
+    await refreshOwnKeys();
+    return signedByOwner();
+}
+
+// What other apps see: is this session signed by your account's cross-signing identity, and does this session
+// trust that identity (so it can tell which of your other sessions are really yours)?
+export interface SessionTrust {
+    signedByAccount: boolean;
+    trustsAccount: boolean;
+    accountHasCrossSigning: boolean;
+}
+
+export async function getSessionTrust(client: MatrixClient): Promise<SessionTrust> {
+    const crypto = client.getCrypto();
+    const userId = client.getUserId();
+    const deviceId = client.getDeviceId();
+    if (!crypto || !userId || !deviceId) {
+        return { signedByAccount: false, trustsAccount: false, accountHasCrossSigning: false };
+    }
+    const [deviceStatus, identity] = await Promise.all([
+        crypto.getDeviceVerificationStatus(userId, deviceId),
+        crypto.getUserVerificationStatus(userId),
+    ]);
+    const accountHasCrossSigning = (await crypto.getCrossSigningStatus()).publicKeysOnDevice;
+    return {
+        signedByAccount: Boolean(deviceStatus?.signedByOwner),
+        trustsAccount: identity.isCrossSigningVerified(),
+        accountHasCrossSigning,
+    };
 }
 

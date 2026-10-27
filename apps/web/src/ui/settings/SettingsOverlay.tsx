@@ -460,7 +460,7 @@ export function SettingsOverlay({
                         type: "success",
                         message: "Verification completed.",
                     });
-                    void matrix.refreshDeviceVerification();
+                    void matrix.refreshTrustStatus();
                 }}
             />
         </div>

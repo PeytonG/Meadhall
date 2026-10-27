@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
-import type { GeneratedSecretStorageKey } from "matrix-js-sdk/src/crypto-api";
+import { CryptoEvent, type GeneratedSecretStorageKey } from "matrix-js-sdk/src/crypto-api";
 import { MatrixClient as MatrixClientSdk, MatrixError, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { activateNextAccount, finishAddingAccount } from "../../core/storage/accounts";
@@ -18,8 +18,10 @@ import {
 import { waitForClientReady } from "../../core/client/clientReady";
 import { getDefaultIdentityServer, getFallbackHomeserver } from "../../core/config/serverDefaults";
 import {
+    adoptCrossSigningWithRecoveryKey,
     attemptAutomaticKeyBackupRestore,
     bootstrapSecretStorageSetup,
+    signThisSessionIfNeeded,
     createSecretStorageSetupKey,
     type RecoveryCredentialType,
     type SecurityRecoveryFlow,
@@ -132,6 +134,9 @@ interface MatrixContextValue extends MatrixState {
     logout: () => Promise<void>;
     startDeviceVerification: () => Promise<void>;
     refreshDeviceVerification: () => Promise<void>;
+    // From settings: re-read whether this session is verified (and sign it, restore history quietly), without the
+    // sign-in screens that refreshDeviceVerification can send you back to.
+    refreshTrustStatus: () => Promise<void>;
     skipDeviceVerification: () => Promise<void>;
     forceVerificationEnabled: boolean;
     prepareSecurityRecoverySetup: () => Promise<string>;
@@ -267,15 +272,19 @@ async function isCrossSigningReady(client: MatrixClient): Promise<boolean> {
     }
 }
 
+// Verified the way other apps (Element, FluffyChat) see it: this session is signed by your account's cross-signing
+// key, and trusts that key. (Your own identity being trusted isn't enough: the session itself must carry the
+// signature, or your other apps show it as unverified.)
 async function isLocalDeviceVerified(client: MatrixClient): Promise<boolean> {
     const userId = client.getUserId();
-    if (!userId) {
+    const deviceId = client.getDeviceId();
+    if (!userId || !deviceId) {
         return false;
     }
 
     try {
-        const verificationStatus = await client.getCrypto()?.getUserVerificationStatus(userId);
-        return verificationStatus?.isCrossSigningVerified() ?? false;
+        const verificationStatus = await client.getCrypto()?.getDeviceVerificationStatus(userId, deviceId);
+        return verificationStatus?.crossSigningVerified ?? false;
     } catch {
         return false;
     }
@@ -337,13 +346,28 @@ async function resolveRecoveryPostLoginState(client: MatrixClient): Promise<Reco
         }
 
         if (recovery.status === "no_backup") {
-            return {
-                status: "security_recovery",
-                error: "Set up a security key now so encrypted history can be restored on new sessions.",
-                recoveryFlow: "setup",
-                recoveryMode: "recovery_key",
-                recoveryBackupVersion: null,
-            };
+            // No message backup, but a recovery key already exists (made in another app, guarding your
+            // cross-signing keys): ask for that key instead of making a new one, which would lock those keys away.
+            // Once this session is verified there's nothing to ask for.
+            const hasRecoveryKey = await client.secretStorage.hasKey();
+            if (hasRecoveryKey && !(await isLocalDeviceVerified(client))) {
+                return {
+                    status: "security_recovery",
+                    error: "Enter the recovery key you set up before (in Meadhall or another app, like Element or FluffyChat) to verify this session.",
+                    recoveryFlow: "restore",
+                    recoveryMode: "recovery_key",
+                    recoveryBackupVersion: null,
+                };
+            }
+            if (!hasRecoveryKey) {
+                return {
+                    status: "security_recovery",
+                    error: "Set up a security key now so encrypted history can be restored on new sessions.",
+                    recoveryFlow: "setup",
+                    recoveryMode: "recovery_key",
+                    recoveryBackupVersion: null,
+                };
+            }
         }
     } catch {
         // Automatic recovery is best effort and should not block normal app startup.
@@ -360,6 +384,9 @@ async function resolveRecoveryPostLoginState(client: MatrixClient): Promise<Reco
 }
 
 async function resolvePostLoginState(client: MatrixClient, config: CoreConfig | null): Promise<PostLoginState> {
+    // A session that holds the cross-signing keys but was never signed with them (older Meadhall versions didn't):
+    // sign it now, so your other apps see it as verified.
+    await signThisSessionIfNeeded(client).catch(() => false);
     const localDeviceVerified = await isLocalDeviceVerified(client);
 
     if (await shouldForceDeviceVerification(client, config)) {
@@ -747,6 +774,40 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
         }
     }, [applyPostLoginState, state.client, state.config]);
 
+    const refreshTrustStatus = useCallback(async (): Promise<void> => {
+        const client = state.client;
+        if (!client) {
+            return;
+        }
+        await signThisSessionIfNeeded(client).catch(() => false);
+        dispatch({ type: "set_local_device_verified", verified: await isLocalDeviceVerified(client) });
+    }, [state.client]);
+
+    // After you verify this session with another one, that session shares the cross-signing and message backup
+    // keys a moment later: sign this session and restore history when they arrive, without any screens.
+    useEffect(() => {
+        const client = state.client;
+        if (!client || state.status !== "ready") {
+            return undefined;
+        }
+        const onTrustChanged = (userId: string): void => {
+            if (userId === client.getUserId()) void refreshTrustStatus();
+        };
+        const onBackupKeyArrived = (): void => {
+            void client
+                .getCrypto()
+                ?.restoreKeyBackup()
+                .then(() => triggerRoomHistoryDecryption(client))
+                .catch(() => undefined);
+        };
+        client.on(CryptoEvent.UserTrustStatusChanged, onTrustChanged);
+        client.on(CryptoEvent.KeyBackupDecryptionKeyCached, onBackupKeyArrived);
+        return () => {
+            client.removeListener(CryptoEvent.UserTrustStatusChanged, onTrustChanged);
+            client.removeListener(CryptoEvent.KeyBackupDecryptionKeyCached, onBackupKeyArrived);
+        };
+    }, [refreshTrustStatus, state.client, state.status]);
+
     const skipDeviceVerification = useCallback(async (): Promise<void> => {
         if (!state.client) {
             dispatch({ type: "set_status", status: "login_required", error: "Session expired. Please sign in again." });
@@ -860,14 +921,23 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
             dispatch({ type: "set_status", status: "starting", error: null });
 
             try {
+                let restoreError: unknown = null;
                 try {
                     await restoreKeyBackupWithRecoveryKey(state.client, credential, state.securityRecoveryBackupVersion);
-                } catch (primaryError) {
-                    await restoreKeyBackupWithSecretStorageCredential(state.client, credential);
-                    if (primaryError) {
-                        // Keep flow deterministic: if secret storage path works we proceed successfully.
+                } catch {
+                    try {
+                        await restoreKeyBackupWithSecretStorageCredential(state.client, credential);
+                    } catch (secretStorageError) {
+                        restoreError = secretStorageError;
                     }
                 }
+                // The same key also unlocks your cross-signing keys: fetch them and sign this session, so your
+                // other apps see it as verified (restoring messages alone left it unverified everywhere).
+                const signed = await adoptCrossSigningWithRecoveryKey(state.client, credential).catch(() => false);
+                if (restoreError && !signed) {
+                    throw restoreError;
+                }
+                dispatch({ type: "set_local_device_verified", verified: await isLocalDeviceVerified(state.client) });
                 triggerRoomHistoryDecryption(state.client);
                 clearPendingSetupKey();
                 dispatch({ type: "set_status", status: "ready", error: null });
@@ -931,6 +1001,7 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
             logout,
             startDeviceVerification,
             refreshDeviceVerification,
+            refreshTrustStatus,
             skipDeviceVerification,
             forceVerificationEnabled: isForceVerificationEnabled(state.config),
             prepareSecurityRecoverySetup,
@@ -945,6 +1016,7 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
             logout,
             startDeviceVerification,
             refreshDeviceVerification,
+            refreshTrustStatus,
             skipDeviceVerification,
             prepareSecurityRecoverySetup,
             completeSecurityRecoverySetup,

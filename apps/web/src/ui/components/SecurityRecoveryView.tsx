@@ -225,7 +225,7 @@ export function SecurityRecoveryView({
         <div className="login-view">
             <form className="login-card security-card" onSubmit={handleSubmit}>
                 <h1>Recover encrypted history</h1>
-                <p className="login-subtitle">This account has encrypted key backup. Enter your security key to decrypt older messages.</p>
+                <p className="login-subtitle">Enter your security key (the recovery key you saved in Meadhall, Element or FluffyChat) to verify this session and decrypt older messages.</p>
 
                 <label>
                     Security key
