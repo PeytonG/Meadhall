@@ -143,6 +143,8 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
   everyone, or nobody.
 - 📊 **Polls**: one or several answers, anonymous, results live or at the end, and a **time limit** after which the
   results are posted in the chat. Works with Element's polls.
+- 🧵 **Threads**: replies in a thread (from Element, FluffyChat or bots) show as "N replies" under the message and
+  open beside the chat, where you can answer; the inbox lists them too.
 - 💻 **Code blocks** with syntax highlighting (```ts), and **link previews** that stay off in encrypted chats unless
   you allow them.
 - 🪪 **Profiles** with a banner (image or GIF, cropped to fit), About me, links, and the person's roles in every server

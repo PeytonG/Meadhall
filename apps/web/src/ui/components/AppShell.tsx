@@ -24,6 +24,7 @@ import { RightPanel } from "./rightPanel/RightPanel";
 import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpaceChannel } from "./RoomList";
 import { ContextMenu } from "./menus/ContextMenu";
 import { InboxPanel } from "./inbox/InboxPanel";
+import { ThreadPanel } from "../threads/ThreadPanel";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
 import { isVoiceChatEnabled } from "../../core/voice/voiceChat";
 import { useDesktopUpdates } from "../hooks/useDesktopUpdates";
@@ -879,6 +880,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     });
     const [replyToEvent, setReplyToEvent] = useState<MatrixEvent | null>(null);
     const [editingEvent, setEditingEvent] = useState<MatrixEvent | null>(null);
+    // The thread open beside the chat; it stays with its room (switching away and back keeps it open).
+    const [openThread, setOpenThread] = useState<{ roomId: string; rootEventId: string } | null>(null);
+    const closeThread = useCallback(() => setOpenThread(null), []);
     const [renderReactionImages, setRenderReactionImages] = useState<boolean>(() => getFeatureRenderReactionImages());
     const [emojiUploadOpen, setEmojiUploadOpen] = useState(false);
     const [emojiUploadTarget, setEmojiUploadTarget] = useState<EmojiPackTarget | null>(null);
@@ -1536,6 +1540,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         () => (activeRoomId ? roomById.get(activeRoomId) ?? null : null),
         [activeRoomId, roomById],
     );
+    const activeThread = openThread && openThread.roomId === activeRoom?.roomId ? openThread : null;
     const roomSettingsRoom = useMemo(
         () => (roomSettingsRoomId ? client.getRoom(roomSettingsRoomId) ?? null : null),
         [client, roomSettingsRoomId],
@@ -2919,7 +2924,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             : undefined
                     }
                 />
-                <div className={`main-body${voiceChatBeside ? " has-voice-chat" : ""}`}>
+                <div className={`main-body${voiceChatBeside ? " has-voice-chat" : ""}${activeThread && (!shouldShowVoicePanel || voiceChatBeside) ? " has-thread" : ""}`}>
                 {hasActiveVoiceSession && voiceSessionRoomId ? (
                     <div
                         className={`main-voice-slot${
@@ -3009,6 +3014,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             customReactionImagesEnabled={renderReactionImages}
                             showReadReceipts={shouldShowReadReceipts}
                             linkPreviews={userSettings.privacy.linkPreviews}
+                            onOpenThread={(rootEventId) => activeRoom && setOpenThread({ roomId: activeRoom.roomId, rootEventId })}
                         />
                         <div className="main-chat-composer">
                             <Composer
@@ -3022,6 +3028,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             />
                         </div>
                     </div>
+                ) : null}
+                {activeThread && activeRoom && (!shouldShowVoicePanel || voiceChatBeside) ? (
+                    <ThreadPanel
+                        key={activeThread.rootEventId}
+                        client={client}
+                        room={activeRoom}
+                        rootEventId={activeThread.rootEventId}
+                        activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
+                        customReactionImagesEnabled={renderReactionImages}
+                        linkPreviews={userSettings.privacy.linkPreviews}
+                        onSelectUser={selectUserAndOpenPanel}
+                        onClose={closeThread}
+                    />
                 ) : null}
                 </div>
             </section>
@@ -3217,9 +3236,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     rooms={visibleRooms}
                     isMuted={isMutedRoom}
                     describeRoom={describeInboxRoom}
-                    onOpenRoom={(roomId) => {
+                    onOpenRoom={(roomId, threadRootId) => {
                         setInboxOpen(false);
                         focusRoom(roomId);
+                        if (threadRootId) setOpenThread({ roomId, rootEventId: threadRootId });
                     }}
                     onClose={() => setInboxOpen(false)}
                 />

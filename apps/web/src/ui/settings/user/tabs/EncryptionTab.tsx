@@ -3,8 +3,13 @@ import type { GeneratedSecretStorageKey } from "matrix-js-sdk/src/crypto-api";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import {
+    adoptCrossSigningWithRecoveryKey,
     bootstrapSecretStorageSetup,
     createSecretStorageSetupKey,
+    getSessionTrust,
+    isRecoveryKeyValid,
+    restoreKeyBackupWithSecretStorageCredential,
+    triggerRoomHistoryDecryption,
 } from "../../../adapters/securityRecoveryAdapter";
 import { useMatrix } from "../../../providers/MatrixProvider";
 
@@ -22,6 +27,13 @@ export function EncryptionTab({ client, verificationNonce, onOpenVerification }:
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [setupNonce, setSetupNonce] = useState(0);
+    // Verified as your other apps see it (signed by your cross-signing key), and whether this session holds those keys
+    // (needed to change the recovery key without locking them away).
+    const [sessionVerified, setSessionVerified] = useState(false);
+    const [holdsSigningKeys, setHoldsSigningKeys] = useState(false);
+    const [recoveryInput, setRecoveryInput] = useState("");
+    const [recoveryBusy, setRecoveryBusy] = useState(false);
+    const [recoveryMessage, setRecoveryMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
     const [setupOpen, setSetupOpen] = useState(false);
     const [setupGeneratedKey, setSetupGeneratedKey] = useState("");
@@ -57,16 +69,21 @@ export function EncryptionTab({ client, verificationNonce, onOpenVerification }:
             setLoading(true);
             setError(null);
             try {
-                const [isCrossSigningReady, activeBackupVersion, defaultRecoveryKeyId] = await Promise.all([
+                const [isCrossSigningReady, activeBackupVersion, defaultRecoveryKeyId, trust, crossSigningStatus] = await Promise.all([
                     crypto.isCrossSigningReady(),
                     crypto.getActiveSessionBackupVersion(),
                     client.secretStorage.getDefaultKeyId(),
+                    getSessionTrust(client),
+                    crypto.getCrossSigningStatus(),
                 ]);
+                const localKeys = crossSigningStatus.privateKeysCachedLocally;
 
                 if (!canceled) {
                     setCrossSigningReady(Boolean(isCrossSigningReady));
                     setBackupVersion(activeBackupVersion);
                     setHasRecoveryKey(Boolean(defaultRecoveryKeyId));
+                    setSessionVerified(trust.signedByAccount && trust.trustsAccount);
+                    setHoldsSigningKeys(localKeys.masterKey && localKeys.selfSigningKey && localKeys.userSigningKey);
                 }
             } catch (loadError) {
                 if (!canceled) {
@@ -209,6 +226,36 @@ export function EncryptionTab({ client, verificationNonce, onOpenVerification }:
         }
     };
 
+    const handleVerifyWithRecoveryKey = async (): Promise<void> => {
+        const recoveryKey = recoveryInput.trim();
+        if (!isRecoveryKeyValid(recoveryKey)) {
+            setRecoveryMessage({ ok: false, text: "That doesn't look like a recovery key. Check for typos." });
+            return;
+        }
+        setRecoveryBusy(true);
+        setRecoveryMessage(null);
+        try {
+            // Message history first (best effort: there may be no backup), then the signing keys.
+            await restoreKeyBackupWithSecretStorageCredential(client, recoveryKey).catch(() => undefined);
+            const signed = await adoptCrossSigningWithRecoveryKey(client, recoveryKey);
+            if (!signed) {
+                setRecoveryMessage({
+                    ok: false,
+                    text: "That key didn't unlock your account's signing keys. Use the newest recovery key you saved, or verify from another session.",
+                });
+                return;
+            }
+            setRecoveryInput("");
+            setRecoveryMessage({ ok: true, text: "This session is verified. Your other apps will now trust it." });
+            triggerRoomHistoryDecryption(client);
+            setSetupNonce((value) => value + 1);
+        } catch (verifyError) {
+            setRecoveryMessage({ ok: false, text: verifyError instanceof Error ? verifyError.message : "Couldn't verify this session." });
+        } finally {
+            setRecoveryBusy(false);
+        }
+    };
+
     return (
         <div className="settings-tab">
             <h2 className="settings-tab-title">Encryption & Recovery</h2>
@@ -230,7 +277,7 @@ export function EncryptionTab({ client, verificationNonce, onOpenVerification }:
                 </div>
                 <div className="settings-info-item">
                     <span className="settings-info-label">This device verified</span>
-                    <strong>{matrix.localDeviceVerified ? "Yes" : "No"}</strong>
+                    <strong data-testid="session-verified">{sessionVerified ? "Yes" : "No"}</strong>
                 </div>
                 <div className="settings-info-item">
                     <span className="settings-info-label">Force verification policy</span>
@@ -249,11 +296,53 @@ export function EncryptionTab({ client, verificationNonce, onOpenVerification }:
                 <button
                     type="button"
                     className="settings-button settings-button-secondary"
-                    onClick={() => void matrix.refreshDeviceVerification()}
+                    onClick={() => {
+                        void matrix.refreshTrustStatus().then(() => setSetupNonce((value) => value + 1));
+                    }}
                 >
                     Refresh trust status
                 </button>
             </div>
+
+            {!sessionVerified && hasRecoveryKey ? (
+                <form
+                    className="settings-section-card"
+                    data-testid="verify-with-recovery-key"
+                    onSubmit={(submitEvent) => {
+                        submitEvent.preventDefault();
+                        void handleVerifyWithRecoveryKey();
+                    }}
+                >
+                    <h3>Verify with your recovery key</h3>
+                    <p className="settings-inline-note">
+                        Other apps (Element, FluffyChat, Meadhall on another device) only trust this session once it&apos;s
+                        signed with your account&apos;s keys. Enter the recovery key you saved when you set up encryption,
+                        in any app, to sign it and restore your message history.
+                    </p>
+                    <label className="settings-field">
+                        <span>Recovery key</span>
+                        <input
+                            type="password"
+                            autoComplete="off"
+                            spellCheck={false}
+                            placeholder="EsTc 1234 ..."
+                            value={recoveryInput}
+                            onChange={(changeEvent) => setRecoveryInput(changeEvent.target.value)}
+                            disabled={recoveryBusy}
+                        />
+                    </label>
+                    {recoveryMessage ? (
+                        <p className={recoveryMessage.ok ? "settings-inline-note settings-recovery-success" : "settings-inline-error"}>
+                            {recoveryMessage.text}
+                        </p>
+                    ) : null}
+                    <div className="settings-actions-row">
+                        <button type="submit" className="settings-button" disabled={recoveryBusy || recoveryInput.trim().length === 0}>
+                            {recoveryBusy ? "Verifying..." : "Verify this session"}
+                        </button>
+                    </div>
+                </form>
+            ) : null}
 
             <div className="settings-section-card settings-recovery-card">
                 <div className="settings-recovery-header">
@@ -271,10 +360,19 @@ export function EncryptionTab({ client, verificationNonce, onOpenVerification }:
 
                 {setupSuccess ? <p className="settings-inline-note settings-recovery-success">{setupSuccess}</p> : null}
 
+                {hasRecoveryKey && !holdsSigningKeys ? (
+                    <p className="settings-inline-note" data-testid="recovery-key-locked">
+                        Verify this session first (with your recovery key above, or from another session) to change the
+                        recovery key. Changing it from here now would lock away the keys your other apps use to trust
+                        your sessions.
+                    </p>
+                ) : null}
+
                 <div className="settings-actions-row">
                     <button
                         type="button"
                         className="settings-button"
+                        disabled={setupBusy || (hasRecoveryKey && !holdsSigningKeys)}
                         onClick={() => {
                             setSetupOpen((previous) => {
                                 if (previous) {
@@ -285,7 +383,6 @@ export function EncryptionTab({ client, verificationNonce, onOpenVerification }:
                             setSetupError(null);
                             setSetupSuccess(null);
                         }}
-                        disabled={setupBusy}
                     >
                         {setupOpen ? "Hide recovery setup" : hasRecoveryKey ? "Change recovery key" : "Set up recovery key"}
                     </button>

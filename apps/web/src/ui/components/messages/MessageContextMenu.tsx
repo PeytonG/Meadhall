@@ -15,6 +15,7 @@ interface MessageContextMenuProps {
     onClose: () => void;
     onReact: () => void;
     onReply: () => void;
+    onReplyInThread?: () => void;
     onEdit: () => void;
     onDelete: () => void;
     onCopyLink: () => void;
@@ -31,6 +32,7 @@ export function MessageContextMenu({
     onClose,
     onReact,
     onReply,
+    onReplyInThread,
     onEdit,
     onDelete,
     onCopyLink,
@@ -114,6 +116,11 @@ export function MessageContextMenu({
             <button type="button" className="message-context-menu-item" onClick={() => clickAction(onReply)}>
                 Reply
             </button>
+            {onReplyInThread ? (
+                <button type="button" className="message-context-menu-item" onClick={() => clickAction(onReplyInThread)}>
+                    Reply in thread
+                </button>
+            ) : null}
             {canEdit ? (
                 <button type="button" className="message-context-menu-item" onClick={() => clickAction(onEdit)}>
                     Edit

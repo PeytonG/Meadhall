@@ -22,7 +22,6 @@ type PendingAction =
     | "confirm_sas"
     | "mismatch_sas"
     | "confirm_reciprocate"
-    | "copy_qr"
     | null;
 
 const VERIFICATION_REQUEST_RECEIVED_EVENT = "crypto.verificationRequestReceived";
@@ -120,17 +119,6 @@ function phaseLabel(phase: VerificationPhaseValue): string {
     }
 }
 
-function encodeBytesToBase64(bytes: Uint8ClampedArray): string {
-    const chunkSize = 0x4000;
-    let binary = "";
-    for (let index = 0; index < bytes.length; index += chunkSize) {
-        const chunk = bytes.subarray(index, index + chunkSize);
-        binary += String.fromCharCode(...chunk);
-    }
-
-    return btoa(binary);
-}
-
 function decodeBase64ToBytes(encoded: string): Uint8ClampedArray {
     const normalized = encoded.trim().replace(/\s+/g, "");
     const binary = atob(normalized);
@@ -159,7 +147,6 @@ export function VerificationDialog({
     const [error, setError] = useState<string | null>(null);
     const [sas, setSas] = useState<ShowSasCallbacks | null>(null);
     const [reciprocateQr, setReciprocateQr] = useState<ShowQrCodeCallbacks | null>(null);
-    const [qrPayload, setQrPayload] = useState<string | null>(null);
     const [scanQrInput, setScanQrInput] = useState("");
     const completionReportedRef = useRef(false);
 
@@ -195,7 +182,6 @@ export function VerificationDialog({
         setError(null);
         setSas(null);
         setReciprocateQr(null);
-        setQrPayload(null);
         setScanQrInput("");
     }, []);
 
@@ -227,7 +213,6 @@ export function VerificationDialog({
             setCompleted(false);
             setSas(null);
             setReciprocateQr(null);
-            setQrPayload(null);
             setScanQrInput("");
 
             try {
@@ -302,18 +287,8 @@ export function VerificationDialog({
             setPhase(request.phase);
             setStatusMessage(`Status: ${phaseLabel(request.phase)}`);
 
-            if (request.phase === VerificationPhase.Ready) {
-                try {
-                    const generatedQr = await request.generateQRCode();
-                    if (!generatedQr || isDisposed) {
-                        return;
-                    }
-
-                    setQrPayload(encodeBytesToBase64(generatedQr));
-                } catch {
-                    // QR generation is optional and best-effort.
-                }
-            }
+            // No QR code is made automatically once the other device is ready: making one switches the request
+            // over to QR verification, which cancelled it before you could pick emoji ("verify doesn't work").
 
             if (request.phase === VerificationPhase.Started && request.verifier) {
                 attachVerifier(request.verifier);
@@ -533,17 +508,6 @@ export function VerificationDialog({
         });
     }, [handleClose, request, runRequestAction]);
 
-    const copyQrPayload = useCallback(async (): Promise<void> => {
-        if (!qrPayload || !navigator.clipboard?.writeText) {
-            return;
-        }
-
-        await runRequestAction("copy_qr", async () => {
-            await navigator.clipboard.writeText(qrPayload);
-            setStatusMessage("QR payload copied.");
-        });
-    }, [qrPayload, runRequestAction]);
-
     const confirmSas = useCallback(async (): Promise<void> => {
         if (!sas) {
             return;
@@ -655,24 +619,6 @@ export function VerificationDialog({
                                     {pendingAction === "cancel" ? "Cancelling..." : "Cancel Flow"}
                                 </button>
                             </div>
-
-                            {qrPayload ? (
-                                <div className="verification-qr-section">
-                                    <h4>QR Payload</h4>
-                                    <p className="verification-inline-note">
-                                        Paste this payload into your scanner helper or another trusted client.
-                                    </p>
-                                    <textarea value={qrPayload} readOnly className="verification-textarea" rows={3} />
-                                    <button
-                                        type="button"
-                                        className="verification-secondary"
-                                        onClick={() => void copyQrPayload()}
-                                        disabled={pendingAction !== null || !navigator.clipboard?.writeText}
-                                    >
-                                        {pendingAction === "copy_qr" ? "Copying..." : "Copy QR Payload"}
-                                    </button>
-                                </div>
-                            ) : null}
 
                             <div className="verification-qr-section">
                                 <h4>Scan QR Payload</h4>

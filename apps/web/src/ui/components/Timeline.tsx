@@ -7,6 +7,7 @@ import {
     MsgType,
     RelationType,
     RoomEvent,
+    ThreadEvent,
     type MatrixClient,
     type MatrixEvent,
     type Room,
@@ -33,6 +34,8 @@ import type { LinkPreviewMode } from "../settings/user/settingsStore";
 import { PollCard, PollEndNotice } from "../polls/PollCard";
 import { isPollEndType, isPollStartType } from "../polls/pollModel";
 import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhallFile";
+import { getOrCreateThread, isThreadReplyFallback, threadEvents, threadSummary } from "../threads/threads";
+import { ThreadSummaryBar } from "../threads/ThreadSummaryBar";
 
 interface TimelineProps {
     client: MatrixClient;
@@ -46,6 +49,10 @@ interface TimelineProps {
     customReactionImagesEnabled: boolean;
     showReadReceipts: boolean;
     linkPreviews?: LinkPreviewMode;
+    // Set for the thread panel: show that thread instead of the main chat.
+    threadRootId?: string | null;
+    // Main chat only: open a message's thread (its "N replies" bar, or "Reply in thread").
+    onOpenThread?: (rootEventId: string) => void;
 }
 
 interface LightboxState {
@@ -395,6 +402,9 @@ function stripPlainReplyFallback(body: string): string {
 }
 
 function getReplyEventId(event: MatrixEvent): string | null {
+    if (isThreadReplyFallback(event)) {
+        return null;
+    }
     const replyEventId = (event as MatrixEvent & { replyEventId?: string }).replyEventId;
     return typeof replyEventId === "string" && replyEventId.length > 0 ? replyEventId : null;
 }
@@ -592,13 +602,21 @@ function getDisplayContentForEvent(
     };
 }
 
-function collectLatestEditEventsByTarget(room: Room | null): Map<string, MatrixEvent> {
+// The events this timeline shows: the room's main timeline, or one thread's (starting with its first message).
+function sourceEvents(room: Room, threadRootId: string | null): MatrixEvent[] {
+    if (threadRootId) {
+        return threadEvents(room, threadRootId);
+    }
+    return room.getLiveTimeline()?.getEvents() ?? room.timeline;
+}
+
+function collectLatestEditEventsByTarget(room: Room | null, threadRootId: string | null): Map<string, MatrixEvent> {
     const latestEditEventsByTarget = new Map<string, MatrixEvent>();
     if (!room) {
         return latestEditEventsByTarget;
     }
 
-    const liveEvents = room.getLiveTimeline()?.getEvents() ?? room.timeline;
+    const liveEvents = sourceEvents(room, threadRootId);
     for (const event of liveEvents) {
         if (event.getType() !== EventType.RoomMessage || event.isRedacted()) {
             continue;
@@ -655,12 +673,12 @@ function deletedLabel(room: Room | null, event: MatrixEvent): string {
     return `Message deleted by ${room?.getMember(deleter)?.name ?? deleter}`;
 }
 
-function extractMessageEvents(room: Room | null): MatrixEvent[] {
+function extractMessageEvents(room: Room | null, threadRootId: string | null): MatrixEvent[] {
     if (!room) {
         return [];
     }
 
-    const liveEvents = room.getLiveTimeline()?.getEvents() ?? room.timeline;
+    const liveEvents = sourceEvents(room, threadRootId);
     // Blocked people: the server stops sending their events; also hide the ones already loaded.
     return liveEvents.filter((event) => isRenderableMessage(event) && !room.client.isUserIgnored(event.getSender() ?? ""));
 }
@@ -1279,10 +1297,12 @@ export function Timeline({
     customReactionImagesEnabled,
     showReadReceipts,
     linkPreviews = "unencrypted",
+    threadRootId = null,
+    onOpenThread,
 }: TimelineProps): React.ReactElement {
     const decryptTuning = useMemo<DecryptTuning>(() => loadDecryptTuning(), []);
     const handleImageError = useMemo(() => createImageErrorHandler(client), [client]);
-    const [events, setEvents] = useState<MatrixEvent[]>(() => extractMessageEvents(room));
+    const [events, setEvents] = useState<MatrixEvent[]>(() => extractMessageEvents(room, threadRootId));
     const [emojiSourcesByShortcode, setEmojiSourcesByShortcode] = useState<ReadonlyMap<string, string>>(
         () => new Map(),
     );
@@ -1317,10 +1337,13 @@ export function Timeline({
     const markReadRef = useRef<() => Promise<void>>(async () => undefined);
 
     const refreshEvents = useCallback(() => {
-        setEvents(extractMessageEvents(room));
-    }, [room]);
+        setEvents(extractMessageEvents(room, threadRootId));
+    }, [room, threadRootId]);
 
-    const latestEditEventsByTarget = useMemo(() => collectLatestEditEventsByTarget(room), [events, room]);
+    const latestEditEventsByTarget = useMemo(
+        () => collectLatestEditEventsByTarget(room, threadRootId),
+        [events, room, threadRootId],
+    );
     const encryptedDecryptCandidatesByKey = useMemo(() => {
         const map = new Map<string, DecryptQueueItem>();
         for (const event of events) {
@@ -1916,14 +1939,28 @@ export function Timeline({
             refreshEvents();
         };
 
+        // Threads: new replies update the "N replies" bars, and a thread's history arrives after it's opened.
+        const threadEventNames = [ThreadEvent.New, ThreadEvent.Update, ThreadEvent.NewReply, ThreadEvent.Delete] as const;
+        const onThreadChange = (): void => refreshEvents();
+
         client.on(RoomEvent.Timeline, onTimeline);
         client.on(MatrixEventEvent.Decrypted, onEventDecrypted);
+        for (const name of threadEventNames) room.on(name, onThreadChange);
 
         return () => {
             client.removeListener(RoomEvent.Timeline, onTimeline);
             client.removeListener(MatrixEventEvent.Decrypted, onEventDecrypted);
+            for (const name of threadEventNames) room.removeListener(name, onThreadChange);
         };
     }, [client, refreshEvents, room]);
+
+    // Opening a thread nobody has loaded yet (only its first message is known) sets it up, which fetches its replies.
+    useEffect(() => {
+        if (room && threadRootId && !room.getThread(threadRootId)) {
+            getOrCreateThread(room, threadRootId);
+            refreshEvents();
+        }
+    }, [refreshEvents, room, threadRootId]);
 
     useEffect(() => {
         const container = scrollContainerRef.current;
@@ -1969,8 +2006,13 @@ export function Timeline({
 
         // The newest event of any kind that the server knows about (not only the newest shown message), so hidden
         // events after it (call signals, keys) can't leave the conversation unread.
-        const liveEvents = room.getLiveTimeline().getEvents();
-        const latestEvent = [...liveEvents].reverse().find((event) => event.getId()?.startsWith("$")) ?? events[events.length - 1];
+        // In a thread, only its replies (its first message belongs to the main chat's receipt).
+        const liveEvents = threadRootId
+            ? sourceEvents(room, threadRootId).filter((event) => event.getId() !== threadRootId)
+            : room.getLiveTimeline().getEvents();
+        const latestEvent =
+            [...liveEvents].reverse().find((event) => event.getId()?.startsWith("$")) ??
+            (threadRootId ? undefined : events[events.length - 1]);
         const latestEventId = latestEvent?.getId();
         if (!latestEvent || !latestEventId) {
             return;
@@ -1992,7 +2034,12 @@ export function Timeline({
 
         readMarkerInFlightByRoomRef.current.add(room.roomId);
         try {
-            await client.setRoomReadMarkers(room.roomId, latestEventId, latestEvent);
+            if (threadRootId) {
+                // A threaded receipt (the SDK adds the thread ID): clears this thread's unread count.
+                await client.sendReadReceipt(latestEvent);
+            } else {
+                await client.setRoomReadMarkers(room.roomId, latestEventId, latestEvent);
+            }
             lastReadEventIdByRoomRef.current.set(room.roomId, latestEventId);
         } catch {
             try {
@@ -2008,7 +2055,7 @@ export function Timeline({
                 void markReadRef.current();
             }
         }
-    }, [client, events, room]);
+    }, [client, events, room, threadRootId]);
     markReadRef.current = markActiveRoomReadToLatest;
 
     useEffect(() => {
@@ -2044,7 +2091,12 @@ export function Timeline({
         const previousHeight = container.scrollHeight;
 
         try {
-            await client.scrollback(room, 30);
+            const thread = threadRootId ? room.getThread(threadRootId) : null;
+            if (thread) {
+                await client.paginateEventTimeline(thread.liveTimeline, { backwards: true, limit: 30 });
+            } else if (!threadRootId) {
+                await client.scrollback(room, 30);
+            }
             refreshEvents();
 
             requestAnimationFrame(() => {
@@ -2200,6 +2252,11 @@ export function Timeline({
                                 }
                                 onReply={onReply}
                                 onEdit={onEdit}
+                                onReplyInThread={
+                                    !threadRootId && eventId?.startsWith("$") && onOpenThread
+                                        ? () => onOpenThread(eventId)
+                                        : undefined
+                                }
                                 onToast={pushToast}
                             />
                             {reply ? (
@@ -2452,6 +2509,13 @@ export function Timeline({
                                 mxEvent={event}
                                 customReactionImagesEnabled={customReactionImagesEnabled}
                             />
+                            {!threadRootId && eventId && onOpenThread ? (
+                                <ThreadSummaryBar
+                                    client={client}
+                                    summary={threadSummary(room, eventId)}
+                                    onOpen={() => onOpenThread(eventId)}
+                                />
+                            ) : null}
                             {visibleReadReceipts.length > 0 ? (
                                 <div
                                     className={`timeline-read-receipts${showHeader ? "" : " timeline-read-receipts-grouped"}`}

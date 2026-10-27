@@ -146,6 +146,13 @@ export function DevicesTab({
                             }
                         }
                     }
+                    // This session always trusts itself, so that says nothing: what your other apps go by is whether
+                    // it's signed by your account's cross-signing key.
+                    const ownDeviceId = client.getDeviceId();
+                    if (ownDeviceId) {
+                        const ownStatus = await crypto.getDeviceVerificationStatus(userId, ownDeviceId);
+                        trustedByDeviceId.set(ownDeviceId, ownStatus?.crossSigningVerified ? "verified" : "unverified");
+                    }
                 }
             }
 

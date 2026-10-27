@@ -4,6 +4,31 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.4.1 (2026-10-27)
+
+### New
+- **Threads:** replies sent "in a thread" (by Element, FluffyChat, or bots like baibot) used to ping you without
+  showing up anywhere. Now a message with replies shows **"N replies"** under it, and clicking it opens the thread
+  beside the chat (over it on phones), where you can read and answer. Hover any message and choose **Reply in
+  thread** (🧵) to start one.
+- **Verify with your recovery key** in Settings → Encryption & Recovery, for a session that skipped it at sign-in.
+
+### Fixed
+- **Verification between Meadhall and other apps:** Meadhall called itself verified while FluffyChat and Element
+  didn't agree, and they called themselves verified while Meadhall didn't. Entering your recovery key now also
+  fetches your account's signing keys and signs this session, so every app agrees it's verified and Meadhall
+  trusts your other sessions in turn. "This device verified" now shows what your other apps see.
+- **"Verify this device"** in settings got cancelled as soon as your other device answered, and after a
+  verification Meadhall could send you back to the recovery key screen. Emoji verification now works, and the keys
+  your other session shares afterwards are picked up on their own.
+- **Recovery key safety:** Meadhall no longer offers to set up a new recovery key when your account already has one
+  from another app (that would have locked away the keys your other apps use). It asks for the existing key instead,
+  and only lets you change it from a verified session. Setting up a recovery key on an account that never had
+  encryption set up now also creates its signing keys, so your Meadhall sessions can verify each other.
+- **Inbox:** "✓" and "Mark all read" now clear conversations whose unread messages are thread replies, the inbox
+  lists those replies ("in a thread") and opens the thread when you click one, and it updates as soon as you mark
+  something read.
+
 ## v0.4.0 (2026-10-26)
 
 ### New
