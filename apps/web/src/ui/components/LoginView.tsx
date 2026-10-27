@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LANGUAGES, chosenLanguage, setLanguage, t, useLanguage } from "../i18n";
+import { ScanLoginQr } from "../auth/QrLoginCards";
 import { AuthType, MatrixError, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { addingAccountFrom } from "../../core/storage/accounts";
@@ -50,6 +51,7 @@ export function LoginView({
     onLoginWithCredentials,
 }: LoginViewProps): React.ReactElement {
     useLanguage(); // re-render in the chosen language
+    const [scanningQr, setScanningQr] = useState(false);
     const [mode, setMode] = useState<AuthMode>("sign_in");
     // Adding another account: offer the way back to the one already signed in.
     const [addingFrom] = useState(addingAccountFrom);
@@ -367,7 +369,10 @@ export function LoginView({
                 </label>
                 <div className="login-flow-shell" style={flowHeight === null ? undefined : { height: `${flowHeight}px` }}>
                     <div className="login-flow-content" ref={flowContentRef}>
-                        {mode === "sign_in" ? (
+                        {mode === "sign_in" && scanningQr ? (
+                    <ScanLoginQr deviceDisplayName={deviceDisplayName} onCredentials={onLoginWithCredentials} onCancel={() => setScanningQr(false)} />
+                ) : mode === "sign_in" ? (
+                    <>
                     <form onSubmit={handleSignInSubmit}>
                         <p className="login-subtitle">{t("Sign in to continue")}</p>
 
@@ -420,6 +425,10 @@ export function LoginView({
                             {loading ? t("Signing in...") : t("Sign in")}
                         </button>
                     </form>
+                    <button type="button" className="login-secondary-button login-qr-button" onClick={() => setScanningQr(true)} data-testid="login-with-qr">
+                        {t("Sign in with QR code")}
+                    </button>
+                    </>
                 ) : registerStep === "form" ? (
                     <form onSubmit={handleRegisterSubmit}>
                         <p className="login-subtitle">{t("Create a Matrix account with Matrix-native verification stages.")}</p>

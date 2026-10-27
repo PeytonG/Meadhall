@@ -34,6 +34,12 @@ rc_invites:
 # Lets the tests create server admins through /_synapse/admin/v1/register. Test-only secret, never reuse it.
 registration_shared_secret: "meadhall-test-only-shared-secret"
 
+# QR code sign-in (Settings → Devices → Sign in another device): short-lived login tokens.
+login_via_existing_session:
+  enabled: true
+  require_ui_auth: true
+  token_timeout: "5m"
+
 # Server notices (Settings → Server admin → Server notices).
 server_notices:
   system_mxid_localpart: notices

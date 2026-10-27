@@ -5,6 +5,7 @@ import type { Dictionary } from "../index";
 const es: Dictionary = {
     "Sign in": "Iniciar sesión",
     Register: "Registrarse",
+    "Sign in with QR code": "Iniciar sesión con código QR",
     "Sign in to continue": "Inicia sesión para continuar",
     Homeserver: "Servidor",
     "Username or email": "Usuario o correo",

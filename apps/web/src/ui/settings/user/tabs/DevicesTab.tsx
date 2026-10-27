@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ShowLoginQrCard } from "../../../auth/QrLoginCards";
 import {
     DeviceVerification,
     type IMyDevice,
@@ -264,6 +265,8 @@ export function DevicesTab({
                     Verify this device
                 </button>
             </div>
+
+            <ShowLoginQrCard client={client} />
 
             <p className="settings-inline-note">
                 Verified sessions: {knownTrustedCount} / {devices.length}

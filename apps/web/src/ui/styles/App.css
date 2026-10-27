@@ -6915,3 +6915,38 @@ ol.message-renderer-format {
     width: auto;
     padding: 4px 6px;
 }
+
+/* Sign in with a QR code */
+.qr-login-canvas {
+    display: block;
+    width: 220px;
+    height: 220px;
+    image-rendering: pixelated;
+    background: #fff;
+}
+
+.qr-login-text {
+    display: block;
+    margin: 6px 0;
+    word-break: break-all;
+    font-size: 11px;
+}
+
+.qr-login-scan {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.qr-login-video {
+    width: 100%;
+    max-height: 260px;
+    border-radius: 8px;
+    background: #000;
+    object-fit: cover;
+}
+
+.login-qr-button {
+    width: 100%;
+    margin-top: 10px;
+}

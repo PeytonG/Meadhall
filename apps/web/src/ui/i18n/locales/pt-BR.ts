@@ -5,6 +5,7 @@ import type { Dictionary } from "../index";
 const ptBR: Dictionary = {
     "Sign in": "Entrar",
     Register: "Cadastrar",
+    "Sign in with QR code": "Entrar com código QR",
     "Sign in to continue": "Entre para continuar",
     Homeserver: "Servidor",
     "Username or email": "Usuário ou e-mail",
