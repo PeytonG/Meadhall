@@ -303,7 +303,13 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
   Chromium) for the phone-only specs (`mobile`, `mobileUpdates`). The real Electron suite
   (`playwright.desktop.config.ts`) needs `pnpm --dir apps/desktop run build` first: it runs the copied web build.
 - Audio is tested for real in Chromium by rendering effects/sounds with `OfflineAudioContext`
-  (`e2e/voiceEffects.spec.ts`, `e2e/soundboard.spec.ts`); the voice room smoke tests fake LiveKit (no LiveKit in CI).
+  (`e2e/voiceEffects.spec.ts`, `e2e/soundboard.spec.ts`); the voice room smoke tests fake LiveKit.
+- **Real calls** (v0.4.0): `node scripts/test-livekit.mjs start` runs livekit-server in Docker (7880/7881/7882,
+  test key/secret in the script) and `e2e/support/lkTokenService.mjs` plays lk-jwt-service (checks the OpenID token
+  against Synapse, signs an HS256 LiveKit JWT). `playwright.calls.config.ts` (`e2e-calls/`: join, soundboard,
+  camera, push to talk) uses Chromium's fake mic/camera; CI runs it in the E2E job.
+- **Accessibility**: `e2e/accessibility.spec.ts` runs axe-core (WCAG 2.1 A/AA, serious/critical) on sign-in, home,
+  a channel and Settings.
 - Screenshots for the README/`docs/SCREENSHOTS.md` are tests (`CAPTURE_SCREENSHOTS=1 ... playwright test
   screenshots`): `screenshots.spec.ts` and `screenshotsShowcase.spec.ts` stage the demo hall (`seedHall.ts`), roles,
   profiles and statuses. Recapture after visible UI changes and look at every image before committing.
@@ -323,6 +329,14 @@ later if the owner creates a Firebase project (needs Sygnal on the server).
 - "Playing ...": the desktop app reads Steam's own files (Windows `RunningAppID` registry value, `registry.vdf`
   elsewhere, names from `appmanifest_<id>.acf`; `apps/desktop/electron/steamActivity.ts`, parser `vdf.ts`). Chosen
   over the Steam Web API because it needs no API key, Steam login or server bot. Privacy toggle, default on.
+- **Activity (v0.4.0)**, Settings → Privacy → Activity (`presence/activitySharing.ts`, desktop `electron/activity/`):
+  sources Steam (default on), Rich Presence (arRPC's IPC + WebSocket transports, Meadhall answers only
+  SET_ACTIVITY; WS refuses Origins other than none/discord.com), game detection (arRPC's `detectable.json`, Windows
+  via CIM because 24H2 removed wmic), Linux MPRIS (playerctl or dbus-send). Names only from the local list, nothing
+  looked up online. Audience: **contacts** (default; status text only, which Synapse shows only to people sharing a
+  room), **dms** (encrypted to-device `io.github.peytong.meadhall.activity` to partners in *encrypted* DMs, re-sent
+  every 4 min, 10 min TTL, accepted only if it arrived encrypted from a DM partner), **everyone** (also the
+  world-readable profile field) or **nobody**. "Never share" list by name/app id; details only if allowed.
 - DND silences notifications and call ringing locally (`isDoNotDisturb()`).
 - **Other servers:** Synapse federates custom profile fields, so DND and "Playing" reach up-to-date Synapse servers;
   elsewhere the profile read fails and people show plain presence. Servers that never send presence (matrix.org turns
@@ -348,17 +362,16 @@ their own tokens (refreshed when they expire), like the Android service; clickin
 Not yet: Android's `SyncService` only covers the active account.
 
 ### 7.13 Voice changer and soundboard
-- 18 effects built from standard Web Audio nodes (pitch-shift delay lines, vibrato, multi-tap echoes, filters,
+- 29 effects (v0.4.0 added 10, `e2e/voiceEffects.spec.ts` checks all) built from standard Web Audio nodes (pitch-shift delay lines, vibrato, multi-tap echoes, filters,
   ring modulation, wave shaping) so they run everywhere; each is measured in Chromium (audible, no clipping,
   changed, pitch effects within 8%).
 - Soundboard: 12 built-ins **synthesized** in an 8-bit style (`voice/soundboard/builtinSounds.ts`), so there are no
   sample files or licenses. Your own sounds (≤ 8 s, 1 MB, decodable) go to the media repo and are listed in account
-  data `io.github.peytong.meadhall.soundboard`. In a call they are **mixed into the microphone**: they play into
-  `voiceChanger.soundboardBus(context)`, which Meadhall's mic processor (the voice changer's, kept as a straight wire
-  when there's no effect) mixes into what it sends. So sounds go out as your voice and light your speaking indicator
-  (the VAD follows the processed track). v0.3.1 published a separate track instead; LiveKit reported it as
-  "publishing silence" between sounds and it didn't count as talking, so v0.3.2 switched (owner's request). Needs an
-  unmuted mic. Volume 0-100 in audio settings. No cooldown yet.
+  data `io.github.peytong.meadhall.soundboard`. In a call they go out on **their own track** again (v0.4.0,
+  `voice/soundboard/soundboardTrack.ts`, track name `meadhall-soundboard`, published once, unmuted while a sound
+  plays and muted 600 ms after, `dtx: false`), so listeners can turn other people's sounds down (all, or per person)
+  without their voice: owner's v0.4.0 request. (v0.3.2 mixed sounds into the mic; v0.3.1's separate track was
+  reported as "publishing silence" because it stayed unmuted.) Plays even with the mic muted. No cooldown yet.
 - Sounds are trimmed before upload (`voice/soundboard/trim.ts`, `SoundTrimmer`): 0.2-8 s chosen on a waveform,
   re-encoded as mono 24 kHz WAV (keeps files small).
 - Calls auto-leave after 5 minutes alone (`voice/aloneInCall.ts`), counting MatrixRTC memberships too: people on another
@@ -455,6 +468,42 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
 brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requires 7:1 against its background
 (the same audit flags 16 texts in the dark theme, so it has teeth).
+**Reduce motion** (v0.4.0, `theme/motion.ts`): OS `prefers-reduced-motion` or Settings → Appearance sets
+`data-reduce-motion="on"`; one CSS rule stops animations/transitions, `MotionImage` draws GIF banners as their
+first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist. axe runs in E2E (§7.9).
+
+### 7.22 v0.4.0 features
+- **Webcam** (`VoiceRoom` `toggleCamera`, `CameraTile`): 720p + 180p/360p simulcast; camera grid above the
+  participants; camera picker in call settings. Switching cameras only when the choice changes (switching restarts
+  the track; doing it on enable ended the just-published track). macOS usage strings, Android CAMERA (optional).
+- **Push to talk** (call settings): key is a `KeyboardEvent.code`; presses are queued; window blur releases;
+  letters/digits typed in inputs don't talk. A local-only level meter (separate getUserMedia, nothing sent) shows
+  "Push to talk is on" when you talk without the key. Only while Meadhall is focused (no global hook yet).
+- **Polls** (`ui/polls`): MSC3381 unstable events (Element-compatible) via the js-sdk `Poll` model; Meadhall field
+  `io.meadhall.poll` `{anonymous, closes_at}`. Counting: latest vote per person before close, spoiled votes
+  dropped, % per voter. The creator's app sends the end event (with a text summary) when time is up
+  (`closeExpiredPolls` in AppShell every 15 s, and the card). Anonymous only hides names in Meadhall.
+- **Code blocks**: `code/codeMarkdown.ts` (fences/inline), highlight.js core with 24 languages, lazy-loaded;
+  output converted to tokens, never innerHTML. MessageRenderer keeps `pre`/`code` and basic formatting tags
+  (no attributes). **Link previews** follow Privacy → Link previews (default: not in encrypted rooms).
+- **QR sign-in** (`ui/auth`): `login/get_token` (password UIA) → QR `meadhall-login:1?hs=…&t=…`; sign-in screen
+  scans (BarcodeDetector or jsQR) or takes a paste, then `m.login.token`. Needs Synapse
+  `login_via_existing_session` (test Synapse has it). MSC4108 (Element) needs MAS, so not supported.
+- **Translations** (`ui/i18n`): English text is the key; es, de, fr, pt-BR for sign-in, settings nav, composer
+  placeholder, call controls. Language on the device (`meadhall.language.v1`), default from the browser.
+- **Release engineering**: Electron fuses verified in a packaged build (runAsNode, NODE_OPTIONS, inspect off; ASAR
+  integrity + only-from-ASAR on). Release workflow adds GitHub build provenance (Sigstore) for every file:
+  `gh attestation verify <file> --repo PeytonG/Meadhall`. Flathub manifest (`packaging/flatpak`, repackages the
+  .deb on Electron2.BaseApp 25.08; `scripts/flatpak-manifest.mjs <version>` fills URL + sha256), F-Droid draft
+  recipe + `fastlane/metadata/android`, Obtainium link. Google services plugin removed from Android (unused).
+  Self-update is off inside Flatpak/Snap.
+- **Windows signing (planned for v1.0.0, the first non-beta release)**: SignPath Foundation (free for OSS). Their
+  terms: OSI license with no proprietary components, automated builds verified by origin (GitHub Actions connector),
+  **manual approval of every signed release**, MFA for everyone with access, product name/version metadata, a
+  "Code signing policy" page linked from the home and download pages (`docs/code-signing.md`, with team roles and
+  the `docs/privacy.md` link), and the certificate's publisher is **SignPath Foundation**. Apply at
+  signpath.org/apply before v1.0.0; then add the `signpath/github-action-submit-signing-request` step to the
+  Windows job. Not applied yet.
 
 ## 8. Gotchas
 
@@ -506,6 +555,14 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
 | A test toggling the Members panel closes it | The button toggles; check `is-active` before clicking |
 | Heredoc/`node -e` script fails on an apostrophe | The Bash tool quotes commands; write scripts with the Write tool |
 | An old scratchpad script runs instead of a new one | A file with that name already existed and Write refused; use a fresh name |
+| A branch ref file is all zero bytes after a power cut | Restore it from `git reflog`/`.git/logs` (write the last good SHA), then `git fsck`; also scan the tree for NUL-filled files |
+| Every call join pops a notification and a sound | `rtc.notification`/call member events hit push rules; only notify for messages, stickers, polls and invites to you (`isNotifiableEvent`) |
+| `encryptToDeviceMessages` returns an empty batch | Rust crypto only knows devices of users it tracks (members of encrypted rooms); `getUserDeviceInfo(…, true)` downloads others without tracking them |
+| arRPC import fails / loads 4 MB at start | arRPC is ESM: import only its transports (Electron's Node `require`s ESM); `server.js` loads the game list and wmic scanner at import |
+| Game detection finds nothing on Windows 11 24H2 | wmic was removed; use `Get-CimInstance Win32_Process` |
+| Someone's new profile card shows only after 10 min | Style cache TTL; the profile panel now re-reads (`useProfileStyle(…, fresh)`) |
+| Login helper "strict mode violation: 2 Sign in buttons" | A button named "Sign in with …" inside the form; keep extra buttons outside the `<form>` |
+| Flatpak build: "state dir not on the same filesystem" | Pass `--state-dir` on the build's filesystem; runtime 24.08 is end-of-life, use 25.08 |
 
 ## 9. Status
 
@@ -541,7 +598,9 @@ brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requ
   (44+) before Element Call makes that mode the default.
 - MSC4195 `url`-only transports aren't supported yet (falls back to the relay).
 - iOS needs a first real build (Apple Developer account + Codemagic key) and APNs/Sygnal for notifications; code
-  signing for Windows/macOS; optional FCM push for Android (needs the owner's Firebase project + Sygnal).
+  Windows signing via SignPath at v1.0.0 (§7.22), macOS signing; optional push for Android needs a gateway.
+- Switching accounts reloads the page, so it ends a call; keeping calls needs several clients in one page.
+- Push to talk only works while Meadhall is focused (needs a native global key hook for background use).
 - Notification taps on Android open the app but not yet the specific conversation (the intent carries `roomId`).
 - Android's background service only covers the active account (§7.12).
 - No OIDC-native sign-in (Matrix Authentication Service). matrix.org uses MAS: password sign-in works through its
@@ -639,6 +698,30 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | Screen share picker lag, black previews, scrolling to Share | See §8; picker opens instantly, previews fill in, dialog footers pinned |
 | Taskbar icon must stay | Unchanged; checked by the real-desktop test |
 
+### 10.5 Owner's v0.4.0 list (2026-10-25/26)
+| Request | What was found / done |
+|---|---|
+| Turn down other people's soundboards | Own track again + global and per-person sliders (§7.13) |
+| Smooth sound style | Settings → Notifications → Sound style (8-bit / Smooth), same tunes |
+| Share sounds from the call | Share dialog in the in-call soundboard |
+| More voice effects | 10 more (29) |
+| Channel type only for server channels | Room settings hide it outside spaces |
+| Voice channel chat below the call | Column layout |
+| Discord integration | Feasibility report only (in the v0.4.0 report) |
+| Polls (anonymous, %, time limit, results posted) | §7.22 |
+| Webcam | §7.22, tested in real LiveKit calls |
+| arRPC + MPRIS with privacy controls | §7.10 |
+| Link previews, code highlighting | §7.22 |
+| Sliding sync | Not switched on. js-sdk 40 does speak Synapse's native simplified sliding sync (MSC4186, the test server advertises it), but it has no presence extension (statuses, DND, Away, activity would break) and Meadhall's room list, spaces and unread counts assume every room is loaded. Needs presence over another channel and lazy room lists first |
+| QR login, accessibility, translations | §7.22, §7.16 |
+| Flathub, F-Droid/Obtainium, attestations, Electron hardening | §7.22 (store submissions are manual) |
+| Push to talk with a reminder | §7.22 |
+| SignPath for Windows signing at v1.0.0 | §7.22, `docs/code-signing.md` |
+| Notification spam in calls, can't clear notifications | `isNotifiableEvent`; desktop notifications tracked per room and closed when the chat opens |
+| "Messages self-deleted" | Meadhall never deletes on its own; redactions were invisible. Now "Message deleted by X"; undecryptable messages say so |
+| Account switch drops the call | Not fixed: switching reloads the page (§7.12); needs two clients in one page. Now asks first during a call (`setInCallForSwitching`); other accounts' notifications already arrive |
+| Badges in profile cards; window controls follow the card gradient | Badge outside the ellipsized name; `data-titlebar-color` |
+
 ## 11. Work log
 
 | Date | Work |
@@ -647,4 +730,5 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 2026-10-23 | v0.3.1 backlog (§10.1): ringtone and Windows notifications fixed; status/DND/Away, DM previews, phone icon; profiles (banner, bio, links, roles); talk permissions; tray menu; Steam activity; 12 voice effects; soundboard; several accounts; phone update notice and What's new; high contrast; iOS project; README overhaul with test-made screenshots; admin password reset fixed on desktop; status write races fixed. |
 | 2026-10-23 | v0.3.2 (§10.2): soundboard over the mic, volume, trimming and scrolling; call drops (alone timer, rejoin, call history); Steam display; status speed; call card clicks on desktop; taskbar icon and unread bubble; screen share previews and scaling; banner crop; Block / Ignore; earlier versions; CodeQL fixes and a security audit (IPC sender check); read-marker race; component harness for in-call tests and screenshots. |
 | 2026-10-23 | v0.3.3 (§10.3): Linux `.rpm`/`.deb` updates via the package manager, `.deb` package, declared deps, GNOME and Windows taskbar icons; verification fix; Unencrypted chip; icon style; Logs and call-ended notice; Report a bug; server notices and group-chat invites; cross-server status ? and Share my status; log redaction. Packages verified in clean Ubuntu 24.04 and Fedora 42 containers. |
+| 2026-10-26 | v0.4.0 (§10.5): sound style, soundboard track and volumes, 10 voice effects, notification fixes, deletion placeholders, webcam, push to talk, polls, code blocks and preview privacy, Rich Presence/game detection/MPRIS with audiences, reduce motion and axe checks, translations, QR sign-in, provenance attestations, Flatpak (built in Flathub's CI image) and F-Droid metadata, SignPath plan. Power cut mid-work: repaired a zeroed branch ref. |
 | 2026-10-24 | v0.3.4 (§10.4): bug reports visible to the developer; server menus, muting, channel types, banners, rail badges, inbox, update arrow; members by role with role editing; voice channel chat; badges (signed, fingerprinted list); profile style; style profiles and .meadhall sharing; screen share picker fixes; pasted GIFs; calls in channels no longer notify; per-call history; README screenshots. |

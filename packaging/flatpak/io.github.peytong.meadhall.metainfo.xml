@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<component type="desktop-application">
+  <id>io.github.peytong.meadhall</id>
+  <name>Meadhall</name>
+  <summary>Chat, voice and video on Matrix, Discord-style</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <developer id="io.github.peytong">
+    <name>PeytonG</name>
+  </developer>
+  <description>
+    <p>
+      Meadhall is a Matrix client that feels like Discord: servers with text and voice channels, end-to-end encrypted
+      DMs, calls with webcam and screen sharing, a soundboard, polls and a pixel-art look.
+    </p>
+    <ul>
+      <li>Voice and video channels (LiveKit), screen sharing, push to talk</li>
+      <li>End-to-end encryption, device verification and key backup</li>
+      <li>Custom emoji, stickers, profile cards and badges</li>
+      <li>Polls, code blocks with syntax highlighting, link previews</li>
+      <li>Works with any Matrix homeserver</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.peytong.meadhall.desktop</launchable>
+  <url type="homepage">https://github.com/PeytonG/Meadhall</url>
+  <url type="bugtracker">https://github.com/PeytonG/Meadhall/issues</url>
+  <url type="vcs-browser">https://github.com/PeytonG/Meadhall</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>A server with channels and a member list</caption>
+      <image>https://raw.githubusercontent.com/PeytonG/Meadhall/main/docs/screenshots/space-roles.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Webcam in a call</caption>
+      <image>https://raw.githubusercontent.com/PeytonG/Meadhall/main/docs/screenshots/webcam.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-audio">intense</content_attribute>
+    <content_attribute id="social-contacts">intense</content_attribute>
+  </content_rating>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <releases>
+    <release version="0.4.0" date="2026-10-26">
+      <description>
+        <p>Webcam, push to talk, polls, Rich Presence with privacy controls, QR sign-in, translations and more.</p>
+      </description>
+    </release>
+  </releases>
+</component>

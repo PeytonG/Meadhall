@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Draft F-Droid build recipe (for a merge request to https://gitlab.com/fdroid/fdroiddata). Not submitted yet;
+# see packaging/README.md. App description, icon and screenshots come from fastlane/metadata/android in this repo.
+Categories:
+  - Internet
+  - Phone & SMS
+License: AGPL-3.0-only
+AuthorName: PeytonG
+SourceCode: https://github.com/PeytonG/Meadhall
+IssueTracker: https://github.com/PeytonG/Meadhall/issues
+Changelog: https://github.com/PeytonG/Meadhall/blob/main/CHANGELOG.md
+
+AutoName: Meadhall
+
+RepoType: git
+Repo: https://github.com/PeytonG/Meadhall.git
+
+Builds:
+  - versionName: 0.4.0
+    versionCode: 400
+    commit: v0.4.0
+    subdir: apps/mobile/android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y npm
+      - npm install -g pnpm@10
+    init: cd ../../../.. && pnpm install --frozen-lockfile
+    gradle:
+      - yes
+    prebuild:
+      - cd ../../../.. && pnpm --filter @heorot/web build && pnpm --dir apps/mobile exec cap sync android
+    gradleprops:
+      - appVersionName=0.4.0
+      - appVersionCode=400
+    scanignore:
+      - apps/mobile/node_modules
+      - node_modules
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+$
+CurrentVersion: 0.4.0
+CurrentVersionCode: 400

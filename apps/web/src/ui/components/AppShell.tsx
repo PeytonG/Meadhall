@@ -75,7 +75,7 @@ import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSess
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import { MobileUpdateBanner } from "./MobileUpdateBanner";
 import { WhatsNewDialog } from "./WhatsNewDialog";
-import { addAccount, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
+import { addAccount, setInCallForSwitching, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
 import { captureGlobalErrors, logAppError } from "../logs/appLog";
@@ -980,6 +980,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         return () => window.clearInterval(timer);
     }, [client, activity, activityAudience, shareStatus, ownStatus.state]);
     useEffect(() => listenForPrivateActivity(client), [client]);
+    // Switching accounts reloads the app (ending a call), so it asks first during one.
+    useEffect(() => setInCallForSwitching(voiceSessionStatus !== "disconnected"), [voiceSessionStatus]);
     const ownStatusDot =
         ownStatus.state === "idle" || (ownStatus.state === "auto" && autoAway) ? "idle" : ownStatus.state === "dnd" ? "dnd" : ownStatus.state === "invisible" ? "offline" : currentPlatform() === "mobile" && ownStatus.state === "auto" ? "mobile" : "online";
     useEffect(() => {

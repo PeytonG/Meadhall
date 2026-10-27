@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Flatpak manifest for Flathub (see packaging/README.md). Repackages the release .deb, which the release
+# workflow builds from this repository; Flathub's Electron base app supplies the sandbox helper (zypak).
+app-id: io.github.peytong.meadhall
+runtime: org.freedesktop.Platform
+runtime-version: "26.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "26.08"
+command: meadhall
+separate-locales: false
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  # Webcam and microphone in calls (Chromium has no camera portal yet).
+  - --device=all
+  - --talk-name=org.freedesktop.Notifications
+  # Tray icon.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # "Listening to ..." (Settings -> Privacy -> Activity, off by default): reads media players over MPRIS.
+  - --talk-name=org.mpris.MediaPlayer2.*
+  # "Playing ..." from Steam (on by default, can be turned off): reads which game Steam runs, nothing else.
+  - --filesystem=~/.steam:ro
+  - --filesystem=~/.local/share/Steam:ro
+  - --filesystem=~/.var/app/com.valvesoftware.Steam/.local/share/Steam:ro
+  # Saving downloads and attachments.
+  - --filesystem=xdg-download
+  - --env=ELECTRON_TRASH=gio
+
+modules:
+  - name: meadhall
+    buildsystem: simple
+    sources:
+      # Updated for each release: scripts/flatpak-manifest.mjs <version> fills in the URL and sha256.
+      - type: file
+        url: https://github.com/PeytonG/Meadhall/releases/download/v0.4.0/Meadhall-0.4.0-amd64.deb
+        sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+        dest-filename: meadhall.deb
+        only-arches: [x86_64]
+      - type: file
+        path: io.github.peytong.meadhall.metainfo.xml
+      - type: file
+        path: io.github.peytong.meadhall.desktop
+      - type: script
+        dest-filename: meadhall.sh
+        commands:
+          - exec zypak-wrapper /app/meadhall/meadhall "$@"
+    build-commands:
+      - ar x meadhall.deb
+      - tar -xf data.tar.*
+      - cp -a opt/Meadhall /app/meadhall
+      - install -Dm755 meadhall.sh /app/bin/meadhall
+      - install -Dm644 io.github.peytong.meadhall.metainfo.xml /app/share/metainfo/io.github.peytong.meadhall.metainfo.xml
+      - install -Dm644 io.github.peytong.meadhall.desktop /app/share/applications/io.github.peytong.meadhall.desktop
+      - install -Dm644 usr/share/icons/hicolor/512x512/apps/meadhall.png /app/share/icons/hicolor/512x512/apps/io.github.peytong.meadhall.png

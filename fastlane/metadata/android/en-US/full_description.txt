@@ -1,0 +1,11 @@
+Meadhall is a Matrix client that feels like Discord: servers with text and voice channels, end-to-end encrypted direct messages, and calls with webcam and screen sharing, in a pixel-art hall.
+
+<ul>
+<li>Voice and video channels, push to talk, a soundboard and voice effects</li>
+<li>End-to-end encryption, device verification and key backup</li>
+<li>Custom emoji, stickers, profile cards and badges</li>
+<li>Polls, code blocks with syntax highlighting, link previews</li>
+<li>Works with any Matrix homeserver; no Google services needed</li>
+</ul>
+
+Meadhall is free software (AGPL-3.0).
