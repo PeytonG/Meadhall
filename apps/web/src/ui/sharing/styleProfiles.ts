@@ -15,6 +15,8 @@ export interface StyleProfile {
     name: string;
     appearance: StyleSettings;
     profileStyle: ProfileStyle | null;
+    // The share it was adopted from (see CustomSound.source).
+    source?: string;
 }
 
 export function readStyleProfiles(client: MatrixClient): StyleProfile[] {
@@ -27,6 +29,7 @@ export function readStyleProfiles(client: MatrixClient): StyleProfile[] {
             name: typeof profile.name === "string" ? profile.name.slice(0, 32) : "Style",
             appearance: cleanStyleSettings(profile.appearance),
             profileStyle: profile.profileStyle ? parseProfileStyle(profile.profileStyle) : null,
+            ...(typeof profile.source === "string" ? { source: profile.source } : {}),
         }))
         .filter((profile) => profile.id)
         .slice(0, MAX_STYLE_PROFILES);
@@ -40,7 +43,13 @@ export function appearanceToStyle(settings: AppearanceSettings): StyleSettings {
     return cleanStyleSettings(settings);
 }
 
-export async function addStyleProfile(client: MatrixClient, name: string, appearance: StyleSettings, profileStyle: ProfileStyle | null): Promise<StyleProfile> {
+export async function addStyleProfile(
+    client: MatrixClient,
+    name: string,
+    appearance: StyleSettings,
+    profileStyle: ProfileStyle | null,
+    source?: string,
+): Promise<StyleProfile> {
     const profiles = readStyleProfiles(client);
     if (profiles.length >= MAX_STYLE_PROFILES) throw new Error(`You can keep up to ${MAX_STYLE_PROFILES} style profiles.`);
     const taken = new Set(profiles.map((profile) => profile.name));
@@ -51,6 +60,7 @@ export async function addStyleProfile(client: MatrixClient, name: string, appear
         name: unique,
         appearance: cleanStyleSettings(appearance),
         profileStyle: profileStyle && (profileStyle.card || profileStyle.nameplate) ? profileStyle : null,
+        ...(source ? { source } : {}),
     };
     await writeStyleProfiles(client, [...profiles, profile]);
     return profile;
@@ -64,6 +74,6 @@ export function styleProfileToShare(profile: StyleProfile): SharedStyle {
     return { kind: "style", name: profile.name, appearance: profile.appearance, ...(profile.profileStyle ? { profileStyle: profile.profileStyle } : {}) };
 }
 
-export async function adoptSharedStyle(client: MatrixClient, shared: SharedStyle): Promise<StyleProfile> {
-    return addStyleProfile(client, shared.name, shared.appearance, shared.profileStyle ? parseProfileStyle(shared.profileStyle) : null);
+export async function adoptSharedStyle(client: MatrixClient, shared: SharedStyle, source?: string): Promise<StyleProfile> {
+    return addStyleProfile(client, shared.name, shared.appearance, shared.profileStyle ? parseProfileStyle(shared.profileStyle) : null, source);
 }

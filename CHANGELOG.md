@@ -4,6 +4,15 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.4.2 (2026-10-27)
+
+### Fixed
+- **Shared sounds and style profiles kept saying "Adopt"** after you adopted them: pressing Play, reopening the chat
+  or restarting turned the button back. Meadhall now remembers which share each one came from, so the card stays
+  "Added to your soundboard" (also for sounds you adopted before this update with the same name).
+- **Long sound names** no longer run under the Play button on share cards or push the soundboard's buttons over each
+  other and out of the panel; they wrap to two lines (full name on hover).
+
 ## v0.4.1 (2026-10-27)
 
 ### New

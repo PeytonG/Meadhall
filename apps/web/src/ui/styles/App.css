@@ -7090,3 +7090,24 @@ ol.message-renderer-format {
         border-left: none;
     }
 }
+
+/* Long sound names (up to 32 characters, maybe one long word): wrap inside their button or card, at most two lines
+   with "…", instead of widening the soundboard's columns or running under the card's buttons. The full name is in
+   the button's tooltip. */
+.soundboard-sound-wrap,
+.soundboard-sound {
+    min-width: 0;
+}
+
+.soundboard-name {
+    min-width: 0;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.share-card-text strong {
+    overflow-wrap: anywhere;
+}
