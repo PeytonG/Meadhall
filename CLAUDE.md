@@ -589,6 +589,7 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.3.2`: §10.2 | ✅ released |
 | `v0.3.3`: §10.3 (bug reports, logs, server notices, cross-server status, Linux packages and updates, taskbar icons) | ✅ released |
 | `v0.3.4`: §10.4 (server menus, muting, channel types, inbox, badges, profile style, sharing, screen share fixes) | ✅ tests: 216 unit, 25 smoke, 8 integration, 87 E2E (11 screenshot-only skipped), 11 real-desktop; Linux .rpm screen-share previews checked in Fedora |
+| `v0.4.0`: §10.5 (webcam, push to talk, polls, code blocks, activity audiences, QR sign-in, translations, reduce motion, provenance, Flatpak/F-Droid prep) | ✅ tests: 248 unit, 25 smoke, 8 integration, 105 E2E (11 screenshot-only skipped), 4 real LiveKit calls, 15 real-desktop; Flatpak built and linted in Flathub's image; release workflow dry run (Windows, Linux, Android) green |
 
 ## 10. Open issues and roadmap
 
