@@ -23,8 +23,8 @@ importers:
         specifier: 3.6.0
         version: 3.6.0
       electron-updater:
-        specifier: ^6.8.9
-        version: 6.8.9
+        specifier: ^6.8.11
+        version: 6.8.11
     devDependencies:
       '@types/node':
         specifier: ^22.20.5
@@ -67,11 +67,11 @@ importers:
         specifier: 5.3.0
         version: 5.3.0
       '@matrix-org/matrix-sdk-crypto-wasm':
-        specifier: ^17.1.0
-        version: 17.1.0
+        specifier: ^18.9.0
+        version: 18.9.0
       highlight.js:
-        specifier: 11.11.1
-        version: 11.11.1
+        specifier: 11.12.0
+        version: 11.12.0
       jsqr:
         specifier: 1.4.0
         version: 1.4.0
@@ -82,8 +82,8 @@ importers:
         specifier: 1.0.3
         version: 1.0.3
       matrix-js-sdk:
-        specifier: ^40.2.0
-        version: 40.2.0
+        specifier: ^44.0.0
+        version: 44.0.0
       qrcode:
         specifier: 1.5.4
         version: 1.5.4
@@ -214,9 +214,8 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
-  '@babel/runtime@7.29.10':
-    resolution: {integrity: sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA==}
-    engines: {node: '>=6.9.0'}
+  '@babel/runtime@8.0.8':
+    resolution: {integrity: sha512-dEu8nGlRqjsJsvviUUoSMfcRHpwomCiRlXsc2mPfJ79+ffTpDm+JtfUtTMzUrqCApHQnCsVPD3gT1ZT8RgBRCQ==}
 
   '@babel/template@7.29.7':
     resolution: {integrity: sha512-puq+Gf35oI24FeN11LkoUQFqv9uwNeWpxXZi/Ji3rRIoKAzKnxRaZ+Gkj0vKS9ZCiTESfng1N9LyOyXvo+m+Gg==}
@@ -737,8 +736,8 @@ packages:
     resolution: {integrity: sha512-9QOtNffcOF/c1seMCDnjckb3R9WHcG34tky+FHpNKKCW0wc/scYLwMtO+ptyGUfMW0/b/n4qRiALlaFHc9Oj7Q==}
     engines: {node: '>= 10.0.0'}
 
-  '@matrix-org/matrix-sdk-crypto-wasm@17.1.0':
-    resolution: {integrity: sha512-yKPqBvKlHSqkt/UJh+Z+zLKQP8bd19OxokXYXh3VkKbW0+C44nPHsidSwd3SH+RxT+Ck2PDRwVcVXEnUft+/2g==}
+  '@matrix-org/matrix-sdk-crypto-wasm@18.9.0':
+    resolution: {integrity: sha512-NtLzNDTEfNASBjNCTGZHuk7N0jrQhS6Zx2CM857rCHZYYh/rpbKGQNrJ7azktm4S1P5Jy3WU3nwJTGohGw26qQ==}
     engines: {node: '>= 18'}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
@@ -1302,9 +1301,9 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  content-type@1.0.5:
-    resolution: {integrity: sha512-nTjqfcBFEipKdXCv4YDQWCfmcLZKm81ldF0pAopTvyrFGVbcR6P/VAAd5G7N+0tTr8QqiU0tFadD6FK4NtJwOA==}
-    engines: {node: '>= 0.6'}
+  content-type@3.1.1:
+    resolution: {integrity: sha512-GW4qUsfFo59d0HbUibDlWv5wPz+vAAcaTWbKIuKCf0JkC7wWkSyf8f13IpXn5JkeMlB2P8iTSSIjwXljorg2vA==}
+    engines: {node: '>=22'}
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
@@ -1420,8 +1419,8 @@ packages:
   electron-to-chromium@1.5.463:
     resolution: {integrity: sha512-nVWNU6ltFjopvOdD44J4zoBkgO0M+WZiFKKFV7EjebOH9z0KNphk6bCEjplXtJofL21ARIuuwWOCsFkBVklm6w==}
 
-  electron-updater@6.8.9:
-    resolution: {integrity: sha512-ZhVxM9iGONUpZGI1FxdMRgJjUFXi7AYGVa5PwKlO1tV1/4zDxQmfKpXOHVztKrd6L9rLcFjERvi1Mf2vxyTkig==}
+  electron-updater@6.8.11:
+    resolution: {integrity: sha512-12U/mbzaIKQS3Q543aQ7DjyAZMXeVJy1Wpu0qdq5ne4RXpIQDpWYm25zRjgXngAoo6swMrm4C4owGyiIipelsg==}
 
   electron-winstaller@5.4.0:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
@@ -1643,8 +1642,8 @@ packages:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
 
-  highlight.js@11.11.1:
-    resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
+  highlight.js@11.12.0:
+    resolution: {integrity: sha512-nbfWpyRMcMrPMmDwJB+dhX/eiaPKtc2RB+0QZskqJ3WjRA/FDS0e9hZrx8EC/lbEv8gXy98FcDbNa/dspAaJMg==}
     engines: {node: '>=12.0.0'}
 
   hosted-git-info@4.1.0:
@@ -1779,10 +1778,6 @@ packages:
   jsqr@1.4.0:
     resolution: {integrity: sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==}
 
-  jwt-decode@4.0.0:
-    resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
-    engines: {node: '>=18'}
-
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
@@ -1857,8 +1852,8 @@ packages:
   matrix-events-sdk@0.0.1:
     resolution: {integrity: sha512-1QEOsXO+bhyCroIe2/A5OwaxHvBm7EsSQ46DEDn8RBIfQwN5HWBpFvyWWR4QY0KHPPnnJdI99wgRiAl7Ad5qaA==}
 
-  matrix-js-sdk@40.2.0:
-    resolution: {integrity: sha512-wqb1Oq34WB9r0njxw8XiNsm8DIvYeGfCn3wrVrDwj8HMoTI0TvLSY1sQ+x6J2Eg27abfVwInxLKyxLp+dROFXQ==}
+  matrix-js-sdk@44.0.0:
+    resolution: {integrity: sha512-5wjcYMIX1aqhJC9hSUGjfSW+7SWEaLC8NUaek0xH5KGXqAO11M4Z5Mk7Voodsk+16Jm9PYB8/wMtyqIKFm0VAQ==}
     engines: {node: '>=22.0.0'}
 
   matrix-widget-api@1.20.0:
@@ -1967,10 +1962,6 @@ packages:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
     engines: {node: '>=12.20.0'}
 
-  oidc-client-ts@3.5.0:
-    resolution: {integrity: sha512-l2q8l9CTCTOlbX+AnK4p3M+4CEpKpyQhle6blQkdFhm0IsBqsxm15bYaSa11G7pWdsYr6epdsRZxJpCyCRbT8A==}
-    engines: {node: '>=18'}
-
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
@@ -1994,9 +1985,9 @@ packages:
     resolution: {integrity: sha512-R79ZZ/0wAxKGu3oYMlz8jy/kbhsNrS7SKZ7PxEHBgJ5+F2mtFW2fK2cOtBh1cHYkQsbzFV7I+EoRKe6Yt0oK7A==}
     engines: {node: '>=8'}
 
-  p-retry@7.1.1:
-    resolution: {integrity: sha512-J5ApzjyRkkf601HpEeykoiCvzHQjWxPAHhyjFcEUP2SWq0+35NKh8TLhpLw+Dkq5TZBFvUM6UigdE9hIVYTl5w==}
-    engines: {node: '>=20'}
+  p-retry@8.0.1:
+    resolution: {integrity: sha512-NAigyu8hfvJe7MsS18mnc4is0MZtau3QMdBklaJKK23oBQb6occO3UPM3vHmTckW8KhfyjMZaUOqdTFEYliHgg==}
+    engines: {node: '>=22'}
 
   p-try@2.2.0:
     resolution: {integrity: sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==}
@@ -2500,10 +2491,6 @@ packages:
     resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
     hasBin: true
 
-  uuid@13.0.2:
-    resolution: {integrity: sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw==}
-    hasBin: true
-
   vite@6.4.5:
     resolution: {integrity: sha512-4enwjFfi4IwtEh0w+jPzpLVOFQiPHmmzPxcHXQOyEur47o6u0jE573DmGpjA+7irXoMLYRZD5ZaFUEneS3abPg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
@@ -2842,7 +2829,7 @@ snapshots:
       '@babel/core': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
 
-  '@babel/runtime@7.29.10': {}
+  '@babel/runtime@8.0.8': {}
 
   '@babel/template@7.29.7':
     dependencies:
@@ -3341,7 +3328,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@matrix-org/matrix-sdk-crypto-wasm@17.1.0': {}
+  '@matrix-org/matrix-sdk-crypto-wasm@18.9.0': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
@@ -3914,7 +3901,7 @@ snapshots:
       tree-kill: 1.2.2
       yargs: 18.0.0
 
-  content-type@1.0.5: {}
+  content-type@3.1.1: {}
 
   convert-source-map@2.0.0: {}
 
@@ -4058,7 +4045,7 @@ snapshots:
 
   electron-to-chromium@1.5.463: {}
 
-  electron-updater@6.8.9:
+  electron-updater@6.8.11:
     dependencies:
       builder-util-runtime: 9.7.0
       fs-extra: 10.1.0
@@ -4297,7 +4284,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.7.4
+      semver: 7.8.5
       serialize-error: 7.0.1
     optional: true
 
@@ -4342,7 +4329,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  highlight.js@11.11.1: {}
+  highlight.js@11.12.0: {}
 
   hosted-git-info@4.1.0:
     dependencies:
@@ -4472,8 +4459,6 @@ snapshots:
 
   jsqr@1.4.0: {}
 
-  jwt-decode@4.0.0: {}
-
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
@@ -4539,22 +4524,19 @@ snapshots:
 
   matrix-events-sdk@0.0.1: {}
 
-  matrix-js-sdk@40.2.0:
+  matrix-js-sdk@44.0.0:
     dependencies:
-      '@babel/runtime': 7.29.10
-      '@matrix-org/matrix-sdk-crypto-wasm': 17.1.0
+      '@babel/runtime': 8.0.8
+      '@matrix-org/matrix-sdk-crypto-wasm': 18.9.0
       another-json: 0.2.0
       bs58: 6.0.0
-      content-type: 1.0.5
-      jwt-decode: 4.0.0
+      content-type: 3.1.1
       loglevel: 1.9.2
       matrix-events-sdk: 0.0.1
       matrix-widget-api: 1.20.0
-      oidc-client-ts: 3.5.0
-      p-retry: 7.1.1
+      p-retry: 8.0.1
       sdp-transform: 3.0.0
       unhomoglyph: 1.0.6
-      uuid: 13.0.2
 
   matrix-widget-api@1.20.0:
     dependencies:
@@ -4625,11 +4607,11 @@ snapshots:
 
   node-abi@4.39.0:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-gyp@12.4.0:
     dependencies:
@@ -4638,7 +4620,7 @@ snapshots:
       graceful-fs: 4.2.11
       nopt: 9.0.0
       proc-log: 6.1.0
-      semver: 7.7.4
+      semver: 7.8.5
       tar: 7.5.22
       tinyglobby: 0.2.17
       undici: 6.29.1
@@ -4658,10 +4640,6 @@ snapshots:
     optional: true
 
   obug@2.2.1: {}
-
-  oidc-client-ts@3.5.0:
-    dependencies:
-      jwt-decode: 4.0.0
 
   once@1.4.0:
     dependencies:
@@ -4687,7 +4665,7 @@ snapshots:
     dependencies:
       p-limit: 2.3.0
 
-  p-retry@7.1.1:
+  p-retry@8.0.1:
     dependencies:
       is-network-error: 1.3.2
 
@@ -5191,8 +5169,6 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   uuid@11.1.1: {}
-
-  uuid@13.0.2: {}
 
   vite@6.4.5(@types/node@26.6.5)(jiti@2.7.0):
     dependencies:
