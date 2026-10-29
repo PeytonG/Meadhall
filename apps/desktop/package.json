@@ -31,11 +31,11 @@
     "dist:mac:universal:signed": "npm run build && electron-builder --config electron-builder.json --publish never -m dmg zip --universal"
   },
   "devDependencies": {
-    "@types/node": "^22.20.5",
+    "@types/node": "^26.6.5",
     "concurrently": "^10.0.6",
-    "electron": "^44.9.3",
-    "electron-builder": "^26.15.3",
-    "typescript": "^5.9.3"
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "arrpc": "3.6.0",
