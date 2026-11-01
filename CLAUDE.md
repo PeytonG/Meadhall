@@ -506,6 +506,23 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   crypto), old "Meadhall bot" devices deleted. Use `RoomEvent.MyMembership` for invites
   (`RoomMemberEvent.Membership` didn't fire for them).
 - Tests: `test/unit-tests/core/botProtocol.test.ts`, `e2e/bots.spec.ts` (spawns the real bot).
+- The bot only accepts invites from `MEADHALL_BOT_ALLOWED_INVITERS` (default: its own homeserver), so strangers can't
+  add it to their servers.
+
+### 7.25 UI design system and phone layout (v0.5.0: `styles/mobile.css`)
+- Follows the owner's references: "UI Design Principles" (Michael Filipiuk, PDF in the owner's Downloads) and UX
+  Collective's iOS guide. Rules: 4/8 px spacing tokens (`--space-*`), type tokens (`--text-*`), 44 px touch targets
+  (`--tap`), 16 px text in inputs (also stops iOS zooming on focus), nothing under 12 px that matters, body line
+  height about 1.45, a focus ring on every control, `-webkit-tap-highlight-color: transparent` with `:active`
+  states instead, safe areas (`--safe-top`/`--safe-bottom`).
+- Phones (≤760 px): bottom tab bar (Home, Inbox, You = status menu, Settings; `aria-label="User settings"` kept),
+  chat top bar = back, title, lock, call, "…" (search/members/pins move into "…"), settings as a grouped list with
+  drill-in (`is-phone-list` / `is-phone-page`), long press on a message opens its menu as a bottom sheet (no hover
+  bar on touch), dialogs as bottom sheets.
+- `e2e/mobileTour.spec.ts` fails if any visible control on the main phone screens is under 44×44;
+  `e2e/desktopTour.spec.ts` checks the desktop screens fit. Both save screenshots with `PREVIEW_DIR`.
+- Pixelify Sans has a small x-height: 16 px reads like ~13 px. The "Mixed" font style (pixel headings, readable body)
+  matches the guides better; changing the default is the owner's call (asked in the v0.5.0 report).
 
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
@@ -607,6 +624,10 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | Login helper "strict mode violation: 2 Sign in buttons" | A button named "Sign in with …" inside the form; keep extra buttons outside the `<form>` |
 | Flatpak build: "state dir not on the same filesystem" | Pass `--state-dir` on the build's filesystem; runtime 24.08 is end-of-life, use 25.08 |
 | Bot replies ping but never show; inbox "✓" does nothing | Thread replies (`m.thread`) live in thread timelines; see §7.23 |
+| A teal/gray square where you last tapped (phones, screenshots) | The browser's tap highlight; off in `mobile.css` |
+| "Playing …" stuck on a game you quit | Rich Presence lived as long as its socket; now dropped when its pid is gone, newest game first (`activity/index.ts`) |
+| Logo fringed/ragged | The source is 200×200 pixel art in a JPEG with a fake checkerboard; `generate-branding.mjs` rebuilds it per grid cell |
+| E2E poll on Matrix state throws on the first 404 | `expect.poll` stops on exceptions: wrap reads in `.catch(() => ({}))` (see `bots.spec.ts`) |
 | Meadhall and FluffyChat disagree about who is verified | The session wasn't cross-signed; the recovery key now signs it (§7.23) |
 | "Verify this device" cancels as soon as the other side answers | `generateQRCode()` on Ready; removed (§7.23) |
 
@@ -637,6 +658,7 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.3.4`: §10.4 (server menus, muting, channel types, inbox, badges, profile style, sharing, screen share fixes) | ✅ tests: 216 unit, 25 smoke, 8 integration, 87 E2E (11 screenshot-only skipped), 11 real-desktop; Linux .rpm screen-share previews checked in Fedora |
 | `v0.4.0`: §10.5 (webcam, push to talk, polls, code blocks, activity audiences, QR sign-in, translations, reduce motion, provenance, Flatpak/F-Droid prep) | ✅ tests: 248 unit, 25 smoke, 8 integration, 105 E2E (11 screenshot-only skipped), 4 real LiveKit calls, 15 real-desktop; Flatpak built and linted in Flathub's image; release workflow dry run (Windows, Linux, Android) green |
 | `v0.4.1`: threads, inbox clearing, cross-app verification (§7.23) | ✅ tests: 251 unit, 25 smoke, 111 E2E (11 screenshot-only skipped), incl. verification against a Rust-crypto client standing in for FluffyChat |
+| v0.5.0: server bots (onboarding, auto-mod, slash commands, Meadhall bot), phone redesign, camera preview, sharper logo, Playing fix (§7.24, §7.25) | ✅ tests: 261 unit, 25 smoke, 117 E2E incl. the real bot against Synapse and the 44 px phone check (11 screenshot-only skipped), 4 real LiveKit calls |
 
 ## 10. Open issues and roadmap
 
@@ -654,6 +676,11 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 - No OIDC-native sign-in (Matrix Authentication Service). matrix.org uses MAS: password sign-in works through its
   compatibility layer and Register falls back to its SSO page (checked against matrix.org on 2026-10-23).
 - Soundboard has no cooldown; "talk" permissions are ranked (role and above), not exact sets (§7.6).
+- **Next update (owner request, 2026-11-01): pan zoomed images.** In the image viewer (`Timeline.tsx` lightbox,
+  `.timeline-lightbox-image.is-zoomed`), a zoomed-in picture can't be moved: you have to zoom out and back in. Add
+  drag-to-pan with the mouse and one finger, pinch-zoom on touch, and keep a click/tap without dragging toggling the
+  zoom; keep the backdrop/X/Escape closing (`ui-interactions.spec.ts` covers those).
+- Default font: the pixel body font (Pixelify Sans) reads small; consider "Mixed" as the default (owner's call, §7.25).
 
 ### 10.1 Owner's v0.3.1 backlog (requested 2026-10-22/23; done on branch `v0.3.1`)
 Each item shipped with tests; the design reasons are in §7. Numbers are the owner's.
@@ -780,4 +807,5 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 2026-10-23 | v0.3.3 (§10.3): Linux `.rpm`/`.deb` updates via the package manager, `.deb` package, declared deps, GNOME and Windows taskbar icons; verification fix; Unencrypted chip; icon style; Logs and call-ended notice; Report a bug; server notices and group-chat invites; cross-server status ? and Share my status; log redaction. Packages verified in clean Ubuntu 24.04 and Fedora 42 containers. |
 | 2026-10-26 | v0.4.0 (§10.5): sound style, soundboard track and volumes, 10 voice effects, notification fixes, deletion placeholders, webcam, push to talk, polls, code blocks and preview privacy, Rich Presence/game detection/MPRIS with audiences, reduce motion and axe checks, translations, QR sign-in, provenance attestations, Flatpak (built in Flathub's CI image) and F-Droid metadata, SignPath plan. Power cut mid-work: repaired a zeroed branch ref. |
 | 2026-10-27 | v0.4.1: threads (bot replies via baibot were invisible), inbox mark-read for thread replies, verification fixes (recovery key now cross-signs the session, SAS no longer cancelled by QR generation, no orphaning another app's recovery key). |
+| 2026-11-01 | v0.4.2 published. v0.5.0: server bots (apps/bot + Server Settings → Community), UI pass from the owner's design PDF and an iOS guide (tokens, 44 px targets, phone tab bar, drill-in settings, long-press menus), camera preview, logo rebuilt from its pixel grid, stuck Playing status fixed; Android SDK + emulator (Meadhall_Pixel, API 36) installed on the owner's PC. |
 | 2026-10-24 | v0.3.4 (§10.4): bug reports visible to the developer; server menus, muting, channel types, banners, rail badges, inbox, update arrow; members by role with role editing; voice channel chat; badges (signed, fingerprinted list); profile style; style profiles and .meadhall sharing; screen share picker fixes; pasted GIFs; calls in channels no longer notify; per-call history; README screenshots. |

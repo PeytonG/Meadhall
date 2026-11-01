@@ -36,6 +36,8 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 - 🔥 **Pixel art everywhere**: a pixel theme, pixel emoji and stickers, and a campfire that burns while you talk.
 - 🎭 **Roles, statuses and profiles** with banners, bios, links and "Playing ..." (Steam, Rich Presence), shared
   only with whom you choose.
+- 🤖 **Server bots**: onboarding with rules and questions, welcome messages, auto-mod and slash commands, with the
+  Meadhall bot ready to run (or bring any Matrix bot).
 - 📊 **Polls, code blocks and translations**: polls with time limits, highlighted code, and the app in 5 languages.
 - 🖥️ **Every platform**: Windows, Linux, Android and the web, with notifications and self-updating desktop apps.
 
@@ -143,6 +145,9 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
   everyone, or nobody.
 - 📊 **Polls**: one or several answers, anonymous, results live or at the end, and a **time limit** after which the
   results are posted in the chat. Works with Element's polls.
+- 🤖 **Bots** (Server Settings → Community): add bots with roles (BOT tag), set up **onboarding** (rules, questions
+  whose answers give roles, optionally enforced by the homeserver) and a welcome message, and **auto-mod** (blocked
+  words, links, mention spam). Bots' **slash commands** show when you type /. The Meadhall bot is in [`apps/bot`](apps/bot/README.md).
 - 🧵 **Threads**: replies in a thread (from Element, FluffyChat or bots) show as "N replies" under the message and
   open beside the chat, where you can answer; the inbox lists them too.
 - 💻 **Code blocks** with syntax highlighting (```ts), and **link previews** that stay off in encrypted chats unless

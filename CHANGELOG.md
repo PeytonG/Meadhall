@@ -4,6 +4,35 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.5.0 (2026-11-01)
+
+### New
+- **Server bots**, like Discord's apps (Server Settings → Community):
+  - **Bots:** add any Matrix account as one of the server's bots, give it roles, and remove it. Bots get a **BOT**
+    tag, and their **slash commands** appear when you type `/` in the message box, with how to use each one.
+  - **Onboarding:** new members read the server's rules and answer a few questions before they can talk. Answers can
+    give roles. Choose "Ask first", or "Require it" to have the homeserver enforce it (only members who finished can
+    talk). A **welcome message** can greet them in a channel.
+  - **Auto-mod:** blocked words and phrases, links, and too many mentions. The bot removes the message and can warn the
+    person or time them out.
+  - **The Meadhall bot** (`apps/bot`, runs with Node or Docker): does onboarding, welcomes, auto-mod and moderation
+    commands (`/warn`, `/timeout`, `/untimeout`, `/kick`, `/ban`, `/rules`, `/help`), always checking that the person
+    asking is allowed to.
+- **Camera preview:** turning your camera on in a call first shows you how you look (only to you), with the camera
+  picker. Settings → Audio has a Camera section with a Test camera button.
+- **Phones, redesigned:** a bottom tab bar (Home, Inbox, You, Settings), a cleaner top bar in chats (the name, a
+  small lock, call and a "…" menu), settings as a list you tap into, hold a message for its menu, dialogs as sheets
+  from the bottom, every button big enough to tap (44 px), 16 px text in fields (no more zooming in on iPhone), and
+  room for the notch and home indicator.
+
+### Changed
+- **Sharper logo:** the icon is rebuilt as clean pixel art, without the gray fringe around its edges, at every size.
+- Easier to read: no important text smaller than 12 px, larger names and list rows, settings pages at a readable
+  width, a visible focus ring on every control for keyboard users, and no gray flash where you tap.
+
+### Fixed
+- **"Playing …" stuck on the old game:** quitting one game and starting another now shows the new one.
+
 ## v0.4.2 (2026-10-27)
 
 ### Fixed
