@@ -7117,6 +7117,7 @@ ol.message-renderer-format {
     position: relative;
     width: 100%;
     max-width: 480px;
+    margin: 0 auto;
     aspect-ratio: 16 / 9;
     background: var(--bg-input);
     border: 1px solid var(--border);

@@ -63,6 +63,7 @@ import { logAppError } from "../../logs/appLog";
 import { applyVoiceEffect, VOICE_EFFECTS, normalizeVoiceEffect } from "../../voice/voiceChanger";
 import { useSharingEnabled } from "../../sharing/sharingSetting";
 import { ShareDialog } from "../../sharing/ShareDialog";
+import { CameraPreviewDialog } from "./CameraPreview";
 import { adoptSharedSound, soundToShare } from "../../sharing/sharedSounds";
 import { downloadMeadhallFile, readMeadhallFile } from "../../../core/sharing/share";
 
@@ -739,6 +740,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
     const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
     const [cameraOn, setCameraOn] = useState(false);
+    // Turning the camera on shows a preview first (only you see it), with the camera picker.
+    const [cameraPreviewOpen, setCameraPreviewOpen] = useState(false);
     const [cameraBusy, setCameraBusy] = useState(false);
     const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
     const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
@@ -3212,7 +3215,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     <button
                         type="button"
                         className={`voice-ctrl-btn${cameraOn ? " is-active" : ""}`}
-                        onClick={() => void toggleCamera()}
+                        onClick={() => (cameraOn ? void toggleCamera() : setCameraPreviewOpen(true))}
                         title={cameraOn ? "Turn camera off" : "Turn camera on"}
                         aria-pressed={cameraOn}
                         disabled={cameraBusy}
@@ -3221,6 +3224,18 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         <span className="voice-ctrl-icon"><PixelIcon name="camera" slashed={!cameraOn} size={20} /></span>
                         <span className="voice-ctrl-label">{cameraOn ? t("Camera off") : t("Camera")}</span>
                     </button>
+                    <CameraPreviewDialog
+                        open={cameraPreviewOpen}
+                        deviceId={audioSettings.preferredVideoInputId}
+                        cameras={videoInputs}
+                        onDeviceChange={(id) => onAudioSettingsChange({ ...audioSettings, preferredVideoInputId: id })}
+                        onClose={() => setCameraPreviewOpen(false)}
+                        onConfirm={() => {
+                            setCameraPreviewOpen(false);
+                            // Let the preview give the camera back first (some cameras open only once at a time).
+                            window.setTimeout(() => void toggleCamera(), 50);
+                        }}
+                    />
 
                     {/* Screen share */}
                     <button
