@@ -14,38 +14,73 @@ const out = (relative) => {
     return target;
 };
 
-// The icon artwork is drawn on white. Make the white that touches the image border transparent (flood fill),
-// so light pixels inside the artwork are kept.
+// The icon is pixel art (a 200×200 grid, found by measuring where its edges fall) that was scaled up ~10× and
+// saved as a JPEG over a fake gray/white checkerboard. Rebuild it as clean pixel art: one color per grid cell (the
+// median of the cell's middle, away from JPEG smear at its borders), the checkerboard cleared cell by cell (a
+// flood from the border, then the light leftovers hugging the outline), so edges are crisp instead of fringed.
+// Every output is made from a nearest-neighbour master at 10× the grid, scaled down with a proper filter.
+const ICON_GRID = 200;
+
 async function cutOutIcon(source) {
-    const { data, info } = await sharp(source).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    const { width, height } = info;
-    // Background = light, colorless pixels: plain white, or the gray/white checkerboard some exports paint in to
-    // fake transparency. The fill stops at the artwork's (colored or dark) outline.
-    const isBackground = (offset) => {
-        const r = data[offset];
-        const g = data[offset + 1];
-        const b = data[offset + 2];
-        return Math.min(r, g, b) > 175 && Math.max(r, g, b) - Math.min(r, g, b) < 20;
-    };
-    const visited = new Uint8Array(width * height);
-    const stack = [];
-    for (let x = 0; x < width; x += 1) stack.push(x, (height - 1) * width + x);
-    for (let y = 0; y < height; y += 1) stack.push(y * width, y * width + width - 1);
-    while (stack.length > 0) {
-        const index = stack.pop();
-        if (visited[index] || !isBackground(index * 4)) continue;
-        visited[index] = 1;
-        data[index * 4 + 3] = 0;
-        const x = index % width;
-        if (x > 0) stack.push(index - 1);
-        if (x < width - 1) stack.push(index + 1);
-        if (index >= width) stack.push(index - width);
-        if (index < width * (height - 1)) stack.push(index + width);
+    const { data, info } = await sharp(source).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const cell = info.width / ICON_GRID;
+    const pixels = new Uint8Array(ICON_GRID * ICON_GRID * 4);
+    const median = (values) => values.sort((a, b) => a - b)[values.length >> 1];
+    for (let row = 0; row < ICON_GRID; row += 1) {
+        for (let col = 0; col < ICON_GRID; col += 1) {
+            const channels = [[], [], []];
+            const x0 = Math.floor(col * cell + cell * 0.25);
+            const x1 = Math.ceil(col * cell + cell * 0.75);
+            const y0 = Math.floor(row * cell + cell * 0.25);
+            const y1 = Math.ceil(row * cell + cell * 0.75);
+            for (let y = y0; y < y1; y += 1) {
+                for (let x = x0; x < x1; x += 1) {
+                    const offset = (y * info.width + x) * 3;
+                    for (let c = 0; c < 3; c += 1) channels[c].push(data[offset + c]);
+                }
+            }
+            const target = (row * ICON_GRID + col) * 4;
+            for (let c = 0; c < 3; c += 1) pixels[target + c] = median(channels[c]);
+            pixels[target + 3] = 255;
+        }
     }
-    const trimmed = await sharp(data, { raw: info }).trim().png().toBuffer();
-    const meta = await sharp(trimmed).metadata();
+    // Background: light, colorless cells (white or the checkerboard's gray). Flood from the border...
+    const light = (index, min) => {
+        const r = pixels[index * 4];
+        const g = pixels[index * 4 + 1];
+        const b = pixels[index * 4 + 2];
+        return Math.min(r, g, b) > min && Math.max(r, g, b) - Math.min(r, g, b) < 28;
+    };
+    const clear = new Uint8Array(ICON_GRID * ICON_GRID);
+    const flood = (min) => {
+        const stack = [];
+        for (let index = 0; index < ICON_GRID * ICON_GRID; index += 1) {
+            const x = index % ICON_GRID;
+            const y = Math.floor(index / ICON_GRID);
+            const onBorder = x === 0 || y === 0 || x === ICON_GRID - 1 || y === ICON_GRID - 1;
+            const nextToClear = (x > 0 && clear[index - 1]) || (x < ICON_GRID - 1 && clear[index + 1]) || (y > 0 && clear[index - ICON_GRID]) || (y < ICON_GRID - 1 && clear[index + ICON_GRID]);
+            if (!clear[index] && (onBorder || nextToClear)) stack.push(index);
+        }
+        while (stack.length > 0) {
+            const index = stack.pop();
+            if (clear[index] || !light(index, min)) continue;
+            clear[index] = 1;
+            const x = index % ICON_GRID;
+            if (x > 0) stack.push(index - 1);
+            if (x < ICON_GRID - 1) stack.push(index + 1);
+            if (index >= ICON_GRID) stack.push(index - ICON_GRID);
+            if (index < ICON_GRID * (ICON_GRID - 1)) stack.push(index + ICON_GRID);
+        }
+    };
+    flood(175);
+    // ...then a looser pass for the half-gray cells left against the dark outline (the badge's inside is walled off
+    // by that outline, so this never reaches the artwork).
+    flood(60);
+    for (let index = 0; index < clear.length; index += 1) if (clear[index]) pixels.subarray(index * 4, index * 4 + 4).fill(0);
+    const native = await sharp(pixels, { raw: { width: ICON_GRID, height: ICON_GRID, channels: 4 } }).trim().png().toBuffer();
+    const meta = await sharp(native).metadata();
     const side = Math.max(meta.width, meta.height);
-    return sharp(trimmed)
+    const square = await sharp(native)
         .extend({
             top: Math.floor((side - meta.height) / 2),
             bottom: Math.ceil((side - meta.height) / 2),
@@ -55,6 +90,7 @@ async function cutOutIcon(source) {
         })
         .png()
         .toBuffer();
+    return sharp(square).resize(side * 10, side * 10, { kernel: "nearest" }).png().toBuffer();
 }
 
 // Prefer a PNG source (e.g. a newer export) over the original JPEG.
@@ -66,11 +102,14 @@ const targets = [
     ["apps/desktop/assets/tray@2x.png", 64],
     ["apps/web/public/favicon.png", 64],
     ["apps/web/public/apple-touch-icon.png", 180],
-    ["apps/web/src/ui/assets/meadhall-icon.png", 128],
+    // Shown at 48px; 4× for sharp downscaling on high-density screens.
+    ["apps/web/src/ui/assets/meadhall-icon.png", 192],
     ["apps/mobile/resources/icon.png", 1024],
 ];
 for (const [relative, size] of targets) {
-    await sharp(icon).resize(size, size, { kernel: size <= 64 ? "lanczos3" : "nearest" }).png().toFile(out(relative));
+    const resized = sharp(icon).resize(size, size, { kernel: "lanczos3" });
+    // Small sizes lose the outline to the filter; a light sharpen brings it back.
+    await (size <= 64 ? resized.sharpen({ sigma: 0.5 }) : resized).png().toFile(out(relative));
     console.log(`wrote ${relative} (${size}px)`);
 }
 

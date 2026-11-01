@@ -7111,3 +7111,37 @@ ol.message-renderer-format {
 .share-card-text strong {
     overflow-wrap: anywhere;
 }
+
+/* Camera preview (components/voice/CameraPreview.tsx): you, mirrored like a mirror, before anyone sees you. */
+.camera-preview {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 16 / 9;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.camera-preview-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.camera-preview-note {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.camera-preview-note.is-error {
+    color: var(--danger);
+}
