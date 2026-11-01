@@ -8,6 +8,8 @@ export interface BotConfig {
     user: string;
     password: string;
     deviceName: string;
+    // Who may invite the bot into a server: homeserver names ("example.org"), user IDs, or "*" for anyone.
+    allowedInviters: string[];
 }
 
 function required(env: NodeJS.ProcessEnv, name: string): string {
@@ -24,5 +26,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): BotConfig {
         user: required(env, "MEADHALL_BOT_USER"),
         password: required(env, "MEADHALL_BOT_PASSWORD"),
         deviceName: env.MEADHALL_BOT_DEVICE_NAME?.trim() || "Meadhall bot",
+        // By default, people on the bot's own homeserver (its server name comes from the sign-in, see bot.ts).
+        allowedInviters: (env.MEADHALL_BOT_ALLOWED_INVITERS ?? "").split(",").map((entry) => entry.trim()).filter(Boolean),
     };
 }

@@ -34,6 +34,9 @@ Meadhall, under Server Settings → Onboarding, Auto-mod and Bots. The bot only 
 
 ## What it needs and keeps
 
+- **Who can add it:** only people on the bot's own homeserver can invite it into a server (so strangers can't put
+  your bot to work). Set `MEADHALL_BOT_ALLOWED_INVITERS` to a comma-separated list of homeserver names and/or user
+  IDs to change that (`*` allows anyone).
 - **Rights:** it can only do what its role allows, and never acts on anyone ranked at or above it. Moderation
   commands also check that the person asking may do it themselves.
 - **Sessions:** it signs in as a new session each start (its encryption keys live in memory) and removes its

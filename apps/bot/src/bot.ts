@@ -79,6 +79,7 @@ export class MeadhallBot {
         const identifier = { type: "m.id.user", user: this.config.user };
         const session = await login.loginRequest({ type: "m.login.password", identifier, password: this.config.password, initial_device_display_name: this.config.deviceName });
         this.client = createClient({ baseUrl: this.config.homeserverUrl, userId: session.user_id, deviceId: session.device_id, accessToken: session.access_token });
+        if (this.config.allowedInviters.length === 0) this.config.allowedInviters.push(session.user_id.slice(session.user_id.indexOf(":") + 1));
         await this.removeOldSessions(session.device_id);
         await this.client.initRustCrypto({ useIndexedDB: false });
         this.client.on(RoomEvent.MyMembership, (room, membership) => void this.onMyMembership(room, membership).catch((error) => this.log("membership", error)));
@@ -142,6 +143,14 @@ export class MeadhallBot {
     // channels. A channel invite can come before the bot is in its server, so a room that isn't recognised yet is
     // checked again when a server is set up, and left if it still isn't one of theirs after a minute.
     private async considerInvite(room: Room): Promise<void> {
+        // Only people allowed to use this bot can bring it in (by default, accounts on its own homeserver), so
+        // strangers can't put it to work in their own servers.
+        const inviter = room.getMember(this.userId)?.events.member?.getSender() ?? "";
+        if (!this.mayInvite(inviter)) {
+            this.log(`declined an invite to ${room.roomId} from ${inviter || "someone unknown"}`);
+            await this.client.leave(room.roomId).catch(() => undefined);
+            return;
+        }
         this.log(`invited to ${room.roomId}`);
         await this.client.joinRoom(room.roomId);
         this.pendingInvites.add(room.roomId);
@@ -149,6 +158,12 @@ export class MeadhallBot {
         setTimeout(() => {
             if (this.pendingInvites.delete(room.roomId)) void this.client.leave(room.roomId).catch(() => undefined);
         }, 60_000);
+    }
+
+    private mayInvite(inviter: string): boolean {
+        const domain = inviter.slice(inviter.indexOf(":") + 1);
+        if (!inviter.startsWith("@") || !domain) return false;
+        return this.config.allowedInviters.some((allowed) => (allowed.startsWith("@") ? allowed === inviter : allowed === domain || allowed === "*"));
     }
 
     private isChannelOfMyServer(roomId: string): boolean {
