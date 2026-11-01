@@ -849,6 +849,8 @@ export function Composer({
     const typingRoomIdRef = useRef<string | null>(null);
     const currentRoomIdRef = useRef<string | null>(room?.roomId ?? null);
     const [pollDialogOpen, setPollDialogOpen] = useState(false);
+    // Phones open the sticker picker from the "+" menu.
+    const [stickerOpenRequest, setStickerOpenRequest] = useState(0);
     const replySenderName = replyToEvent ? getReplySenderName(room, replyToEvent) : null;
     const replySnippet = replyToEvent ? getReplySnippet(replyToEvent) : null;
     const editingEventId = editingEvent?.getId() ?? null;
@@ -2087,6 +2089,8 @@ export function Composer({
                 onToggleEmoji={() => setEmojiPickerOpen((open) => !open)}
                 onSend={() => void sendMessage()}
                 canSend={text.trim().length > 0 || uploads.some((upload) => upload.roomId === room?.roomId && upload.status === "queued")}
+                onCreatePoll={threadId || !room ? undefined : () => setPollDialogOpen(true)}
+                onOpenStickers={threadId || !room ? undefined : () => setStickerOpenRequest((count) => count + 1)}
                 stickerControl={
                     threadId ? null : <>
                         <button
@@ -2102,6 +2106,7 @@ export function Composer({
                         </button>
                         <StickerButton
                             disabled={!room}
+                            openRequest={stickerOpenRequest}
                             onSend={async (sticker) => {
                                 if (room) await sendSticker(client, room.roomId, sticker);
                             }}

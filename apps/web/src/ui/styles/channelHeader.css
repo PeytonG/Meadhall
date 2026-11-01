@@ -193,8 +193,10 @@
     border-top: 1px solid var(--border);
     margin: 4px 0;
 }
-.app-shell.is-desktop-runtime.is-desktop-win32 .channel-header {
-    padding-top: calc(10px + var(--desktop-titlebar-overlay-height, 0px));
+/* Windows draws its window buttons over the top-right corner. With the right panel open they sit over that panel,
+   so the header needs no room for them; without it, the header keeps its height and leaves the corner free. */
+.app-shell.is-desktop-runtime.is-desktop-win32.right-panel-collapsed .channel-header {
+    padding-right: 150px;
 }
 
 

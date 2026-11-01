@@ -121,6 +121,59 @@ html {
     margin-top: var(--space-2);
 }
 
+/* The "+" button is exactly as tall as the one-line message box (measured by ComposerBar; the calc is the first
+   paint's guess) and shares its corners, so the two line up; on more lines the box grows upwards and "+" stays put. */
+.composer-bar {
+    --composer-control: 32px;
+    gap: var(--space-2);
+}
+
+.composer-plus-button {
+    width: var(--composer-row-height, calc(var(--composer-control) + 18px));
+    height: var(--composer-row-height, calc(var(--composer-control) + 18px));
+    padding: 0;
+    line-height: 1;
+    border-radius: 16px;
+}
+
+/* The "+" menu in the message box (phones: upload, poll, sticker). */
+.composer-plus-anchor {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.composer-plus-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-2));
+    z-index: 50;
+    min-width: 220px;
+    display: grid;
+    padding: var(--space-1);
+    border: 1px solid var(--border);
+    background: var(--bg-pane);
+}
+
+.composer-plus-menu button {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0 var(--space-4);
+    border: 0;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: var(--text-md);
+    text-align: left;
+    cursor: pointer;
+}
+
+.composer-plus-menu button:hover,
+.composer-plus-menu button:focus-visible {
+    background: var(--bg-hover);
+}
+
 /* Only phones show these (elsewhere the full header and user bar do the job). */
 .channel-header-lock,
 .channel-header-menu-item-phone,
@@ -358,6 +411,16 @@ html {
         padding: 0 var(--space-4);
     }
 
+    /* Poll and sticker live in the "+" menu on phones (the sticker picker still opens from its anchor). */
+    .composer-poll-button,
+    .composer-sticker-button {
+        display: none;
+    }
+
+    .composer-bar {
+        --composer-control: var(--tap);
+    }
+
     /* --- Composer: one line of text sits level with the 44 px buttons; more lines grow upwards. --- */
     .composer-textarea::placeholder {
         white-space: nowrap;
@@ -587,4 +650,117 @@ html {
 :root[data-reduce-motion="on"] .message-context-menu,
 :root[data-reduce-motion="on"] .room-dialog {
     animation: none;
+}
+
+/* --- Sign-in look picker (settings/user/LookPicker.tsx). --- */
+.look-picker {
+    display: grid;
+    gap: var(--space-3, 12px);
+}
+
+.look-picker-presets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2, 8px);
+}
+
+.look-picker-preset {
+    min-height: var(--tap, 44px);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.look-picker-preset.is-selected {
+    border-color: var(--accent);
+    background: rgba(var(--primary-rgb), 0.16);
+}
+
+.look-picker-preview {
+    display: grid;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-main);
+}
+
+.look-picker-message {
+    display: flex;
+    gap: var(--space-3, 12px);
+    align-items: flex-start;
+}
+
+.look-picker-message p {
+    margin: 4px 0 0;
+}
+
+.look-picker-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.look-picker-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    color: var(--text-muted);
+}
+
+.look-picker-button {
+    pointer-events: none;
+}
+
+.look-picker-campfire {
+    display: inline-grid;
+    place-items: center;
+    width: 82px;
+    height: 79px;
+    margin-left: auto;
+    overflow: hidden;
+}
+
+/* The settings campfire preview (84 px picture plus room for the flames), at half size. */
+.look-picker-campfire .settings-campfire-preview {
+    transform: scale(0.5);
+    margin: 0;
+}
+
+.look-picker-parts {
+    display: grid;
+    gap: var(--space-2, 8px);
+}
+
+.look-picker-part {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3, 12px);
+}
+
+.settings-segmented {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.settings-segmented button {
+    min-height: 36px;
+    padding: 0 var(--space-3, 12px);
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+.settings-segmented button.is-active {
+    background: var(--accent);
+    color: var(--text-on-accent, #fff);
 }

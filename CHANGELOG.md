@@ -28,8 +28,18 @@ Versions follow `vX.Y.Z`.
 - **Shapes** (Settings → Appearance): keep the pixel look (square frames, bevelled buttons; the default) or switch to
   smooth rounded corners. Mix it with the font (Pixel, Pixel headings, System or any installed font) and icon
   choices for the look you like; style profiles keep it too.
+- **Pick your look when you sign in:** pixel or smooth for everything, or part by part (font, icons, shapes, emoji and
+  your speaking campfire), with a live preview. Your look now **follows your account**, so your PC and phone match.
+- **New message button** next to "Find a conversation".
+- **Status and game together:** someone with a status who is also playing shows both.
 
 ### Changed
+- Game detection updates within seconds, so quitting or switching games shows quickly.
+- On phones, polls and stickers moved into the "+" menu next to the message box; "+" now matches the message box.
+- The Home tab on phones is a house icon (pixel or smooth, with your icon style).
+- Report is only offered in servers for now (it goes to the server's moderators).
+- Pictures and read receipts stay inside a message's highlight; rounded conversation rows and search with smooth
+  shapes; no empty strip above a chat's title on Windows.
 - **Sharper logo:** the icon is rebuilt as clean pixel art, without the gray fringe around its edges, at every size.
 - Easier to read: no important text smaller than 12 px, larger names and list rows, settings pages at a readable
   width, a visible focus ring on every control for keyboard users, and no gray flash where you tap.

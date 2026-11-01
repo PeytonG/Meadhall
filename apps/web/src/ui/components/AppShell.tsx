@@ -78,6 +78,8 @@ import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSess
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import { MobileUpdateBanner } from "./MobileUpdateBanner";
 import { WhatsNewDialog } from "./WhatsNewDialog";
+import { LookPicker } from "../settings/user/LookPicker";
+import { APPEARANCE_TYPE, readAccountAppearance, sameAppearance, withAccountAppearance, writeAccountAppearance } from "../settings/user/appearanceSync";
 import { addAccount, setInCallForSwitching, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
@@ -964,8 +966,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 });
         };
         poll();
-        // Rich Presence apps change often (song, level); Steam and process scans are cached on the desktop side.
-        const timer = window.setInterval(poll, settings.richPresence || settings.media ? 15_000 : 30_000);
+        // Every 5 seconds, so quitting or switching games shows quickly; the desktop side caches its process scan.
+        const timer = window.setInterval(poll, 5_000);
         return () => {
             cancelled = true;
             window.clearInterval(timer);
@@ -1624,6 +1626,48 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         saveUserLocalSettings(userSettings);
         applyAppearanceTheme(userSettings.appearance);
     }, [userSettings]);
+
+    // Your look follows your account (appearanceSync.ts): taken once the first sync is in and whenever another
+    // device changes it; with none saved yet, the look picker is offered once.
+    const [lookPickerOpen, setLookPickerOpen] = useState(false);
+    useEffect(() => {
+        let started = false;
+        const apply = (): void => {
+            const account = readAccountAppearance(client);
+            if (!account) {
+                setLookPickerOpen(true);
+                return;
+            }
+            setUserSettings((current) => {
+                const appearance = withAccountAppearance(current.appearance, account);
+                return appearance === current.appearance ? current : { ...current, appearance };
+            });
+        };
+        const onSync = (): void => {
+            if (started || !client.isInitialSyncComplete()) return;
+            started = true;
+            apply();
+        };
+        const onAccountData = (event: MatrixEvent): void => {
+            if (started && event.getType() === APPEARANCE_TYPE) apply();
+        };
+        onSync();
+        client.on(ClientEvent.Sync, onSync);
+        client.on(ClientEvent.AccountData, onAccountData);
+        return () => {
+            client.off(ClientEvent.Sync, onSync);
+            client.off(ClientEvent.AccountData, onAccountData);
+        };
+    }, [client]);
+    // Changes made on this device go to the account a moment later (so dragging a color doesn't send a burst).
+    // Until a look is on the account, the picker saves the first one.
+    useEffect(() => {
+        if (lookPickerOpen) return undefined;
+        const account = readAccountAppearance(client);
+        if (!account || sameAppearance(withAccountAppearance(userSettings.appearance, account), userSettings.appearance)) return undefined;
+        const timer = window.setTimeout(() => void writeAccountAppearance(client, userSettings.appearance).catch(() => undefined), 800);
+        return () => window.clearTimeout(timer);
+    }, [client, lookPickerOpen, userSettings.appearance]);
 
     useEffect(() => {
         if (typeof window === "undefined") {
@@ -2831,7 +2875,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     }}
                                     aria-current={selectedSpaceId === PEOPLE_SPACE_ID && !inboxOpen ? "page" : undefined}
                                 >
-                                    <img src={meadhallIcon} alt="" className="mobile-tab-logo" />
+                                    <span className="mobile-tab-icon">
+                                        <PixelIcon name="home" size={24} />
+                                    </span>
                                     <span>Home</span>
                                 </button>
                                 <button
@@ -3296,7 +3342,20 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 over it (the call card, banners) must follow the layout or its buttons would drag the window. */}
             <DesktopUpdateBanner />
             <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
-            <WhatsNewDialog />
+            {lookPickerOpen ? (
+                <LookPicker
+                    client={client}
+                    settings={userSettings.appearance}
+                    onPreview={(appearance) => setUserSettings((current) => ({ ...current, appearance }))}
+                    onDone={(appearance) => {
+                        setUserSettings((current) => ({ ...current, appearance }));
+                        setLookPickerOpen(false);
+                        void writeAccountAppearance(client, appearance).catch(() => undefined);
+                    }}
+                />
+            ) : (
+                <WhatsNewDialog />
+            )}
             <CallEndedNotice onViewDetails={() => openUserSettings("logs")} />
             {inboxOpen ? (
                 <InboxPanel

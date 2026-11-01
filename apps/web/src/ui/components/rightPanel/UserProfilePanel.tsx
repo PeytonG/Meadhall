@@ -73,6 +73,7 @@ async function copyText(value: string): Promise<void> {
 export function UserProfilePanel({
     client,
     room,
+    activeSpaceRoom,
     userId,
     onBack,
     onOpenRoom,
@@ -256,9 +257,13 @@ export function UserProfilePanel({
                         {isBlocked ? "Unblock" : "Block / Ignore"}
                     </button>
                 ) : null}
-                <button type="button" className="rp-row-button" disabled>
-                    Report
-                </button>
+                {/* Reports go to the server's owner, so only in a server; in DMs there's no one to send them to yet
+                    (homeserver-admin reports are on the roadmap, CLAUDE.md §10). */}
+                {activeSpaceRoom && ownUserId !== userId ? (
+                    <button type="button" className="rp-row-button" disabled data-testid="profile-report">
+                        Report
+                    </button>
+                ) : null}
             </section>
         </div>
     );

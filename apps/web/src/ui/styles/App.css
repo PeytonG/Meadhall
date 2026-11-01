@@ -2182,7 +2182,8 @@ textarea {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding-right: 12px;
+    /* Room inside the hover/focus highlight so avatars and read receipts sit within it, not on its edge. */
+    padding: 0 12px 6px 8px;
     border-radius: 10px;
     outline: none;
 }
@@ -4924,12 +4925,35 @@ img.voice-ctrl-icon {
     flex-shrink: 0;
     padding: 10px;
     border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.home-search-new {
+    flex-shrink: 0;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.home-search-new:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-soft);
 }
 
 .home-search input {
+    flex: 1;
+    min-width: 0;
     width: 100%;
     padding: 7px 10px;
     border: 1px solid var(--border);
+    border-radius: 8px;
     background: var(--bg-input);
     color: var(--text-main);
     font: inherit;
@@ -4981,6 +5005,7 @@ img.voice-ctrl-icon {
     gap: 10px;
     padding: 6px 8px;
     border: 0;
+    border-radius: 8px;
     background: transparent;
     color: var(--text-muted);
     text-align: left;

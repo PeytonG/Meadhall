@@ -666,6 +666,11 @@ canvas,
     filter: url(#meadhall-pixel-emoji-big);
 }
 
+/* Rounded shapes: the phone badge's corner that sits on the picture follows its curve. */
+:root[data-shape="smooth"] .avatar-presence-dot.is-mobile {
+    border-radius: 8px 3px 3px 3px !important;
+}
+
 /* On mobile: a green pixel phone instead of the round online dot (Avatar presenceState "mobile"). */
 .avatar-presence-dot.is-mobile {
     border-radius: 0 !important;

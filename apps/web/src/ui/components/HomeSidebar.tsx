@@ -162,7 +162,7 @@ export function HomeSidebar({
                     : kind === "group"
                     ? `${memberCount} members`
                     : presenceEnabled && presence
-                      ? presence.statusText ?? presence.primaryLabel
+                      ? [presence.statusText ?? presence.primaryLabel, presence.activityText].filter(Boolean).join(" · ")
                       : "Direct message";
             const snippet = invite ? null : lastMessageSnippet(room, ownUserId, { showSender: kind !== "direct" });
             const subtitle = call ?? (invite ? "Invite: open to accept" : snippet ? `${status} · ${snippet}` : status);
@@ -191,6 +191,10 @@ export function HomeSidebar({
                     placeholder="Find a conversation"
                     aria-label="Find a conversation"
                 />
+                {/* Start a conversation from the top, with or without any yet (an existing DM with them is reopened). */}
+                <button type="button" className="home-search-new" onClick={onNewConversation} title="New message" aria-label="New message" data-testid="home-new-message">
+                    <PixelIcon name="plus" size={16} />
+                </button>
             </div>
             <div className="home-sections">
                 <section className="home-section" aria-label="Direct messages">

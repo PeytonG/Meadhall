@@ -682,6 +682,12 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
   `.timeline-lightbox-image.is-zoomed`), a zoomed-in picture can't be moved: you have to zoom out and back in. Add
   drag-to-pan with the mouse and one finger, pinch-zoom on touch, and keep a click/tap without dragging toggling the
   zoom; keep the backdrop/X/Escape closing (`ui-interactions.spec.ts` covers those).
+- **Later (owner request, 2026-11-01): reports from DMs go to the homeserver admin.** Report is hidden outside
+  servers for now (`UserProfilePanel.tsx`): in a DM there is no server owner to send it to. When the homeserver
+  supports it (Matrix `POST /rooms/{roomId}/report/{eventId}` and `/users/{userId}/report`, MSC4151/MSC4260), send
+  DM and user reports to the homeserver admins instead, and only show Report where that will reach someone.
+- **Emulator keyboard:** Gboard always floats on the emulator (it sees the built-in AT keyboard as a physical one,
+  which can't be removed). The AVD uses HeliBoard (open source, installed from its GitHub release), which docks.
 - **Demo community:** `node scripts/demo-hall.mjs` (needs the test Synapse) fills it and runs the bot; sign in as
   `demo` / `meadhall-demo` at `http://localhost:8008`. Android emulator: SDK in `%LOCALAPPDATA%\Android\Sdk`, AVD
   `Meadhall_Pixel` (API 36); build debug APKs with JDK 21 and Gradle 8.14.3 (the owner's local wrapper edit points at

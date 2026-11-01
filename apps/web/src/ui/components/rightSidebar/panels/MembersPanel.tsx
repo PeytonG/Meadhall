@@ -225,10 +225,16 @@ export function MembersPanel({ client, room, activeSpaceRoom, onSelectUser, onTo
                                                 <UserBadges client={client} userId={member.userId} />
                                                 <BotTag space={activeSpaceRoom} userId={member.userId} />
                                             </span>
-                                            {/* Like Discord: their status (or what they're playing) under the name, else the user ID. */}
+                                            {/* Like Discord: their status (or what they're playing) under the name, else the user ID;
+                                                with both, the game on a line of its own. */}
                                             <span className={`rs-member-id${presence?.statusText ? " is-status" : ""}`} title={member.userId}>
                                                 {presence?.statusText ?? member.userId}
                                             </span>
+                                            {presence?.activityText ? (
+                                                <span className="rs-member-id is-status rs-member-activity" data-testid="member-activity">
+                                                    {presence.activityText}
+                                                </span>
+                                            ) : null}
                                         </span>
                                         <span className="rs-member-badge">{roleLabel}</span>
                                     </button>

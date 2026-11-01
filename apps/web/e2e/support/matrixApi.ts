@@ -45,7 +45,15 @@ export async function registerUser(prefix: string): Promise<ApiUser> {
         user_id: string;
         access_token: string;
     };
-    return { userId, username, password, accessToken };
+    const user = { userId, username, password, accessToken };
+    await skipLookPicker(user);
+    return user;
+}
+
+// Test accounts start with the default (pixel) look already chosen, so the sign-in look picker doesn't cover the
+// app; the look picker's own test clears this.
+export async function skipLookPicker(user: ApiUser): Promise<void> {
+    await setAccountData(user, "io.github.peytong.meadhall.appearance", { appearance: {} });
 }
 
 export async function createRoom(user: ApiUser, options: Record<string, unknown>): Promise<string> {
@@ -193,7 +201,9 @@ export async function registerAdmin(prefix: string): Promise<ApiUser> {
         throw new Error(`creating admin failed: HTTP ${response.status} ${await response.text()}`);
     }
     const session = await login(username, password);
-    return { userId: session.user_id, username, password, accessToken: session.access_token };
+    const user = { userId: session.user_id, username, password, accessToken: session.access_token };
+    await skipLookPicker(user);
+    return user;
 }
 
 // Synapse rate-limits presence changes (by default about one per 10 s): wait it out like the app does.
