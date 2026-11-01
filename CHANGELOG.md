@@ -25,6 +25,10 @@ Versions follow `vX.Y.Z`.
   from the bottom, every button big enough to tap (44 px), 16 px text in fields (no more zooming in on iPhone), and
   room for the notch and home indicator.
 
+- **Shapes** (Settings → Appearance): keep the pixel look (square frames, bevelled buttons; the default) or switch to
+  smooth rounded corners. Mix it with the font (Pixel, Pixel headings, System or any installed font) and icon
+  choices for the look you like; style profiles keep it too.
+
 ### Changed
 - **Sharper logo:** the icon is rebuilt as clean pixel art, without the gray fringe around its edges, at every size.
 - Easier to read: no important text smaller than 12 px, larger names and list rows, settings pages at a readable

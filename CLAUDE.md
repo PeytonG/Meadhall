@@ -521,8 +521,10 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   bar on touch), dialogs as bottom sheets.
 - `e2e/mobileTour.spec.ts` fails if any visible control on the main phone screens is under 44×44;
   `e2e/desktopTour.spec.ts` checks the desktop screens fit. Both save screenshots with `PREVIEW_DIR`.
-- Pixelify Sans has a small x-height: 16 px reads like ~13 px. The "Mixed" font style (pixel headings, readable body)
-  matches the guides better; changing the default is the owner's call (asked in the v0.5.0 report).
+- **Owner's decision (2026-11-01): pixel stays the default look, with options to have everything either way.**
+  Appearance → Font (Pixel / Pixel headings / System / custom), Icons (Pixel / Smooth), Shapes (Pixel / Smooth:
+  `data-shape` on `<html>`; the pixel-only rules in `pixel.css` are scoped with `:where(:root:not([data-shape="smooth"]))`
+  so specificity doesn't change), Pixel emoji. Don't change these defaults. Pixelify Sans reads small (16 px ≈ 13 px).
 
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
@@ -680,7 +682,10 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
   `.timeline-lightbox-image.is-zoomed`), a zoomed-in picture can't be moved: you have to zoom out and back in. Add
   drag-to-pan with the mouse and one finger, pinch-zoom on touch, and keep a click/tap without dragging toggling the
   zoom; keep the backdrop/X/Escape closing (`ui-interactions.spec.ts` covers those).
-- Default font: the pixel body font (Pixelify Sans) reads small; consider "Mixed" as the default (owner's call, §7.25).
+- **Demo community:** `node scripts/demo-hall.mjs` (needs the test Synapse) fills it and runs the bot; sign in as
+  `demo` / `meadhall-demo` at `http://localhost:8008`. Android emulator: SDK in `%LOCALAPPDATA%\Android\Sdk`, AVD
+  `Meadhall_Pixel` (API 36); build debug APKs with JDK 21 and Gradle 8.14.3 (the owner's local wrapper edit points at
+  9.7.1, which AGP 8 can't use), `adb reverse tcp:8008 tcp:8008`, debug builds allow HTTP to localhost.
 
 ### 10.1 Owner's v0.3.1 backlog (requested 2026-10-22/23; done on branch `v0.3.1`)
 Each item shipped with tests; the design reasons are in §7. Numbers are the owner's.
