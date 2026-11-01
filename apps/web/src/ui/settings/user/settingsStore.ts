@@ -24,6 +24,8 @@ export interface AppearanceSettings {
     pixelEmoji: boolean;
     // Icons as pixel art (default) or smooth lines.
     iconStyle: IconStyle;
+    // Shapes: pixel (square corners, stepped borders, bevelled buttons; default) or smooth (rounded).
+    shapeStyle: "pixel" | "smooth";
     chatLineLengthCh: number;
     showSpaceChannelAvatars: boolean;
     // Stop animations (campfire, animated banners, transitions) even if the system doesn't ask for it.
@@ -101,6 +103,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         customFontFamily: "",
         pixelEmoji: true,
         iconStyle: "pixel",
+        shapeStyle: "pixel",
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
         reduceMotion: false,
@@ -195,6 +198,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             customFontFamily,
             pixelEmoji: appearance.pixelEmoji !== false,
             iconStyle: appearance.iconStyle === "smooth" ? "smooth" : "pixel",
+            shapeStyle: appearance.shapeStyle === "smooth" ? "smooth" : "pixel",
             chatLineLengthCh,
             showSpaceChannelAvatars,
             reduceMotion: appearance.reduceMotion === true,
@@ -290,6 +294,7 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     root.setAttribute("data-pixel-emoji", settings.pixelEmoji === false ? "off" : "on");
     root.setAttribute("data-icon-style", settings.iconStyle === "smooth" ? "smooth" : "pixel");
     setIconStyle(settings.iconStyle === "smooth" ? "smooth" : "pixel");
+    root.setAttribute("data-shape", settings.shapeStyle === "smooth" ? "smooth" : "pixel");
     setReduceMotionSetting(settings.reduceMotion === true);
     if (settings.fontStyle === "custom" && settings.customFontFamily) {
         root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));

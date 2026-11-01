@@ -36,10 +36,13 @@ select {
     font-family: var(--font-pixel-body);
 }
 
+/* Shapes (Appearance): everything in this group is the pixel look and is skipped when Shapes is Smooth
+   (data-shape="smooth" on <html>), which falls back to the app's normal rounded corners and borders. */
+
 /* No rounded corners anywhere: avatars, cards, buttons and inputs are all square pixels. */
-*,
-*::before,
-*::after {
+:where(:root:not([data-shape="smooth"])) *,
+:where(:root:not([data-shape="smooth"])) *::before,
+:where(:root:not([data-shape="smooth"])) *::after {
     border-radius: 0 !important;
 }
 
@@ -95,16 +98,16 @@ canvas,
 }
 
 /* Stepped borders: a solid outline whose corners are notched out, like a pixel sprite frame. */
-.login-card,
-.settings-section-card,
-.room-dialog,
-.message-context-menu,
-.context-menu,
-.share-card,
-.inbox-panel,
-.message-actions-bar,
-.desktop-update-banner,
-.pixel-color-picker {
+:where(:root:not([data-shape="smooth"])) .login-card,
+:where(:root:not([data-shape="smooth"])) .settings-section-card,
+:where(:root:not([data-shape="smooth"])) .room-dialog,
+:where(:root:not([data-shape="smooth"])) .message-context-menu,
+:where(:root:not([data-shape="smooth"])) .context-menu,
+:where(:root:not([data-shape="smooth"])) .share-card,
+:where(:root:not([data-shape="smooth"])) .inbox-panel,
+:where(:root:not([data-shape="smooth"])) .message-actions-bar,
+:where(:root:not([data-shape="smooth"])) .desktop-update-banner,
+:where(:root:not([data-shape="smooth"])) .pixel-color-picker {
     border-color: transparent !important;
     box-shadow:
         0 calc(var(--pixel) * -1) 0 0 var(--pixel-border),
@@ -117,16 +120,16 @@ canvas,
 
 /* Bevelled action buttons: light top-left edge, dark bottom-right edge; pressed buttons invert it.
    Text-like buttons (names in the timeline, channel and member rows) stay flat. */
-.login-card button,
-.settings-button,
-.settings-theme-button,
-.room-dialog-button-primary,
-.room-dialog-button,
-.verification-primary,
-.emoji-upload-save,
-.desktop-update-banner button,
-.voice-room-audio-warning button,
-.rail-icon {
+:where(:root:not([data-shape="smooth"])) .login-card button,
+:where(:root:not([data-shape="smooth"])) .settings-button,
+:where(:root:not([data-shape="smooth"])) .settings-theme-button,
+:where(:root:not([data-shape="smooth"])) .room-dialog-button-primary,
+:where(:root:not([data-shape="smooth"])) .room-dialog-button,
+:where(:root:not([data-shape="smooth"])) .verification-primary,
+:where(:root:not([data-shape="smooth"])) .emoji-upload-save,
+:where(:root:not([data-shape="smooth"])) .desktop-update-banner button,
+:where(:root:not([data-shape="smooth"])) .voice-room-audio-warning button,
+:where(:root:not([data-shape="smooth"])) .rail-icon {
     box-shadow:
         inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--pixel-shade),
         inset var(--pixel) var(--pixel) 0 0 var(--pixel-highlight);
@@ -143,7 +146,7 @@ canvas,
     color: var(--on-primary);
 }
 
-:is(.login-card button, .settings-button, .settings-theme-button, .room-dialog-button-primary, .room-dialog-button,
+:where(:root:not([data-shape="smooth"])) :is(.login-card button, .settings-button, .settings-theme-button, .room-dialog-button-primary, .room-dialog-button,
     .verification-primary, .emoji-upload-save, .desktop-update-banner button, .rail-icon):active:not(:disabled) {
     box-shadow:
         inset var(--pixel) var(--pixel) 0 0 var(--pixel-shade),
@@ -151,9 +154,9 @@ canvas,
     transform: translateY(1px);
 }
 
-input,
-textarea,
-select {
+:where(:root:not([data-shape="smooth"])) input,
+:where(:root:not([data-shape="smooth"])) textarea,
+:where(:root:not([data-shape="smooth"])) select {
     border-width: 2px !important;
 }
 
@@ -163,17 +166,17 @@ select {
 }
 
 /* Chunky scrollbars. */
-* {
+:where(:root:not([data-shape="smooth"])) * {
     scrollbar-width: auto;
     scrollbar-color: var(--accent) transparent;
 }
 
-::-webkit-scrollbar {
+:where(:root:not([data-shape="smooth"])) ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 
-::-webkit-scrollbar-thumb {
+:where(:root:not([data-shape="smooth"])) ::-webkit-scrollbar-thumb {
     background: var(--accent);
     border: 2px solid var(--bg-pane);
 }
