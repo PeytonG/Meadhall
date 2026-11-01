@@ -156,7 +156,8 @@ test("every item in the channel '...' menu reacts across its whole row", async (
     await page.getByText("#general", { exact: true }).first().click();
 
     await page.getByRole("button", { name: "More channel actions" }).click();
-    const items = page.locator(".channel-header-menu-item");
+    // Phone-only items (search, members, pins) are hidden on desktop.
+    const items = page.locator(".channel-header-menu-item:visible");
     const count = await items.count();
     expect(count).toBeGreaterThan(3);
     for (let index = 0; index < count; index += 1) {

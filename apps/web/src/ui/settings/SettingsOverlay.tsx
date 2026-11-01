@@ -4,6 +4,7 @@ import { RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/
 import { getBrandName, getSourceCodeUrl } from "../../core/config/branding";
 import type { ToastState } from "../components/Toast";
 import { useMatrix } from "../providers/MatrixProvider";
+import { PixelIcon } from "../components/PixelIcon";
 import { SettingsNav, type SettingsNavSection } from "./SettingsNav";
 import { ChannelsTab } from "./server/tabs/ChannelsTab";
 import { DangerTab } from "./server/tabs/DangerTab";
@@ -179,6 +180,13 @@ export function SettingsOverlay({
     const matrix = useMatrix();
     const [, setSpaceStateTick] = useState(0);
     const [activeTab, setActiveTab] = useState<string>(initialTab || getDefaultTab(mode));
+    // Phones show settings like iOS: the list of sections, then one section at a time with a back button. Opening
+    // settings at a given section goes straight to it.
+    const [phonePage, setPhonePage] = useState(Boolean(initialTab) && initialTab !== getDefaultTab(mode));
+    const openTab = (tabId: string): void => {
+        setActiveTab(tabId);
+        setPhonePage(true);
+    };
     const [verificationOpen, setVerificationOpen] = useState(false);
     const [verificationTarget, setVerificationTarget] = useState<VerificationTarget | null>(null);
     const [verificationNonce, setVerificationNonce] = useState(0);
@@ -191,6 +199,7 @@ export function SettingsOverlay({
         }
 
         setActiveTab(initialTab || getDefaultTab(mode));
+        setPhonePage(Boolean(initialTab) && initialTab !== getDefaultTab(mode));
     }, [initialTab, mode, open]);
 
     useEffect(() => {
@@ -446,9 +455,15 @@ export function SettingsOverlay({
 
     return (
         <div className="settings-overlay" role="dialog" aria-modal="true" aria-label={title}>
-            <div className="settings-shell">
+            <div className={`settings-shell${phonePage ? " is-phone-page" : " is-phone-list"}`}>
                 <aside className="settings-sidebar">
-                    <SettingsNav sections={navSections} activeTab={activeTab} onChangeTab={setActiveTab} />
+                    <header className="settings-phone-header">
+                        <h1>{mode === "server" ? spaceRoom?.name || "Server" : "Settings"}</h1>
+                        <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings">
+                            ×
+                        </button>
+                    </header>
+                    <SettingsNav sections={navSections} activeTab={activeTab} onChangeTab={openTab} />
                     <p className="settings-source-notice">
                         {getBrandName(matrix.config)} is free software under the AGPL-3.0.{" "}
                         <a href={getSourceCodeUrl(matrix.config)} target="_blank" rel="noopener noreferrer">
@@ -458,9 +473,12 @@ export function SettingsOverlay({
                 </aside>
                 <section className="settings-main">
                     <header className="settings-header">
+                        <button type="button" className="settings-phone-back" onClick={() => setPhonePage(false)} aria-label="Back to settings">
+                            <PixelIcon name="back" size={20} />
+                        </button>
                         <h1>{title}</h1>
                         <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings">
-                            x
+                            ×
                         </button>
                     </header>
                     <div className="settings-content">{mode === "server" ? renderServerTab() : renderUserTab()}</div>

@@ -1336,6 +1336,29 @@ export function Timeline({
     const readMarkerInFlightByRoomRef = useRef<Set<string>>(new Set());
     const markAgainAfterInFlightRef = useRef(false);
     const markReadRef = useRef<() => Promise<void>>(async () => undefined);
+    // Holding a message (half a second, without scrolling) opens its menu.
+    const longPressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
+    const cancelLongPress = (): void => {
+        if (longPressRef.current) window.clearTimeout(longPressRef.current.timer);
+        longPressRef.current = null;
+    };
+    const startLongPress = (touchEvent: React.TouchEvent, messageKey: string): void => {
+        cancelLongPress();
+        const touch = touchEvent.touches[0];
+        if (!touch || touchEvent.touches.length > 1) return;
+        const { clientX: x, clientY: y } = touch;
+        const timer = window.setTimeout(() => {
+            longPressRef.current = null;
+            navigator.vibrate?.(10);
+            setContextMenuState({ eventKey: messageKey, x, y });
+        }, 500);
+        longPressRef.current = { timer, x, y };
+    };
+    const moveLongPress = (touchEvent: React.TouchEvent): void => {
+        const start = longPressRef.current;
+        const touch = touchEvent.touches[0];
+        if (start && touch && Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 10) cancelLongPress();
+    };
 
     const refreshEvents = useCallback(() => {
         setEvents(extractMessageEvents(room, threadRootId));
@@ -2231,6 +2254,11 @@ export function Timeline({
                                     y: contextMenuEvent.clientY,
                                 });
                             }}
+                            // Touch screens: hold a message for its menu (a sheet on phones), like Discord's app.
+                            onTouchStart={(touchEvent) => startLongPress(touchEvent, messageKey)}
+                            onTouchMove={moveLongPress}
+                            onTouchEnd={cancelLongPress}
+                            onTouchCancel={cancelLongPress}
                         >
                             <MessageActionsBar
                                 client={client}

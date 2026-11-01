@@ -1,0 +1,590 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Design tokens and the phone layout (v0.5.0 UI pass). Loaded last, so it refines the rest.
+   Sources: "UI Design Principles" (Filipiuk): a 4/8 px spacing scale, 16 px body and input text, 44 px touch
+   targets, buttons 40–60 px tall, visible labels, every state designed (hover, pressed, focus, disabled), one clear
+   main action, bottom tab bar on phones with labelled icons, 20–24 px phone margins. "A comprehensive guide on
+   creating UI designs for iOS apps" (UX Collective): nothing under the status bar or home indicator, 16 pt minimum
+   side margins, text line height of at least 1.29, tab bar icons of at least 25 pt, an uncluttered navigation bar,
+   grouped lists, simple transitions that respect Reduce motion. */
+
+:root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-md: 16px;
+    --text-lg: 18px;
+    --text-xl: 20px;
+    --text-2xl: 24px;
+    --tap: 44px;
+    --safe-top: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+    --safe-bottom: max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px));
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --focus-ring: 0 0 0 2px var(--bg-app), 0 0 0 4px var(--accent-soft);
+}
+
+/* Every control shows keyboard focus the same way (a ring outside it, never only a color change). */
+:where(button, a, input, select, textarea, [role="button"], [role="tab"], [role="option"], [tabindex]):focus-visible {
+    outline: 2px solid var(--accent-soft);
+    outline-offset: 2px;
+}
+
+/* No grey/teal flash where you tapped (the browser default): buttons show their own pressed state instead. */
+html {
+    -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, [role="button"], .room-item-select, .home-row):active:not(:disabled) {
+    filter: brightness(1.15);
+}
+
+/* Touch screens: hold a message for its menu; the hover bar (meant for a mouse) stays hidden. */
+@media (hover: none) and (pointer: coarse) {
+    .message-actions-bar,
+    .message-actions-bar.is-visible {
+        display: none;
+    }
+}
+
+/* Disabled controls look disabled everywhere, and don't pretend to be clickable. */
+:where(button, input, select, textarea):disabled {
+    cursor: not-allowed;
+}
+
+/* Typography (all screen sizes): what people read is 16 px (messages, the message box), names and list rows
+   15 px, and nothing that matters smaller than 12 px; the pixel display font is unreadable below that. Body line
+   height about 1.45 (Apple: at least 1.29 for body text). */
+.timeline-body,
+.timeline-body .message-renderer,
+.composer-textarea {
+    font-size: var(--text-md);
+}
+
+.timeline-body {
+    line-height: 1.45;
+}
+
+.timeline-sender {
+    font-size: 15px;
+}
+
+.timeline-time,
+.rs-member-id,
+.home-row-subtitle,
+.pane-user-id {
+    font-size: var(--text-xs);
+}
+
+.room-item-name,
+.home-row-name,
+.rs-member-name {
+    font-size: 15px;
+}
+
+.channel-header-topic {
+    font-size: 13px;
+}
+
+.rs-members-group-title,
+.home-section-header span,
+.settings-nav-title,
+.pane-voice-pill-title,
+.sticker-picker-title,
+.room-category-name,
+.room-list-header-row h2 {
+    font-size: var(--text-xs);
+}
+
+.settings-nav-item {
+    font-size: 15px;
+}
+
+.settings-inline-note {
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+/* Settings pages read like forms: a fixed comfortable width rather than the whole window. */
+.settings-content > .settings-tab {
+    max-width: 760px;
+}
+
+/* The language picker is secondary: at the bottom of the sign-in card, not between the tabs and the form. */
+.login-card label.login-language {
+    order: 99;
+    justify-content: center;
+    margin-top: var(--space-2);
+}
+
+/* Only phones show these (elsewhere the full header and user bar do the job). */
+.channel-header-lock,
+.channel-header-menu-item-phone,
+.settings-phone-header,
+.settings-phone-back {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    /* --- Type and inputs: 16 px body; inputs at 16 px also stop iOS zooming in on focus. --- */
+    body {
+        font-size: var(--text-md);
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+    select,
+    textarea {
+        font-size: var(--text-md);
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+    select {
+        min-height: var(--tap);
+    }
+
+    .timeline-body,
+    .message-renderer {
+        line-height: 1.4;
+    }
+
+    /* --- Touch targets: 44 × 44 at least. --- */
+    .channel-header-icon-btn,
+    .channel-header-back,
+    .composer-action-button,
+    .composer-plus-button,
+    .timeline-user-trigger,
+    .pane-icon-button,
+    .pane-top-action,
+    .settings-close,
+    .settings-phone-back,
+    .home-section-header button,
+    .room-item-settings-button,
+    .room-item-menu-button,
+    .settings-button,
+    .login-card button,
+    .room-dialog-close,
+    .room-dialog-footer button {
+        min-width: var(--tap);
+        min-height: var(--tap);
+    }
+
+    .settings-toggle,
+    .login-checkbox {
+        min-height: var(--tap);
+        align-items: center;
+    }
+
+    .settings-toggle input[type="checkbox"],
+    .settings-toggle input[type="radio"] {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* --- Bottom tab bar (replaces the desktop user bar on phones). --- */
+    .pane-user-panel {
+        padding: 0;
+        border-top: 1px solid var(--border);
+        background: var(--bg-rail);
+    }
+
+    .app-shell {
+        padding-bottom: 0;
+    }
+
+    .mobile-tab-bar {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        padding-bottom: var(--safe-bottom);
+    }
+
+    .mobile-tab {
+        min-height: 56px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 6px 4px;
+        border: 0;
+        background: transparent;
+        color: var(--text-muted);
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+    }
+
+    .mobile-tab.is-active {
+        color: var(--text-main);
+    }
+
+    .mobile-tab:active {
+        background: var(--bg-hover);
+    }
+
+    .mobile-tab-icon {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+    }
+
+    .mobile-tab-logo,
+    .mobile-tab-avatar {
+        width: 28px;
+        height: 28px;
+        image-rendering: auto;
+    }
+
+    .mobile-tab:not(.is-active) .mobile-tab-logo {
+        opacity: 0.7;
+    }
+
+    .mobile-tab-badge {
+        position: absolute;
+        top: -4px;
+        right: -10px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        display: grid;
+        place-items: center;
+        border: 2px solid var(--bg-rail);
+        background: var(--danger);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        box-sizing: content-box;
+    }
+
+    /* The status menu opens above the tab bar. */
+    .pane-user-panel .status-menu {
+        left: var(--space-2);
+        right: var(--space-2);
+        bottom: calc(100% + var(--space-2));
+        width: auto;
+    }
+
+    /* --- Chat top bar: back, title, call and "…" (search, members and pins move into "…"). --- */
+    .channel-header {
+        min-height: 56px;
+        padding: 0 var(--space-2) 0 var(--space-1);
+        gap: var(--space-1);
+    }
+
+    .channel-header-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .channel-header-title-row {
+        min-width: 0;
+        flex-wrap: nowrap;
+    }
+
+    .channel-header-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: var(--text-lg);
+    }
+
+    .channel-header-chip {
+        display: none;
+    }
+
+    .channel-header-lock {
+        display: inline;
+        flex-shrink: 0;
+        font-size: var(--text-sm);
+        opacity: 0.8;
+    }
+
+    .channel-header-topic {
+        font-size: var(--text-xs);
+    }
+
+    .channel-header-actions {
+        gap: 0;
+        flex-shrink: 0;
+    }
+
+    .channel-header-actions .channel-header-icon-btn[aria-label="Search panel"],
+    .channel-header-actions .channel-header-icon-btn[aria-label="Members panel"],
+    .channel-header-actions .channel-header-inbox {
+        display: none;
+    }
+
+    .channel-header-menu-item-phone {
+        display: block;
+    }
+
+    .channel-header-menu-item {
+        min-height: var(--tap);
+    }
+
+    /* --- Messages: hold for the menu (a sheet at the bottom), so no hover bar on touch screens. --- */
+    .timeline-event {
+        -webkit-touch-callout: none;
+    }
+
+    .message-context-menu {
+        position: fixed;
+        left: 0 !important;
+        right: 0;
+        top: auto !important;
+        bottom: 0;
+        width: 100%;
+        max-height: 70dvh;
+        overflow-y: auto;
+        padding: var(--space-2) var(--space-2) calc(var(--space-2) + var(--safe-bottom));
+        border: 0;
+        border-top: 2px solid var(--border);
+        background: var(--bg-pane);
+        animation: sheet-up var(--motion-normal) var(--motion-ease-enter);
+    }
+
+    .message-context-menu-item {
+        min-height: 48px;
+        width: 100%;
+        font-size: var(--text-md);
+        text-align: left;
+        padding: 0 var(--space-4);
+    }
+
+    /* --- Composer: one line of text sits level with the 44 px buttons; more lines grow upwards. --- */
+    .composer-textarea::placeholder {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .composer-textarea {
+        min-height: var(--tap);
+        padding-top: 11px;
+        padding-bottom: 11px;
+        line-height: 22px;
+    }
+
+    .main-chat-composer,
+    .thread-panel-composer {
+        padding-bottom: var(--safe-bottom);
+    }
+
+    /* --- Inbox: a full screen above the tab bar. --- */
+    .inbox-panel {
+        position: fixed;
+        inset: var(--safe-top) 0 calc(56px + var(--safe-bottom)) 0;
+        width: auto;
+        max-width: none;
+        max-height: none;
+        border: 0;
+        z-index: 900;
+    }
+
+    .inbox-mark-read,
+    .inbox-room-name,
+    .inbox-tabs button,
+    .inbox-mark-all {
+        min-height: var(--tap);
+    }
+
+    .inbox-message {
+        min-height: 56px;
+    }
+
+    /* --- Settings: the sections as a grouped list, then one section with a back button. --- */
+    .settings-shell.is-phone-list .settings-main,
+    .settings-shell.is-phone-page .settings-sidebar {
+        display: none;
+    }
+
+    .settings-shell {
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    .settings-shell.is-phone-list .settings-sidebar {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0 var(--space-4) var(--space-5);
+        border-bottom: 0;
+    }
+
+    .settings-phone-header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        margin: 0 calc(-1 * var(--space-4));
+        padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+        background: var(--bg-pane);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .settings-phone-header h1 {
+        margin: 0;
+        font-size: var(--text-xl);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .settings-nav {
+        flex-direction: column;
+        gap: var(--space-5);
+        overflow: visible;
+        padding-top: var(--space-4);
+    }
+
+    .settings-nav-section {
+        flex-direction: column;
+        flex-shrink: 1;
+    }
+
+    .settings-nav-title {
+        display: block;
+        margin: 0 0 var(--space-2) var(--space-1);
+    }
+
+    .settings-nav-items {
+        flex-direction: column;
+        gap: 0;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+    }
+
+    .settings-nav-item {
+        position: relative;
+        width: 100%;
+        min-height: 48px;
+        padding: 0 var(--space-6) 0 var(--space-4);
+        border-bottom: 1px solid var(--border);
+        font-size: var(--text-md);
+        text-align: left;
+        white-space: normal;
+    }
+
+    .settings-nav-items .settings-nav-item:last-child {
+        border-bottom: 0;
+    }
+
+    /* A chevron: tapping goes into the section. */
+    .settings-nav-item::after {
+        content: "›";
+        position: absolute;
+        right: var(--space-4);
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: var(--text-xl);
+    }
+
+    .settings-nav-item.is-active {
+        background: transparent;
+    }
+
+    .settings-source-notice {
+        margin: var(--space-5) var(--space-1) 0;
+    }
+
+    .settings-header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        gap: var(--space-1);
+        padding: var(--space-2) var(--space-2) var(--space-2) var(--space-1);
+    }
+
+    .settings-header h1 {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: var(--text-lg);
+    }
+
+    .settings-phone-back {
+        display: grid;
+        place-items: center;
+        border: 0;
+        background: transparent;
+        color: var(--text-main);
+        cursor: pointer;
+    }
+
+    .settings-content {
+        padding: var(--space-4);
+    }
+
+    .settings-tab-title {
+        display: none;
+    }
+
+    /* --- Dialogs become sheets that fill the phone (no tiny centered boxes). --- */
+    .room-dialog-overlay {
+        padding: 0;
+        place-items: end stretch;
+    }
+
+    .room-dialog {
+        width: 100%;
+        max-height: calc(100dvh - var(--safe-top));
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+        border-bottom: 0;
+        padding-bottom: var(--safe-bottom);
+        animation: sheet-up var(--motion-normal) var(--motion-ease-enter);
+    }
+
+    .room-dialog-footer {
+        position: sticky;
+        bottom: 0;
+        background: var(--bg-pane);
+    }
+
+    .room-dialog-footer button {
+        flex: 1;
+    }
+
+    /* --- Sign-in: full width, comfortable margins, inside the safe area. --- */
+    .login-view {
+        padding: calc(var(--safe-top) + var(--space-4)) var(--space-4) calc(var(--safe-bottom) + var(--space-4));
+    }
+
+    .login-card {
+        width: 100%;
+        padding: var(--space-5) var(--space-4);
+    }
+}
+
+@keyframes sheet-up {
+    from {
+        transform: translateY(24px);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .message-context-menu,
+    .room-dialog {
+        animation: none;
+    }
+}
+
+:root[data-reduce-motion="on"] .message-context-menu,
+:root[data-reduce-motion="on"] .room-dialog {
+    animation: none;
+}

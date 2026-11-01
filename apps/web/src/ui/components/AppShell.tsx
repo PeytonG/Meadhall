@@ -2819,6 +2819,63 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 onAddAccount={() => void addAccount(client)}
                             />
                         ) : null}
+                        {isPhoneLayout ? (
+                            // Phones: a bottom tab bar (UI Design Principles, Apple's HIG), not the desktop user bar.
+                            <nav className="mobile-tab-bar" aria-label="Main" data-testid="mobile-tab-bar">
+                                <button
+                                    type="button"
+                                    className={`mobile-tab${selectedSpaceId === PEOPLE_SPACE_ID && !inboxOpen ? " is-active" : ""}`}
+                                    onClick={() => {
+                                        setInboxOpen(false);
+                                        selectHome();
+                                    }}
+                                    aria-current={selectedSpaceId === PEOPLE_SPACE_ID && !inboxOpen ? "page" : undefined}
+                                >
+                                    <img src={meadhallIcon} alt="" className="mobile-tab-logo" />
+                                    <span>Home</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`mobile-tab${inboxOpen ? " is-active" : ""}`}
+                                    onClick={() => setInboxOpen((open) => !open)}
+                                    aria-label={inboxCount > 0 ? `Inbox, ${inboxCount} unread` : "Inbox"}
+                                    data-inbox-toggle
+                                >
+                                    <span className="mobile-tab-icon">
+                                        <PixelIcon name="inbox" size={24} />
+                                        {inboxCount > 0 ? <span className="mobile-tab-badge">{inboxCount > 99 ? "99+" : inboxCount}</span> : null}
+                                    </span>
+                                    <span>Inbox</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`mobile-tab${statusMenuOpen ? " is-active" : ""}`}
+                                    onClick={() => setStatusMenuOpen((open) => !open)}
+                                    aria-haspopup="menu"
+                                    aria-expanded={statusMenuOpen}
+                                    aria-label="You: status and accounts"
+                                    data-testid="user-card"
+                                >
+                                    <Avatar
+                                        className="mobile-tab-avatar"
+                                        name={ownDisplayName}
+                                        src={ownAvatarSources[0] ?? null}
+                                        sources={ownAvatarSources}
+                                        seed={ownUserId || undefined}
+                                        userId={ownUserId || undefined}
+                                        presenceState={ownStatusDot}
+                                    />
+                                    <span>You</span>
+                                </button>
+                                <button type="button" className="mobile-tab" onClick={() => openUserSettings("my-account")} aria-label="User settings">
+                                    <span className="mobile-tab-icon">
+                                        <PixelIcon name="gear" size={24} />
+                                    </span>
+                                    <span>Settings</span>
+                                </button>
+                            </nav>
+                        ) : (
+                        <>
                         <button
                             type="button"
                             className="pane-user-card"
@@ -2875,6 +2932,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         >
                             <PixelIcon name="gear" />
                         </button>
+                        </>
+                        )}
                     </div>
                 </div>
             </section>
