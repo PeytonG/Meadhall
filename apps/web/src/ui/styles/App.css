@@ -7145,3 +7145,9 @@ ol.message-renderer-format {
 .camera-preview-note.is-error {
     color: var(--danger);
 }
+
+/* The logo is drawn at 4x and scaled down: smooth scaling keeps it crisp (pixelated would drop pixels unevenly). */
+.login-brand img,
+.rail-home-icon {
+    image-rendering: auto;
+}

@@ -90,8 +90,7 @@ h3,
 
 img,
 canvas,
-.rail-icon-avatar,
-.login-brand img {
+.rail-icon-avatar {
     image-rendering: pixelated;
 }
 
