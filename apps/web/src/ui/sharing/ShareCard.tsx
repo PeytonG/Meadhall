@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // A shared sound or style profile in a chat: what it adds, a preview for sounds, and Adopt. With sharing off
 // (Settings → Privacy & Safety), it says how to turn it on instead.
-import React, { useState } from "react";
-import type { MatrixClient } from "matrix-js-sdk/src/matrix";
+import React, { useEffect, useState } from "react";
+import { ClientEvent, type MatrixClient, type MatrixEvent } from "matrix-js-sdk/src/matrix";
 
 import { fetchSharedItem } from "../../core/sharing/share";
 import type { MeadhallItem, ShareSummary } from "../../core/sharing/meadhallFile";
 import { PixelIcon } from "../components/PixelIcon";
 import { adoptSharedSound, previewSharedSound } from "./sharedSounds";
 import { useSharingEnabled } from "./sharingSetting";
-import { adoptSharedStyle } from "./styleProfiles";
+import { SOUNDBOARD_ACCOUNT_DATA, loadCustomSounds } from "../voice/soundboard/soundboard";
+import { STYLE_PROFILES_TYPE, adoptSharedStyle, readStyleProfiles } from "./styleProfiles";
 
 interface ShareCardProps {
     client: MatrixClient;
@@ -18,10 +19,41 @@ interface ShareCardProps {
     fromMe: boolean;
 }
 
+// Whether this share is already in your soundboard or style profiles: adopted from this very share (remembered as
+// its source), or, for items adopted before that was remembered, one with the same name (and emoji, for sounds).
+// Read from your account data, so it holds after reopening the chat and for every copy of the card.
+function isAdopted(client: MatrixClient, summary: ShareSummary, source: string | null): boolean {
+    if (summary.kind === "sound") {
+        return loadCustomSounds(client).some((sound) =>
+            sound.source ? sound.source === source : sound.name === summary.name && (!summary.emoji || sound.emoji === summary.emoji),
+        );
+    }
+    return readStyleProfiles(client).some((profile) => (profile.source ? profile.source === source : profile.name === summary.name));
+}
+
+function useAdopted(client: MatrixClient, summary: ShareSummary, source: string | null): boolean {
+    const [adopted, setAdopted] = useState(() => isAdopted(client, summary, source));
+    useEffect(() => {
+        setAdopted(isAdopted(client, summary, source));
+        const onAccountData = (event: MatrixEvent): void => {
+            if (event.getType() === SOUNDBOARD_ACCOUNT_DATA || event.getType() === STYLE_PROFILES_TYPE) {
+                setAdopted(isAdopted(client, summary, source));
+            }
+        };
+        client.on(ClientEvent.AccountData, onAccountData);
+        return () => {
+            client.removeListener(ClientEvent.AccountData, onAccountData);
+        };
+    }, [client, source, summary]);
+    return adopted;
+}
+
 export function ShareCard({ client, summary, mxc, fromMe }: ShareCardProps): React.ReactElement {
     const enabled = useSharingEnabled();
     const [item, setItem] = useState<MeadhallItem | null>(null);
-    const [state, setState] = useState<"idle" | "busy" | "adopted">("idle");
+    const [busy, setBusy] = useState<"play" | "adopt" | null>(null);
+    const [justAdopted, setJustAdopted] = useState(false);
+    const adopted = useAdopted(client, summary, mxc) || justAdopted;
     const [error, setError] = useState<string | null>(null);
 
     const load = async (): Promise<MeadhallItem> => {
@@ -33,23 +65,24 @@ export function ShareCard({ client, summary, mxc, fromMe }: ShareCardProps): Rea
         return loaded;
     };
 
-    const run = async (action: () => Promise<void>): Promise<void> => {
-        setState("busy");
+    const run = async (kind: "play" | "adopt", action: () => Promise<void>): Promise<void> => {
+        setBusy(kind);
         setError(null);
         try {
             await action();
         } catch (actionError) {
             setError(actionError instanceof Error ? actionError.message : "Something went wrong.");
-            setState("idle");
+        } finally {
+            setBusy(null);
         }
     };
 
     const adopt = (): Promise<void> =>
-        run(async () => {
+        run("adopt", async () => {
             const loaded = await load();
-            if (loaded.kind === "sound") await adoptSharedSound(client, loaded);
-            else await adoptSharedStyle(client, loaded);
-            setState("adopted");
+            if (loaded.kind === "sound") await adoptSharedSound(client, loaded, mxc ?? undefined);
+            else await adoptSharedStyle(client, loaded, mxc ?? undefined);
+            setJustAdopted(true);
         });
 
     const isSound = summary.kind === "sound";
@@ -65,17 +98,16 @@ export function ShareCard({ client, summary, mxc, fromMe }: ShareCardProps): Rea
             {enabled ? (
                 <span className="share-card-actions">
                     {isSound ? (
-                        <button type="button" className="share-card-button" disabled={state === "busy"} onClick={() => void run(async () => {
+                        <button type="button" className="share-card-button" disabled={busy !== null} onClick={() => void run("play", async () => {
                             const loaded = await load();
                             if (loaded.kind === "sound") await previewSharedSound(loaded);
-                            setState("idle");
                         })}>
                             Play
                         </button>
                     ) : null}
                     {fromMe ? null : (
-                        <button type="button" className="share-card-button is-primary" disabled={state !== "idle"} onClick={() => void adopt()} data-testid="share-adopt">
-                            {state === "adopted" ? (isSound ? "Added to your soundboard" : "Saved to your style profiles") : state === "busy" ? "Adding..." : "Adopt"}
+                        <button type="button" className="share-card-button is-primary" disabled={adopted || busy !== null} onClick={() => void adopt()} data-testid="share-adopt">
+                            {adopted ? (isSound ? "Added to your soundboard" : "Saved to your style profiles") : busy === "adopt" ? "Adding..." : "Adopt"}
                         </button>
                     )}
                 </span>

@@ -162,16 +162,16 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
                         <span className="soundboard-emoji" aria-hidden="true">
                             {sound.emoji}
                         </span>
-                        {sound.name}
+                        <span className="soundboard-name">{sound.name}</span>
                     </button>
                 ))}
                 {custom.map((sound) => (
                     <span className="soundboard-sound-wrap" key={sound.id}>
-                        <button type="button" className="soundboard-sound is-custom" onClick={() => play({ kind: "custom", sound })}>
+                        <button type="button" className="soundboard-sound is-custom" onClick={() => play({ kind: "custom", sound })} title={sound.name}>
                             <span className="soundboard-emoji" aria-hidden="true">
                                 {sound.emoji}
                             </span>
-                            {sound.name}
+                            <span className="soundboard-name">{sound.name}</span>
                         </button>
                         {onShareSound ? (
                             <button
