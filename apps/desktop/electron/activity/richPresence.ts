@@ -19,6 +19,8 @@ export interface RpcActivity {
     state?: string;
     startedAt?: number;
     updatedAt: number;
+    // The process that set it (Discord's RPC sends it): when that process is gone, so is the activity.
+    pid?: number;
 }
 
 type RpcSocket = { socketId?: string; clientId?: string; send?: (message: unknown) => void; close?: () => void };
@@ -91,6 +93,8 @@ function handlers(): Handlers {
             }
             const key = socket.socketId ?? "?";
             const activity = activityFromRpc(socket.clientId ?? "", (args as { activity?: unknown } | undefined)?.activity);
+            const pid = (args as { pid?: unknown } | undefined)?.pid;
+            if (activity && typeof pid === "number" && Number.isInteger(pid) && pid > 0) activity.pid = pid;
             if (activity) activities.set(key, activity);
             else activities.delete(key);
             socket.send?.({ cmd, evt: null, nonce, data: activity ? { name: "", application_id: socket.clientId, type: 0 } : null });
@@ -136,7 +140,21 @@ export function isRichPresenceRunning(): boolean {
     return servers.length > 0;
 }
 
-// The newest activity an app set (several apps can be connected at once).
+function processAlive(pid: number): boolean {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        // EPERM: it exists but belongs to someone else.
+        return (error as NodeJS.ErrnoException).code === "EPERM";
+    }
+}
+
+// The newest activity an app set (several apps can be connected at once). A game that quit while a launcher or helper
+// kept its connection open would otherwise stay "Playing" for good, so activities whose process is gone are dropped.
 export function currentRpcActivities(): RpcActivity[] {
+    for (const [key, activity] of activities) {
+        if (activity.pid !== undefined && !processAlive(activity.pid)) activities.delete(key);
+    }
     return [...activities.values()].sort((a, b) => b.updatedAt - a.updatedAt);
 }
