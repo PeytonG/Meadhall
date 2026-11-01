@@ -487,23 +487,25 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
 - Tests: `e2e/threads.spec.ts`, `e2e/verification.spec.ts`, `e2e/verificationSas.spec.ts` (a Node Rust-crypto client
   stands in for FluffyChat: `setUpEncryptionLikeAnotherApp`).
 
-### 7.24 Server bots (v0.5.0: , )
-- **Formats** (, pure, shared with the bot): space state   (admins),  (state key = bot ID: only the bot can write it), , , and
-   (state key = member ID). / lower the power level for
-   and  to 0 (the homeserver still restricts "@" keys to their owner). A message
-  running a command carries  {bot, name, args}. All parsers cap lengths/counts
-  and check answers against the server's own questions.
-- **App**: Server Settings → Community → Onboarding / Auto-mod / Bots; BOT tag (); slash-command menu and
-  usage hint in the composer (incomplete commands aren't sent);  replaces the composer until a
-  member answers (; admins 50+ and bots skip it). "Require it" (enforced) = every channel's talk
+### 7.24 Server bots (v0.5.0: `core/bots`, `apps/bot`)
+- **Formats** (`core/bots/botProtocol.ts`, pure, shared with the bot): space state `io.github.peytong.meadhall.bots`
+  (admins), `.commands` (state key = bot ID: only the bot can write it), `.onboarding`, `.automod`, and
+  `.onboarding.response` (state key = member ID). `addBot`/`saveOnboarding` lower the power level for `.commands`
+  and `.onboarding.response` to 0 (the homeserver still restricts "@" keys to their owner). A message running a
+  command carries `io.github.peytong.meadhall.command` {bot, name, args}. All parsers cap lengths/counts and check
+  answers against the server's own questions.
+- **App**: Server Settings → Community → Onboarding / Auto-mod / Bots; BOT tag (`BotTag`); slash-command menu and
+  usage hint in the composer (incomplete commands aren't sent); `OnboardingGate` replaces the composer until a
+  member answers (`needsOnboarding`; admins 50+ and bots skip it). "Require it" (enforced) = every channel's talk
   role is the member role (§7.6), so the homeserver enforces it; a bot must grant the role.
-- **Bot** (, Node 22.18+ runs the .ts directly; Dockerfile): joins invites, keeps only servers listing it and
-  their channels (a channel invite can arrive before the space join: re-checked after setup, left after 60 s);
-  registers commands; grants onboarding roles with the app's own ; welcome; auto-mod
+- **Bot** (`apps/bot`, Node 22.18+ runs the .ts directly; Dockerfile): joins invites, keeps only servers listing it
+  and their channels (a channel invite can arrive before the space join: re-checked after setup, left after 60 s);
+  registers commands; grants onboarding roles with the app's own `applyRolesToPowerLevels`; welcome; auto-mod
   (redact, warn, timeout = level below events_default, ends kept in the bot's account data); moderation commands
   check the asker's kick/ban level and that the target ranks below asker and bot. New device per start (in-memory
-  crypto), old "Meadhall bot" devices deleted. Use  for invites (  didn't fire for them).
-- Tests: ,  (spawns the real bot).
+  crypto), old "Meadhall bot" devices deleted. Use `RoomEvent.MyMembership` for invites
+  (`RoomMemberEvent.Membership` didn't fire for them).
+- Tests: `test/unit-tests/core/botProtocol.test.ts`, `e2e/bots.spec.ts` (spawns the real bot).
 
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
