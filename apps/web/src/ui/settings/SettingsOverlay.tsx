@@ -13,6 +13,9 @@ import { OverviewTab } from "./server/tabs/OverviewTab";
 import { PermissionsTab } from "./server/tabs/PermissionsTab";
 import { VisibilityTab } from "./server/tabs/VisibilityTab";
 import { AdvancedTab } from "./server/tabs/AdvancedTab";
+import { AutomodTab } from "./server/tabs/AutomodTab";
+import { BotsTab } from "./server/tabs/BotsTab";
+import { OnboardingTab } from "./server/tabs/OnboardingTab";
 import { AppearanceTab } from "./user/tabs/AppearanceTab";
 import { UpdatesTab } from "./user/tabs/UpdatesTab";
 import { LogsTab } from "./user/tabs/LogsTab";
@@ -56,6 +59,14 @@ const SERVER_NAV: SettingsNavSection[] = [
         items: [
             { id: "members", label: "Members" },
             { id: "permissions", label: "Permissions" },
+        ],
+    },
+    {
+        title: "Community",
+        items: [
+            { id: "onboarding", label: "Onboarding" },
+            { id: "automod", label: "Auto-mod" },
+            { id: "bots", label: "Bots" },
         ],
     },
     {
@@ -287,6 +298,12 @@ export function SettingsOverlay({
                 return <MembersTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
             case "permissions":
                 return <PermissionsTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
+            case "onboarding":
+                return <OnboardingTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
+            case "automod":
+                return <AutomodTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
+            case "bots":
+                return <BotsTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
             case "advanced":
                 return <AdvancedTab spaceRoom={spaceRoom} onToast={onToast} />;
             case "danger":

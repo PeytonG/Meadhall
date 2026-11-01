@@ -1,0 +1,22 @@
+{
+  "name": "@heorot/bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Meadhall bot: onboarding, welcome messages, auto-mod and moderation commands for Meadhall servers",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "matrix-js-sdk": "^40.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3"
+  }
+}

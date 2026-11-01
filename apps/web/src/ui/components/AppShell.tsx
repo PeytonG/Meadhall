@@ -25,6 +25,8 @@ import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpa
 import { ContextMenu } from "./menus/ContextMenu";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
+import { OnboardingGate } from "../bots/OnboardingDialog";
+import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
 import { isVoiceChatEnabled } from "../../core/voice/voiceChat";
 import { useDesktopUpdates } from "../hooks/useDesktopUpdates";
@@ -1265,6 +1267,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 : roomById.get(selectedSpaceId) ?? null,
         [roomById, selectedSpaceId],
     );
+    // The server's onboarding (rules and questions) stands in for the message box until you've done it.
+    const botStateRevision = useSpaceState(selectedSpaceRoom, BOT_STATE_TYPES);
+    const onboardingNeeded = useMemo(() => needsOnboarding(client, selectedSpaceRoom), [client, selectedSpaceRoom, botStateRevision]);
 
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
@@ -3017,15 +3022,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             onOpenThread={(rootEventId) => activeRoom && setOpenThread({ roomId: activeRoom.roomId, rootEventId })}
                         />
                         <div className="main-chat-composer">
-                            <Composer
-                                client={client}
-                                room={activeRoom}
-                                activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
-                                editingEvent={editingEvent}
-                                onCancelEdit={() => setEditingEvent(null)}
-                                replyToEvent={replyToEvent}
-                                onCancelReply={() => setReplyToEvent(null)}
-                            />
+                            {onboardingNeeded && selectedSpaceRoom ? (
+                                <OnboardingGate client={client} space={selectedSpaceRoom} />
+                            ) : (
+                                <Composer
+                                    client={client}
+                                    room={activeRoom}
+                                    activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
+                                    editingEvent={editingEvent}
+                                    onCancelEdit={() => setEditingEvent(null)}
+                                    replyToEvent={replyToEvent}
+                                    onCancelReply={() => setReplyToEvent(null)}
+                                />
+                            )}
                         </div>
                     </div>
                 ) : null}

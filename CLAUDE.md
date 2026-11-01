@@ -487,6 +487,24 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
 - Tests: `e2e/threads.spec.ts`, `e2e/verification.spec.ts`, `e2e/verificationSas.spec.ts` (a Node Rust-crypto client
   stands in for FluffyChat: `setUpEncryptionLikeAnotherApp`).
 
+### 7.24 Server bots (v0.5.0: , )
+- **Formats** (, pure, shared with the bot): space state   (admins),  (state key = bot ID: only the bot can write it), , , and
+   (state key = member ID). / lower the power level for
+   and  to 0 (the homeserver still restricts "@" keys to their owner). A message
+  running a command carries  {bot, name, args}. All parsers cap lengths/counts
+  and check answers against the server's own questions.
+- **App**: Server Settings → Community → Onboarding / Auto-mod / Bots; BOT tag (); slash-command menu and
+  usage hint in the composer (incomplete commands aren't sent);  replaces the composer until a
+  member answers (; admins 50+ and bots skip it). "Require it" (enforced) = every channel's talk
+  role is the member role (§7.6), so the homeserver enforces it; a bot must grant the role.
+- **Bot** (, Node 22.18+ runs the .ts directly; Dockerfile): joins invites, keeps only servers listing it and
+  their channels (a channel invite can arrive before the space join: re-checked after setup, left after 60 s);
+  registers commands; grants onboarding roles with the app's own ; welcome; auto-mod
+  (redact, warn, timeout = level below events_default, ends kept in the bot's account data); moderation commands
+  check the asker's kick/ban level and that the target ranks below asker and bot. New device per start (in-memory
+  crypto), old "Meadhall bot" devices deleted. Use  for invites (  didn't fire for them).
+- Tests: ,  (spawns the real bot).
+
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
 brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requires 7:1 against its background
