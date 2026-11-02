@@ -123,6 +123,9 @@ from the releases page: Apple only lets iPhones install apps from the App Store 
 Notifications while the app is closed aren't available on iPhone yet. Until you have an invite, use Meadhall on the
 web in Safari, or [Element](https://element.io) for iPhone: you'll be in the same servers and calls.
 
+**Have a Mac?** You can install it on your own iPhone for free with Xcode and an Apple ID (it needs renewing every 7
+days): see [Installing on your iPhone for free](docs/ios-free-install.md).
+
 </details>
 
 <a id="features"></a>
