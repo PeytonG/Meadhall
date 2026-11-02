@@ -533,6 +533,9 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   scale in `mobile.css` (`:where()`, so components can override): 4 px tags, 6 px swatches, 8 px fields/rows, 10-12 px
   tiles/cards, round chips. A corner audit (every bordered or filled control with a 0 radius) found and fixed the
   stragglers. Don't change defaults without the owner. Pixelify Sans reads small (16 px ≈ 13 px).
+- **Words (owner, 2026-11-01): "server" means a Matrix homeserver only.** Spaces are "spaces" in everything users
+  read (Space Settings, Leave space, per-space profile, the space's moderators). Internal names (`mode: "server"`,
+  `ServerProfileDialog`, `settings/server/`) stay. The phone Admin tab is the homeserver admin panel.
 - **Desktop design pass (owner, 2026-11-01):** one type scale on computers (12 px labels/times, 14 px secondary,
   16 px names/messages, 18 px titles), 4/8 px spacing, one primary button per screen. The owner keeps the red
   "Unencrypted" chip and the channel header's icon row as they are, and declined a contrast pass for faint grey text.

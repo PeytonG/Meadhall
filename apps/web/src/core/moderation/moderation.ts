@@ -105,7 +105,7 @@ export async function saveReportReasons(client: MatrixClient, space: Room, reaso
 export async function createReport(client: MatrixClient, space: Room, details: Omit<ReportDetails, "space">): Promise<string> {
     const me = client.getSafeUserId();
     const mods = moderators(space).filter((userId) => userId !== me && userId !== details.reportedUser);
-    if (!mods.length) throw new Error("This server has no moderators to send a report to.");
+    if (!mods.length) throw new Error("This space has no moderators to send a report to.");
     const name = space.getMember(details.reportedUser)?.name ?? details.reportedUser;
     const { room_id: roomId } = await client.createRoom({
         name: `Report: ${name}`.slice(0, 80),
@@ -213,7 +213,7 @@ export async function ensureModLogRoom(client: MatrixClient, space: Room): Promi
     if (!room && typeof roomId !== "string") {
         const mods = moderators(space).filter((userId) => userId !== client.getSafeUserId());
         const created = await client.createRoom({
-            name: `${space.name || "Server"} moderation log`.slice(0, 80),
+            name: `${space.name || "Space"} moderation log`.slice(0, 80),
             preset: Preset.PrivateChat,
             invite: mods,
             creation_content: { type: MODLOG_ROOM_TYPE },

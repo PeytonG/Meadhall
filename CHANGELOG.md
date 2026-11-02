@@ -7,10 +7,10 @@ Versions follow `vX.Y.Z`.
 ## v0.5.0 (2026-11-01)
 
 ### New
-- **Server bots**, like Discord's apps (Server Settings → Community):
-  - **Bots:** add any Matrix account as one of the server's bots, give it roles, and remove it. Bots get a **BOT**
+- **Space bots**, like Discord's apps (Space Settings → Community):
+  - **Bots:** add any Matrix account as one of the space's bots, give it roles, and remove it. Bots get a **BOT**
     tag, and their **slash commands** appear when you type `/` in the message box, with how to use each one.
-  - **Onboarding:** new members read the server's rules and answer a few questions before they can talk. Answers can
+  - **Onboarding:** new members read the space's rules and answer a few questions before they can talk. Answers can
     give roles. Choose "Ask first", or "Require it" to have the homeserver enforce it (only members who finished can
     talk). A **welcome message** can greet them in a channel.
   - **Auto-mod:** blocked words and phrases, links, and too many mentions. The bot removes the message and can warn the
@@ -20,11 +20,11 @@ Versions follow `vX.Y.Z`.
     asking is allowed to.
 - **Camera preview:** turning your camera on in a call first shows you how you look (only to you), with the camera
   picker. Settings → Audio has a Camera section with a Test camera button.
-- **Reports and moderation in servers:** report someone, or one of their messages (hold or right-click it), with
-  the reasons the server's owner chose (curse words, unauthorized self-promotion and so on). Only the server's
-  moderators see reports, in **Server Settings → Reports**, with quick actions: warn, kick, ban, **ban for a time**,
+- **Reports and moderation in spaces:** report someone, or one of their messages (hold or right-click it), with
+  the reasons the space's owner chose (curse words, unauthorized self-promotion and so on). Only the space's
+  moderators see reports, in **Space Settings → Reports**, with quick actions: warn, kick, ban, **ban for a time**,
   **mute for a time** and **shadow mute** (their messages are hidden from everyone else; they aren't told). **Member
-  records** show everything moderators did to someone in that server and what's in force now. Timed bans and mutes
+  records** show everything moderators did to someone in that space and what's in force now. Timed bans and mutes
   end on their own.
 - **Message links open in Meadhall:** "Copy link" makes a `meadhall://` link that opens the app right at that
   message (desktop and Android), and room links from matrix.to clicked inside Meadhall open there too.
@@ -44,13 +44,15 @@ Versions follow `vX.Y.Z`.
 - **Status and game together:** someone with a status who is also playing shows both.
 
 ### Changed
+- **Spaces are called spaces:** "server" now only means a Matrix homeserver. Space Settings, "Leave space", "Mute
+  space", per-space profiles and so on.
 - Game detection updates within seconds, so quitting or switching games shows quickly.
 - Turn people up to **130%** in calls (was 120%), and keep up to **100 sounds** on your soundboard (was 24).
 - "Set up secure backup" no longer comes back every time you start Meadhall after you choose "Skip for now" (it asks
   again after a week; Settings → Security sets it up any time).
 - On phones, polls and stickers moved into the "+" menu next to the message box; "+" now matches the message box.
 - The Home tab on phones is a house icon (pixel or smooth, with your icon style).
-- Report is only offered in servers for now (it goes to the server's moderators). Screen sharing isn't offered on
+- Report is only offered in spaces for now (it goes to the space's moderators). Screen sharing isn't offered on
   phones, where it can't work.
 - Pictures and read receipts stay inside a message's highlight; rounded conversation rows and search with smooth
   shapes; no empty strip above a chat's title on Windows.

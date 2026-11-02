@@ -13,7 +13,7 @@ export type ChannelType = "text" | "rules" | "faq" | "news" | "events";
 
 export const CHANNEL_TYPES: ReadonlyArray<{ type: ChannelType; label: string; description: string }> = [
     { type: "text", label: "Text", description: "Messages, pictures, GIFs and links." },
-    { type: "rules", label: "Rules", description: "The server's rules. Only moderators post." },
+    { type: "rules", label: "Rules", description: "The space's rules. Only moderators post." },
     { type: "faq", label: "FAQ", description: "Answers to common questions." },
     { type: "news", label: "News", description: "Announcements. Only moderators post; everyone can react." },
     { type: "events", label: "Events", description: "What's coming up." },

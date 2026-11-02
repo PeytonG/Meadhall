@@ -38,7 +38,7 @@ export function ReportDialog({ client, space, userId, message, onClose, onDone }
                 note,
                 ...(message ?? {}),
             });
-            onDone(`Reported ${name} to ${space.name || "the server"}'s moderators.`);
+            onDone(`Reported ${name} to ${space.name || "the space"}'s moderators.`);
         } catch (reportError) {
             setError(reportError instanceof Error ? reportError.message : "Couldn't send the report.");
             setBusy(false);
@@ -63,7 +63,7 @@ export function ReportDialog({ client, space, userId, message, onClose, onDone }
         >
             <div className="report-dialog" data-testid="report-dialog">
                 <p className="settings-tab-description">
-                    Only {space.name || "the server"}&apos;s moderators see your report{message ? " and the message" : ""}. {name} isn&apos;t told who
+                    Only {space.name || "the space"}&apos;s moderators see your report{message ? " and the message" : ""}. {name} isn&apos;t told who
                     reported them.
                 </p>
                 {message ? <blockquote className="report-excerpt">{message.excerpt || "(no text)"}</blockquote> : null}

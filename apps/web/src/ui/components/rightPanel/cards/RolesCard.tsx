@@ -12,9 +12,9 @@ export function RolesCard({ servers, mutualRoomsCount }: RolesCardProps): React.
     return (
         <section className="rp-card" data-testid="profile-roles">
             <header className="rp-card-header">
-                <h3 className="rp-card-title">Roles in mutual servers</h3>
+                <h3 className="rp-card-title">Roles in shared spaces</h3>
             </header>
-            {servers.length === 0 ? <p className="rp-row-value">No servers in common.</p> : null}
+            {servers.length === 0 ? <p className="rp-row-value">No spaces in common.</p> : null}
             {servers.map((server) => (
                 <div className="rp-server-roles" key={server.serverId}>
                     <span className="rp-server-roles-name">{server.serverName}</span>

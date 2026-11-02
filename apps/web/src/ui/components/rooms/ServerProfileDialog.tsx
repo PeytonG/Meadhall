@@ -48,7 +48,7 @@ export function ServerProfileDialog({ client, space, channels, onClose, onToast 
             onToast({ type: "success", message: done });
             onClose();
         } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : "Couldn't save your server profile.");
+            setError(saveError instanceof Error ? saveError.message : "Couldn't save your space profile.");
         } finally {
             setSaving(false);
         }
@@ -76,7 +76,7 @@ export function ServerProfileDialog({ client, space, channels, onClose, onToast 
 
     const reset = async (): Promise<void> => {
         const global = await client.getProfileInfo(userId).catch(() => ({}) as { displayname?: string; avatar_url?: string });
-        await apply({ displayname: global.displayname ?? undefined, avatar_url: global.avatar_url ?? undefined }, "Back to your main profile in this server.");
+        await apply({ displayname: global.displayname ?? undefined, avatar_url: global.avatar_url ?? undefined }, "Back to your main profile in this space.");
     };
 
     return (
@@ -95,13 +95,13 @@ export function ServerProfileDialog({ client, space, channels, onClose, onToast 
                 </>
             }
         >
-            <p className="room-dialog-muted">Only people in this server see this name and picture.</p>
+            <p className="room-dialog-muted">Only people in this space see this name and picture.</p>
             <label className="room-dialog-field">
-                <span>Server nickname</span>
+                <span>Space nickname</span>
                 <input className="room-dialog-input" type="text" maxLength={64} value={name} onChange={(event) => setName(event.target.value)} disabled={saving} />
             </label>
             <label className="room-dialog-field">
-                <span>Server picture (optional)</span>
+                <span>Space picture (optional)</span>
                 <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(event) => setAvatar(event.target.files?.[0] ?? null)} disabled={saving} />
             </label>
             {error ? <p className="room-dialog-error">{error}</p> : null}

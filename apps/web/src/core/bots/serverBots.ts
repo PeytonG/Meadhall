@@ -134,7 +134,7 @@ export async function removeBot(client: MatrixClient, space: Room, channels: Roo
     }
     for (const room of [...channels, space]) {
         const membership = room.getMember(botId)?.membership;
-        if (membership === "join" || membership === "invite") await client.kick(room.roomId, botId, "Removed from the server's bots").catch(() => undefined);
+        if (membership === "join" || membership === "invite") await client.kick(room.roomId, botId, "Removed from the space's bots").catch(() => undefined);
     }
     await syncRoles(client, space, channels);
 }

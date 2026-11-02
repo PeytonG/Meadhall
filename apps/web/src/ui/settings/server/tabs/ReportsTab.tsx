@@ -113,7 +113,7 @@ export function QuickActions({ client, space, userId, defaultReason, onDone, onT
                         type="button"
                         className="settings-button settings-button-secondary"
                         disabled={busy}
-                        title="Their messages are hidden from everyone else in this server; they aren't told."
+                        title="Their messages are hidden from everyone else in this space; they aren't told."
                         onClick={() => void run("shadow_mute", null, `Shadow muted ${name}.`)}
                         data-testid="mod-shadow"
                     >
@@ -121,7 +121,7 @@ export function QuickActions({ client, space, userId, defaultReason, onDone, onT
                     </button>
                 )}
                 {membership === "join" || membership === "invite" ? (
-                    <button type="button" className="settings-button settings-button-danger" disabled={busy} onClick={() => void run("kick", `Kick ${name} from the server? They can join again.`, `Kicked ${name}.`)} data-testid="mod-kick">
+                    <button type="button" className="settings-button settings-button-danger" disabled={busy} onClick={() => void run("kick", `Kick ${name} from the space? They can join again.`, `Kicked ${name}.`)} data-testid="mod-kick">
                         Kick
                     </button>
                 ) : null}
@@ -140,7 +140,7 @@ export function QuickActions({ client, space, userId, defaultReason, onDone, onT
                         >
                             Ban for {durationLabel}
                         </button>
-                        <button type="button" className="settings-button settings-button-danger" disabled={busy} onClick={() => void run("ban", `Ban ${name} from the server?`, `Banned ${name}.`)} data-testid="mod-ban">
+                        <button type="button" className="settings-button settings-button-danger" disabled={busy} onClick={() => void run("ban", `Ban ${name} from the space?`, `Banned ${name}.`)} data-testid="mod-ban">
                             Ban
                         </button>
                     </>
@@ -222,7 +222,7 @@ export function ReportsTab({ client, spaceRoom, onToast }: ReportsTabProps): Rea
         return (
             <div className="settings-tab" data-testid="reports-tab">
                 <h2 className="settings-tab-title">Reports</h2>
-                <p className="settings-tab-description">Only the server&apos;s moderators (who can ban) see reports.</p>
+                <p className="settings-tab-description">Only the space&apos;s moderators (who can ban) see reports.</p>
             </div>
         );
     }

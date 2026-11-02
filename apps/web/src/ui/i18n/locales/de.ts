@@ -46,6 +46,7 @@ const de: Dictionary = {
     Updates: "Updates",
     "Server admin": "Serververwaltung",
     Server: "Server",
+    Space: "Space",
     Overview: "Übersicht",
     Channels: "Kanäle",
     Access: "Zugang",

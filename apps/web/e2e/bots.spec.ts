@@ -60,7 +60,7 @@ test("a server bot runs onboarding, welcomes, answers slash commands and auto-mo
         await botsTab.getByRole("checkbox", { name: /Bots/ }).check();
         await botsTab.getByRole("button", { name: "Add bot" }).click();
         // The bot joins and registers its commands.
-        await expect(botsTab.getByTestId("bot-row")).toContainText("In the server", { timeout: 60_000 });
+        await expect(botsTab.getByTestId("bot-row")).toContainText("In the space", { timeout: 60_000 });
         await expect(botsTab.getByTestId("bot-row")).toContainText("/warn", { timeout: 60_000 });
         await expect.poll(async () => (await stateOrEmpty(alice, channelId, "m.room.member", botUser.userId)).membership, { timeout: 60_000 }).toBe("join");
 
@@ -150,7 +150,7 @@ test("a server bot runs onboarding, welcomes, answers slash commands and auto-mo
 
 async function openServerSettings(page: import("@playwright/test").Page, server: string): Promise<void> {
     await page.getByTitle(server).click();
-    await page.getByRole("button", { name: "Server", exact: true }).click();
+    await page.getByRole("button", { name: "Space settings", exact: true }).click();
 }
 
 async function openChannel(page: import("@playwright/test").Page, server: string, channel: string): Promise<void> {

@@ -51,7 +51,7 @@ test("a member reports a message; a moderator shadow mutes and bans from the rep
     const ownerPage = await browser.newPage();
     await signIn(ownerPage, owner);
     await ownerPage.getByTitle("Report Hall").click();
-    await ownerPage.getByRole("button", { name: "Server", exact: true }).click();
+    await ownerPage.getByRole("button", { name: "Space settings", exact: true }).click();
     await ownerPage.getByRole("button", { name: "Reports", exact: true }).click();
     const report = ownerPage.getByTestId("mod-report").filter({ hasText: "Troll" });
     await expect(report).toBeVisible({ timeout: 30_000 });

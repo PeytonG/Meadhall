@@ -200,7 +200,7 @@ export async function inviteUsersToRoom(
                     const parentSpace = client.getRoom(firstFailure.spaceId);
                     failed.push({
                         userId: targetUserId,
-                        message: `Invited to channel, but failed to invite to server "${getRoomDisplayName(
+                        message: `Invited to channel, but failed to invite to space "${getRoomDisplayName(
                             parentSpace,
                             firstFailure.spaceId,
                         )}" (${firstFailure.message}).`,

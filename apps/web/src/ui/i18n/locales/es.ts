@@ -46,6 +46,7 @@ const es: Dictionary = {
     Updates: "Actualizaciones",
     "Server admin": "Administración del servidor",
     Server: "Servidor",
+    Space: "Espacio",
     Overview: "Resumen",
     Channels: "Canales",
     Access: "Acceso",

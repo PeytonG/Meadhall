@@ -43,8 +43,8 @@ export function AutomodTab({ client, spaceRoom, onToast }: AutomodTabProps): Rea
     return (
         <div className="settings-tab" data-testid="automod-tab">
             <h2 className="settings-tab-title">Auto-mod</h2>
-            <p className="settings-tab-description">The server&apos;s bot removes messages that break these rules, in every channel.</p>
-            {readBots(spaceRoom).length === 0 ? <p className="settings-inline-error">Add a bot first (Server Settings → Bots): auto-mod runs in the bot.</p> : null}
+            <p className="settings-tab-description">The space&apos;s bot removes messages that break these rules, in every channel.</p>
+            {readBots(spaceRoom).length === 0 ? <p className="settings-inline-error">Add a bot first (Space Settings → Bots): auto-mod runs in the bot.</p> : null}
 
             <div className="settings-section-card">
                 <label className="settings-toggle">

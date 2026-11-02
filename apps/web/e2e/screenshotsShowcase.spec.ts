@@ -166,7 +166,7 @@ test("captures the roles editor", async ({ page }) => {
     await dressUpHall(hall);
     await signIn(page, hall.users.hrothgar);
     await page.getByTitle("The Mead Hall").click();
-    await page.getByRole("button", { name: "Server", exact: true }).click();
+    await page.getByRole("button", { name: "Space settings", exact: true }).click();
     await page.getByRole("button", { name: "Members", exact: true }).click();
     await expect(page.getByTestId("roles-section")).toBeVisible();
     await page.getByTestId("roles-section").locator(".roles-editor summary").first().click();

@@ -106,7 +106,7 @@ test("the server menu marks as read, mutes, hides muted channels, moves the serv
     await rail(page, "Great Hall").click({ button: "right" });
     await page.getByTestId("space-menu-profile").click();
     const dialog = page.getByRole("dialog", { name: "Your profile in Great Hall" });
-    await dialog.getByLabel("Server nickname").fill("Hall Alice");
+    await dialog.getByLabel("Space nickname").fill("Hall Alice");
     await dialog.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toBeHidden();
     await expect.poll(async () => (await readState(bob, hall.spaceId, "m.room.member", alice.userId)).displayname).toBe("Hall Alice");

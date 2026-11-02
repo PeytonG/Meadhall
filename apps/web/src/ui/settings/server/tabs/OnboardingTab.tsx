@@ -195,7 +195,7 @@ export function OnboardingTab({ client, spaceRoom, channels, onToast }: Onboardi
                         </label>
                         {!hasBot ? (
                             <p className="settings-inline-error">
-                                Add a bot that can manage roles (Server Settings → Bots) to give the role when someone finishes; until then, new
+                                Add a bot that can manage roles (Space Settings → Bots) to give the role when someone finishes; until then, new
                                 members can&apos;t talk.
                             </p>
                         ) : null}
@@ -231,7 +231,7 @@ export function OnboardingTab({ client, spaceRoom, channels, onToast }: Onboardi
                 </label>
             </div>
 
-            <p className="settings-inline-note">Members&apos; answers are stored in the server, so its members can see them.</p>
+            <p className="settings-inline-note">Members&apos; answers are stored in the space, so its members can see them.</p>
             <div className="settings-actions-row">
                 <button type="button" className="settings-button" onClick={() => void save()} disabled={disabled} data-testid="onboarding-save">
                     {busy ? "Saving…" : "Save onboarding"}

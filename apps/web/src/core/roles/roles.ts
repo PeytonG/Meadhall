@@ -37,12 +37,12 @@ export type Permission =
     | "mention_everyone";
 
 export const PERMISSIONS: ReadonlyArray<{ id: Permission; label: string; description: string }> = [
-    { id: "manage_server", label: "Manage server", description: "Change the server's name, icon and topic" },
+    { id: "manage_server", label: "Manage space", description: "Change the space's name, icon and topic" },
     { id: "manage_channels", label: "Manage channels", description: "Create, rename and remove channels" },
     { id: "manage_roles", label: "Manage roles", description: "Create roles and give them to people" },
     { id: "kick", label: "Kick members", description: "Remove people (they can rejoin)" },
     { id: "ban", label: "Ban members", description: "Remove people and stop them coming back" },
-    { id: "invite", label: "Invite people", description: "Invite people to the server and its channels" },
+    { id: "invite", label: "Invite people", description: "Invite people to the space and its channels" },
     { id: "manage_messages", label: "Manage messages", description: "Delete other people's messages" },
     { id: "pin_messages", label: "Pin messages", description: "Pin and unpin messages" },
     { id: "mention_everyone", label: "Mention @everyone", description: "Notify the whole room" },

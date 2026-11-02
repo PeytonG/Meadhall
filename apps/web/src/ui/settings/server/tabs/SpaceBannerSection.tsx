@@ -30,7 +30,7 @@ export function SpaceBannerSection({ client, spaceRoom, onToast }: SpaceBannerSe
         try {
             const { content_uri: mxc } = await client.uploadContent(file, { type: file.type, name: file.name });
             await setSpaceBanner(client, spaceRoom.roomId, mxc);
-            onToast({ type: "success", message: "Server banner updated." });
+            onToast({ type: "success", message: "Space banner updated." });
         } catch (error) {
             onToast({ type: "error", message: error instanceof Error ? error.message : "Couldn't set the banner." });
         } finally {
@@ -52,7 +52,7 @@ export function SpaceBannerSection({ client, spaceRoom, onToast }: SpaceBannerSe
     return (
         <div className="settings-section-card" data-testid="space-banner-settings">
             <h3>Banner</h3>
-            <p className="settings-tab-description">Shown under the server&apos;s name at the top of the channel list. GIFs play. Wide pictures (about 3:1) fit best.</p>
+            <p className="settings-tab-description">Shown under the space&apos;s name at the top of the channel list. GIFs play. Wide pictures (about 3:1) fit best.</p>
             <div className="space-banner-preview">{preview ? <img src={preview} alt="Current banner" /> : <span>No banner</span>}</div>
             <div className="settings-actions-row">
                 <button type="button" className="settings-button" disabled={!canEdit || busy} onClick={() => inputRef.current?.click()} title={canEdit ? "" : "You can't change this server's banner."}>

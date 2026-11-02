@@ -47,7 +47,7 @@ export function BotsTab({ client, spaceRoom, channels, onToast }: BotsTabProps):
         <div className="settings-tab" data-testid="bots-tab">
             <h2 className="settings-tab-title">Bots</h2>
             <p className="settings-tab-description">
-                Bots are Matrix accounts that work for the server: the Meadhall bot greets new members, runs onboarding and
+                Bots are Matrix accounts that work for the space: the Meadhall bot greets new members, runs onboarding and
                 auto-mod, and answers moderation commands. Their commands appear when you type / in the message box.
             </p>
 
@@ -67,7 +67,7 @@ export function BotsTab({ client, spaceRoom, channels, onToast }: BotsTabProps):
                                     </strong>
                                     <small>{bot.userId}</small>
                                     <small>
-                                        {member?.membership === "join" ? "In the server" : member?.membership === "invite" ? "Invited, not joined yet" : "Not in the server"}
+                                        {member?.membership === "join" ? "In the space" : member?.membership === "invite" ? "Invited, not joined yet" : "Not in the space"}
                                         {botRoles.length ? ` · ${botRoles.map((role) => role.name).join(", ")}` : ""}
                                         {` · ${botCommands.length === 1 ? "1 command" : `${botCommands.length} commands`}`}
                                     </small>
@@ -149,7 +149,7 @@ export function BotsTab({ client, spaceRoom, channels, onToast }: BotsTabProps):
                     </p>
                 </form>
             ) : (
-                <p className="settings-inline-note">Only server admins can add or remove bots.</p>
+                <p className="settings-inline-note">Only space admins can add or remove bots.</p>
             )}
         </div>
     );

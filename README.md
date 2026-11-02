@@ -36,9 +36,9 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 - 🔥 **Pixel art everywhere**: a pixel theme, pixel emoji and stickers, and a campfire that burns while you talk.
 - 🎭 **Roles, statuses and profiles** with banners, bios, links and "Playing ..." (Steam, Rich Presence), shared
   only with whom you choose.
-- 🤖 **Server bots**: onboarding with rules and questions, welcome messages, auto-mod and slash commands, with the
+- 🤖 **Space bots**: onboarding with rules and questions, welcome messages, auto-mod and slash commands, with the
   Meadhall bot ready to run (or bring any Matrix bot).
-- 🛡️ **Reports and moderation**: members report people or messages with your server's own reasons; moderators
+- 🛡️ **Reports and moderation**: members report people or messages with your space's own reasons; moderators
   warn, kick, ban or mute (also for a set time), shadow mute, and see each member's record.
 - 🔗 **Message links that open in Meadhall**, right at the message, on desktop and Android.
 - 📊 **Polls, code blocks and translations**: polls with time limits, highlighted code, and the app in 5 languages.

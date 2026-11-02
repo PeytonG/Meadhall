@@ -173,7 +173,7 @@ export function EmojiTab({ client, spaceRoom, onOpenUploadDialog, onToast }: Emo
         <div className="settings-tab">
             <h2 className="settings-tab-title">Emoji</h2>
             <p className="settings-tab-description">
-                Manage custom server emoji stored as <code>{SPACE_EMOJI_PACK_EVENT_TYPE}</code> state.
+                Manage custom space emoji stored as <code>{SPACE_EMOJI_PACK_EVENT_TYPE}</code> state.
             </p>
 
             <div className="settings-actions-row">

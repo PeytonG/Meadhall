@@ -42,7 +42,7 @@ export type SettingsMode = "server" | "user";
 
 const SERVER_NAV: SettingsNavSection[] = [
     {
-        title: "Server",
+        title: "Space",
         items: [
             { id: "overview", label: "Overview" },
             { id: "emoji", label: "Emoji" },
@@ -259,8 +259,8 @@ export function SettingsOverlay({
     const navSections = mode === "server" ? SERVER_NAV : isAdmin ? withServerAdminTab(userNav) : userNav;
     const title = useMemo(() => {
         if (mode === "server") {
-            const roomName = spaceRoom?.name || spaceRoom?.getCanonicalAlias() || spaceRoom?.roomId || "Server";
-            return `Server Settings - ${roomName}`;
+            const roomName = spaceRoom?.name || spaceRoom?.getCanonicalAlias() || spaceRoom?.roomId || "Space";
+            return `Space Settings - ${roomName}`;
         }
         return "User Settings";
     }, [mode, spaceRoom]);
@@ -462,7 +462,7 @@ export function SettingsOverlay({
             <div className={`settings-shell${phonePage ? " is-phone-page" : " is-phone-list"}`}>
                 <aside className="settings-sidebar">
                     <header className="settings-phone-header">
-                        <h1>{mode === "server" ? spaceRoom?.name || "Server" : "Settings"}</h1>
+                        <h1>{mode === "server" ? spaceRoom?.name || "Space" : "Settings"}</h1>
                         <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings">
                             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                                 <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />

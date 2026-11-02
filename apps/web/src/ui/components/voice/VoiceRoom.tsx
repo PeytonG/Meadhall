@@ -2947,6 +2947,15 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             {/* Settings panel (collapsible) */}
             {connected && settingsOpen ? (
                 <div className="voice-settings-panel">
+                    {/* Its own close button: on phones the Settings button is in the "More" menu, not on the bar. */}
+                    <div className="voice-settings-panel-header">
+                        <h3>{t("Voice settings")}</h3>
+                        <button type="button" className="voice-settings-close" onClick={() => setSettingsOpen(false)} aria-label="Close voice settings" data-testid="voice-settings-close">
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                            </svg>
+                        </button>
+                    </div>
                     <div className="voice-room-device-grid">
                         <label className="settings-field">
                             <span>Microphone</span>
@@ -3381,7 +3390,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             items={[
                                 { label: "Sounds", testId: "call-more-sounds", onSelect: () => setSoundboardOpen(true) },
                                 { label: audioMuted ? "Undeafen" : "Deafen", testId: "call-more-deafen", onSelect: () => void toggleAudioMute() },
-                                { label: "Voice settings", testId: "call-more-settings", onSelect: () => setSettingsOpen(true) },
+                                { label: settingsOpen ? "Hide voice settings" : "Voice settings", testId: "call-more-settings", onSelect: () => setSettingsOpen((open) => !open) },
                             ]}
                         />
                     ) : null}

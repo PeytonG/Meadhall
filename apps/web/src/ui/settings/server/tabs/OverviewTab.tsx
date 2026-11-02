@@ -137,9 +137,9 @@ export function OverviewTab({ client, spaceRoom, onToast }: OverviewTabProps): R
                 await client.sendStateEvent(spaceRoom.roomId, EventType.RoomAvatar, content as any, "");
             }
 
-            onToast({ type: "success", message: "Server overview updated." });
+            onToast({ type: "success", message: "Space overview updated." });
         } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : "Failed to save server settings.");
+            setError(saveError instanceof Error ? saveError.message : "Failed to save space settings.");
         } finally {
             setSaving(false);
         }
@@ -149,7 +149,7 @@ export function OverviewTab({ client, spaceRoom, onToast }: OverviewTabProps): R
         <div className="settings-tab">
             <h2 className="settings-tab-title">Overview</h2>
             <p className="settings-tab-description">
-                Update Space profile details. These settings apply to all channels in this server.
+                Update Space profile details. These settings apply to all channels in this space.
             </p>
 
             <div className="settings-overview-avatar-row">
@@ -161,7 +161,7 @@ export function OverviewTab({ client, spaceRoom, onToast }: OverviewTabProps): R
                         type="button"
                         className="settings-button"
                         disabled={!permissions.canEditAvatar || uploadingAvatar}
-                        title={!permissions.canEditAvatar ? "You cannot edit server avatar." : "Upload avatar"}
+                        title={!permissions.canEditAvatar ? "You cannot edit the space's avatar." : "Upload avatar"}
                         onClick={() => fileInputRef.current?.click()}
                     >
                         {uploadingAvatar ? "Uploading..." : "Upload avatar"}
@@ -191,13 +191,13 @@ export function OverviewTab({ client, spaceRoom, onToast }: OverviewTabProps): R
             </div>
 
             <label className="settings-field">
-                <span>Server name</span>
+                <span>Space name</span>
                 <input
                     type="text"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     disabled={!permissions.canEditName || saving}
-                    title={!permissions.canEditName ? "You cannot edit server name." : ""}
+                    title={!permissions.canEditName ? "You cannot edit the space's name." : ""}
                 />
             </label>
 
@@ -207,7 +207,7 @@ export function OverviewTab({ client, spaceRoom, onToast }: OverviewTabProps): R
                     value={topic}
                     onChange={(event) => setTopic(event.target.value)}
                     disabled={!permissions.canEditTopic || saving}
-                    title={!permissions.canEditTopic ? "You cannot edit server topic." : ""}
+                    title={!permissions.canEditTopic ? "You cannot edit the space's topic." : ""}
                 />
             </label>
 

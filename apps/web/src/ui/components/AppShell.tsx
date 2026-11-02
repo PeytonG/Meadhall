@@ -1788,7 +1788,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         async (spaceId: string): Promise<void> => {
             const targetSpace = client.getRoom(spaceId);
             if (!targetSpace || !targetSpace.isSpaceRoom()) {
-                pushToast({ type: "error", message: "Unable to reload channels: selected server is unavailable." });
+                pushToast({ type: "error", message: "Unable to reload channels: the selected space is unavailable." });
                 return;
             }
 
@@ -1818,7 +1818,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     setRooms(listedRooms(client));
                     pushToast({
                         type: "error",
-                        message: "Can't load server hierarchy because you're not joined to the server room.",
+                        message: "Can't load the space's channels because you're not in the space.",
                     });
                     return;
                 }
@@ -1896,7 +1896,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 );
                 setJoiningDiscoverableRoomId(null);
                 setRooms(listedRooms(client));
-                pushToast({ type: "success", message: "Channels reloaded from server hierarchy." });
+                pushToast({ type: "success", message: "Channels reloaded from the space." });
             } catch (reloadError) {
                 const message = reloadError instanceof Error ? reloadError.message : "Failed to reload channels.";
                 pushToast({ type: "error", message });
@@ -2652,7 +2652,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             if (selectedSpaceId === space.roomId) selectHome();
             pushToast({ type: "success", message: `Left ${getRoomName(space)}.` });
         } catch (error) {
-            reportError("Couldn't leave the server")(error);
+            reportError("Couldn't leave the space")(error);
         }
     };
     const contextMenuRoom = contextMenu ? client.getRoom(contextMenu.roomId) : null;
@@ -2692,7 +2692,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         selectServer(room.roomId);
                         setSettingsState({ mode: "server", tab: "overview" });
                     },
-                    move: (to) => void saveSpaceOrder(client, movedSpaceOrder(order, room.roomId, to)).catch(reportError("Couldn't move the server")),
+                    move: (to) => void saveSpaceOrder(client, movedSpaceOrder(order, room.roomId, to)).catch(reportError("Couldn't move the space")),
                     leave: () => void leaveServer(room, children),
                 },
             );
@@ -2805,9 +2805,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 type="button"
                                 className="pane-top-action"
                                 onClick={() => openServerSettings("overview")}
-                                title="Open server settings"
+                                title="Open space settings"
+                                aria-label="Space settings"
                             >
-                                Server
+                                Settings
                             </button>
                         ) : null}
                     </div>
@@ -2830,7 +2831,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 x
                             </button>
                         </div>
-                        <p className="space-onboarding-text">Create your first channel or configure the server.</p>
+                        <p className="space-onboarding-text">Create your first channel or set up the space.</p>
                         <div className="space-onboarding-actions">
                             <button
                                 type="button"
@@ -2844,7 +2845,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 className="room-dialog-button room-dialog-button-secondary"
                                 onClick={() => openServerSettings("overview")}
                             >
-                                Open server settings
+                                Open space settings
                             </button>
                             <button
                                 type="button"

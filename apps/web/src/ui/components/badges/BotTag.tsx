@@ -8,7 +8,7 @@ import { isServerBot } from "../../../core/bots/serverBots";
 export function BotTag({ space, userId }: { space: Room | null; userId: string }): React.ReactElement | null {
     if (!isServerBot(space, userId)) return null;
     return (
-        <span className="bot-tag" title="This is one of the server's bots" data-testid="bot-tag">
+        <span className="bot-tag" title="This is one of the space's bots" data-testid="bot-tag">
             BOT
         </span>
     );

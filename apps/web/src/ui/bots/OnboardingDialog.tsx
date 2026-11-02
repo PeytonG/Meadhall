@@ -58,7 +58,7 @@ export function OnboardingDialog({ client, space, open, onClose }: OnboardingDia
     return (
         <RoomDialog
             open={open}
-            title={`Welcome to ${space.name || "the server"}`}
+            title={`Welcome to ${space.name || "the space"}`}
             onClose={onClose}
             footer={
                 <>
@@ -112,7 +112,7 @@ export function OnboardingDialog({ client, space, open, onClose }: OnboardingDia
                         </div>
                     </fieldset>
                 ))}
-                <p className="settings-inline-note">Your answers are saved in the server, where its members can see them.</p>
+                <p className="settings-inline-note">Your answers are saved in the space, where its members can see them.</p>
                 {error ? <p className="settings-inline-error">{error}</p> : null}
             </div>
         </RoomDialog>
@@ -138,7 +138,7 @@ export function OnboardingGate({ client, space }: OnboardingGateProps): React.Re
     }, [space.roomId]);
     return (
         <div className="onboarding-gate" data-testid="onboarding-gate">
-            <span>Finish joining {space.name || "this server"} to chat: read the rules and answer a few questions.</span>
+            <span>Finish joining {space.name || "this space"} to chat: read the rules and answer a few questions.</span>
             <button type="button" className="settings-button" onClick={() => setOpen(true)} data-testid="onboarding-start">
                 Get started
             </button>
