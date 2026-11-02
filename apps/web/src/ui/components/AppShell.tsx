@@ -3110,8 +3110,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                             setMobilePane("chat");
                                             voiceRoomRef.current?.openVoiceSettings();
                                         }}
-                                        aria-label="Voice settings"
-                                        title="Voice settings"
+                                        aria-label="Call settings"
+                                        title="Call settings"
                                         data-testid="dock-voice-settings"
                                     >
                                         <PixelIcon name="gear" size={18} />

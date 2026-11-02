@@ -13,6 +13,7 @@ export {
     MatrixRtcKeyProvider,
     buildRtcIdentityMap,
     clearLiveKitTransportCache,
+    activeCallTransport,
     discoverLiveKitTransport,
     fetchSfuCredentials,
     getRtcVoiceParticipants,

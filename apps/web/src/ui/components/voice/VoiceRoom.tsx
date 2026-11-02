@@ -24,6 +24,7 @@ import volumeMutedIcon from "../icons/volume-mute-02.svg";
 import {
     MatrixRtcKeyProvider,
     buildRtcIdentityMap,
+    activeCallTransport,
     discoverLiveKitTransport,
     fetchLiveKitToken,
     fetchSfuCredentials,
@@ -1330,6 +1331,17 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             signal: joinAbortController.signal,
                         });
                         return { backend: "relay" as const, wsUrl: relay.wsUrl, token: relay.token, transport: null };
+                    }
+                    // Join the call where it already is (maybe another homeserver's call server); ours if we're first or
+                    // theirs refuses us. Our membership still names our own server, as Element Call's does.
+                    const active = targetMatrixRoom ? activeCallTransport(client, targetMatrixRoom) : null;
+                    if (active && active.livekit_service_url !== transport.livekit_service_url) {
+                        try {
+                            const remote = await fetchSfuCredentials(client, active, targetRoomId, { signal: joinAbortController.signal });
+                            return { backend: "matrixrtc" as const, wsUrl: remote.url, token: remote.jwt, transport };
+                        } catch (remoteError) {
+                            logCallEvent("Other homeserver's call server refused; using ours", `${active.livekit_service_url}: ${remoteError instanceof Error ? remoteError.message : String(remoteError)}`);
+                        }
                     }
                     const sfu = await fetchSfuCredentials(client, transport, targetRoomId, {
                         signal: joinAbortController.signal,

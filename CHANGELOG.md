@@ -28,6 +28,9 @@ Versions follow `vX.Y.Z`.
 - Guides: [setting up the Meadhall bot](docs/bots.md) and [installing on your iPhone for free](docs/ios-free-install.md).
 
 ### Fixed
+- **Calls with people on other homeservers:** Meadhall now joins the call on the call server it is already running on
+  (whoever has been in it longest), like Element Call, instead of always using your own homeserver's. People from
+  different homeservers end up in the same call and hear each other.
 - **People invited to a space skipped its onboarding.** An invited space now asks you to Accept or Decline, its
   channels are joined only after that, and onboarding opens as soon as you enter.
 - Channels created after a bot was added now invite the bot and follow the space's roles.
