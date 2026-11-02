@@ -517,7 +517,8 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   height about 1.45, a focus ring on every control, `-webkit-tap-highlight-color: transparent` with `:active`
   states instead, safe areas (`--safe-top`/`--safe-bottom`).
 - Phones (≤760 px): a full-width, centered bottom tab bar (Home, Inbox, You = status menu with Settings and "Sign in
-  another device"; an Admin tab with a shield icon for homeserver admins and admins of the open server), chat top bar
+  another device"; a fourth Admin tab, shield icon, only for accounts with the admin panel, i.e. homeserver admins:
+  owner requirement, exactly 3 tabs otherwise), chat top bar
   = back, title, lock, call, "…" (search/members/pins move into "…"), settings as a grouped list with drill-in
   (`is-phone-list` / `is-phone-page`), long press on a message opens its menu as a bottom sheet (no hover bar on
   touch), dialogs as bottom sheets. Calls: Mute, Camera, More (sounds, deafen, voice settings), Leave; no screen

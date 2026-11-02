@@ -28,8 +28,8 @@ Versions follow `vX.Y.Z`.
   end on their own.
 - **Message links open in Meadhall:** "Copy link" makes a `meadhall://` link that opens the app right at that
   message (desktop and Android), and room links from matrix.to clicked inside Meadhall open there too.
-- **Phones, redesigned:** a centered bottom tab bar (Home, Inbox, You; settings are under You, and admins get an
-  **Admin** tab), a cleaner top bar in chats (the name, a small lock, call and a "…" menu), settings as a list you
+- **Phones, redesigned:** a centered bottom tab bar (Home, Inbox, You; settings are under You, and homeserver admins get an
+  **Admin** tab for the admin panel), a cleaner top bar in chats (the name, a small lock, call and a "…" menu), settings as a list you
   tap into, hold a message for its menu, dialogs as sheets from the bottom, every button big enough to tap (48 px),
   16 px text in fields (no more zooming in on iPhone), and room for the notch and home indicator. In calls, the
   buttons are Mute, Camera, More (sounds, deafen, voice settings) and Leave; tap "Voice Connected" to get back to the

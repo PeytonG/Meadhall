@@ -1661,9 +1661,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         };
     }, [client]);
 
-    // Phones: an Admin tab for homeserver admins and for admins of the server you're in.
+    // Phones: an Admin tab for accounts with the admin panel (homeserver admins).
     const [isHomeserverAdmin, setIsHomeserverAdmin] = useState(false);
-    const [adminMenu, setAdminMenu] = useState<{ x: number; y: number } | null>(null);
     useEffect(() => {
         let cancelled = false;
         void isServerAdmin(client)
@@ -2387,8 +2386,6 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         });
     }, []);
 
-    // Can change who does what in the server you're in (its admins).
-    const isSpaceAdmin = Boolean(selectedSpaceRoom && ownUserId && selectedSpaceRoom.currentState.maySendStateEvent(EventType.RoomPowerLevels, ownUserId));
     // Room and message links (meadhall://, matrix.to, matrix:) open here, at the message, rather than in a browser.
     const openAppLink = useCallback(
         async (link: AppLink): Promise<void> => {
@@ -2970,7 +2967,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         ) : null}
                         {isPhoneLayout ? (
                             // Phones: a bottom tab bar (UI Design Principles, Apple's HIG), not the desktop user bar.
-                            <nav className={`mobile-tab-bar${isHomeserverAdmin || isSpaceAdmin ? " has-admin" : ""}`} aria-label="Main" data-testid="mobile-tab-bar">
+                            <nav className={`mobile-tab-bar${isHomeserverAdmin ? " has-admin" : ""}`} aria-label="Main" data-testid="mobile-tab-bar">
                                 <button
                                     type="button"
                                     className={`mobile-tab${selectedSpaceId === PEOPLE_SPACE_ID && !inboxOpen ? " is-active" : ""}`}
@@ -3018,24 +3015,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     />
                                     <span>You</span>
                                 </button>
-                                {/* Settings live under You (its menu); admins get a fourth tab for server and homeserver admin. */}
-                                {isHomeserverAdmin || isSpaceAdmin ? (
+                                {/* Settings live under You (its menu). Accounts with the admin panel (homeserver admins,
+                                    Settings → Server admin) get a fourth tab for it. */}
+                                {isHomeserverAdmin ? (
                                     <button
                                         type="button"
-                                        className={`mobile-tab${adminMenu ? " is-active" : ""}`}
-                                        onClick={(event) => {
-                                            if (isSpaceAdmin && !isHomeserverAdmin) {
-                                                openServerSettings("overview");
-                                                return;
-                                            }
-                                            if (isHomeserverAdmin && !isSpaceAdmin) {
-                                                openUserSettings("server-admin");
-                                                return;
-                                            }
-                                            const box = event.currentTarget.getBoundingClientRect();
-                                            setAdminMenu({ x: box.left, y: box.top - 8 });
-                                        }}
-                                        aria-haspopup={isHomeserverAdmin && isSpaceAdmin ? "menu" : undefined}
+                                        className="mobile-tab"
+                                        onClick={() => openUserSettings("server-admin")}
                                         aria-label="Admin"
                                         data-testid="mobile-tab-admin"
                                     >
@@ -3484,18 +3470,6 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 <WhatsNewDialog />
             )}
             <CallEndedNotice onViewDetails={() => openUserSettings("logs")} />
-            {adminMenu ? (
-                <ContextMenu
-                    x={adminMenu.x}
-                    y={adminMenu.y}
-                    label="Admin"
-                    onClose={() => setAdminMenu(null)}
-                    items={[
-                        { label: `${selectedSpaceRoom?.name || "Server"} settings`, onSelect: () => openServerSettings("overview") },
-                        { label: "Homeserver admin", onSelect: () => openUserSettings("server-admin") },
-                    ]}
-                />
-            ) : null}
             {inboxOpen ? (
                 <InboxPanel
                     client={client}
