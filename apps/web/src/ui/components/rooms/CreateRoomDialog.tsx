@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { EventType, Preset, Visibility, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { RoomDialog } from "./RoomDialog";
+import { readBots } from "../../../core/bots/serverBots";
+import { setUpNewChannel } from "../../../core/roles/applyRoles";
 import {
     HEOROT_SPACE_CHILD_CHANNEL_TYPE_KEY,
     HEOROT_SPACE_CHILD_VOICE_KEY,
@@ -165,6 +167,11 @@ export function CreateRoomDialog({
                     parentContent as any,
                     spaceParentId,
                 );
+                const space = client.getRoom(spaceParentId);
+                if (space) {
+                    // In the background: the dialog closes now.
+                    void setUpNewChannel(client, space, response.room_id, readBots(space).map((bot) => bot.userId)).catch(() => undefined);
+                }
             }
 
             onCreated?.(response.room_id);

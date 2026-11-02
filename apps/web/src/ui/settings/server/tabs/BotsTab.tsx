@@ -48,7 +48,8 @@ export function BotsTab({ client, spaceRoom, channels, onToast }: BotsTabProps):
             <h2 className="settings-tab-title">Bots</h2>
             <p className="settings-tab-description">
                 Bots are Matrix accounts that work for the space: the Meadhall bot greets new members, runs onboarding and
-                auto-mod, and answers moderation commands. Their commands appear when you type / in the message box.
+                auto-mod, and answers moderation commands. Their commands appear when you type / in the message box. Setting one
+                up: see the bot guide (docs/bots.md in Meadhall's source code).
             </p>
 
             <div className="settings-section-card">

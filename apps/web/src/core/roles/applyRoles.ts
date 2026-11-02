@@ -182,3 +182,22 @@ export function memberRoleColor(space: Room | null, userId: string): string | nu
     const mine = readAssignments(space, roles).get(userId) ?? [];
     return roles.find((role) => mine.includes(role.id))?.color ?? null;
 }
+
+// A channel just created in a space: its power levels follow the space's roles, and the space's bots are invited
+// (otherwise bots and members' roles only reached channels that existed when they were set up).
+export async function setUpNewChannel(client: MatrixClient, space: Room, roomId: string, botIds: string[]): Promise<void> {
+    const deadline = Date.now() + 10_000;
+    let channel = client.getRoom(roomId);
+    while ((!channel || channel.getMyMembership() !== "join") && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        channel = client.getRoom(roomId);
+    }
+    if (!channel) return;
+    if (readRoles(space).length > 0) await syncRoles(client, space, [channel]);
+    for (const botId of botIds) {
+        const membership = channel.getMember(botId)?.membership;
+        if (membership !== "join" && membership !== "invite" && channel.canInvite(client.getSafeUserId())) {
+            await client.invite(roomId, botId).catch(() => undefined);
+        }
+    }
+}

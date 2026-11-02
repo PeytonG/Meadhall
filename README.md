@@ -37,7 +37,8 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 - 🎭 **Roles, statuses and profiles** with banners, bios, links and "Playing ..." (Steam, Rich Presence), shared
   only with whom you choose.
 - 🤖 **Space bots**: onboarding with rules and questions, welcome messages, auto-mod and slash commands, with the
-  Meadhall bot ready to run (or bring any Matrix bot).
+  Meadhall bot ready to run (or bring any Matrix bot): see the [bot guide](docs/bots.md). Without a bot, moderators'
+  Meadhall apps enforce auto-mod and give onboarding roles while they're online.
 - 🛡️ **Reports and moderation**: members report people or messages with your space's own reasons; moderators
   warn, kick, ban or mute (also for a set time), shadow mute, and see each member's record.
 - 🔗 **Message links that open in Meadhall**, right at the message, on desktop and Android.
@@ -153,7 +154,7 @@ days): see [Installing on your iPhone for free](docs/ios-free-install.md).
   results are posted in the chat. Works with Element's polls.
 - 🤖 **Bots** (Server Settings → Community): add bots with roles (BOT tag), set up **onboarding** (rules, questions
   whose answers give roles, optionally enforced by the homeserver) and a welcome message, and **auto-mod** (blocked
-  words, links, mention spam). Bots' **slash commands** show when you type /. The Meadhall bot is in [`apps/bot`](apps/bot/README.md).
+  words, links, mention spam). Bots' **slash commands** show when you type /. The Meadhall bot is in [`apps/bot`](apps/bot/README.md); the [bot guide](docs/bots.md) sets it up step by step.
 - 🧵 **Threads**: replies in a thread (from Element, FluffyChat or bots) show as "N replies" under the message and
   open beside the chat, where you can answer; the inbox lists them too.
 - 💻 **Code blocks** with syntax highlighting (```ts), and **link previews** that stay off in encrypted chats unless
