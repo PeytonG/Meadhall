@@ -30,6 +30,8 @@ import { ONBOARDING_RESPONSE_EVENT } from "../../core/bots/botProtocol";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
+import { FriendsView, useFriends } from "../friends/FriendsView";
+import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
 import { isVoiceChatEnabled } from "../../core/voice/voiceChat";
@@ -1009,7 +1011,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const autoJoiningDirectRoomIdsRef = useRef<Set<string>>(new Set());
     // Phones show one screen at a time, like the Discord app: the server rail + channel list, or the open chat.
     const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
+    // Home → Friends shows in the main pane until a conversation is opened.
+    const [friendsOpen, setFriendsOpen] = useState(false);
+    const friendsList = useFriends(client);
+    useEffect(() => watchFriendNotices(client), [client]);
     const openRoomAtBottom = useCallback((roomId: string): void => {
+        setFriendsOpen(false);
         setActiveRoomId(roomId);
         setTimelineFocusBottomNonce((value) => value + 1);
     }, []);
@@ -1524,6 +1531,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
 
         if (!activeRoomId) {
+            // Home → Friends stays open with no conversation selected.
+            if (friendsOpen && selectedSpaceId === PEOPLE_SPACE_ID) return;
             openRoomAtBottom(channels[0].roomId);
             return;
         }
@@ -1537,7 +1546,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
             openRoomAtBottom(channels[0].roomId);
         }
-    }, [activeRoomId, channels, directRoomIds, openRoomAtBottom, pendingFocusRoomId, selectedSpaceId]);
+    }, [activeRoomId, channels, directRoomIds, friendsOpen, openRoomAtBottom, pendingFocusRoomId, selectedSpaceId]);
 
     useEffect(() => {
         setReplyToEvent(null);
@@ -2815,6 +2824,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         otherRooms={homeGroupRooms}
                         bugReports={homeBugReports}
                         invites={homeInvites.filter((room) => !isBugReportRoom(room))}
+                        friendsOpen={friendsOpen}
+                        pendingFriendRequests={friendsList.incoming.length}
+                        onOpenFriends={() => {
+                            setFriendsOpen(true);
+                            setActiveRoomId(null);
+                            setMobilePane("chat");
+                        }}
                         onAcceptInvite={(roomId) => {
                             void requestJoinRoom(roomId, { preferredSpaceId: null })
                                 .then(() => selectChannel(roomId))
@@ -3181,6 +3197,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </div>
             </section>
 
+            {friendsOpen && selectedSpaceId === PEOPLE_SPACE_ID && !activeRoom ? (
+                <section className="main-pane friends-pane">
+                    <FriendsView client={client} onOpenRoom={selectChannel} onCallUser={(userId) => void callUser(userId)} onToast={pushToast} />
+                </section>
+            ) : (
             <section className="main-pane">
                 <ChannelHeader
                     room={activeRoom}
@@ -3356,6 +3377,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 ) : null}
                 </div>
             </section>
+            )}
 
             {shouldRenderRightPanel ? (
                 <RightPanel

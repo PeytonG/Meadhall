@@ -20,6 +20,7 @@ import "@fontsource/pixelify-sans/600.css";
 import "@fontsource/silkscreen/400.css";
 import "./styles/pixel.css";
 import "./styles/mobile.css";
+import "./styles/friends.css";
 
 function LoadingView({ label }: { label: string }): React.ReactElement {
     return (

@@ -22,6 +22,8 @@ import { useProfileStyle } from "../../profile/useProfileStyle";
 import { useIconStyle } from "../../theme/iconStyle";
 import { syncDesktopTitleBarColors } from "../../desktop/titleBarColors";
 import { ReportDialog } from "../../moderation/ReportDialog";
+import { friendStatus } from "../../../core/friends/friends";
+import { runFriendAction, useFriends } from "../../friends/FriendsView";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -178,6 +180,26 @@ export function UserProfilePanel({
     );
 
     const { ignored, setIgnored } = useIgnoredUsers(client);
+    const friends = useFriends(client);
+    const relation = friendStatus(friends, userId);
+    const [draft, setDraft] = useState("");
+    const [sending, setSending] = useState(false);
+    // The box at the bottom of the card: sends straight to your DM with them (made if needed) and opens it.
+    const sendDraft = async (): Promise<void> => {
+        const body = draft.trim();
+        if (!body || sending) return;
+        setSending(true);
+        try {
+            const result = await createOrReuseDirectChat(client, userId);
+            await client.sendTextMessage(result.roomId, body);
+            setDraft("");
+            onOpenRoom(result.roomId);
+        } catch (error) {
+            onToast?.({ type: "error", message: error instanceof Error ? error.message : "Couldn't send the message." });
+        } finally {
+            setSending(false);
+        }
+    };
     const isBlocked = ignored.includes(userId);
     const serverRoles = useMemo(() => mutualServerRoles(client, userId), [client, userId, room]);
 
@@ -217,6 +239,17 @@ export function UserProfilePanel({
                 onBack={onBack}
                 onMessage={canMessage ? openDm : undefined}
                 onCall={onCallUser && ownUserId !== userId ? () => onCallUser(userId) : undefined}
+                friend={
+                    ownUserId === userId
+                        ? undefined
+                        : relation === "friends"
+                          ? { label: "Friends" }
+                          : relation === "outgoing"
+                            ? { label: "Pending" }
+                            : relation === "incoming"
+                              ? { label: "Accept friend", onClick: () => void runFriendAction(client, userId, "accept", onToast) }
+                              : { label: "Add friend", onClick: () => void runFriendAction(client, userId, "request", onToast) }
+                }
                 onCopyMxid={async () => {
                     await copyText(userId);
                     onToast?.({ type: "success", message: "MXID copied." });
@@ -238,6 +271,25 @@ export function UserProfilePanel({
             <RolesCard servers={serverRoles} mutualRoomsCount={mutualRoomsCount} />
 
             <MediaCard title="Media" description="Recent images by this user will be shown here." />
+
+            {canMessage ? (
+                <form
+                    className="rp-card rp-message-box"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        void sendDraft();
+                    }}
+                >
+                    <input
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        placeholder={`Message @${displayName}`}
+                        aria-label={`Message ${displayName}`}
+                        disabled={sending}
+                        data-testid="profile-message-input"
+                    />
+                </form>
+            ) : null}
 
             <section className="rp-card rp-footer-actions">
                 {ownUserId !== userId ? (

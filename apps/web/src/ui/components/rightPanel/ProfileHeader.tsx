@@ -23,6 +23,8 @@ interface ProfileHeaderProps {
     onCopyUserId: () => Promise<void>;
     onMessage?: () => Promise<void>;
     onCall?: () => void;
+    // Add friend / Pending / Friends (core/friends/friends.ts); absent on your own profile.
+    friend?: { label: string; onClick?: () => void };
 }
 
 function hashToHue(value: string): number {
@@ -46,6 +48,7 @@ export function ProfileHeader({
     onCopyUserId,
     onMessage,
     onCall,
+    friend,
 }: ProfileHeaderProps): React.ReactElement {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
@@ -146,9 +149,11 @@ export function ProfileHeader({
                 >
                     Call
                 </button>
-                <button type="button" className="rp-icon-btn" disabled>
-                    Add
-                </button>
+                {friend ? (
+                    <button type="button" className="rp-icon-btn" disabled={!friend.onClick} onClick={friend.onClick} data-testid="profile-friend">
+                        {friend.label}
+                    </button>
+                ) : null}
                 <div className="rp-profile-menu" ref={menuRef}>
                     <button
                         type="button"
