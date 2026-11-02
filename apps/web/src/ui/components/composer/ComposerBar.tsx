@@ -106,7 +106,8 @@ export function ComposerBar({
                     title={hasMenu ? "Add" : "Upload attachment"}
                     data-testid="composer-plus"
                 >
-                    +
+                    {/* An icon, not a typed "+": a character sits on the font's baseline, off center in the box. */}
+                    <PixelIcon name="plus" size={20} />
                 </button>
                 {hasMenu && menuOpen ? (
                     <div className="composer-plus-menu" role="menu" data-testid="composer-plus-menu">

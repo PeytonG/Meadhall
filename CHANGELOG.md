@@ -67,7 +67,8 @@ Versions follow `vX.Y.Z`.
 ### Fixed
 - **"Playing …" stuck on the old game:** quitting one game and starting another now shows the new one.
 - Everyone (you too) no longer blinks offline for a moment when Meadhall reconnects.
-- The close buttons of the image viewer and Settings are centered, and Settings has no empty band above its title on
+- The "+" buttons (attach, create a space, add a sound) and the close buttons of the image viewer and Settings are
+  centered exactly (drawn icons instead of typed characters), and Settings has no empty band above its title on
   Windows.
 
 ## v0.4.2 (2026-10-27)

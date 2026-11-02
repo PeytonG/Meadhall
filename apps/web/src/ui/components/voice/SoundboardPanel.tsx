@@ -14,6 +14,7 @@ import {
     type CustomSound,
 } from "../../voice/soundboard/soundboard";
 import { decodeSoundFile, initialSelection, trimToWav } from "../../voice/soundboard/trim";
+import { PixelIcon } from "../PixelIcon";
 import { SoundTrimmer } from "./SoundTrimmer";
 
 export type SoundChoice = { kind: "builtin"; id: string; name: string } | { kind: "custom"; sound: CustomSound };
@@ -198,7 +199,7 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
                 {!adding && custom.length < MAX_CUSTOM_SOUNDS ? (
                     <button type="button" className="soundboard-sound is-add" onClick={() => setAdding(true)}>
                         <span className="soundboard-emoji" aria-hidden="true">
-                            +
+                            <PixelIcon name="plus" size={18} />
                         </span>
                         Add sound
                     </button>

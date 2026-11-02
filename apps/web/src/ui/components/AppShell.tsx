@@ -2757,8 +2757,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onClick={() => setCreateSpaceOpen(true)}
                     title="Create Space"
                     disabled={client.isGuest()}
+                    aria-label="Create Space"
                 >
-                    +
+                    <PixelIcon name="plus" size={20} />
                 </button>
             </aside>
 
