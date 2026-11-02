@@ -32,6 +32,7 @@ import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
 import { HelpDialog } from "../help/HelpDialog";
+import type { OverlayState } from "../overlay/overlayState";
 import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
@@ -844,6 +845,21 @@ async function resolveSpaceHierarchyVoiceHints(
     );
 
     return { childOrderOverride, customOrderOverride, voiceHintRoomIds };
+}
+
+function useRoomTimelineTick(client: MatrixClient, roomId: string | null): number {
+    const [tick, setTick] = useState(0);
+    useEffect(() => {
+        if (!roomId) return undefined;
+        const onTimeline = (_event: MatrixEvent, room: Room | undefined): void => {
+            if (room?.roomId === roomId) setTick((value) => value + 1);
+        };
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.off(RoomEvent.Timeline, onTimeline);
+        };
+    }, [client, roomId]);
+    return tick;
 }
 
 function findParentSpaceIdForRoom(roomId: string, spaces: Room[]): string | null {
@@ -2050,6 +2066,72 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
     };
     useEffect(() => window.heorotDesktop?.onTrayAction?.((action) => trayActionRef.current(action)), []);
+
+    // The desktop game overlay (Shift+`): what it shows, and its buttons acting here (overlay/OverlayApp.tsx).
+    const overlayRoomTick = useRoomTimelineTick(client, voiceSessionRoomId);
+    useEffect(() => {
+        if (!window.heorotDesktop?.setOverlayState) return;
+        const inCall = voiceSessionStatus === "connected" && Boolean(voiceSessionRoomId);
+        const room = voiceSessionRoomId ? client.getRoom(voiceSessionRoomId) : null;
+        const speaking = voiceSpeakingByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
+        const sharing = voiceScreenShareByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
+        const people = [...(voiceParticipantsByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>())];
+        const state: OverlayState = {
+            inCall,
+            channel: room ? getRoomName(room) : null,
+            micMuted: selfVoice.muted,
+            deafened: selfVoice.deafened,
+            cameraOn: Boolean(voiceControlState.cameraOn),
+            sharing: Boolean(voiceControlState.screenSharing),
+            participants: inCall
+                ? people.map((userId) => ({
+                      userId,
+                      name: room?.getMember(userId)?.name ?? client.getUser(userId)?.displayName ?? userId,
+                      speaking: speaking.has(userId),
+                      sharing: sharing.has(userId),
+                  }))
+                : [],
+            messages: room
+                ? room
+                      .getLiveTimeline()
+                      .getEvents()
+                      .filter((event) => event.getType() === EventType.RoomMessage && !event.isRedacted() && typeof event.getContent().body === "string")
+                      .slice(-5)
+                      .map((event) => ({
+                          id: event.getId() ?? "",
+                          sender: room.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
+                          body: String(event.getContent().body).slice(0, 300),
+                          room: getRoomName(room),
+                      }))
+                : [],
+        };
+        void window.heorotDesktop.setOverlayState(state);
+    }, [
+        client,
+        overlayRoomTick,
+        selfVoice.deafened,
+        selfVoice.muted,
+        voiceControlState.cameraOn,
+        voiceControlState.screenSharing,
+        voiceParticipantsByRoomId,
+        voiceScreenShareByRoomId,
+        voiceSessionRoomId,
+        voiceSessionStatus,
+        voiceSpeakingByRoomId,
+    ]);
+    const overlayCommandRef = useRef<(command: string) => void>(() => undefined);
+    overlayCommandRef.current = (command) => {
+        if (command === "toggleMute") toggleVoiceMicFromDock();
+        else if (command === "toggleDeafen") toggleVoiceAudioFromDock();
+        else if (command === "toggleCamera") void voiceRoomRef.current?.toggleCamera();
+        else if (command === "leave") leaveVoiceFromDock();
+        else if (voiceSessionRoomId && (command === "toggleScreenShare" || command === "openSoundboard")) {
+            openRoomAtBottom(voiceSessionRoomId);
+            if (command === "toggleScreenShare") void voiceRoomRef.current?.toggleScreenShare();
+            else voiceRoomRef.current?.openSoundboard();
+        }
+    };
+    useEffect(() => window.heorotDesktop?.onOverlayCommand?.((command) => overlayCommandRef.current(command)), []);
 
     // Below 1100px the members/profile panel slides over the chat, so it only opens when asked for and closing it
     // there doesn't change the saved (desktop) panel choice.

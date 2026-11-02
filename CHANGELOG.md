@@ -16,6 +16,9 @@ Versions follow `vX.Y.Z`.
   below the channel list.
 - **Streaming Now previews:** hover someone's LIVE badge in the channel list to see a snapshot of their screen, with
   Watch Stream. Snapshots are only shared in unencrypted channels, and only while someone is sharing.
+- **Game overlay (desktop):** press **Shift + `** in any game to show the call controls (mute, deafen, camera,
+  screen share, soundboard, leave), who's talking and recent messages over the game. Works in windowed and borderless
+  games; exclusive-fullscreen games would need hooking into the game, which anti-cheat can ban for, so Meadhall doesn't.
 - **Help:** the **?** at the top of the chat opens Meadhall's help, by category and searchable.
 - **Auto-mod and onboarding roles without a bot:** in spaces without a bot, an online moderator's Meadhall removes
   rule-breaking messages (and warns or times out) and gives the roles onboarding answers earn.
