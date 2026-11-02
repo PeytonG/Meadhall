@@ -101,3 +101,17 @@
         white-space: nowrap;
     }
 }
+
+/* Settings → Notifications → Notification sounds. */
+.notification-sound-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px 12px;
+    margin-bottom: 10px;
+}
+
+.notification-sound-row .settings-field {
+    flex: 1 1 240px;
+    margin: 0;
+}

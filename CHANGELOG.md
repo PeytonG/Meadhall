@@ -10,6 +10,8 @@ Versions follow `vX.Y.Z`.
 - **Friends**, like Discord's: Home → Friends shows Online, All, Pending and Blocked, and **Add Friend** sends a
   request by Matrix ID. Requests arrive as a count on Friends. Profile cards have **Add friend** and a
   **"Message @name"** box that sends a direct message without leaving the card.
+- **Notification sounds:** pick from 10 built-in sounds (8-bit or smooth) or your own file, with separate
+  sounds for mentions and direct messages if you like (Settings → Notifications → Notification sounds).
 - **Help:** the **?** at the top of the chat opens Meadhall's help, by category and searchable.
 - **Auto-mod and onboarding roles without a bot:** in spaces without a bot, an online moderator's Meadhall removes
   rule-breaking messages (and warns or times out) and gives the roles onboarding answers earn.

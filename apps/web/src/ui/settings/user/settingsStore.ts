@@ -40,6 +40,15 @@ export interface NotificationsSettings {
     audioNotificationsEnabled: boolean;
     customMessageSoundDataUrl: string | null;
     customMessageSoundName: string | null;
+    // Which sound plays (notifications/notificationTones.ts): a built-in tone's id, or "custom" for your own file.
+    // Mentions and DMs can also be "same" (as messages).
+    messageTone: string;
+    mentionTone: string;
+    dmTone: string;
+    mentionSoundDataUrl: string | null;
+    mentionSoundName: string | null;
+    dmSoundDataUrl: string | null;
+    dmSoundName: string | null;
     // Incoming calls: ring at all, and with your own sound instead of the built-in jingle.
     ringtoneEnabled: boolean;
     // The tunes as 8-bit chiptune (default) or smooth bell tones.
@@ -94,7 +103,7 @@ export interface UserLocalSettings {
 
 const SETTINGS_STORAGE_KEY = "heorot.user_settings.v1";
 
-const DEFAULT_SETTINGS: UserLocalSettings = {
+export const DEFAULT_USER_SETTINGS: UserLocalSettings = {
     appearance: {
         theme: "dark",
         compactMode: false,
@@ -118,6 +127,13 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         audioNotificationsEnabled: true,
         customMessageSoundDataUrl: null,
         customMessageSoundName: null,
+        messageTone: "chime",
+        mentionTone: "same",
+        dmTone: "same",
+        mentionSoundDataUrl: null,
+        mentionSoundName: null,
+        dmSoundDataUrl: null,
+        dmSoundName: null,
         ringtoneEnabled: true,
         soundStyle: "pixel",
         customRingtoneDataUrl: null,
@@ -155,7 +171,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeSettings(raw: unknown): UserLocalSettings {
     if (!isRecord(raw)) {
-        return { ...DEFAULT_SETTINGS };
+        return { ...DEFAULT_USER_SETTINGS };
     }
 
     const appearance = isRecord(raw.appearance) ? raw.appearance : {};
@@ -213,6 +229,14 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             audioNotificationsEnabled: notifications.audioNotificationsEnabled !== false,
             customMessageSoundDataUrl,
             customMessageSoundName,
+            // Before tones could be picked, a saved file always played.
+            messageTone: toneSetting(notifications.messageTone, customMessageSoundDataUrl ? "custom" : "chime", false),
+            mentionTone: toneSetting(notifications.mentionTone, "same", true),
+            dmTone: toneSetting(notifications.dmTone, "same", true),
+            mentionSoundDataUrl: audioDataUrl(notifications.mentionSoundDataUrl),
+            mentionSoundName: shortName(notifications.mentionSoundName),
+            dmSoundDataUrl: audioDataUrl(notifications.dmSoundDataUrl),
+            dmSoundName: shortName(notifications.dmSoundName),
             ringtoneEnabled: notifications.ringtoneEnabled !== false,
             soundStyle: notifications.soundStyle === "smooth" ? "smooth" : "pixel",
             customRingtoneDataUrl:
@@ -265,17 +289,17 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
 
 export function loadUserLocalSettings(): UserLocalSettings {
     if (typeof window === "undefined") {
-        return { ...DEFAULT_SETTINGS };
+        return { ...DEFAULT_USER_SETTINGS };
     }
 
     try {
         const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
         if (!raw) {
-            return { ...DEFAULT_SETTINGS };
+            return { ...DEFAULT_USER_SETTINGS };
         }
         return normalizeSettings(JSON.parse(raw));
     } catch {
-        return { ...DEFAULT_SETTINGS };
+        return { ...DEFAULT_USER_SETTINGS };
     }
 }
 
@@ -337,4 +361,18 @@ export function withNotificationsOnOnce(settings: UserLocalSettings): UserLocalS
         return settings;
     }
     return { ...settings, notifications: { ...settings.notifications, notificationsEnabled: true } };
+}
+
+function toneSetting(value: unknown, fallback: string, allowSame: boolean): string {
+    if (typeof value !== "string") return fallback;
+    if (value === "custom" || (allowSame && value === "same") || /^[a-z]{2,16}$/.test(value)) return value;
+    return fallback;
+}
+
+function audioDataUrl(value: unknown): string | null {
+    return typeof value === "string" && value.startsWith("data:audio/") ? value : null;
+}
+
+function shortName(value: unknown): string | null {
+    return typeof value === "string" && value.trim() ? value.slice(0, 80) : null;
 }

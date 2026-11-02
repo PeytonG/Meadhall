@@ -173,8 +173,10 @@ Settings → Profile → Profile style. Choose a gradient or your own colors.
 Settings → Notifications. Per space or channel: right-click it → Notification settings or Mute.
 
 ### How do I change the notification sound?
-Settings → Notifications → Message sound. Choose a built-in sound or your own file. Sound style switches between 8-bit
-and smooth sounds. The ringtone for calls is in Settings → Notifications → Ringtone.
+Settings → Notifications → Notification sounds. Pick a sound for Messages, for Mentions and replies to you, and for
+Direct messages: one of the built-in sounds or your own file (Use a file, up to 1 MB). Preview plays it. Mentions and
+DMs can be "Same as messages". Sound style switches the built-in sounds between 8-bit and smooth. The ringtone for
+calls is in Settings → Notifications → Ringtone.
 
 ## Settings and looks
 
