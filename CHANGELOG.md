@@ -65,7 +65,8 @@ Versions follow `vX.Y.Z`.
 ### Fixed
 - **"Playing …" stuck on the old game:** quitting one game and starting another now shows the new one.
 - Everyone (you too) no longer blinks offline for a moment when Meadhall reconnects.
-- The image viewer's close button is centered.
+- The close buttons of the image viewer and Settings are centered, and Settings has no empty band above its title on
+  Windows.
 
 ## v0.4.2 (2026-10-27)
 

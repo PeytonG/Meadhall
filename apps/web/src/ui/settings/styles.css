@@ -241,10 +241,6 @@
     gap: 12px;
 }
 
-.app-shell.is-desktop-runtime.is-desktop-win32 .settings-header {
-    padding-top: calc(16px + var(--desktop-titlebar-overlay-height, 0px));
-}
-
 .settings-header h1 {
     margin: 0;
     font-size: 22px;
@@ -257,8 +253,10 @@
     border-radius: 10px;
     background: var(--bg-pane);
     color: var(--text-main);
-    font-size: 20px;
-    line-height: 1;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    flex-shrink: 0;
     cursor: pointer;
 }
 
@@ -1608,6 +1606,16 @@
 .style-profiles-save input {
     flex: 1;
     min-width: 0;
+}
+
+/* Text fields in settings without their own style look like the others (not the browser's default box). */
+:where(.settings-content) :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), textarea, select) {
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    border-radius: 8px;
+    color: var(--text-main);
+    padding: 9px 10px;
+    font: inherit;
 }
 
 .style-profiles-list {
