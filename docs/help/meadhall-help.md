@@ -135,6 +135,10 @@ your name at the bottom left and work any time.
 In a call, press Share screen, then pick a screen or window from the previews. Several people can share at once.
 Phones can't share their screen.
 
+### How do I see what someone is streaming before joining?
+In the channel list, hover over the person with the red LIVE badge under the voice channel. A card shows a recent
+snapshot of their screen and a Watch Stream button. Snapshots are only shared in unencrypted channels.
+
 ### How do I turn on my camera?
 In a call, press Turn camera on. You see a preview of yourself first. Pick the camera in Settings → Audio → Camera.
 

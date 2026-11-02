@@ -17,6 +17,7 @@ import { EventType, type MatrixClient, type Room as MatrixRoom } from "matrix-js
 import { MatrixRTCSessionEvent, type MatrixRTCSession } from "matrix-js-sdk/src/matrixrtc";
 
 import { Avatar } from "../Avatar";
+import { STREAM_PREVIEW_INTERVAL_MS, postStreamPreview } from "../../../core/voice/streamPreview";
 import micMutedIcon from "../icons/mic-02.svg";
 import volumeMutedIcon from "../icons/volume-mute-02.svg";
 
@@ -2618,6 +2619,22 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             screenSharing: localScreenSharing,
         });
     }, [audioMuted, cameraOn, connectionState, joining, localScreenSharing, micMuted, onControlsStateChange]);
+
+    // "Streaming Now" snapshots for the channel list while you share (core/voice/streamPreview.ts).
+    useEffect(() => {
+        if (!localScreenSharing) return undefined;
+        const post = (): void => {
+            const track = (roomRef.current?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track as { mediaStreamTrack?: MediaStreamTrack } | undefined)
+                ?.mediaStreamTrack;
+            if (track && track.readyState === "live") void postStreamPreview(client, matrixRoomId, track).catch(() => undefined);
+        };
+        const first = window.setTimeout(post, 2_000);
+        const timer = window.setInterval(post, STREAM_PREVIEW_INTERVAL_MS);
+        return () => {
+            window.clearTimeout(first);
+            window.clearInterval(timer);
+        };
+    }, [client, localScreenSharing, matrixRoomId]);
 
     useImperativeHandle(ref, () => ({
         join: joinVoice,

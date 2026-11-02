@@ -14,6 +14,8 @@ Versions follow `vX.Y.Z`.
   sounds for mentions and direct messages if you like (Settings → Notifications → Notification sounds).
 - **Call controls under "Voice Connected"**, like Discord: camera, screen share, soundboard and call settings right
   below the channel list.
+- **Streaming Now previews:** hover someone's LIVE badge in the channel list to see a snapshot of their screen, with
+  Watch Stream. Snapshots are only shared in unencrypted channels, and only while someone is sharing.
 - **Help:** the **?** at the top of the chat opens Meadhall's help, by category and searchable.
 - **Auto-mod and onboarding roles without a bot:** in spaces without a bot, an online moderator's Meadhall removes
   rule-breaking messages (and warns or times out) and gives the roles onboarding answers earn.

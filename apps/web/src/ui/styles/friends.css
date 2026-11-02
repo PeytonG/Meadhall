@@ -263,3 +263,59 @@
     background: var(--accent);
     color: var(--on-primary);
 }
+
+/* "Streaming Now" when hovering someone sharing their screen (voice/StreamHoverCard.tsx). */
+.stream-hover-anchor {
+    display: contents;
+}
+
+.stream-hover-card {
+    position: fixed;
+    z-index: 1000;
+    width: 288px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-pane);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.stream-hover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.stream-hover-preview {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #000;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.stream-hover-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.stream-hover-watch {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--success, #23a55a);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
