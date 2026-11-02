@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar } from "../Avatar";
 import type { PresenceVm } from "../../presence/buildPresenceVm";
@@ -84,6 +84,24 @@ export function ProfileHeader({
         };
     }, [menuOpen]);
 
+    // The panel clips overflow, so the menu is fixed to the window and kept inside it.
+    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+    const menuPanelRef = useRef<HTMLDivElement | null>(null);
+    useLayoutEffect(() => {
+        if (!menuOpen) {
+            setMenuPosition(null);
+            return;
+        }
+        const button = menuRef.current?.querySelector("button")?.getBoundingClientRect();
+        const panel = menuPanelRef.current?.getBoundingClientRect();
+        if (!button || !panel) return;
+        const margin = 8;
+        const left = Math.min(Math.max(margin, button.right - panel.width), window.innerWidth - panel.width - margin);
+        const below = button.bottom + 6;
+        const top = below + panel.height > window.innerHeight - margin ? Math.max(margin, button.top - 6 - panel.height) : below;
+        setMenuPosition({ top, left });
+    }, [menuOpen]);
+
     return (
         <header className="rp-profile-hero">
             <div className="rp-profile-banner" style={bannerStyle} data-testid="profile-banner">
@@ -142,7 +160,12 @@ export function ProfileHeader({
                         ...
                     </button>
                     {menuOpen ? (
-                        <div className="rp-profile-menu-panel" role="menu">
+                        <div
+                            className="rp-profile-menu-panel"
+                            role="menu"
+                            ref={menuPanelRef}
+                            style={menuPosition ?? { visibility: "hidden" }}
+                        >
                             <button
                                 type="button"
                                 className="rp-profile-menu-item"

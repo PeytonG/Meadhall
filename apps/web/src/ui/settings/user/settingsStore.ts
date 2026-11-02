@@ -30,6 +30,8 @@ export interface AppearanceSettings {
     showSpaceChannelAvatars: boolean;
     // Stop animations (campfire, animated banners, transitions) even if the system doesn't ask for it.
     reduceMotion: boolean;
+    // Scrollbars and other controls in the accent color (on) or neutral grey, whatever the shapes.
+    accentControls: boolean;
 }
 
 export interface NotificationsSettings {
@@ -107,6 +109,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
         reduceMotion: false,
+        accentControls: true,
     },
     notifications: {
         // On by default: the desktop and Android apps ask for permission; browsers ask when you turn them on.
@@ -202,6 +205,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             chatLineLengthCh,
             showSpaceChannelAvatars,
             reduceMotion: appearance.reduceMotion === true,
+            accentControls: appearance.accentControls !== false,
         },
         notifications: {
             notificationsEnabled: notifications.notificationsEnabled !== false,
@@ -295,6 +299,7 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     root.setAttribute("data-icon-style", settings.iconStyle === "smooth" ? "smooth" : "pixel");
     setIconStyle(settings.iconStyle === "smooth" ? "smooth" : "pixel");
     root.setAttribute("data-shape", settings.shapeStyle === "pixel" ? "pixel" : "smooth");
+    root.setAttribute("data-accent-controls", settings.accentControls === false ? "off" : "on");
     setReduceMotionSetting(settings.reduceMotion === true);
     if (settings.fontStyle === "custom" && settings.customFontFamily) {
         root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));
