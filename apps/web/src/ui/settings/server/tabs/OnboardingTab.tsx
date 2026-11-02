@@ -8,6 +8,7 @@ import type { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
 
 import type { ToastState } from "../../../components/Toast";
 import { ONBOARDING_EVENT, type OnboardingConfig, type OnboardingQuestion } from "../../../../core/bots/botProtocol";
+import { OnboardingDialog } from "../../../bots/OnboardingDialog";
 import { BOT_STATE_TYPES, readBots, readOnboarding, saveOnboarding, useSpaceState } from "../../../../core/bots/serverBots";
 import { readRoles } from "../../../../core/roles/applyRoles";
 import { CloseIcon } from "../../../components/CloseIcon";
@@ -31,6 +32,7 @@ export function OnboardingTab({ client, spaceRoom, channels, onToast }: Onboardi
     const [rulesText, setRulesText] = useState(saved.rules.join("\n"));
     const [giveExisting, setGiveExisting] = useState(true);
     const [busy, setBusy] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const textChannels = channels.filter((channel) => !channel.isSpaceRoom());
 
     const update = (patch: Partial<OnboardingConfig>): void => setDraft((current) => ({ ...current, ...patch }));
@@ -196,8 +198,8 @@ export function OnboardingTab({ client, spaceRoom, channels, onToast }: Onboardi
                         </label>
                         {!hasBot ? (
                             <p className="settings-inline-error">
-                                Add a bot that can manage roles (Space Settings → Bots) to give the role when someone finishes; until then, new
-                                members can&apos;t talk.
+                                No bot in this space: a moderator&apos;s Meadhall gives the role when someone finishes, but only while a moderator is
+                                online, so new members may wait. Add a bot (Space Settings → Bots) to give it straight away.
                             </p>
                         ) : null}
                     </>
@@ -233,11 +235,16 @@ export function OnboardingTab({ client, spaceRoom, channels, onToast }: Onboardi
             </div>
 
             <p className="settings-inline-note">Members&apos; answers are stored in the space, so its members can see them.</p>
+            <p className="settings-inline-note">Admins and moderators (power 50 and up) skip onboarding, so you won&apos;t see it yourself: use Preview.</p>
             <div className="settings-actions-row">
+                <button type="button" className="settings-button settings-button-secondary" onClick={() => setPreviewOpen(true)} disabled={!saved.enabled} data-testid="onboarding-preview">
+                    Preview as a newcomer
+                </button>
                 <button type="button" className="settings-button" onClick={() => void save()} disabled={disabled} data-testid="onboarding-save">
                     {busy ? "Saving…" : "Save onboarding"}
                 </button>
             </div>
+            <OnboardingDialog client={client} space={spaceRoom} open={previewOpen} onClose={() => setPreviewOpen(false)} preview />
         </div>
     );
 }

@@ -25,6 +25,8 @@ import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpa
 import { ContextMenu } from "./menus/ContextMenu";
 import { isServerAdmin } from "../../core/admin/synapseAdmin";
 import { isModerationRoom, liftExpiredSanctions, shouldAutoJoinReport } from "../../core/moderation/moderation";
+import { enforceAutomod, grantOnboardingRoles, grantPendingOnboardingRoles } from "../../core/moderation/moderatorDuties";
+import { ONBOARDING_RESPONSE_EVENT } from "../../core/bots/botProtocol";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingGate } from "../bots/OnboardingDialog";
@@ -1658,6 +1660,33 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }, 60_000);
         return () => {
             client.off(ClientEvent.Room, joinReports);
+            window.clearInterval(timer);
+        };
+    }, [client]);
+
+    // Moderators in spaces without a bot: auto-mod and onboarding roles from this app (moderatorDuties.ts).
+    useEffect(() => {
+        const onTimeline = (event: MatrixEvent, room: Room | undefined, toStartOfTimeline: boolean | undefined): void => {
+            if (!room || toStartOfTimeline) return;
+            void (async () => {
+                await client.decryptEventIfNeeded(event);
+                if (event.getType() === ONBOARDING_RESPONSE_EVENT && room.isSpaceRoom()) {
+                    await grantOnboardingRoles(client, room, event);
+                } else {
+                    await enforceAutomod(client, room, event);
+                }
+            })().catch(() => undefined);
+        };
+        const catchUp = (): void => {
+            for (const space of client.getRooms()) {
+                if (space.isSpaceRoom() && space.getMyMembership() === "join") void grantPendingOnboardingRoles(client, space).catch(() => undefined);
+            }
+        };
+        catchUp();
+        const timer = window.setInterval(catchUp, 5 * 60_000);
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.off(RoomEvent.Timeline, onTimeline);
             window.clearInterval(timer);
         };
     }, [client]);

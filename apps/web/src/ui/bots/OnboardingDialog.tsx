@@ -13,9 +13,11 @@ interface OnboardingDialogProps {
     space: Room;
     open: boolean;
     onClose: () => void;
+    // Admins skip onboarding; Space Settings → Onboarding lets them see it as a newcomer would (nothing is saved).
+    preview?: boolean;
 }
 
-export function OnboardingDialog({ client, space, open, onClose }: OnboardingDialogProps): React.ReactElement | null {
+export function OnboardingDialog({ client, space, open, onClose, preview = false }: OnboardingDialogProps): React.ReactElement | null {
     const config: OnboardingConfig = useMemo(() => readOnboarding(space), [space, open]);
     const [accepted, setAccepted] = useState(false);
     const [answers, setAnswers] = useState<Record<string, string[]>>({});
@@ -43,6 +45,10 @@ export function OnboardingDialog({ client, space, open, onClose }: OnboardingDia
     const submit = async (): Promise<void> => {
         const parsed = parseOnboardingResponse(response, config);
         if (!parsed) return;
+        if (preview) {
+            onClose();
+            return;
+        }
         setBusy(true);
         setError(null);
         try {
@@ -58,7 +64,7 @@ export function OnboardingDialog({ client, space, open, onClose }: OnboardingDia
     return (
         <RoomDialog
             open={open}
-            title={`Welcome to ${space.name || "the space"}`}
+            title={`Welcome to ${space.name || "the space"}${preview ? " (preview)" : ""}`}
             onClose={onClose}
             footer={
                 <>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Server Settings → Auto-mod: rules the server's bot applies to every message (blocked words, links, mention
+// Space Settings → Auto-mod: rules the space's bot (or, without one, moderators' apps: moderatorDuties.ts) applies to every message (blocked words, links, mention
 // spam), and what it does to someone who breaks them. The bot needs a role that can manage messages (and, for
 // timeouts, manage roles).
 import React, { useMemo, useState } from "react";
@@ -43,8 +43,13 @@ export function AutomodTab({ client, spaceRoom, onToast }: AutomodTabProps): Rea
     return (
         <div className="settings-tab" data-testid="automod-tab">
             <h2 className="settings-tab-title">Auto-mod</h2>
-            <p className="settings-tab-description">The space&apos;s bot removes messages that break these rules, in every channel.</p>
-            {readBots(spaceRoom).length === 0 ? <p className="settings-inline-error">Add a bot first (Space Settings → Bots): auto-mod runs in the bot.</p> : null}
+            <p className="settings-tab-description">Messages that break these rules are removed, in every channel.</p>
+            {readBots(spaceRoom).length === 0 ? (
+                <p className="settings-inline-note" data-testid="automod-no-bot">
+                    No bot in this space, so moderators&apos; Meadhall apps enforce these rules while a moderator is online and in the channel.
+                    For around-the-clock enforcement, add a bot (Space Settings → Bots; see the bot guide in Meadhall&apos;s docs).
+                </p>
+            ) : null}
 
             <div className="settings-section-card">
                 <label className="settings-toggle">

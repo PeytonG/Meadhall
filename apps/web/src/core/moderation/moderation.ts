@@ -50,7 +50,7 @@ function creators(room: Room): string[] {
     return [create?.getSender() ?? "", ...extra].filter(Boolean);
 }
 
-function levelOf(room: Room, userId: string): number {
+export function levelOf(room: Room, userId: string): number {
     if (creators(room).includes(userId)) return Number.POSITIVE_INFINITY;
     const levels = powerLevels(room);
     return typeof levels.users[userId] === "number" ? levels.users[userId]! : levels.usersDefault;
@@ -274,7 +274,7 @@ export async function readModLog(client: MatrixClient, space: Room, userId?: str
 }
 
 // Sent by room ID, so it works even before a brand-new log room has synced.
-async function logAction(client: MatrixClient, space: Room, entry: Omit<ModLogEntry, "by" | "at">): Promise<void> {
+export async function logAction(client: MatrixClient, space: Room, entry: Omit<ModLogEntry, "by" | "at">): Promise<void> {
     const roomId = await modLogRoomId(client, space);
     if (roomId) await client.sendEvent(roomId, MOD_ACTION_EVENT as never, modActionContent(entry) as never);
 }
