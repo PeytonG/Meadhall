@@ -319,3 +319,10 @@
     font-weight: 600;
     cursor: pointer;
 }
+
+/* Phones: 44 px tap targets (UI design principles). */
+@media (max-width: 760px) {
+    .home-friends-button {
+        min-height: 44px;
+    }
+}
