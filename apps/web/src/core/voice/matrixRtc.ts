@@ -99,11 +99,15 @@ export function discoverLiveKitTransport(
 // server (SFU) of whoever has been in the call longest, so people from different homeservers end up in the same
 // LiveKit room. Returns that transport when it isn't ours to pick (someone else is already in the call), else null.
 export function activeCallTransport(client: MatrixClient, room: Room): LivekitTransportConfig | null {
-    const session = client.matrixRTC.getRoomSession(room);
-    const oldest = session.getOldestMembership();
-    if (!oldest || oldest.sender === client.getUserId()) return null;
-    const transport = oldest.getTransport(oldest) as { type?: unknown; livekit_service_url?: unknown } | undefined;
-    return pickLiveKitTransport(transport ? [transport] : []);
+    try {
+        const oldest = client.matrixRTC?.getRoomSession(room)?.getOldestMembership?.();
+        if (!oldest || oldest.sender === client.getUserId()) return null;
+        const transport = oldest.getTransport?.(oldest) as { type?: unknown; livekit_service_url?: unknown } | undefined;
+        return pickLiveKitTransport(transport ? [transport] : []);
+    } catch {
+        // No session (yet), or an older SDK shape: pick our own call server.
+        return null;
+    }
 }
 
 export function clearLiveKitTransportCache(client: MatrixClient): void {
