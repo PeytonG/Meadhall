@@ -37,6 +37,8 @@ import { isPollEndType, isPollStartType } from "../polls/pollModel";
 import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhallFile";
 import { getOrCreateThread, isThreadReplyFallback, threadEvents, threadSummary } from "../threads/threads";
 import { ThreadSummaryBar } from "../threads/ThreadSummaryBar";
+import { parseAppLink } from "../utils/permalink";
+import { isModerator, isShadowMuted } from "../../core/moderation/moderation";
 
 interface TimelineProps {
     client: MatrixClient;
@@ -50,6 +52,8 @@ interface TimelineProps {
     customReactionImagesEnabled: boolean;
     showReadReceipts: boolean;
     linkPreviews?: LinkPreviewMode;
+    // Scroll to and highlight this message (a message link was opened); a new nonce jumps again.
+    focusEvent?: { eventId: string; nonce: number } | null;
     // Set for the thread panel: show that thread instead of the main chat.
     threadRootId?: string | null;
     // Main chat only: open a message's thread (its "N replies" bar, or "Reply in thread").
@@ -149,7 +153,7 @@ interface MessageContent {
 type EncryptedAttachmentFile = encrypt.IEncryptedFile & { url: string };
 type MediaMsgType = MsgType.Image | MsgType.Audio | MsgType.Video | MsgType.File;
 
-const MESSAGE_LINK_PATTERN = /((?:https?:\/\/|ftp:\/\/|mailto:|matrix:)[^\s<>()]+|www\.[^\s<>()]+)/gi;
+const MESSAGE_LINK_PATTERN = /((?:https?:\/\/|ftp:\/\/|mailto:|matrix:|meadhall:\/\/)[^\s<>()]+|www\.[^\s<>()]+)/gi;
 const SHORTCODE_TOKEN_PATTERN = /:[a-zA-Z0-9_+-]{2,}:/g;
 const TRAILING_URL_PUNCTUATION = ".,!?;:";
 const DEFAULT_DECRYPT_CONCURRENCY = 3;
@@ -680,8 +684,20 @@ function extractMessageEvents(room: Room | null, threadRootId: string | null): M
     }
 
     const liveEvents = sourceEvents(room, threadRootId);
+    // Shadow muted by the server's moderators (Server Settings → Reports): hidden from everyone but themselves and the
+    // moderators.
+    const ownUserId = room.client.getUserId() ?? "";
+    const spaces = room.currentState
+        .getStateEvents(EventType.SpaceParent)
+        .map((parent) => room.client.getRoom(parent.getStateKey() ?? ""))
+        .filter((space): space is Room => Boolean(space));
+    const hidesShadowMuted = spaces.length > 0 && !spaces.some((space) => isModerator(space, ownUserId));
+    const shadowMuted = (sender: string): boolean => sender !== ownUserId && spaces.some((space) => isShadowMuted(space, sender));
     // Blocked people: the server stops sending their events; also hide the ones already loaded.
-    return liveEvents.filter((event) => isRenderableMessage(event) && !room.client.isUserIgnored(event.getSender() ?? ""));
+    return liveEvents.filter((event) => {
+        const sender = event.getSender() ?? "";
+        return isRenderableMessage(event) && !room.client.isUserIgnored(sender) && !(hidesShadowMuted && shadowMuted(sender));
+    });
 }
 
 function formatTime(timestamp: number): string {
@@ -994,7 +1010,7 @@ function tokenizeMessage(body: string): MessageSegment[] {
 function getFirstPreviewableUrl(body: string): string | null {
     const segments = tokenizeMessage(body);
     for (const segment of segments) {
-        if (segment.type === "link" && /^https?:\/\//i.test(segment.href)) {
+        if (segment.type === "link" && /^https?:\/\//i.test(segment.href) && !parseAppLink(segment.href)) {
             return segment.href;
         }
     }
@@ -1298,6 +1314,7 @@ export function Timeline({
     customReactionImagesEnabled,
     showReadReceipts,
     linkPreviews = "unencrypted",
+    focusEvent = null,
     threadRootId = null,
     onOpenThread,
 }: TimelineProps): React.ReactElement {
@@ -1454,6 +1471,18 @@ export function Timeline({
         },
         [client, focusEventById, paginating, pushToast, refreshEvents, room],
     );
+
+    // A message link was opened: jump to that message once this room's timeline is showing.
+    const handledFocusNonceRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!focusEvent || !room || handledFocusNonceRef.current === focusEvent.nonce) return undefined;
+        const timer = window.setTimeout(() => {
+            handledFocusNonceRef.current = focusEvent.nonce;
+            void jumpToReplySource(focusEvent.eventId);
+        }, 300);
+        return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [focusEvent?.nonce, room?.roomId]);
 
     const enqueueDecrypt = useCallback((item: DecryptQueueItem, force = false): void => {
         if (decryptedMediaUrlsRef.current[item.key] !== undefined && !force) {

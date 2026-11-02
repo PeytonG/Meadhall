@@ -150,7 +150,7 @@ matrix-js-sdk 40.2.0.
 - **Self mute/deafen** (`ui/voice/selfVoiceState.ts`): the user-panel buttons work outside calls, persist, and set how
   the next call starts (`joinMuted`/`joinDeafened`; joining muted never opens the mic). Deafen also mutes;
   undeafen restores only a mute that deafen caused.
-- **Per-person volume 0–120%** (`ui/voice/volumeBoost.ts`): above 100% the voice plays through a Web Audio gain fed by
+- **Per-person volume 0–130%** (`ui/voice/volumeBoost.ts`): above 100% the voice plays through a Web Audio gain fed by
   `createMediaStreamSource` while the element plays at volume 0. The boost follows the chosen speaker (`setSinkId`)
   and the element's `muted` (deafen).
 - **E2EE:** `MatrixRtcKeyProvider` (ratchetWindowSize 10, keyringSize 256) imports keys with livekit's
@@ -511,20 +511,55 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
 
 ### 7.25 UI design system and phone layout (v0.5.0: `styles/mobile.css`)
 - Follows the owner's references: "UI Design Principles" (Michael Filipiuk, PDF in the owner's Downloads) and UX
-  Collective's iOS guide. Rules: 4/8 px spacing tokens (`--space-*`), type tokens (`--text-*`), 44 px touch targets
-  (`--tap`), 16 px text in inputs (also stops iOS zooming on focus), nothing under 12 px that matters, body line
+  Collective's iOS guide, plus Android's design guidance (developer.android.com/design/ui/mobile: 48 dp targets, 3-5
+  nav destinations, overflow menus, 4.5:1 text contrast). Rules: 4/8 px spacing tokens (`--space-*`), type tokens
+  (`--text-*`), 48 px touch targets (`--tap`), 16 px text in inputs (also stops iOS zooming on focus), nothing under 12 px that matters, body line
   height about 1.45, a focus ring on every control, `-webkit-tap-highlight-color: transparent` with `:active`
   states instead, safe areas (`--safe-top`/`--safe-bottom`).
-- Phones (≤760 px): bottom tab bar (Home, Inbox, You = status menu, Settings; `aria-label="User settings"` kept),
-  chat top bar = back, title, lock, call, "…" (search/members/pins move into "…"), settings as a grouped list with
-  drill-in (`is-phone-list` / `is-phone-page`), long press on a message opens its menu as a bottom sheet (no hover
-  bar on touch), dialogs as bottom sheets.
+- Phones (≤760 px): a full-width, centered bottom tab bar (Home, Inbox, You = status menu with Settings and "Sign in
+  another device"; an Admin tab with a shield icon for homeserver admins and admins of the open server), chat top bar
+  = back, title, lock, call, "…" (search/members/pins move into "…"), settings as a grouped list with drill-in
+  (`is-phone-list` / `is-phone-page`), long press on a message opens its menu as a bottom sheet (no hover bar on
+  touch), dialogs as bottom sheets. Calls: Mute, Camera, More (sounds, deafen, voice settings), Leave; no screen
+  share on phones (`canShareScreen`); the "Voice Connected" pill opens the call.
 - `e2e/mobileTour.spec.ts` fails if any visible control on the main phone screens is under 44×44;
   `e2e/desktopTour.spec.ts` checks the desktop screens fit. Both save screenshots with `PREVIEW_DIR`.
-- **Owner's decision (2026-11-01): pixel stays the default look, with options to have everything either way.**
-  Appearance → Font (Pixel / Pixel headings / System / custom), Icons (Pixel / Smooth), Shapes (Pixel / Smooth:
-  `data-shape` on `<html>`; the pixel-only rules in `pixel.css` are scoped with `:where(:root:not([data-shape="smooth"]))`
-  so specificity doesn't change), Pixel emoji. Don't change these defaults. Pixelify Sans reads small (16 px ≈ 13 px).
+- **Owner's decisions (2026-11-01): shapes are Rounded by default, with Square (the blocky pixel frames) as an
+  option; pixel font, pixel icons and pixel emoji stay the defaults; everything can be switched either way, and
+  rounded corners must be uniform.** Appearance → Font (Pixel / Pixel headings / System / custom), Icons (Pixel /
+  Smooth), Shapes (Rounded / Square: `data-shape` on `<html>`, "smooth" or "pixel"; the square-only rules in
+  `pixel.css` are scoped with `:where(:root[data-shape="pixel"])` so specificity doesn't change), Pixel emoji. Corner
+  scale in `mobile.css` (`:where()`, so components can override): 4 px tags, 6 px swatches, 8 px fields/rows, 10-12 px
+  tiles/cards, round chips. A corner audit (every bordered or filled control with a 0 radius) found and fixed the
+  stragglers. Don't change defaults without the owner. Pixelify Sans reads small (16 px ≈ 13 px).
+- **Look sync and the sign-in picker** (`settings/user/appearanceSync.ts`, `LookPicker.tsx`): the look (theme,
+  accent, fonts, icons, shapes, emoji; not compact mode or line length, which stay per device) is account data
+  `io.github.peytong.meadhall.appearance`, applied after the first sync and when another device changes it. With
+  none saved, the picker is offered once (live preview; Done saves it, and the campfire choice to the profile). E2E
+  test accounts get `{appearance: {}}` so the picker stays away (`skipLookPicker`).
+
+### 7.26 Reports, moderation and app links (v0.5.0: `core/moderation`, `ui/moderation`, `ui/utils/permalink.ts`)
+- Reasons: space state `io.github.peytong.meadhall.report_reasons` (defaults if unset). A report is its own private
+  room (creation type `io.github.peytong.meadhall.report`) made by the reporter with the moderators invited
+  (everyone at the ban level or above in the space, plus room v12 creators); details in state
+  `io.github.peytong.meadhall.report`, outcome in `…report_status`. Moderators' Meadhall auto-joins report invites
+  only from members of a server they moderate. Report and log rooms are left out of room lists (`listedRooms`).
+- Actions (`applyModAction`): warn, kick, ban, timed ban, unban, mute (channel power level -1, previous levels
+  saved), unmute, shadow mute, unshadow, dismiss. Sanctions are space state `io.github.peytong.meadhall.sanction`
+  with state key `user:<mxid>` (a bare user ID as state key is only writable by that user). Timed bans and mutes are
+  lifted by any moderator's Meadhall (checked every minute). Shadow-muted messages are hidden from everyone except
+  the person and moderators (`extractMessageEvents`).
+- Member records: a moderators-only log room (`io.github.peytong.meadhall.modlog`, linked from space state
+  `…moderation_room`), one `…mod_action` event per action. Server Settings → Reports shows reports, records and
+  reasons. `e2e/reports.spec.ts` covers report → shadow mute → timed ban.
+- Room version 12 (the test Synapse's default): room IDs have no `:server`, creators aren't in `users` and may not
+  be put there in `createRoom` overrides.
+- App links: "Copy link" gives `meadhall://room/<room>/<event>`; `parseAppLink` also reads matrix.to and
+  `matrix:` URIs. In-app clicks are caught in AppShell and open the room at the message (`Timeline` `focusEvent`).
+  Desktop registers the scheme in packaged builds only (`setAsDefaultProtocolClient`, electron-builder
+  `protocols`); Android has a VIEW intent filter and `MeadhallSyncPlugin` hands the link over (`openLink`).
+- QR sign-in codes last at most 3 minutes: the code carries its expiry (`x`), the scanner refuses stale ones, and
+  the test Synapse's `token_timeout` is 3m (recommend the same to server admins).
 
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent

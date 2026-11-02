@@ -331,6 +331,31 @@ interface RecoveryPostLoginState {
     recoveryBackupVersion: string | null;
 }
 
+// "Skip for now" on setting up a security key is remembered for this account on this device for a week, so the
+// prompt doesn't come back on every start (Settings → Security sets it up any time).
+const RECOVERY_SETUP_SKIP_MS = 7 * 24 * 60 * 60 * 1000;
+
+function recoverySkipKey(client: MatrixClient): string {
+    return `meadhall.recoverySetupSkipped.${client.getUserId() ?? ""}|${client.getDeviceId() ?? ""}`;
+}
+
+export function rememberRecoverySetupSkipped(client: MatrixClient): void {
+    try {
+        window.localStorage.setItem(recoverySkipKey(client), String(Date.now()));
+    } catch {
+        // Not remembered: the prompt shows again next time.
+    }
+}
+
+function recoverySetupSkippedRecently(client: MatrixClient): boolean {
+    try {
+        const skippedAt = Number(window.localStorage.getItem(recoverySkipKey(client)));
+        return Number.isFinite(skippedAt) && skippedAt > 0 && Date.now() - skippedAt < RECOVERY_SETUP_SKIP_MS;
+    } catch {
+        return false;
+    }
+}
+
 async function resolveRecoveryPostLoginState(client: MatrixClient): Promise<RecoveryPostLoginState> {
     try {
         const recovery = await attemptAutomaticKeyBackupRestore(client);
@@ -359,7 +384,7 @@ async function resolveRecoveryPostLoginState(client: MatrixClient): Promise<Reco
                     recoveryBackupVersion: null,
                 };
             }
-            if (!hasRecoveryKey) {
+            if (!hasRecoveryKey && !recoverySetupSkippedRecently(client)) {
                 return {
                     status: "security_recovery",
                     error: "Set up a security key now so encrypted history can be restored on new sessions.",
@@ -958,10 +983,11 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
             return;
         }
 
+        if (state.securityRecoveryFlow === "setup") rememberRecoverySetupSkipped(state.client);
         clearPendingSetupKey();
         triggerRoomHistoryDecryption(state.client);
         dispatch({ type: "set_status", status: "ready", error: null });
-    }, [clearPendingSetupKey, state.client]);
+    }, [clearPendingSetupKey, state.client, state.securityRecoveryFlow]);
 
     const logout = useCallback(async (): Promise<void> => {
         if (!state.core) {

@@ -48,6 +48,9 @@ import { SpeakingCampfire } from "./PixelCampfire";
 import { VoiceActivityMonitor } from "../../voice/voiceActivity";
 import { mediaFromMxc, thumbnailFromMxc } from "../../../core/media/media";
 import { PixelIcon } from "../PixelIcon";
+import { ContextMenu } from "../menus/ContextMenu";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { currentPlatform } from "../../presence/clientStatus";
 import { t, useLanguage } from "../../i18n";
 import { SoundboardPanel, type SoundChoice } from "./SoundboardPanel";
 import { ScreenSharePicker } from "./ScreenSharePicker";
@@ -218,7 +221,7 @@ const PARTICIPANT_VOLUME_STORAGE_KEY_PREFIX = "heorot.voice.participant_volume.v
 const PARTICIPANT_VOLUME_DEFAULT_PERCENT = 100;
 const PARTICIPANT_VOLUME_MIN_PERCENT = 0;
 // Above 100% boosts quiet mics through Web Audio (see voice/volumeBoost.ts).
-const PARTICIPANT_VOLUME_MAX_PERCENT = 120;
+const PARTICIPANT_VOLUME_MAX_PERCENT = 130;
 type ParticipantVolumeMap = Record<string, number>;
 
 type ScreenShareQualityProfileId = "720p30" | "1080p30" | "1080p60" | "1440p60";
@@ -766,6 +769,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     const [submittingDesktopCaptureSource, setSubmittingDesktopCaptureSource] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [soundboardOpen, setSoundboardOpen] = useState(false);
+    const isPhone = useMediaQuery("(max-width: 760px)");
+    const canShareScreen = !isPhone && currentPlatform() !== "mobile" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
+    const [callMoreMenu, setCallMoreMenu] = useState<{ x: number; y: number } | null>(null);
     // Sharing (Settings → Privacy & Safety): share your sounds and import .meadhall sounds from the call too.
     const sharingEnabled = useSharingEnabled();
     const [sharingSound, setSharingSound] = useState<CustomSound | null>(null);
@@ -3237,7 +3243,8 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         }}
                     />
 
-                    {/* Screen share */}
+                    {/* Screen share (computers only: phones can't share their screen from the app) */}
+                    {canShareScreen ? (
                     <button
                         type="button"
                         className={`voice-ctrl-btn${localScreenSharing ? " is-active" : ""}`}
@@ -3256,12 +3263,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </svg>
                         <span className="voice-ctrl-label">{localScreenSharing ? t("Stop") : t("Share")}</span>
                     </button>
+                    ) : null}
 
                     {/* Soundboard */}
                     <div className="voice-soundboard-anchor">
                         <button
                             type="button"
-                            className={`voice-ctrl-btn${soundboardOpen ? " is-active" : ""}`}
+                            className={`voice-ctrl-btn voice-ctrl-wide-only${soundboardOpen ? " is-active" : ""}`}
                             onClick={() => setSoundboardOpen((open) => !open)}
                             title="Soundboard"
                             aria-pressed={soundboardOpen}
@@ -3313,7 +3321,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     {/* Deafen */}
                     <button
                         type="button"
-                        className={`voice-ctrl-btn${audioMuted ? " is-muted" : ""}`}
+                        className={`voice-ctrl-btn voice-ctrl-wide-only${audioMuted ? " is-muted" : ""}`}
                         onClick={() => void toggleAudioMute()}
                         title={audioMuted ? "Undeafen" : "Deafen"}
                         aria-pressed={audioMuted}
@@ -3332,7 +3340,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     {/* Settings */}
                     <button
                         type="button"
-                        className={`voice-ctrl-btn${settingsOpen ? " is-active" : ""}`}
+                        className={`voice-ctrl-btn voice-ctrl-wide-only${settingsOpen ? " is-active" : ""}`}
                         onClick={() => setSettingsOpen((prev) => !prev)}
                         title="Voice settings"
                         aria-pressed={settingsOpen}
@@ -3343,6 +3351,40 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                         </svg>
                         <span className="voice-ctrl-label">{t("Settings")}</span>
                     </button>
+
+                    {/* Phones: Sounds, Deafen and Settings in one "More" menu, so the bar fits (Mute, Camera, More, Leave). */}
+                    {isPhone ? (
+                        <button
+                            type="button"
+                            className={`voice-ctrl-btn${callMoreMenu || audioMuted ? " is-active" : ""}`}
+                            onClick={(event) => {
+                                const box = event.currentTarget.getBoundingClientRect();
+                                setCallMoreMenu((open) => (open ? null : { x: box.left, y: box.top - 8 }));
+                            }}
+                            title="More call options"
+                            aria-haspopup="menu"
+                            aria-expanded={Boolean(callMoreMenu)}
+                            data-testid="call-more"
+                        >
+                            <span className="voice-ctrl-icon voice-ctrl-more-icon" aria-hidden="true">
+                                ···
+                            </span>
+                            <span className="voice-ctrl-label">{audioMuted ? t("Deafened") : t("More")}</span>
+                        </button>
+                    ) : null}
+                    {callMoreMenu ? (
+                        <ContextMenu
+                            x={callMoreMenu.x}
+                            y={callMoreMenu.y}
+                            label="Call options"
+                            onClose={() => setCallMoreMenu(null)}
+                            items={[
+                                { label: "Sounds", testId: "call-more-sounds", onSelect: () => setSoundboardOpen(true) },
+                                { label: audioMuted ? "Undeafen" : "Deafen", testId: "call-more-deafen", onSelect: () => void toggleAudioMute() },
+                                { label: "Voice settings", testId: "call-more-settings", onSelect: () => setSettingsOpen(true) },
+                            ]}
+                        />
+                    ) : null}
 
                     {/* Leave */}
                     <button

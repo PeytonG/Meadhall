@@ -54,6 +54,12 @@ async function existing(user, name) {
     return null;
 }
 
+// What makes a room a voice channel (apps/web/src/core/voice/voiceChannel.ts).
+const VOICE_STATE = [
+    { type: "org.heorot.voice_channel", state_key: "", content: { enabled: true, version: 1, chat_suppressed: true } },
+    { type: "org.matrix.msc3401.call", state_key: "", content: { type: "voice", intent: "voice", chat_suppressed: true } },
+];
+
 async function server(owner, name, members, channels) {
     const found = await existing(owner, name);
     if (found) return { spaceId: found, channels: null };
@@ -68,7 +74,13 @@ async function server(owner, name, members, channels) {
                 initial_state: [{ type: "m.space.parent", state_key: spaceId, content: { canonical: true, via: ["localhost"] } }, ...(extra ?? [])],
             })
         ).room_id;
-        await state(owner, spaceId, "m.space.child", ids[key], { via: ["localhost"], suggested: true });
+        const voice = extra === VOICE_STATE;
+        await state(owner, spaceId, "m.space.child", ids[key], { via: ["localhost"], suggested: true, ...(voice ? { "org.heorot.channel_type": "voice" } : {}) });
+        if (voice) {
+            // Members join calls by sending call-member state, so allow it for everyone.
+            const levels = await call(owner, "GET", `/rooms/${encodeURIComponent(ids[key])}/state/m.room.power_levels/`);
+            await state(owner, ids[key], "m.room.power_levels", "", { ...levels, events: { ...levels.events, "org.matrix.msc3401.call.member": 0 } });
+        }
     }
     return { spaceId, channels: ids };
 }
@@ -85,7 +97,7 @@ const mead = await server(demo, "Mead Hall", [...friends, bot], [
     ["general", "general"],
     ["announcements", "announcements"],
     ["tavern", "the-tavern"],
-    ["voice", "Great Hall", [{ type: "com.heorot.voice_channel", state_key: "", content: { enabled: true } }]],
+    ["voice", "Great Hall", VOICE_STATE],
 ]);
 if (mead.channels) {
     for (const friend of friends) {

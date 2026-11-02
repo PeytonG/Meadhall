@@ -138,7 +138,7 @@ export function AppearanceTab({
             <div className="settings-section-card">
                 <h3>Shapes</h3>
                 <div className="settings-theme-row" role="radiogroup" aria-label="Shapes">
-                    {(["pixel", "smooth"] as const).map((shape) => (
+                    {(["smooth", "pixel"] as const).map((shape) => (
                         <button
                             key={shape}
                             type="button"
@@ -148,12 +148,12 @@ export function AppearanceTab({
                             onClick={() => onChange({ ...settings, shapeStyle: shape })}
                             data-testid={`shape-${shape}`}
                         >
-                            {shape === "pixel" ? "Pixel" : "Smooth"}
+                            {shape === "pixel" ? "Square" : "Rounded"}
                         </button>
                     ))}
                 </div>
                 <p className="settings-field-help">
-                    Cards, buttons and menus: square pixel frames with bevelled buttons, or smooth rounded corners. Combine with the
+                    Cards, buttons and menus: rounded corners (the default), or square pixel frames with bevelled buttons. Combine with the
                     font and icon choices for the look you like.
                 </p>
             </div>

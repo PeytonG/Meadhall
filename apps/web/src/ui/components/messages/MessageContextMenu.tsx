@@ -21,6 +21,8 @@ interface MessageContextMenuProps {
     onCopyLink: () => void;
     onCopyText: () => void;
     onCopyEventId: () => void;
+    // In a server, for someone else's message: report it to the server's moderators.
+    onReport?: () => void;
 }
 
 export function MessageContextMenu({
@@ -38,6 +40,7 @@ export function MessageContextMenu({
     onCopyLink,
     onCopyText,
     onCopyEventId,
+    onReport,
 }: MessageContextMenuProps): React.ReactElement | null {
     const menuRef = useRef<HTMLDivElement | null>(null);
     const [clampedPosition, setClampedPosition] = useState<Position | null>(position);
@@ -150,6 +153,14 @@ export function MessageContextMenu({
             <button type="button" className="message-context-menu-item" onClick={() => clickAction(onCopyEventId)}>
                 Copy event ID
             </button>
+            {onReport ? (
+                <>
+                    <hr className="message-context-menu-divider" />
+                    <button type="button" className="message-context-menu-item message-context-menu-item-danger" onClick={() => clickAction(onReport)} data-testid="message-report">
+                        Report message
+                    </button>
+                </>
+            ) : null}
         </div>,
         document.body,
     );

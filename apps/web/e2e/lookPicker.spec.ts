@@ -14,7 +14,7 @@ test("the look picker is offered on sign-in and the choice follows the account",
 
     const picker = page.getByTestId("look-picker");
     await expect(picker).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("data-shape", "pixel");
+    await expect(page.locator("html")).toHaveAttribute("data-shape", "smooth");
 
     // Picking previews straight away, behind the picker too.
     await page.getByTestId("look-smooth").click();

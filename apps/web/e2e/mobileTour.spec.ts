@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The phone layout, screen by screen: nothing wider than the screen, touch targets big enough to hit, text big
-// enough to read (UI Design Principles: 44pt targets, 16pt body; Apple: 16pt margins). Saves screenshots with
+// enough to read (UI Design Principles: 44pt targets, Android 48dp, 16pt body; Apple: 16pt margins). Saves screenshots with
 // PREVIEW_DIR set.
 import { expect, test, type Page } from "@playwright/test";
 
@@ -73,7 +73,9 @@ test("phone screens fit, and their controls are big enough to tap", async ({ pag
     report.channel = await smallTargets(page);
 
     await page.getByRole("button", { name: "Back to channels" }).tap();
-    await page.getByRole("button", { name: "User settings", exact: true }).tap();
+    // Settings live under You (the tab bar is Home, Inbox, You, and Admin for admins).
+    await page.getByRole("button", { name: "You: status and accounts" }).tap();
+    await page.getByRole("menuitem", { name: "Settings", exact: true }).tap();
     await shot(page, "6-settings");
     await noSideways(page);
     report.settings = await smallTargets(page);

@@ -544,6 +544,11 @@ function registerIpc(): void {
 
     // "Playing ..." from Steam (the app polls this when sharing activity is on).
     handleFromApp("heorot:getActivity", () => currentActivity());
+    handleFromApp("heorot:takePendingLink", () => {
+        const link = pendingLink;
+        pendingLink = null;
+        return link;
+    });
     // Settings → Privacy → Activity: which sources to read (each only runs while it's on).
     handleFromApp("heorot:getActivities", (_event, options: unknown) => currentActivities(parseActivityOptions(options)));
     handleFromApp("heorot:setRichPresence", (_event, enabled: unknown) => setRichPresenceEnabled(enabled === true));
@@ -633,6 +638,32 @@ function registerIpc(): void {
     );
 }
 
+// Meadhall's message and room links (meadhall://room/...): Windows and Linux start the app with the link as an
+// argument (or pass it to the running one); macOS sends open-url. Kept until the app asks for it, then sent as it
+// arrives. Only meadhall://room/ links are passed on, and the app checks them again before opening anything.
+let pendingLink: string | null = null;
+
+function linkFromArgs(args: string[]): string | null {
+    const link = args.find((arg) => arg.toLowerCase().startsWith("meadhall://room/"));
+    return link && link.length < 2048 ? link : null;
+}
+
+function openLinkInApp(link: string | null): void {
+    if (!link) return;
+    if (mainWindow && !mainWindow.webContents.isLoading()) {
+        mainWindow.webContents.send("heorot:openLink", link);
+        focusMainWindow();
+    } else {
+        pendingLink = link;
+    }
+}
+
+// Installed builds only: a development or test run (electron.exe) would otherwise take the links over from the
+// installed Meadhall.
+function registerLinkScheme(): void {
+    if (app.isPackaged) app.setAsDefaultProtocolClient("meadhall");
+}
+
 async function bootstrap(): Promise<void> {
     app.on("before-quit", () => {
         isAppQuitting = true;
@@ -644,9 +675,16 @@ async function bootstrap(): Promise<void> {
         return;
     }
 
-    app.on("second-instance", () => {
+    app.on("second-instance", (_event, argv) => {
         focusMainWindow();
+        openLinkInApp(linkFromArgs(argv));
     });
+    app.on("open-url", (event, url) => {
+        event.preventDefault();
+        openLinkInApp(linkFromArgs([url]));
+    });
+    pendingLink = linkFromArgs(process.argv);
+    registerLinkScheme();
 
     app.on("window-all-closed", () => {
         if (process.platform !== "darwin") {

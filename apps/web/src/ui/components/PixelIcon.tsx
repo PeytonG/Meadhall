@@ -343,6 +343,20 @@ const ICONS = {
         "..##....##..",
         "..########..",
     ],
+    shield: [
+        "############",
+        "#....##....#",
+        "#....##....#",
+        "#....##....#",
+        "############",
+        "#....##....#",
+        "#....##....#",
+        ".#...##...#.",
+        ".#...##...#.",
+        "..#..##..#..",
+        "...#.##.#...",
+        ".....##.....",
+    ],
 } as const;
 
 export type PixelIconName = keyof typeof ICONS;
@@ -377,6 +391,7 @@ const SMOOTH_ICONS: Record<PixelIconName, string[]> = {
     download: ["M12 3v12", "M7 10l5 5 5-5", "M4 20h16"],
     bell: ["M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z", "M10 20a2 2 0 0 0 4 0"],
     home: ["M3 11l9-8 9 8", "M5 10v10h14V10", "M10 20v-6h4v6"],
+    shield: ["M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z", "M9 12l2 2 4-4"],
 };
 
 // Diagonal slash for "off" states (muted mic, deafened).

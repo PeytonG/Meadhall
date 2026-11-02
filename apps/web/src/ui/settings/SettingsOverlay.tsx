@@ -15,6 +15,7 @@ import { PermissionsTab } from "./server/tabs/PermissionsTab";
 import { VisibilityTab } from "./server/tabs/VisibilityTab";
 import { AdvancedTab } from "./server/tabs/AdvancedTab";
 import { AutomodTab } from "./server/tabs/AutomodTab";
+import { ReportsTab } from "./server/tabs/ReportsTab";
 import { BotsTab } from "./server/tabs/BotsTab";
 import { OnboardingTab } from "./server/tabs/OnboardingTab";
 import { AppearanceTab } from "./user/tabs/AppearanceTab";
@@ -65,6 +66,7 @@ const SERVER_NAV: SettingsNavSection[] = [
     {
         title: "Community",
         items: [
+            { id: "reports", label: "Reports" },
             { id: "onboarding", label: "Onboarding" },
             { id: "automod", label: "Auto-mod" },
             { id: "bots", label: "Bots" },
@@ -309,6 +311,8 @@ export function SettingsOverlay({
                 return <PermissionsTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
             case "onboarding":
                 return <OnboardingTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
+            case "reports":
+                return <ReportsTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
             case "automod":
                 return <AutomodTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
             case "bots":

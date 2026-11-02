@@ -21,6 +21,7 @@ import { gradientColors, gradientCss } from "../../../core/profile/profileStyle"
 import { useProfileStyle } from "../../profile/useProfileStyle";
 import { useIconStyle } from "../../theme/iconStyle";
 import { syncDesktopTitleBarColors } from "../../desktop/titleBarColors";
+import { ReportDialog } from "../../moderation/ReportDialog";
 
 interface UserProfilePanelProps {
     client: MatrixClient;
@@ -82,6 +83,7 @@ export function UserProfilePanel({
 }: UserProfilePanelProps): React.ReactElement {
     const [profile, setProfile] = useState<UserProfileData | null>(null);
     const [loadingProfile, setLoadingProfile] = useState(false);
+    const [reporting, setReporting] = useState(false);
     const { config } = useMatrix();
     const presenceEnabled = useMemo(() => isPresenceEnabledForClient(config, client), [client, config]);
     const presence = usePresenceVm(client, userId, presenceEnabled);
@@ -257,14 +259,26 @@ export function UserProfilePanel({
                         {isBlocked ? "Unblock" : "Block / Ignore"}
                     </button>
                 ) : null}
-                {/* Reports go to the server's owner, so only in a server; in DMs there's no one to send them to yet
+                {/* Reports go to the server's moderators, so only in a server; in DMs there's no one to send them to yet
                     (homeserver-admin reports are on the roadmap, CLAUDE.md §10). */}
                 {activeSpaceRoom && ownUserId !== userId ? (
-                    <button type="button" className="rp-row-button" disabled data-testid="profile-report">
+                    <button type="button" className="rp-row-button is-danger" onClick={() => setReporting(true)} data-testid="profile-report">
                         Report
                     </button>
                 ) : null}
             </section>
+            {reporting && activeSpaceRoom ? (
+                <ReportDialog
+                    client={client}
+                    space={activeSpaceRoom}
+                    userId={userId}
+                    onClose={() => setReporting(false)}
+                    onDone={(message) => {
+                        setReporting(false);
+                        onToast?.({ type: "success", message });
+                    }}
+                />
+            ) : null}
         </div>
     );
 }

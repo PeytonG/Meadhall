@@ -38,7 +38,7 @@ registration_shared_secret: "meadhall-test-only-shared-secret"
 login_via_existing_session:
   enabled: true
   require_ui_auth: true
-  token_timeout: "5m"
+  token_timeout: "3m"
 
 # Server notices (Settings → Server admin → Server notices).
 server_notices:

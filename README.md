@@ -38,6 +38,9 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
   only with whom you choose.
 - 🤖 **Server bots**: onboarding with rules and questions, welcome messages, auto-mod and slash commands, with the
   Meadhall bot ready to run (or bring any Matrix bot).
+- 🛡️ **Reports and moderation**: members report people or messages with your server's own reasons; moderators
+  warn, kick, ban or mute (also for a set time), shadow mute, and see each member's record.
+- 🔗 **Message links that open in Meadhall**, right at the message, on desktop and Android.
 - 📊 **Polls, code blocks and translations**: polls with time limits, highlighted code, and the app in 5 languages.
 - 🖥️ **Every platform**: Windows, Linux, Android and the web, with notifications and self-updating desktop apps.
 
@@ -170,7 +173,7 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 - 🎛️ A **voice changer** with 29 effects (Giant, Pixie, Robot, Dragon, Ghost, Demon, Knight, Announcer, Whisper...).
 - 📯 A **soundboard** with 12 built-in 8-bit sounds and up to 24 of your own (trim them to fit). Sounds play even
   while you're muted, and everyone can turn other people's sounds down (for all, or per person) without their voice.
-- 🖥️ Screen sharing with **previews** of what you can share, several streams side by side, per-person volume up to 120%,
+- 🖥️ Screen sharing with **previews** of what you can share, several streams side by side, per-person volume up to 130%,
   mute and deafen any time.
 - 💬 Voice channels can have **text chat** beside the call. Calls in a server's channels never ring everyone.
 - 🔁 Dropped calls **rejoin by themselves**. If a call ends without you choosing to, Meadhall tells you why, and
@@ -424,7 +427,7 @@ builds Windows, Linux and Android and publishes them with checksums once every b
 - The Windows app isn't code-signed yet, and the **iOS app is a beta** (TestFlight invites, no notifications while closed).
 - **Switching accounts reloads the app**, which ends a call you're in.
 - **Push to talk** only works while Meadhall is the focused window.
-- **QR sign-in** needs your homeserver to allow it (Synapse: `login_via_existing_session`).
+- **QR sign-in** needs your homeserver to allow it (Synapse: `login_via_existing_session`; set its `token_timeout` to 3m, the most a Meadhall code lasts).
 
 ## 🗺️ Roadmap
 

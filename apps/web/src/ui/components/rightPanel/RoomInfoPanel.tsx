@@ -8,7 +8,7 @@ import { isPresenceEnabledForClient } from "../../presence/presenceConfig";
 import { toAvatarPresenceState } from "../../presence/buildPresenceVm";
 import { usePresenceMap } from "../../presence/usePresence";
 import { Avatar } from "../Avatar";
-import { buildMatrixToRoomPermalink } from "../../utils/permalink";
+import { buildMeadhallRoomLink } from "../../utils/permalink";
 import { AboutCard } from "./cards/AboutCard";
 import { MediaCard } from "./cards/MediaCard";
 
@@ -152,7 +152,7 @@ export function RoomInfoPanel({
 
     const copyLink = useCallback(async (): Promise<void> => {
         try {
-            await copyText(buildMatrixToRoomPermalink(room.roomId));
+            await copyText(buildMeadhallRoomLink(room.roomId));
             onToast?.({ type: "success", message: "Room link copied." });
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to copy room link.";

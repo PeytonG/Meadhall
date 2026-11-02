@@ -103,7 +103,7 @@ const DEFAULT_SETTINGS: UserLocalSettings = {
         customFontFamily: "",
         pixelEmoji: true,
         iconStyle: "pixel",
-        shapeStyle: "pixel",
+        shapeStyle: "smooth",
         chatLineLengthCh: 0,
         showSpaceChannelAvatars: false,
         reduceMotion: false,
@@ -198,7 +198,7 @@ function normalizeSettings(raw: unknown): UserLocalSettings {
             customFontFamily,
             pixelEmoji: appearance.pixelEmoji !== false,
             iconStyle: appearance.iconStyle === "smooth" ? "smooth" : "pixel",
-            shapeStyle: appearance.shapeStyle === "smooth" ? "smooth" : "pixel",
+            shapeStyle: appearance.shapeStyle === "pixel" ? "pixel" : "smooth",
             chatLineLengthCh,
             showSpaceChannelAvatars,
             reduceMotion: appearance.reduceMotion === true,
@@ -294,7 +294,7 @@ export function applyAppearanceTheme(settings: AppearanceSettings): void {
     root.setAttribute("data-pixel-emoji", settings.pixelEmoji === false ? "off" : "on");
     root.setAttribute("data-icon-style", settings.iconStyle === "smooth" ? "smooth" : "pixel");
     setIconStyle(settings.iconStyle === "smooth" ? "smooth" : "pixel");
-    root.setAttribute("data-shape", settings.shapeStyle === "smooth" ? "smooth" : "pixel");
+    root.setAttribute("data-shape", settings.shapeStyle === "pixel" ? "pixel" : "smooth");
     setReduceMotionSetting(settings.reduceMotion === true);
     if (settings.fontStyle === "custom" && settings.customFontFamily) {
         root.style.setProperty("--font-custom", cssFontStack(settings.customFontFamily));

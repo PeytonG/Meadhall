@@ -40,6 +40,8 @@ export interface HeorotDesktopBridge {
     showNotification: (payload: { title: string; body: string; roomId?: string; urgent?: boolean }) => Promise<boolean>;
     clearNotifications: (roomId?: string) => Promise<void>;
     onNotificationClicked: (listener: (roomId: string) => void) => () => void;
+    takePendingLink: () => Promise<string | null>;
+    onOpenLink: (listener: (link: string) => void) => () => void;
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp: () => Promise<void>;
@@ -87,6 +89,15 @@ const bridge: HeorotDesktopBridge = {
         ipcRenderer.on("heorot:notificationClicked", handler);
         return () => {
             ipcRenderer.removeListener("heorot:notificationClicked", handler);
+        };
+    },
+    // meadhall:// links that opened the app (main.ts).
+    takePendingLink: async (): Promise<string | null> => ipcRenderer.invoke("heorot:takePendingLink"),
+    onOpenLink: (listener: (link: string) => void): (() => void) => {
+        const handler = (_event: IpcRendererEvent, link: string): void => listener(link);
+        ipcRenderer.on("heorot:openLink", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:openLink", handler);
         };
     },
     showWindow: async (): Promise<void> => {
