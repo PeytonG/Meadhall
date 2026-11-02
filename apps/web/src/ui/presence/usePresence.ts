@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { UserEvent, type MatrixClient, type User } from "matrix-js-sdk/src/matrix";
 
 import { buildPresenceVm, type PresenceVm } from "./buildPresenceVm";
@@ -18,6 +18,28 @@ function sanitizeUserIds(userIds: string[]): string[] {
     return out;
 }
 
+// Someone shown online only drops to offline once they've stayed offline this long. A sync that restarts (a
+// reconnect, a refreshed session) rebuilds everyone's user info before their presence arrives again, which made
+// every dot, yours included, blink offline for a moment. Homeservers take 30 s or more to report a real sign-off,
+// so this hides only the blink.
+export const OFFLINE_GRACE_MS = 4_000;
+
+const isAway = (vm: PresenceVm): boolean => vm.state === "offline" || vm.state === "unknown";
+
+interface ShownPresence {
+    vm: PresenceVm;
+    // When the source first said offline while we kept showing the last state.
+    droppedAt: number | null;
+}
+
+// The presence to show now, given what was shown before; also says whether it's holding an old state.
+export function withOfflineGrace(fresh: PresenceVm, shown: ShownPresence | undefined, now: number): { next: ShownPresence; holding: boolean } {
+    if (!isAway(fresh) || !shown || isAway(shown.vm)) return { next: { vm: fresh, droppedAt: null }, holding: false };
+    const droppedAt = shown.droppedAt ?? now;
+    if (now - droppedAt < OFFLINE_GRACE_MS) return { next: { vm: shown.vm, droppedAt }, holding: true };
+    return { next: { vm: fresh, droppedAt: null }, holding: false };
+}
+
 export function usePresenceMap(
     client: MatrixClient | null,
     userIds: string[],
@@ -27,6 +49,7 @@ export function usePresenceMap(
     const normalizedUserIds = useMemo(() => sanitizeUserIds(userIds), [idsKey]);
     const normalizedIdsKey = useMemo(() => normalizedUserIds.join("\u0000"), [normalizedUserIds]);
     const [revision, setRevision] = useState(0);
+    const shownRef = useRef(new Map<string, ShownPresence>());
 
     useEffect(() => {
         if (!client || !enabled || normalizedUserIds.length === 0) {
@@ -62,29 +85,41 @@ export function usePresenceMap(
         };
     }, [client, enabled, normalizedIdsKey, normalizedUserIds]);
 
-    return useMemo(() => {
-        const output = new Map<string, PresenceVm>();
+    const output = useMemo(() => {
+        const result = new Map<string, PresenceVm>();
+        let anyHeld = false;
         if (!client || !enabled || normalizedUserIds.length === 0) {
-            return output;
+            return { result, anyHeld };
         }
 
+        const now = Date.now();
         for (const userId of normalizedUserIds) {
             const user = client.getUser(userId);
-            output.set(
-                userId,
-                buildPresenceVm({
-                    presence: user?.presence,
-                    currentlyActive: user?.currentlyActive,
-                    lastActiveAgo: user?.lastActiveAgo,
-                    statusMessage: user?.presenceStatusMsg,
-                    published: cachedPublishedStatus(userId),
-                    unsupported: !serverSharesPresence(client, userId),
-                }),
-            );
+            const fresh = buildPresenceVm({
+                presence: user?.presence,
+                currentlyActive: user?.currentlyActive,
+                lastActiveAgo: user?.lastActiveAgo,
+                statusMessage: user?.presenceStatusMsg,
+                published: cachedPublishedStatus(userId),
+                unsupported: !serverSharesPresence(client, userId),
+            });
+            const { next, holding: held } = withOfflineGrace(fresh, shownRef.current.get(userId), now);
+            shownRef.current.set(userId, next);
+            anyHeld ||= held;
+            result.set(userId, next.vm);
         }
 
-        return output;
+        return { result, anyHeld };
     }, [client, enabled, normalizedIdsKey, normalizedUserIds, revision]);
+
+    // While an old state is held, look again once the grace has passed (offline for real, or back already).
+    useEffect(() => {
+        if (!output.anyHeld) return undefined;
+        const timer = window.setTimeout(() => setRevision((value) => value + 1), OFFLINE_GRACE_MS);
+        return () => window.clearTimeout(timer);
+    }, [output]);
+
+    return output.result;
 }
 
 export function usePresenceVm(

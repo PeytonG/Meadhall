@@ -2622,7 +2622,10 @@ export function Timeline({
                         onClick={() => setLightbox(null)}
                         aria-label="Close image preview"
                     >
-                        x
+                        {/* Drawn, not a typed "x": a letter sits on the font's baseline and is never quite centered. */}
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                        </svg>
                     </button>
                     <img
                         className={`timeline-lightbox-image${lightbox.zoomed ? " is-zoomed" : ""}`}

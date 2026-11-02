@@ -532,6 +532,13 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   scale in `mobile.css` (`:where()`, so components can override): 4 px tags, 6 px swatches, 8 px fields/rows, 10-12 px
   tiles/cards, round chips. A corner audit (every bordered or filled control with a 0 radius) found and fixed the
   stragglers. Don't change defaults without the owner. Pixelify Sans reads small (16 px ≈ 13 px).
+- **Desktop design pass (owner, 2026-11-01):** one type scale on computers (12 px labels/times, 14 px secondary,
+  16 px names/messages, 18 px titles), 4/8 px spacing, one primary button per screen. The owner keeps the red
+  "Unencrypted" chip and the channel header's icon row as they are, and declined a contrast pass for faint grey text.
+- **Phone app icon** (`scripts/generate-branding.mjs`): the scene inside the badge (no frame) full bleed for iOS and
+  older Android; the adaptive foreground is that scene at 60dp fading into `#231c23`, so no mask clips the horn.
+- **Presence blink:** `usePresenceMap` keeps showing someone online for 4 s after their presence drops
+  (`withOfflineGrace`); a restarted sync rebuilt user info before presence arrived, so every dot blinked offline.
 - **Look sync and the sign-in picker** (`settings/user/appearanceSync.ts`, `LookPicker.tsx`): the look (theme,
   accent, fonts, icons, shapes, emoji; not compact mode or line length, which stay per device) is account data
   `io.github.peytong.meadhall.appearance`, applied after the first sync and when another device changes it. With

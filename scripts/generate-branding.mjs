@@ -116,22 +116,55 @@ for (const [relative, size] of targets) {
 await sharp(branding("meadhall-hall.jpg")).webp({ quality: 82 }).toFile(out("apps/web/src/ui/assets/login-hall.webp"));
 console.log("wrote apps/web/src/ui/assets/login-hall.webp");
 
+// Phone home screens crop icons to their own shape (a circle, squircle or rounded square), which cut the badge's
+// frame off at the corners. So phone icons use the scene inside the badge (horn, mug, barrel, food) full bleed:
+// the shape only ever trims the plain backdrop. Positions are in the 1024px icon's coordinates.
+const SCENE_BACKGROUND = "#231c23"; // the backdrop's darkest color, around the scene
+const iconSide = (await sharp(icon).metadata()).width;
+const scene = (left, top, size) => {
+    const scale = iconSide / 1024;
+    return sharp(icon)
+        .extract({ left: Math.round(left * scale), top: Math.round(top * scale), width: Math.round(size * scale), height: Math.round(size * scale) })
+        .png()
+        .toBuffer();
+};
+// Just inside the frame (none of the gold border).
+const sceneTight = await scene(72, 64, 880);
+
 // Android (Capacitor) launcher icons and splash screens.
-const ANDROID_BACKGROUND = "#14091f";
+const ANDROID_BACKGROUND = SCENE_BACKGROUND;
 const res = (relative) => out(`apps/mobile/android/app/src/main/res/${relative}`);
 const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 for (const [density, scale] of Object.entries(densities)) {
     const size = Math.round(48 * scale);
-    for (const name of ["ic_launcher", "ic_launcher_round"]) {
-        await sharp(icon).resize(size, size).png().toFile(res(`mipmap-${density}/${name}.png`));
-    }
-    // Adaptive icon foreground: 108dp canvas, artwork inside the 66dp safe zone.
+    // Older Android (no adaptive icons): a rounded square and a circle.
+    const radius = Math.round(size * 0.18);
+    await sharp(sceneTight)
+        .resize(size, size, { kernel: "lanczos3" })
+        .composite([{ input: Buffer.from(`<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${radius}"/></svg>`), blend: "dest-in" }])
+        .png()
+        .toFile(res(`mipmap-${density}/ic_launcher.png`));
+    await sharp(sceneTight)
+        .resize(size, size, { kernel: "lanczos3" })
+        .composite([{ input: Buffer.from(`<svg width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}"/></svg>`), blend: "dest-in" }])
+        .png()
+        .toFile(res(`mipmap-${density}/ic_launcher_round.png`));
+    // Adaptive icon foreground: a 108dp canvas of which launchers show at most the middle 72dp, masked to their
+    // shape. The scene is 60dp, so the horn stays well inside the 66dp safe circle, and its edge fades (5dp) into the
+    // backdrop color, which fills the rest: no seam under any mask, and room for parallax and zoom effects.
     const canvas = Math.round(108 * scale);
-    const art = Math.round(66 * scale);
+    const art = Math.round(60 * scale);
+    const fade = 5 * scale;
     const inset = Math.round((canvas - art) / 2);
-    await sharp(icon)
-        .resize(art, art)
-        .extend({ top: inset, bottom: canvas - art - inset, left: inset, right: canvas - art - inset, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    const edge = await sharp(
+        Buffer.from(`<svg width="${art}" height="${art}"><rect x="${fade}" y="${fade}" width="${art - 2 * fade}" height="${art - 2 * fade}" rx="${fade * 2}" fill="#fff"/></svg>`),
+    )
+        .blur(fade / 2)
+        .png()
+        .toBuffer();
+    const faded = await sharp(sceneTight).resize(art, art, { kernel: "lanczos3" }).ensureAlpha().composite([{ input: edge, blend: "dest-in" }]).png().toBuffer();
+    await sharp({ create: { width: canvas, height: canvas, channels: 4, background: SCENE_BACKGROUND } })
+        .composite([{ input: faded, left: inset, top: inset }])
         .png()
         .toFile(res(`mipmap-${density}/ic_launcher_foreground.png`));
 }
@@ -153,10 +186,11 @@ for (const folder of fs.readdirSync(splashDir).filter((name) => name.startsWith(
 }
 console.log("wrote Android launcher icons and splash screens");
 
-// iOS (Capacitor) app icon and splash screens. The App Store refuses icons with transparency, so the 1024px icon
-// is flattened onto the same background as Android's.
+// iOS (Capacitor) app icon and splash screens. The App Store refuses icons with transparency (the scene is opaque;
+// flattening is a safeguard).
 const ios = (relative) => out(`apps/mobile/ios/App/App/Assets.xcassets/${relative}`);
-await sharp(icon).resize(1024, 1024).flatten({ background: ANDROID_BACKGROUND }).png().toFile(ios("AppIcon.appiconset/AppIcon-512@2x.png"));
+// iOS rounds the corners itself: the scene fills the square.
+await sharp(sceneTight).resize(1024, 1024, { kernel: "lanczos3" }).flatten({ background: SCENE_BACKGROUND }).png().toFile(ios("AppIcon.appiconset/AppIcon-512@2x.png"));
 for (const name of ["splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"]) {
     const artwork = await sharp(icon).resize(820, 820).png().toBuffer();
     await sharp({ create: { width: 2732, height: 2732, channels: 4, background: ANDROID_BACKGROUND } })

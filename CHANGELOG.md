@@ -55,11 +55,17 @@ Versions follow `vX.Y.Z`.
 - Pictures and read receipts stay inside a message's highlight; rounded conversation rows and search with smooth
   shapes; no empty strip above a chat's title on Windows.
 - **Sharper logo:** the icon is rebuilt as clean pixel art, without the gray fringe around its edges, at every size.
+- **A real phone app icon:** on Android and iOS the icon is the hall scene filling the icon shape (no more badge with
+  its corners cut off by the round mask).
+- Clearer, calmer desktop layout: one set of text sizes (titles, names and messages, secondary text, labels), spacing
+  on an 8 px grid, and one main button per screen (the others are outlined).
 - Easier to read: no important text smaller than 12 px, larger names and list rows, settings pages at a readable
   width, a visible focus ring on every control for keyboard users, and no gray flash where you tap.
 
 ### Fixed
 - **"Playing …" stuck on the old game:** quitting one game and starting another now shows the new one.
+- Everyone (you too) no longer blinks offline for a moment when Meadhall reconnects.
+- The image viewer's close button is centered.
 
 ## v0.4.2 (2026-10-27)
 
