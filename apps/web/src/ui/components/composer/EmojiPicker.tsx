@@ -4,6 +4,7 @@ import type { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
 import { loadAvailableEmojis } from "../../emoji/EmojiResolver";
 import { subscribeEmojiPackUpdated } from "../../emoji/emojiEvents";
 import { mxcThumbnailToHttp } from "../../utils/mxc";
+import { CloseIcon } from "../CloseIcon";
 
 interface EmojiPickerProps {
     client: MatrixClient;
@@ -110,7 +111,7 @@ export function EmojiPicker({
                     aria-label="Close emoji picker"
                     title="Close"
                 >
-                    x
+                    <CloseIcon size={14} />
                 </button>
             </div>
 

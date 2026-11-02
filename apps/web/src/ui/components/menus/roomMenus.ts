@@ -42,11 +42,11 @@ export function spaceMenuItems(state: SpaceMenuState, actions: SpaceMenuActions)
     return [
         { label: "Mark as read", disabled: !state.hasUnread, onSelect: actions.markRead, testId: "space-menu-mark-read" },
         { kind: "separator" },
-        { label: "Invite to server", disabled: !state.canInvite, onSelect: actions.invite },
+        { label: "Invite to space", disabled: !state.canInvite, onSelect: actions.invite },
         { kind: "separator" },
         state.muted
-            ? { label: "Unmute server", onSelect: () => actions.setMuted(false), testId: "space-menu-mute" }
-            : { label: "Mute server", hint: "No notifications or unread counts", onSelect: () => actions.setMuted(true), testId: "space-menu-mute" },
+            ? { label: "Unmute space", onSelect: () => actions.setMuted(false), testId: "space-menu-mute" }
+            : { label: "Mute space", hint: "No notifications or unread counts", onSelect: () => actions.setMuted(true), testId: "space-menu-mute" },
         {
             label: "Notification settings",
             hint: notificationLabel(state.notificationMode, "Default"),
@@ -56,8 +56,8 @@ export function spaceMenuItems(state: SpaceMenuState, actions: SpaceMenuActions)
         { label: "Show all channels", hint: "Including ones you haven't joined", checked: state.showAllChannels, onSelect: () => actions.setShowAllChannels(!state.showAllChannels) },
         { kind: "separator" },
         { label: "Privacy settings", onSelect: actions.openPrivacySettings },
-        { label: "Edit per-server profile", onSelect: actions.editServerProfile, testId: "space-menu-profile" },
-        ...(state.canManage ? [{ label: "Server settings", onSelect: actions.openServerSettings } as ContextMenuItem] : []),
+        { label: "Edit per-space profile", onSelect: actions.editServerProfile, testId: "space-menu-profile" },
+        ...(state.canManage ? [{ label: "Space settings", onSelect: actions.openServerSettings } as ContextMenuItem] : []),
         { kind: "separator" },
         {
             label: "Move to...",
@@ -69,7 +69,7 @@ export function spaceMenuItems(state: SpaceMenuState, actions: SpaceMenuActions)
             ],
         },
         { kind: "separator" },
-        { label: "Leave server", danger: true, onSelect: actions.leave, testId: "space-menu-leave" },
+        { label: "Leave space", danger: true, onSelect: actions.leave, testId: "space-menu-leave" },
     ];
 }
 
@@ -96,8 +96,8 @@ export function channelMenuItems(state: ChannelMenuState, actions: ChannelMenuAc
             : { label: "Mute channel", onSelect: () => actions.setNotificationMode(RoomNotificationMode.Mute), testId: "channel-menu-mute" },
         {
             label: "Notification settings",
-            hint: notificationLabel(state.notificationMode, "Server default"),
-            submenu: notificationItems(state.notificationMode, actions.setNotificationMode, "Use server default"),
+            hint: notificationLabel(state.notificationMode, "Space default"),
+            submenu: notificationItems(state.notificationMode, actions.setNotificationMode, "Use space default"),
         },
         { kind: "separator" },
         { label: "Copy link", onSelect: actions.copyLink },

@@ -3,7 +3,7 @@ import jsQR from "jsqr";
 import QRCode from "qrcode";
 import { describe, expect, it } from "vitest";
 
-import { encodeQrPayload, parseQrPayload } from "../../../src/ui/auth/qrLogin";
+import { encodeQrPayload, parseQrPayload, qrPayloadExpired, QR_LOGIN_LIFETIME_MS } from "../../../src/ui/auth/qrLogin";
 
 // Draws a QR code as RGBA pixels (what a camera frame gives the scanner) and reads it back with jsQR.
 function roundTrip(text: string): string | null {
@@ -41,5 +41,16 @@ describe("QR sign-in codes", () => {
         expect(parseQrPayload("meadhall-login:1?hs=https://example.org&t=short")).toBeNull();
         expect(parseQrPayload("meadhall-login:1?hs=https://example.org&t=has spaces in it")).toBeNull();
         expect(parseQrPayload(`meadhall-login:1?hs=https://example.org&t=${"a".repeat(3000)}`)).toBeNull();
+    });
+});
+
+describe("sign-in code expiry", () => {
+    it("carries its expiry and is refused once it has passed", () => {
+        const expiresAt = Date.UTC(2026, 10, 1, 12, 3);
+        const payload = parseQrPayload(encodeQrPayload({ homeserver: "https://matrix.example.org", token: ["syl", "AbCdEf123", "456"].join("_"), expiresAt }));
+        expect(payload?.expiresAt).toBe(expiresAt);
+        expect(qrPayloadExpired(payload!, expiresAt - 1000)).toBe(false);
+        expect(qrPayloadExpired(payload!, expiresAt + 2 * 60_000)).toBe(true);
+        expect(QR_LOGIN_LIFETIME_MS).toBe(180_000);
     });
 });

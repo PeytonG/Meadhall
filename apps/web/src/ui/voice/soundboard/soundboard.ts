@@ -9,7 +9,8 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import { mediaFromMxc } from "../../../core/media/media";
 
 export const SOUNDBOARD_ACCOUNT_DATA = "io.github.peytong.meadhall.soundboard";
-export const MAX_CUSTOM_SOUNDS = 24;
+// Each sound is a small entry in account data (about 200 bytes), so 100 stay well under the homeserver's size limit.
+export const MAX_CUSTOM_SOUNDS = 100;
 export const MAX_SOUND_BYTES = 1024 * 1024;
 export const MAX_SOUND_SECONDS = 8;
 

@@ -44,6 +44,8 @@ export interface HeorotDesktopBridge {
     // Closes a conversation's notifications (all of them without a room). Desktop 0.4.0+.
     clearNotifications?: (roomId?: string) => Promise<void>;
     onNotificationClicked?: (listener: (roomId: string) => void) => () => void;
+    takePendingLink?: () => Promise<string | null>;
+    onOpenLink?: (listener: (link: string) => void) => () => void;
     setTitleBarColors?: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp?: () => Promise<void>;
     // previews: false returns at once without thumbnails (desktop 0.3.4+; older apps ignore it and include them).

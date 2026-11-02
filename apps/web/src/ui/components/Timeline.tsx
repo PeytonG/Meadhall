@@ -7,6 +7,7 @@ import {
     MsgType,
     RelationType,
     RoomEvent,
+    RoomStateEvent,
     ThreadEvent,
     type MatrixClient,
     type MatrixEvent,
@@ -27,6 +28,7 @@ import { MessageActionsBar } from "./messages/MessageActionsBar";
 import { Toast, type ToastState } from "./Toast";
 import { ReactionsRow } from "./reactions/ReactionsRow";
 import { UserBadges } from "./badges/UserBadges";
+import { BotTag } from "./badges/BotTag";
 import { ShareCard } from "../sharing/ShareCard";
 import { CodeBlock, InlineCode } from "../code/CodeBlock";
 import { splitCode } from "../code/codeMarkdown";
@@ -36,6 +38,10 @@ import { isPollEndType, isPollStartType } from "../polls/pollModel";
 import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhallFile";
 import { getOrCreateThread, isThreadReplyFallback, threadEvents, threadSummary } from "../threads/threads";
 import { ThreadSummaryBar } from "../threads/ThreadSummaryBar";
+import { parseAppLink } from "../utils/permalink";
+import { AppLinkPreview } from "./messages/AppLinkPreview";
+import { isModerator, isShadowMuted } from "../../core/moderation/moderation";
+import { SANCTION_EVENT } from "../../core/moderation/moderationProtocol";
 
 interface TimelineProps {
     client: MatrixClient;
@@ -49,6 +55,8 @@ interface TimelineProps {
     customReactionImagesEnabled: boolean;
     showReadReceipts: boolean;
     linkPreviews?: LinkPreviewMode;
+    // Scroll to and highlight this message (a message link was opened); a new nonce jumps again.
+    focusEvent?: { eventId: string; nonce: number } | null;
     // Set for the thread panel: show that thread instead of the main chat.
     threadRootId?: string | null;
     // Main chat only: open a message's thread (its "N replies" bar, or "Reply in thread").
@@ -148,7 +156,7 @@ interface MessageContent {
 type EncryptedAttachmentFile = encrypt.IEncryptedFile & { url: string };
 type MediaMsgType = MsgType.Image | MsgType.Audio | MsgType.Video | MsgType.File;
 
-const MESSAGE_LINK_PATTERN = /((?:https?:\/\/|ftp:\/\/|mailto:|matrix:)[^\s<>()]+|www\.[^\s<>()]+)/gi;
+const MESSAGE_LINK_PATTERN = /((?:https?:\/\/|ftp:\/\/|mailto:|matrix:|meadhall:\/\/)[^\s<>()]+|www\.[^\s<>()]+)/gi;
 const SHORTCODE_TOKEN_PATTERN = /:[a-zA-Z0-9_+-]{2,}:/g;
 const TRAILING_URL_PUNCTUATION = ".,!?;:";
 const DEFAULT_DECRYPT_CONCURRENCY = 3;
@@ -679,8 +687,20 @@ function extractMessageEvents(room: Room | null, threadRootId: string | null): M
     }
 
     const liveEvents = sourceEvents(room, threadRootId);
+    // Shadow muted by the server's moderators (Server Settings → Reports): hidden from everyone but themselves and the
+    // moderators.
+    const ownUserId = room.client.getUserId() ?? "";
+    const spaces = room.currentState
+        .getStateEvents(EventType.SpaceParent)
+        .map((parent) => room.client.getRoom(parent.getStateKey() ?? ""))
+        .filter((space): space is Room => Boolean(space));
+    const hidesShadowMuted = spaces.length > 0 && !spaces.some((space) => isModerator(space, ownUserId));
+    const shadowMuted = (sender: string): boolean => sender !== ownUserId && spaces.some((space) => isShadowMuted(space, sender));
     // Blocked people: the server stops sending their events; also hide the ones already loaded.
-    return liveEvents.filter((event) => isRenderableMessage(event) && !room.client.isUserIgnored(event.getSender() ?? ""));
+    return liveEvents.filter((event) => {
+        const sender = event.getSender() ?? "";
+        return isRenderableMessage(event) && !room.client.isUserIgnored(sender) && !(hidesShadowMuted && shadowMuted(sender));
+    });
 }
 
 function formatTime(timestamp: number): string {
@@ -993,11 +1013,19 @@ function tokenizeMessage(body: string): MessageSegment[] {
 function getFirstPreviewableUrl(body: string): string | null {
     const segments = tokenizeMessage(body);
     for (const segment of segments) {
-        if (segment.type === "link" && /^https?:\/\//i.test(segment.href)) {
+        if (segment.type === "link" && /^https?:\/\//i.test(segment.href) && !parseAppLink(segment.href)) {
             return segment.href;
         }
     }
 
+    return null;
+}
+
+// The first Meadhall room or message link in a message (shown as a preview card).
+function getFirstAppLink(body: string): string | null {
+    for (const segment of tokenizeMessage(body)) {
+        if (segment.type === "link" && parseAppLink(segment.href)) return segment.href;
+    }
     return null;
 }
 
@@ -1297,6 +1325,7 @@ export function Timeline({
     customReactionImagesEnabled,
     showReadReceipts,
     linkPreviews = "unencrypted",
+    focusEvent = null,
     threadRootId = null,
     onOpenThread,
 }: TimelineProps): React.ReactElement {
@@ -1335,10 +1364,44 @@ export function Timeline({
     const readMarkerInFlightByRoomRef = useRef<Set<string>>(new Set());
     const markAgainAfterInFlightRef = useRef(false);
     const markReadRef = useRef<() => Promise<void>>(async () => undefined);
+    // Holding a message (half a second, without scrolling) opens its menu.
+    const longPressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
+    const cancelLongPress = (): void => {
+        if (longPressRef.current) window.clearTimeout(longPressRef.current.timer);
+        longPressRef.current = null;
+    };
+    const startLongPress = (touchEvent: React.TouchEvent, messageKey: string): void => {
+        cancelLongPress();
+        const touch = touchEvent.touches[0];
+        if (!touch || touchEvent.touches.length > 1) return;
+        const { clientX: x, clientY: y } = touch;
+        const timer = window.setTimeout(() => {
+            longPressRef.current = null;
+            navigator.vibrate?.(10);
+            setContextMenuState({ eventKey: messageKey, x, y });
+        }, 500);
+        longPressRef.current = { timer, x, y };
+    };
+    const moveLongPress = (touchEvent: React.TouchEvent): void => {
+        const start = longPressRef.current;
+        const touch = touchEvent.touches[0];
+        if (start && touch && Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 10) cancelLongPress();
+    };
 
     const refreshEvents = useCallback(() => {
         setEvents(extractMessageEvents(room, threadRootId));
     }, [room, threadRootId]);
+
+    // Shadow mutes are the space's state: when one is set, lifted or first arrives, hide or show their messages.
+    useEffect(() => {
+        const onState = (event: MatrixEvent): void => {
+            if (event.getType() === SANCTION_EVENT) refreshEvents();
+        };
+        client.on(RoomStateEvent.Events, onState);
+        return () => {
+            client.off(RoomStateEvent.Events, onState);
+        };
+    }, [client, refreshEvents]);
 
     const latestEditEventsByTarget = useMemo(
         () => collectLatestEditEventsByTarget(room, threadRootId),
@@ -1430,6 +1493,18 @@ export function Timeline({
         },
         [client, focusEventById, paginating, pushToast, refreshEvents, room],
     );
+
+    // A message link was opened: jump to that message once this room's timeline is showing.
+    const handledFocusNonceRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!focusEvent || !room || handledFocusNonceRef.current === focusEvent.nonce) return undefined;
+        const timer = window.setTimeout(() => {
+            handledFocusNonceRef.current = focusEvent.nonce;
+            void jumpToReplySource(focusEvent.eventId);
+        }, 300);
+        return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [focusEvent?.nonce, room?.roomId]);
 
     const enqueueDecrypt = useCallback((item: DecryptQueueItem, force = false): void => {
         if (decryptedMediaUrlsRef.current[item.key] !== undefined && !force) {
@@ -2171,6 +2246,8 @@ export function Timeline({
                     const imageAlt = hasTextBody ? body : "image";
                     const previewUrl = hasTextBody && !mediaMsgType ? getFirstPreviewableUrl(body) : null;
                     const linkPreview = previewUrl && previewsAllowed ? linkPreviewByUrlRef.current[previewUrl] : null;
+                    const appLinkHref = hasTextBody && !mediaMsgType ? getFirstAppLink(body) : null;
+                    const appLink = appLinkHref ? parseAppLink(appLinkHref) : null;
                     const format = typeof content.format === "string" ? content.format : undefined;
                     const formattedBody = typeof content.formatted_body === "string" ? content.formatted_body : undefined;
                     const hasFormattedBody = format === "org.matrix.custom.html" && typeof formattedBody === "string";
@@ -2230,6 +2307,11 @@ export function Timeline({
                                     y: contextMenuEvent.clientY,
                                 });
                             }}
+                            // Touch screens: hold a message for its menu (a sheet on phones), like Discord's app.
+                            onTouchStart={(touchEvent) => startLongPress(touchEvent, messageKey)}
+                            onTouchMove={moveLongPress}
+                            onTouchEnd={cancelLongPress}
+                            onTouchCancel={cancelLongPress}
                         >
                             <MessageActionsBar
                                 client={client}
@@ -2302,6 +2384,7 @@ export function Timeline({
                                         />
                                         <span className="timeline-sender">{senderName}</span>
                                         {senderId ? <UserBadges client={client} userId={senderId} /> : null}
+                                        {senderId ? <BotTag space={activeSpaceId ? client.getRoom(activeSpaceId) : null} userId={senderId} /> : null}
                                     </button>
                                     <span className="timeline-time">{timeLabel}</span>
                                     {edited ? <span className="timeline-edited">(edited)</span> : null}
@@ -2501,6 +2584,7 @@ export function Timeline({
                                             </span>
                                         </a>
                                     ) : null}
+                                    {appLink && appLinkHref ? <AppLinkPreview client={client} link={appLink} href={appLinkHref} grouped={!showHeader} /> : null}
                                 </>
                             ) : null}
                             <ReactionsRow
@@ -2563,7 +2647,10 @@ export function Timeline({
                         onClick={() => setLightbox(null)}
                         aria-label="Close image preview"
                     >
-                        x
+                        {/* Drawn, not a typed "x": a letter sits on the font's baseline and is never quite centered. */}
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                        </svg>
                     </button>
                     <img
                         className={`timeline-lightbox-image${lightbox.zoomed ? " is-zoomed" : ""}`}

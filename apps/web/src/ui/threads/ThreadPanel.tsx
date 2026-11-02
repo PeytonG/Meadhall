@@ -6,6 +6,7 @@ import type { MatrixClient, MatrixEvent, Room } from "matrix-js-sdk/src/matrix";
 import { Composer } from "../components/Composer";
 import { Timeline } from "../components/Timeline";
 import type { LinkPreviewMode } from "../settings/user/settingsStore";
+import { CloseIcon } from "../components/CloseIcon";
 
 interface ThreadPanelProps {
     client: MatrixClient;
@@ -60,7 +61,7 @@ export function ThreadPanel({
                 </span>
                 {preview ? <span className="thread-panel-root">{preview}</span> : null}
                 <button type="button" className="thread-panel-close" onClick={onClose} aria-label="Close thread" title="Close thread">
-                    ×
+                    <CloseIcon />
                 </button>
             </header>
             <Timeline

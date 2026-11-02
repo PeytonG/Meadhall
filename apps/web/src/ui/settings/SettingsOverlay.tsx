@@ -4,6 +4,7 @@ import { RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/
 import { getBrandName, getSourceCodeUrl } from "../../core/config/branding";
 import type { ToastState } from "../components/Toast";
 import { useMatrix } from "../providers/MatrixProvider";
+import { PixelIcon } from "../components/PixelIcon";
 import { SettingsNav, type SettingsNavSection } from "./SettingsNav";
 import { ChannelsTab } from "./server/tabs/ChannelsTab";
 import { DangerTab } from "./server/tabs/DangerTab";
@@ -13,6 +14,10 @@ import { OverviewTab } from "./server/tabs/OverviewTab";
 import { PermissionsTab } from "./server/tabs/PermissionsTab";
 import { VisibilityTab } from "./server/tabs/VisibilityTab";
 import { AdvancedTab } from "./server/tabs/AdvancedTab";
+import { AutomodTab } from "./server/tabs/AutomodTab";
+import { ReportsTab } from "./server/tabs/ReportsTab";
+import { BotsTab } from "./server/tabs/BotsTab";
+import { OnboardingTab } from "./server/tabs/OnboardingTab";
 import { AppearanceTab } from "./user/tabs/AppearanceTab";
 import { UpdatesTab } from "./user/tabs/UpdatesTab";
 import { LogsTab } from "./user/tabs/LogsTab";
@@ -37,7 +42,7 @@ export type SettingsMode = "server" | "user";
 
 const SERVER_NAV: SettingsNavSection[] = [
     {
-        title: "Server",
+        title: "Space",
         items: [
             { id: "overview", label: "Overview" },
             { id: "emoji", label: "Emoji" },
@@ -56,6 +61,15 @@ const SERVER_NAV: SettingsNavSection[] = [
         items: [
             { id: "members", label: "Members" },
             { id: "permissions", label: "Permissions" },
+        ],
+    },
+    {
+        title: "Community",
+        items: [
+            { id: "reports", label: "Reports" },
+            { id: "onboarding", label: "Onboarding" },
+            { id: "automod", label: "Auto-mod" },
+            { id: "bots", label: "Bots" },
         ],
     },
     {
@@ -168,6 +182,13 @@ export function SettingsOverlay({
     const matrix = useMatrix();
     const [, setSpaceStateTick] = useState(0);
     const [activeTab, setActiveTab] = useState<string>(initialTab || getDefaultTab(mode));
+    // Phones show settings like iOS: the list of sections, then one section at a time with a back button. Opening
+    // settings at a given section goes straight to it.
+    const [phonePage, setPhonePage] = useState(Boolean(initialTab) && initialTab !== getDefaultTab(mode));
+    const openTab = (tabId: string): void => {
+        setActiveTab(tabId);
+        setPhonePage(true);
+    };
     const [verificationOpen, setVerificationOpen] = useState(false);
     const [verificationTarget, setVerificationTarget] = useState<VerificationTarget | null>(null);
     const [verificationNonce, setVerificationNonce] = useState(0);
@@ -180,6 +201,7 @@ export function SettingsOverlay({
         }
 
         setActiveTab(initialTab || getDefaultTab(mode));
+        setPhonePage(Boolean(initialTab) && initialTab !== getDefaultTab(mode));
     }, [initialTab, mode, open]);
 
     useEffect(() => {
@@ -237,8 +259,8 @@ export function SettingsOverlay({
     const navSections = mode === "server" ? SERVER_NAV : isAdmin ? withServerAdminTab(userNav) : userNav;
     const title = useMemo(() => {
         if (mode === "server") {
-            const roomName = spaceRoom?.name || spaceRoom?.getCanonicalAlias() || spaceRoom?.roomId || "Server";
-            return `Server Settings - ${roomName}`;
+            const roomName = spaceRoom?.name || spaceRoom?.getCanonicalAlias() || spaceRoom?.roomId || "Space";
+            return `Space Settings - ${roomName}`;
         }
         return "User Settings";
     }, [mode, spaceRoom]);
@@ -287,6 +309,14 @@ export function SettingsOverlay({
                 return <MembersTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
             case "permissions":
                 return <PermissionsTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
+            case "onboarding":
+                return <OnboardingTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
+            case "reports":
+                return <ReportsTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
+            case "automod":
+                return <AutomodTab client={client} spaceRoom={spaceRoom} onToast={onToast} />;
+            case "bots":
+                return <BotsTab client={client} spaceRoom={spaceRoom} channels={spaceChannels} onToast={onToast} />;
             case "advanced":
                 return <AdvancedTab spaceRoom={spaceRoom} onToast={onToast} />;
             case "danger":
@@ -429,9 +459,17 @@ export function SettingsOverlay({
 
     return (
         <div className="settings-overlay" role="dialog" aria-modal="true" aria-label={title}>
-            <div className="settings-shell">
+            <div className={`settings-shell${phonePage ? " is-phone-page" : " is-phone-list"}`}>
                 <aside className="settings-sidebar">
-                    <SettingsNav sections={navSections} activeTab={activeTab} onChangeTab={setActiveTab} />
+                    <header className="settings-phone-header">
+                        <h1>{mode === "server" ? spaceRoom?.name || "Space" : "Settings"}</h1>
+                        <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings">
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                            </svg>
+                        </button>
+                    </header>
+                    <SettingsNav sections={navSections} activeTab={activeTab} onChangeTab={openTab} />
                     <p className="settings-source-notice">
                         {getBrandName(matrix.config)} is free software under the AGPL-3.0.{" "}
                         <a href={getSourceCodeUrl(matrix.config)} target="_blank" rel="noopener noreferrer">
@@ -441,9 +479,14 @@ export function SettingsOverlay({
                 </aside>
                 <section className="settings-main">
                     <header className="settings-header">
+                        <button type="button" className="settings-phone-back" onClick={() => setPhonePage(false)} aria-label="Back to settings">
+                            <PixelIcon name="back" size={20} />
+                        </button>
                         <h1>{title}</h1>
                         <button type="button" className="settings-close" onClick={onClose} aria-label="Close settings">
-                            x
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                            </svg>
                         </button>
                     </header>
                     <div className="settings-content">{mode === "server" ? renderServerTab() : renderUserTab()}</div>

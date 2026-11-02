@@ -137,7 +137,7 @@ test("captures the feature screenshots", async ({ page, browser }) => {
     const voiceChanger = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Voice changer" }) });
     await voiceChanger.scrollIntoViewIfNeeded();
     await capture(voiceChanger, "voice-changer");
-    const soundboard = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Soundboard" }) });
+    const soundboard = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Soundboard", exact: true }) }).first();
     await soundboard.scrollIntoViewIfNeeded();
     await capture(soundboard, "soundboard");
     await page.keyboard.press("Escape");
@@ -166,7 +166,7 @@ test("captures the roles editor", async ({ page }) => {
     await dressUpHall(hall);
     await signIn(page, hall.users.hrothgar);
     await page.getByTitle("The Mead Hall").click();
-    await page.getByRole("button", { name: "Server", exact: true }).click();
+    await page.getByRole("button", { name: "Space settings", exact: true }).click();
     await page.getByRole("button", { name: "Members", exact: true }).click();
     await expect(page.getByTestId("roles-section")).toBeVisible();
     await page.getByTestId("roles-section").locator(".roles-editor summary").first().click();

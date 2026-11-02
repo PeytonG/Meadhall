@@ -19,6 +19,7 @@ import "@fontsource/pixelify-sans/400.css";
 import "@fontsource/pixelify-sans/600.css";
 import "@fontsource/silkscreen/400.css";
 import "./styles/pixel.css";
+import "./styles/mobile.css";
 
 function LoadingView({ label }: { label: string }): React.ReactElement {
     return (

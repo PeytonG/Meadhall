@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Recognises running games from the process list (like Discord does), using arRPC's game list.
-// Only runs when "Detect games" is on, at most every 15 seconds, and only reads process paths.
+// Only runs when "Detect games" is on, at most every 5 seconds (so switching games shows quickly), and only reads process paths.
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 
@@ -63,7 +63,7 @@ export async function listProcesses(): Promise<ProcessEntry[]> {
     return [];
 }
 
-const SCAN_EVERY_MS = 15_000;
+const SCAN_EVERY_MS = 5_000;
 const startedAt = new Map<string, number>();
 let lastScan = 0;
 let lastResult: DetectedGame[] = [];

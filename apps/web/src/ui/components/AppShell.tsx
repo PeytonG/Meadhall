@@ -23,8 +23,12 @@ import { ChannelHeader } from "./header/ChannelHeader";
 import { RightPanel } from "./rightPanel/RightPanel";
 import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpaceChannel } from "./RoomList";
 import { ContextMenu } from "./menus/ContextMenu";
+import { isServerAdmin } from "../../core/admin/synapseAdmin";
+import { isModerationRoom, liftExpiredSanctions, shouldAutoJoinReport } from "../../core/moderation/moderation";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
+import { OnboardingGate } from "../bots/OnboardingDialog";
+import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
 import { isVoiceChatEnabled } from "../../core/voice/voiceChat";
 import { useDesktopUpdates } from "../hooks/useDesktopUpdates";
@@ -70,12 +74,14 @@ import { useSelectedUser } from "../hooks/useSelectedUser";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useElementLikeNotifications } from "../notifications/useElementLikeNotifications";
 import { useMatrix } from "../providers/MatrixProvider";
-import { buildMatrixToRoomPermalink } from "../utils/permalink";
+import { buildMeadhallRoomLink, parseAppLink, type AppLink } from "../utils/permalink";
 import type { RightSidebarMode } from "./rightPanel/types";
 import { VoiceRoom, type VoiceControlState, type VoiceRoomHandle, type VoiceSessionStatus } from "./voice/VoiceRoom";
 import { DesktopUpdateBanner } from "./DesktopUpdateBanner";
 import { MobileUpdateBanner } from "./MobileUpdateBanner";
 import { WhatsNewDialog } from "./WhatsNewDialog";
+import { LookPicker } from "../settings/user/LookPicker";
+import { APPEARANCE_TYPE, readAccountAppearance, sameAppearance, withAccountAppearance, writeAccountAppearance } from "../settings/user/appearanceSync";
 import { addAccount, setInCallForSwitching, switchAccount, takePendingRoom, useStoredAccounts } from "../accounts/accountSwitching";
 import { useOtherAccountNotifications } from "../accounts/useOtherAccountNotifications";
 import { useTaskbarBadge } from "../notifications/taskbarBadge";
@@ -114,6 +120,7 @@ import { loadBadgeList } from "../../core/badges/badges";
 import { setSoundStyle } from "../notifications/soundStyle";
 import { MotionImage } from "./MotionImage";
 import { closeExpiredPolls } from "../polls/pollActions";
+import { CloseIcon } from "./CloseIcon";
 
 interface AppShellProps {
     client: MatrixClient;
@@ -179,9 +186,10 @@ function getRoomName(room: Room): string {
     return room.name || room.getCanonicalAlias() || room.roomId;
 }
 
-// Every room except the hidden bug-report rooms (Settings → Report a bug).
+// Every room except the hidden bug-report rooms (Settings → Report a bug) and report and moderation-log rooms
+// (Server Settings → Reports).
 function listedRooms(client: MatrixClient): Room[] {
-    return client.getRooms().filter((room) => !isSentBugReport(room, client.getUserId()));
+    return client.getRooms().filter((room) => !isSentBugReport(room, client.getUserId()) && !isModerationRoom(room));
 }
 
 function isVisibleMembership(room: Room): boolean {
@@ -962,8 +970,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 });
         };
         poll();
-        // Rich Presence apps change often (song, level); Steam and process scans are cached on the desktop side.
-        const timer = window.setInterval(poll, settings.richPresence || settings.media ? 15_000 : 30_000);
+        // Every 5 seconds, so quitting or switching games shows quickly; the desktop side caches its process scan.
+        const timer = window.setInterval(poll, 5_000);
         return () => {
             cancelled = true;
             window.clearInterval(timer);
@@ -1265,6 +1273,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 : roomById.get(selectedSpaceId) ?? null,
         [roomById, selectedSpaceId],
     );
+    // The server's onboarding (rules and questions) stands in for the message box until you've done it.
+    const botStateRevision = useSpaceState(selectedSpaceRoom, BOT_STATE_TYPES);
+    const onboardingNeeded = useMemo(() => needsOnboarding(client, selectedSpaceRoom), [client, selectedSpaceRoom, botStateRevision]);
 
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
@@ -1620,6 +1631,89 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         applyAppearanceTheme(userSettings.appearance);
     }, [userSettings]);
 
+    // Your look follows your account (appearanceSync.ts): taken once the first sync is in and whenever another
+    // device changes it; with none saved yet, the look picker is offered once.
+    const [lookPickerOpen, setLookPickerOpen] = useState(false);
+    // The message a link pointed at (Timeline jumps to it once the room is open).
+    const [linkFocus, setLinkFocus] = useState<{ roomId: string; eventId: string; nonce: number } | null>(null);
+    // Moderators: reports sent to you open on their own (only from members of a server you moderate), and timed
+    // bans and mutes are lifted when they end (whichever moderator's Meadhall notices first; checked every minute).
+    useEffect(() => {
+        const joinReports = (): void => {
+            for (const room of client.getRooms()) {
+                if (shouldAutoJoinReport(client, room)) void client.joinRoom(room.roomId).catch(() => undefined);
+            }
+        };
+        const lift = (): void => {
+            for (const space of client.getRooms()) {
+                if (space.isSpaceRoom() && space.getMyMembership() === "join") void liftExpiredSanctions(client, space).catch(() => undefined);
+            }
+        };
+        joinReports();
+        lift();
+        client.on(ClientEvent.Room, joinReports);
+        const timer = window.setInterval(() => {
+            joinReports();
+            lift();
+        }, 60_000);
+        return () => {
+            client.off(ClientEvent.Room, joinReports);
+            window.clearInterval(timer);
+        };
+    }, [client]);
+
+    // Phones: an Admin tab for accounts with the admin panel (homeserver admins).
+    const [isHomeserverAdmin, setIsHomeserverAdmin] = useState(false);
+    useEffect(() => {
+        let cancelled = false;
+        void isServerAdmin(client)
+            .then((admin) => {
+                if (!cancelled) setIsHomeserverAdmin(admin);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [client]);
+    useEffect(() => {
+        let started = false;
+        const apply = (): void => {
+            const account = readAccountAppearance(client);
+            if (!account) {
+                setLookPickerOpen(true);
+                return;
+            }
+            setUserSettings((current) => {
+                const appearance = withAccountAppearance(current.appearance, account);
+                return appearance === current.appearance ? current : { ...current, appearance };
+            });
+        };
+        const onSync = (): void => {
+            if (started || !client.isInitialSyncComplete()) return;
+            started = true;
+            apply();
+        };
+        const onAccountData = (event: MatrixEvent): void => {
+            if (started && event.getType() === APPEARANCE_TYPE) apply();
+        };
+        onSync();
+        client.on(ClientEvent.Sync, onSync);
+        client.on(ClientEvent.AccountData, onAccountData);
+        return () => {
+            client.off(ClientEvent.Sync, onSync);
+            client.off(ClientEvent.AccountData, onAccountData);
+        };
+    }, [client]);
+    // Changes made on this device go to the account a moment later (so dragging a color doesn't send a burst).
+    // Until a look is on the account, the picker saves the first one.
+    useEffect(() => {
+        if (lookPickerOpen) return undefined;
+        const account = readAccountAppearance(client);
+        if (!account || sameAppearance(withAccountAppearance(userSettings.appearance, account), userSettings.appearance)) return undefined;
+        const timer = window.setTimeout(() => void writeAccountAppearance(client, userSettings.appearance).catch(() => undefined), 800);
+        return () => window.clearTimeout(timer);
+    }, [client, lookPickerOpen, userSettings.appearance]);
+
     useEffect(() => {
         if (typeof window === "undefined") {
             return;
@@ -1683,7 +1777,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
 
         try {
-            await copyText(buildMatrixToRoomPermalink(activeRoom.roomId));
+            await copyText(buildMeadhallRoomLink(activeRoom.roomId));
             pushToast({ type: "success", message: "Room link copied." });
         } catch (copyError) {
             const message = copyError instanceof Error ? copyError.message : "Failed to copy room link.";
@@ -1695,7 +1789,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         async (spaceId: string): Promise<void> => {
             const targetSpace = client.getRoom(spaceId);
             if (!targetSpace || !targetSpace.isSpaceRoom()) {
-                pushToast({ type: "error", message: "Unable to reload channels: selected server is unavailable." });
+                pushToast({ type: "error", message: "Unable to reload channels: the selected space is unavailable." });
                 return;
             }
 
@@ -1725,7 +1819,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     setRooms(listedRooms(client));
                     pushToast({
                         type: "error",
-                        message: "Can't load server hierarchy because you're not joined to the server room.",
+                        message: "Can't load the space's channels because you're not in the space.",
                     });
                     return;
                 }
@@ -1803,7 +1897,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 );
                 setJoiningDiscoverableRoomId(null);
                 setRooms(listedRooms(client));
-                pushToast({ type: "success", message: "Channels reloaded from server hierarchy." });
+                pushToast({ type: "success", message: "Channels reloaded from the space." });
             } catch (reloadError) {
                 const message = reloadError instanceof Error ? reloadError.message : "Failed to reload channels.";
                 pushToast({ type: "error", message });
@@ -2293,6 +2387,58 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         });
     }, []);
 
+    // Room and message links (meadhall://, matrix.to, matrix:) open here, at the message, rather than in a browser.
+    const openAppLink = useCallback(
+        async (link: AppLink): Promise<void> => {
+            let roomId = link.room;
+            if (roomId.startsWith("#")) {
+                try {
+                    roomId = (await client.getRoomIdForAlias(roomId)).room_id;
+                } catch {
+                    pushToast({ type: "error", message: "That link's room couldn't be found." });
+                    return;
+                }
+            }
+            const room = client.getRoom(roomId);
+            if (!room || room.getMyMembership() !== "join") {
+                pushToast({ type: "info", message: "You're not in that conversation, so its link can't open here." });
+                return;
+            }
+            setInboxOpen(false);
+            focusRoom(roomId);
+            setMobilePane("chat");
+            if (link.eventId) setLinkFocus({ roomId, eventId: link.eventId, nonce: Date.now() });
+        },
+        [client, focusRoom, pushToast],
+    );
+    useEffect(() => {
+        const onClick = (event: MouseEvent): void => {
+            const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+            const link = anchor ? parseAppLink(anchor.getAttribute("href") ?? "") : null;
+            if (!link) return;
+            event.preventDefault();
+            event.stopPropagation();
+            void openAppLink(link);
+        };
+        document.addEventListener("click", onClick, true);
+        // Links that opened the app: the desktop app (main.ts) and Android (MeadhallSyncPlugin).
+        const fromOutside = (url: string | null | undefined): void => {
+            const link = url ? parseAppLink(url) : null;
+            if (link) void openAppLink(link);
+        };
+        const desktop = window.heorotDesktop;
+        void desktop?.takePendingLink?.().then(fromOutside).catch(() => undefined);
+        const stopDesktop = desktop?.onOpenLink?.(fromOutside);
+        const native = (window as unknown as { Capacitor?: { Plugins?: Record<string, any> } }).Capacitor?.Plugins?.MeadhallSync;
+        void native?.takePendingLink?.().then((result: { url?: string | null }) => fromOutside(result?.url)).catch(() => undefined);
+        const nativeListener = native?.addListener?.("openLink", (data: { url?: string }) => fromOutside(data?.url));
+        return () => {
+            document.removeEventListener("click", onClick, true);
+            stopDesktop?.();
+            void Promise.resolve(nativeListener).then((handle: { remove?: () => void } | undefined) => handle?.remove?.());
+        };
+    }, [openAppLink]);
+
     const openServerSettings = useCallback((tab = "overview"): void => {
         if (!selectedSpaceRoom) {
             return;
@@ -2507,7 +2653,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             if (selectedSpaceId === space.roomId) selectHome();
             pushToast({ type: "success", message: `Left ${getRoomName(space)}.` });
         } catch (error) {
-            reportError("Couldn't leave the server")(error);
+            reportError("Couldn't leave the space")(error);
         }
     };
     const contextMenuRoom = contextMenu ? client.getRoom(contextMenu.roomId) : null;
@@ -2547,7 +2693,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         selectServer(room.roomId);
                         setSettingsState({ mode: "server", tab: "overview" });
                     },
-                    move: (to) => void saveSpaceOrder(client, movedSpaceOrder(order, room.roomId, to)).catch(reportError("Couldn't move the server")),
+                    move: (to) => void saveSpaceOrder(client, movedSpaceOrder(order, room.roomId, to)).catch(reportError("Couldn't move the space")),
                     leave: () => void leaveServer(room, children),
                 },
             );
@@ -2612,8 +2758,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onClick={() => setCreateSpaceOpen(true)}
                     title="Create Space"
                     disabled={client.isGuest()}
+                    aria-label="Create Space"
                 >
-                    +
+                    <PixelIcon name="plus" size={20} />
                 </button>
             </aside>
 
@@ -2660,9 +2807,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 type="button"
                                 className="pane-top-action"
                                 onClick={() => openServerSettings("overview")}
-                                title="Open server settings"
+                                title="Open space settings"
+                                aria-label="Space settings"
                             >
-                                Server
+                                Settings
                             </button>
                         ) : null}
                     </div>
@@ -2682,10 +2830,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 aria-label="Dismiss onboarding"
                                 onClick={() => setSpaceOnboardingSpaceId(null)}
                             >
-                                x
+                                <CloseIcon size={14} />
                             </button>
                         </div>
-                        <p className="space-onboarding-text">Create your first channel or configure the server.</p>
+                        <p className="space-onboarding-text">Create your first channel or set up the space.</p>
                         <div className="space-onboarding-actions">
                             <button
                                 type="button"
@@ -2699,7 +2847,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 className="room-dialog-button room-dialog-button-secondary"
                                 onClick={() => openServerSettings("overview")}
                             >
-                                Open server settings
+                                Open space settings
                             </button>
                             <button
                                 type="button"
@@ -2766,8 +2914,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             <button
                                 type="button"
                                 className="pane-voice-pill"
-                                onClick={() => openRoomAtBottom(voiceSessionRoomId)}
+                                onClick={() => {
+                                    // On phones this is how you get back to the call from the lists.
+                                    openRoomAtBottom(voiceSessionRoomId);
+                                    setMobilePane("chat");
+                                }}
                                 title="Open voice channel"
+                                data-testid="voice-pill"
                             >
                                 <span className="pane-voice-pill-title">
                                     {voiceSessionStatus === "joining"
@@ -2812,8 +2965,78 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 accounts={storedAccounts}
                                 onSwitchAccount={(userId) => void switchAccount(client, userId)}
                                 onAddAccount={() => void addAccount(client)}
+                                onSignInDevice={() => openUserSettings("devices")}
                             />
                         ) : null}
+                        {isPhoneLayout ? (
+                            // Phones: a bottom tab bar (UI Design Principles, Apple's HIG), not the desktop user bar.
+                            <nav className={`mobile-tab-bar${isHomeserverAdmin ? " has-admin" : ""}`} aria-label="Main" data-testid="mobile-tab-bar">
+                                <button
+                                    type="button"
+                                    className={`mobile-tab${selectedSpaceId === PEOPLE_SPACE_ID && !inboxOpen ? " is-active" : ""}`}
+                                    onClick={() => {
+                                        setInboxOpen(false);
+                                        selectHome();
+                                    }}
+                                    aria-current={selectedSpaceId === PEOPLE_SPACE_ID && !inboxOpen ? "page" : undefined}
+                                >
+                                    <span className="mobile-tab-icon">
+                                        <PixelIcon name="home" size={24} />
+                                    </span>
+                                    <span>Home</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`mobile-tab${inboxOpen ? " is-active" : ""}`}
+                                    onClick={() => setInboxOpen((open) => !open)}
+                                    aria-label={inboxCount > 0 ? `Inbox, ${inboxCount} unread` : "Inbox"}
+                                    data-inbox-toggle
+                                >
+                                    <span className="mobile-tab-icon">
+                                        <PixelIcon name="inbox" size={24} />
+                                        {inboxCount > 0 ? <span className="mobile-tab-badge">{inboxCount > 99 ? "99+" : inboxCount}</span> : null}
+                                    </span>
+                                    <span>Inbox</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`mobile-tab${statusMenuOpen ? " is-active" : ""}`}
+                                    onClick={() => setStatusMenuOpen((open) => !open)}
+                                    aria-haspopup="menu"
+                                    aria-expanded={statusMenuOpen}
+                                    aria-label="You: status and accounts"
+                                    data-testid="user-card"
+                                >
+                                    <Avatar
+                                        className="mobile-tab-avatar"
+                                        name={ownDisplayName}
+                                        src={ownAvatarSources[0] ?? null}
+                                        sources={ownAvatarSources}
+                                        seed={ownUserId || undefined}
+                                        userId={ownUserId || undefined}
+                                        presenceState={ownStatusDot}
+                                    />
+                                    <span>You</span>
+                                </button>
+                                {/* Settings live under You (its menu). Accounts with the admin panel (homeserver admins,
+                                    Settings → Server admin) get a fourth tab for it. */}
+                                {isHomeserverAdmin ? (
+                                    <button
+                                        type="button"
+                                        className="mobile-tab"
+                                        onClick={() => openUserSettings("server-admin")}
+                                        aria-label="Admin"
+                                        data-testid="mobile-tab-admin"
+                                    >
+                                        <span className="mobile-tab-icon">
+                                            <PixelIcon name="shield" size={24} />
+                                        </span>
+                                        <span>Admin</span>
+                                    </button>
+                                ) : null}
+                            </nav>
+                        ) : (
+                        <>
                         <button
                             type="button"
                             className="pane-user-card"
@@ -2870,6 +3093,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         >
                             <PixelIcon name="gear" />
                         </button>
+                        </>
+                        )}
                     </div>
                 </div>
             </section>
@@ -3015,17 +3240,22 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             showReadReceipts={shouldShowReadReceipts}
                             linkPreviews={userSettings.privacy.linkPreviews}
                             onOpenThread={(rootEventId) => activeRoom && setOpenThread({ roomId: activeRoom.roomId, rootEventId })}
+                            focusEvent={linkFocus && linkFocus.roomId === activeRoom?.roomId ? linkFocus : null}
                         />
                         <div className="main-chat-composer">
-                            <Composer
-                                client={client}
-                                room={activeRoom}
-                                activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
-                                editingEvent={editingEvent}
-                                onCancelEdit={() => setEditingEvent(null)}
-                                replyToEvent={replyToEvent}
-                                onCancelReply={() => setReplyToEvent(null)}
-                            />
+                            {onboardingNeeded && selectedSpaceRoom ? (
+                                <OnboardingGate client={client} space={selectedSpaceRoom} />
+                            ) : (
+                                <Composer
+                                    client={client}
+                                    room={activeRoom}
+                                    activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
+                                    editingEvent={editingEvent}
+                                    onCancelEdit={() => setEditingEvent(null)}
+                                    replyToEvent={replyToEvent}
+                                    onCancelReply={() => setReplyToEvent(null)}
+                                />
+                            )}
                         </div>
                     </div>
                 ) : null}
@@ -3228,7 +3458,20 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 over it (the call card, banners) must follow the layout or its buttons would drag the window. */}
             <DesktopUpdateBanner />
             <MobileUpdateBanner onOpenUpdateSettings={() => openUserSettings("updates")} />
-            <WhatsNewDialog />
+            {lookPickerOpen ? (
+                <LookPicker
+                    client={client}
+                    settings={userSettings.appearance}
+                    onPreview={(appearance) => setUserSettings((current) => ({ ...current, appearance }))}
+                    onDone={(appearance) => {
+                        setUserSettings((current) => ({ ...current, appearance }));
+                        setLookPickerOpen(false);
+                        void writeAccountAppearance(client, appearance).catch(() => undefined);
+                    }}
+                />
+            ) : (
+                <WhatsNewDialog />
+            )}
             <CallEndedNotice onViewDetails={() => openUserSettings("logs")} />
             {inboxOpen ? (
                 <InboxPanel

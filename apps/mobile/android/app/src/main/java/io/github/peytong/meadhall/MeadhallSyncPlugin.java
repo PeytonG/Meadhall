@@ -2,6 +2,8 @@
 package io.github.peytong.meadhall;
 
 import android.Manifest;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 
 import com.getcapacitor.JSObject;
@@ -19,6 +21,41 @@ import com.getcapacitor.annotation.PermissionCallback;
         permissions = { @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }) }
 )
 public final class MeadhallSyncPlugin extends Plugin {
+    // A meadhall:// link that opened the app (a message or room link): kept until the web app asks for it, and
+    // sent straight to it when the app is already open.
+    private static String pendingLink;
+
+    @Override
+    public void load() {
+        rememberLink(getActivity() != null ? getActivity().getIntent() : null);
+    }
+
+    @Override
+    protected void handleOnNewIntent(Intent intent) {
+        super.handleOnNewIntent(intent);
+        if (rememberLink(intent)) {
+            JSObject data = new JSObject();
+            data.put("url", pendingLink);
+            pendingLink = null;
+            notifyListeners("openLink", data);
+        }
+    }
+
+    private static boolean rememberLink(Intent intent) {
+        Uri uri = intent != null ? intent.getData() : null;
+        if (uri == null || !"meadhall".equals(uri.getScheme())) return false;
+        pendingLink = uri.toString();
+        return true;
+    }
+
+    @PluginMethod
+    public void takePendingLink(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("url", pendingLink);
+        pendingLink = null;
+        call.resolve(result);
+    }
+
     @PluginMethod
     public void start(PluginCall call) {
         String homeserver = call.getString("homeserverUrl");

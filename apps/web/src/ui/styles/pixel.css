@@ -36,10 +36,13 @@ select {
     font-family: var(--font-pixel-body);
 }
 
+/* Shapes (Appearance): everything in this group is the blocky pixel look, used only when Shapes is Square
+   (data-shape="pixel" on <html>); otherwise (the default) the app's normal rounded corners and borders apply. */
+
 /* No rounded corners anywhere: avatars, cards, buttons and inputs are all square pixels. */
-*,
-*::before,
-*::after {
+:where(:root[data-shape="pixel"]) *,
+:where(:root[data-shape="pixel"]) *::before,
+:where(:root[data-shape="pixel"]) *::after {
     border-radius: 0 !important;
 }
 
@@ -90,22 +93,21 @@ h3,
 
 img,
 canvas,
-.rail-icon-avatar,
-.login-brand img {
+.rail-icon-avatar {
     image-rendering: pixelated;
 }
 
 /* Stepped borders: a solid outline whose corners are notched out, like a pixel sprite frame. */
-.login-card,
-.settings-section-card,
-.room-dialog,
-.message-context-menu,
-.context-menu,
-.share-card,
-.inbox-panel,
-.message-actions-bar,
-.desktop-update-banner,
-.pixel-color-picker {
+:where(:root[data-shape="pixel"]) .login-card,
+:where(:root[data-shape="pixel"]) .settings-section-card,
+:where(:root[data-shape="pixel"]) .room-dialog,
+:where(:root[data-shape="pixel"]) .message-context-menu,
+:where(:root[data-shape="pixel"]) .context-menu,
+:where(:root[data-shape="pixel"]) .share-card,
+:where(:root[data-shape="pixel"]) .inbox-panel,
+:where(:root[data-shape="pixel"]) .message-actions-bar,
+:where(:root[data-shape="pixel"]) .desktop-update-banner,
+:where(:root[data-shape="pixel"]) .pixel-color-picker {
     border-color: transparent !important;
     box-shadow:
         0 calc(var(--pixel) * -1) 0 0 var(--pixel-border),
@@ -118,16 +120,16 @@ canvas,
 
 /* Bevelled action buttons: light top-left edge, dark bottom-right edge; pressed buttons invert it.
    Text-like buttons (names in the timeline, channel and member rows) stay flat. */
-.login-card button,
-.settings-button,
-.settings-theme-button,
-.room-dialog-button-primary,
-.room-dialog-button,
-.verification-primary,
-.emoji-upload-save,
-.desktop-update-banner button,
-.voice-room-audio-warning button,
-.rail-icon {
+:where(:root[data-shape="pixel"]) .login-card button,
+:where(:root[data-shape="pixel"]) .settings-button,
+:where(:root[data-shape="pixel"]) .settings-theme-button,
+:where(:root[data-shape="pixel"]) .room-dialog-button-primary,
+:where(:root[data-shape="pixel"]) .room-dialog-button,
+:where(:root[data-shape="pixel"]) .verification-primary,
+:where(:root[data-shape="pixel"]) .emoji-upload-save,
+:where(:root[data-shape="pixel"]) .desktop-update-banner button,
+:where(:root[data-shape="pixel"]) .voice-room-audio-warning button,
+:where(:root[data-shape="pixel"]) .rail-icon {
     box-shadow:
         inset calc(var(--pixel) * -1) calc(var(--pixel) * -1) 0 0 var(--pixel-shade),
         inset var(--pixel) var(--pixel) 0 0 var(--pixel-highlight);
@@ -144,7 +146,7 @@ canvas,
     color: var(--on-primary);
 }
 
-:is(.login-card button, .settings-button, .settings-theme-button, .room-dialog-button-primary, .room-dialog-button,
+:where(:root[data-shape="pixel"]) :is(.login-card button, .settings-button, .settings-theme-button, .room-dialog-button-primary, .room-dialog-button,
     .verification-primary, .emoji-upload-save, .desktop-update-banner button, .rail-icon):active:not(:disabled) {
     box-shadow:
         inset var(--pixel) var(--pixel) 0 0 var(--pixel-shade),
@@ -152,9 +154,9 @@ canvas,
     transform: translateY(1px);
 }
 
-input,
-textarea,
-select {
+:where(:root[data-shape="pixel"]) input,
+:where(:root[data-shape="pixel"]) textarea,
+:where(:root[data-shape="pixel"]) select {
     border-width: 2px !important;
 }
 
@@ -164,17 +166,17 @@ select {
 }
 
 /* Chunky scrollbars. */
-* {
+:where(:root[data-shape="pixel"]) * {
     scrollbar-width: auto;
     scrollbar-color: var(--accent) transparent;
 }
 
-::-webkit-scrollbar {
+:where(:root[data-shape="pixel"]) ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 
-::-webkit-scrollbar-thumb {
+:where(:root[data-shape="pixel"]) ::-webkit-scrollbar-thumb {
     background: var(--accent);
     border: 2px solid var(--bg-pane);
 }
@@ -662,6 +664,11 @@ select {
 
 :root[data-pixel-emoji="on"] :is(.composer-emoji-item, .reaction-picker-item, .timeline-jumbo-emoji) .unicode-emoji {
     filter: url(#meadhall-pixel-emoji-big);
+}
+
+/* Rounded shapes: the phone badge's corner that sits on the picture follows its curve. */
+:root:not([data-shape="pixel"]) .avatar-presence-dot.is-mobile {
+    border-radius: 8px 3px 3px 3px !important;
 }
 
 /* On mobile: a green pixel phone instead of the round online dot (Avatar presenceState "mobile"). */

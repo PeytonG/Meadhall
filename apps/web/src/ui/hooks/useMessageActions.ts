@@ -3,7 +3,7 @@ import { EventType, MsgType, RelationType, type MatrixClient, type MatrixEvent, 
 
 import { REACTION_SHORTCODE_FIELD_STABLE, REACTION_SHORTCODE_FIELD_UNSTABLE } from "../emoji/EmojiPackTypes";
 import type { ReactionSelection } from "../components/ReactionPicker";
-import { buildMatrixToEventPermalink } from "../utils/permalink";
+import { buildMeadhallEventLink } from "../utils/permalink";
 
 interface UseMessageActionsArgs {
     client: MatrixClient;
@@ -69,7 +69,8 @@ export function useMessageActions({ client, room, event }: UseMessageActionsArgs
         if (!eventId) {
             throw new Error("Cannot copy link for pending event.");
         }
-        await copyToClipboard(buildMatrixToEventPermalink(room.roomId, eventId));
+        // A Meadhall link: Meadhall opens it at the message (matrix.to would send people to a "pick an app" page).
+        await copyToClipboard(buildMeadhallEventLink(room.roomId, eventId));
     };
 
     const copyText = async (): Promise<void> => {

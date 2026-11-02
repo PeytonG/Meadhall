@@ -46,6 +46,7 @@ const ptBR: Dictionary = {
     Updates: "Atualizações",
     "Server admin": "Administração do servidor",
     Server: "Servidor",
+    Space: "Espaço",
     Overview: "Visão geral",
     Channels: "Canais",
     Access: "Acesso",

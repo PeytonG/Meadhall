@@ -26,7 +26,7 @@ export function mutualServerRoles(client: MatrixClient, userId: string): ServerR
                 if (level >= 100) roles.push({ id: "pl-admin", name: "Admin", color: "#e0525a" });
                 else if (level >= 50) roles.push({ id: "pl-mod", name: "Moderator", color: "#5aa9e6" });
             }
-            return { serverId: space.roomId, serverName: space.name || "Unnamed server", roles };
+            return { serverId: space.roomId, serverName: space.name || "Unnamed space", roles };
         })
         .sort((left, right) => left.serverName.localeCompare(right.serverName));
 }

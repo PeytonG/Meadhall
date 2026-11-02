@@ -150,7 +150,7 @@ matrix-js-sdk 40.2.0.
 - **Self mute/deafen** (`ui/voice/selfVoiceState.ts`): the user-panel buttons work outside calls, persist, and set how
   the next call starts (`joinMuted`/`joinDeafened`; joining muted never opens the mic). Deafen also mutes;
   undeafen restores only a mute that deafen caused.
-- **Per-person volume 0–120%** (`ui/voice/volumeBoost.ts`): above 100% the voice plays through a Web Audio gain fed by
+- **Per-person volume 0–130%** (`ui/voice/volumeBoost.ts`): above 100% the voice plays through a Web Audio gain fed by
   `createMediaStreamSource` while the element plays at volume 0. The boost follows the chosen speaker (`setSinkId`)
   and the element's `muted` (deafen).
 - **E2EE:** `MatrixRtcKeyProvider` (ratchetWindowSize 10, keyringSize 256) imports keys with livekit's
@@ -487,6 +487,91 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
 - Tests: `e2e/threads.spec.ts`, `e2e/verification.spec.ts`, `e2e/verificationSas.spec.ts` (a Node Rust-crypto client
   stands in for FluffyChat: `setUpEncryptionLikeAnotherApp`).
 
+### 7.24 Server bots (v0.5.0: `core/bots`, `apps/bot`)
+- **Formats** (`core/bots/botProtocol.ts`, pure, shared with the bot): space state `io.github.peytong.meadhall.bots`
+  (admins), `.commands` (state key = bot ID: only the bot can write it), `.onboarding`, `.automod`, and
+  `.onboarding.response` (state key = member ID). `addBot`/`saveOnboarding` lower the power level for `.commands`
+  and `.onboarding.response` to 0 (the homeserver still restricts "@" keys to their owner). A message running a
+  command carries `io.github.peytong.meadhall.command` {bot, name, args}. All parsers cap lengths/counts and check
+  answers against the server's own questions.
+- **App**: Server Settings → Community → Onboarding / Auto-mod / Bots; BOT tag (`BotTag`); slash-command menu and
+  usage hint in the composer (incomplete commands aren't sent); `OnboardingGate` replaces the composer until a
+  member answers (`needsOnboarding`; admins 50+ and bots skip it). "Require it" (enforced) = every channel's talk
+  role is the member role (§7.6), so the homeserver enforces it; a bot must grant the role.
+- **Bot** (`apps/bot`, Node 22.18+ runs the .ts directly; Dockerfile): joins invites, keeps only servers listing it
+  and their channels (a channel invite can arrive before the space join: re-checked after setup, left after 60 s);
+  registers commands; grants onboarding roles with the app's own `applyRolesToPowerLevels`; welcome; auto-mod
+  (redact, warn, timeout = level below events_default, ends kept in the bot's account data); moderation commands
+  check the asker's kick/ban level and that the target ranks below asker and bot. New device per start (in-memory
+  crypto), old "Meadhall bot" devices deleted. Use `RoomEvent.MyMembership` for invites
+  (`RoomMemberEvent.Membership` didn't fire for them).
+- Tests: `test/unit-tests/core/botProtocol.test.ts`, `e2e/bots.spec.ts` (spawns the real bot).
+- The bot only accepts invites from `MEADHALL_BOT_ALLOWED_INVITERS` (default: its own homeserver), so strangers can't
+  add it to their servers.
+
+### 7.25 UI design system and phone layout (v0.5.0: `styles/mobile.css`)
+- Follows the owner's references: "UI Design Principles" (Michael Filipiuk, PDF in the owner's Downloads) and UX
+  Collective's iOS guide, plus Android's design guidance (developer.android.com/design/ui/mobile: 48 dp targets, 3-5
+  nav destinations, overflow menus, 4.5:1 text contrast). Rules: 4/8 px spacing tokens (`--space-*`), type tokens
+  (`--text-*`), 48 px touch targets (`--tap`), 16 px text in inputs (also stops iOS zooming on focus), nothing under 12 px that matters, body line
+  height about 1.45, a focus ring on every control, `-webkit-tap-highlight-color: transparent` with `:active`
+  states instead, safe areas (`--safe-top`/`--safe-bottom`).
+- Phones (≤760 px): a full-width, centered bottom tab bar (Home, Inbox, You = status menu with Settings and "Sign in
+  another device"; a fourth Admin tab, shield icon, only for accounts with the admin panel, i.e. homeserver admins:
+  owner requirement, exactly 3 tabs otherwise), chat top bar
+  = back, title, lock, call, "…" (search/members/pins move into "…"), settings as a grouped list with drill-in
+  (`is-phone-list` / `is-phone-page`), long press on a message opens its menu as a bottom sheet (no hover bar on
+  touch), dialogs as bottom sheets. Calls: Mute, Camera, More (sounds, deafen, voice settings), Leave; no screen
+  share on phones (`canShareScreen`); the "Voice Connected" pill opens the call.
+- `e2e/mobileTour.spec.ts` fails if any visible control on the main phone screens is under 44×44;
+  `e2e/desktopTour.spec.ts` checks the desktop screens fit. Both save screenshots with `PREVIEW_DIR`.
+- **Owner's decisions (2026-11-01): shapes are Rounded by default, with Square (the blocky pixel frames) as an
+  option; pixel font, pixel icons and pixel emoji stay the defaults; everything can be switched either way, and
+  rounded corners must be uniform.** Appearance → Font (Pixel / Pixel headings / System / custom), Icons (Pixel /
+  Smooth), Shapes (Rounded / Square: `data-shape` on `<html>`, "smooth" or "pixel"; the square-only rules in
+  `pixel.css` are scoped with `:where(:root[data-shape="pixel"])` so specificity doesn't change), Pixel emoji. Corner
+  scale in `mobile.css` (`:where()`, so components can override): 4 px tags, 6 px swatches, 8 px fields/rows, 10-12 px
+  tiles/cards, round chips. A corner audit (every bordered or filled control with a 0 radius) found and fixed the
+  stragglers. Don't change defaults without the owner. Pixelify Sans reads small (16 px ≈ 13 px).
+- **Words (owner, 2026-11-01): "server" means a Matrix homeserver only.** Spaces are "spaces" in everything users
+  read (Space Settings, Leave space, per-space profile, the space's moderators). Internal names (`mode: "server"`,
+  `ServerProfileDialog`, `settings/server/`) stay. The phone Admin tab is the homeserver admin panel.
+- **Desktop design pass (owner, 2026-11-01):** one type scale on computers (12 px labels/times, 14 px secondary,
+  16 px names/messages, 18 px titles), 4/8 px spacing, one primary button per screen. The owner keeps the red
+  "Unencrypted" chip and the channel header's icon row as they are, and declined a contrast pass for faint grey text.
+- **Phone app icon** (`scripts/generate-branding.mjs`): the scene inside the badge (no frame) full bleed for iOS and
+  older Android; the adaptive foreground is that scene at 60dp fading into `#231c23`, so no mask clips the horn.
+- **Presence blink:** `usePresenceMap` keeps showing someone online for 4 s after their presence drops
+  (`withOfflineGrace`); a restarted sync rebuilt user info before presence arrived, so every dot blinked offline.
+- **Look sync and the sign-in picker** (`settings/user/appearanceSync.ts`, `LookPicker.tsx`): the look (theme,
+  accent, fonts, icons, shapes, emoji; not compact mode or line length, which stay per device) is account data
+  `io.github.peytong.meadhall.appearance`, applied after the first sync and when another device changes it. With
+  none saved, the picker is offered once (live preview; Done saves it, and the campfire choice to the profile). E2E
+  test accounts get `{appearance: {}}` so the picker stays away (`skipLookPicker`).
+
+### 7.26 Reports, moderation and app links (v0.5.0: `core/moderation`, `ui/moderation`, `ui/utils/permalink.ts`)
+- Reasons: space state `io.github.peytong.meadhall.report_reasons` (defaults if unset). A report is its own private
+  room (creation type `io.github.peytong.meadhall.report`) made by the reporter with the moderators invited
+  (everyone at the ban level or above in the space, plus room v12 creators); details in state
+  `io.github.peytong.meadhall.report`, outcome in `…report_status`. Moderators' Meadhall auto-joins report invites
+  only from members of a server they moderate. Report and log rooms are left out of room lists (`listedRooms`).
+- Actions (`applyModAction`): warn, kick, ban, timed ban, unban, mute (channel power level -1, previous levels
+  saved), unmute, shadow mute, unshadow, dismiss. Sanctions are space state `io.github.peytong.meadhall.sanction`
+  with state key `user:<mxid>` (a bare user ID as state key is only writable by that user). Timed bans and mutes are
+  lifted by any moderator's Meadhall (checked every minute). Shadow-muted messages are hidden from everyone except
+  the person and moderators (`extractMessageEvents`).
+- Member records: a moderators-only log room (`io.github.peytong.meadhall.modlog`, linked from space state
+  `…moderation_room`), one `…mod_action` event per action. Server Settings → Reports shows reports, records and
+  reasons. `e2e/reports.spec.ts` covers report → shadow mute → timed ban.
+- Room version 12 (the test Synapse's default): room IDs have no `:server`, creators aren't in `users` and may not
+  be put there in `createRoom` overrides.
+- App links: "Copy link" gives `meadhall://room/<room>/<event>`; `parseAppLink` also reads matrix.to and
+  `matrix:` URIs. In-app clicks are caught in AppShell and open the room at the message (`Timeline` `focusEvent`).
+  Desktop registers the scheme in packaged builds only (`setAsDefaultProtocolClient`, electron-builder
+  `protocols`); Android has a VIEW intent filter and `MeadhallSyncPlugin` hands the link over (`openLink`).
+- QR sign-in codes last at most 3 minutes: the code carries its expiry (`x`), the scanner refuses stale ones, and
+  the test Synapse's `token_timeout` is 3m (recommend the same to server admins).
+
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
 brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requires 7:1 against its background
@@ -587,6 +672,10 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | Login helper "strict mode violation: 2 Sign in buttons" | A button named "Sign in with …" inside the form; keep extra buttons outside the `<form>` |
 | Flatpak build: "state dir not on the same filesystem" | Pass `--state-dir` on the build's filesystem; runtime 24.08 is end-of-life, use 25.08 |
 | Bot replies ping but never show; inbox "✓" does nothing | Thread replies (`m.thread`) live in thread timelines; see §7.23 |
+| A teal/gray square where you last tapped (phones, screenshots) | The browser's tap highlight; off in `mobile.css` |
+| "Playing …" stuck on a game you quit | Rich Presence lived as long as its socket; now dropped when its pid is gone, newest game first (`activity/index.ts`) |
+| Logo fringed/ragged | The source is 200×200 pixel art in a JPEG with a fake checkerboard; `generate-branding.mjs` rebuilds it per grid cell |
+| E2E poll on Matrix state throws on the first 404 | `expect.poll` stops on exceptions: wrap reads in `.catch(() => ({}))` (see `bots.spec.ts`) |
 | Meadhall and FluffyChat disagree about who is verified | The session wasn't cross-signed; the recovery key now signs it (§7.23) |
 | "Verify this device" cancels as soon as the other side answers | `generateQRCode()` on Ready; removed (§7.23) |
 
@@ -617,6 +706,7 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.3.4`: §10.4 (server menus, muting, channel types, inbox, badges, profile style, sharing, screen share fixes) | ✅ tests: 216 unit, 25 smoke, 8 integration, 87 E2E (11 screenshot-only skipped), 11 real-desktop; Linux .rpm screen-share previews checked in Fedora |
 | `v0.4.0`: §10.5 (webcam, push to talk, polls, code blocks, activity audiences, QR sign-in, translations, reduce motion, provenance, Flatpak/F-Droid prep) | ✅ tests: 248 unit, 25 smoke, 8 integration, 105 E2E (11 screenshot-only skipped), 4 real LiveKit calls, 15 real-desktop; Flatpak built and linted in Flathub's image; release workflow dry run (Windows, Linux, Android) green |
 | `v0.4.1`: threads, inbox clearing, cross-app verification (§7.23) | ✅ tests: 251 unit, 25 smoke, 111 E2E (11 screenshot-only skipped), incl. verification against a Rust-crypto client standing in for FluffyChat |
+| v0.5.0: server bots (onboarding, auto-mod, slash commands, Meadhall bot), phone redesign, camera preview, sharper logo, Playing fix (§7.24, §7.25) | ✅ tests: 261 unit, 25 smoke, 117 E2E incl. the real bot against Synapse and the 44 px phone check (11 screenshot-only skipped), 4 real LiveKit calls |
 
 ## 10. Open issues and roadmap
 
@@ -634,11 +724,20 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 - No OIDC-native sign-in (Matrix Authentication Service). matrix.org uses MAS: password sign-in works through its
   compatibility layer and Register falls back to its SSO page (checked against matrix.org on 2026-10-23).
 - Soundboard has no cooldown; "talk" permissions are ranked (role and above), not exact sets (§7.6).
-- **Bug (owner report, 2026-10-27, not yet fixed): "Playing …" gets stuck.** After you quit a game and start
-  another, the status keeps showing the first game. Start in `ui/presence/activitySharing.ts` (`pickActivity`, which
-  source wins) and the desktop side `electron/activity/` (`currentActivities`; Rich Presence keeps the last
-  `SET_ACTIVITY` until an explicit clear or the socket closes, game detection's process scan, Steam's last game).
-  Check that a stale source is dropped when its game ends, and that a newer game wins over an older one.
+- **Next update (owner request, 2026-11-01): pan zoomed images.** In the image viewer (`Timeline.tsx` lightbox,
+  `.timeline-lightbox-image.is-zoomed`), a zoomed-in picture can't be moved: you have to zoom out and back in. Add
+  drag-to-pan with the mouse and one finger, pinch-zoom on touch, and keep a click/tap without dragging toggling the
+  zoom; keep the backdrop/X/Escape closing (`ui-interactions.spec.ts` covers those).
+- **Later (owner request, 2026-11-01): reports from DMs go to the homeserver admin.** Report is hidden outside
+  servers for now (`UserProfilePanel.tsx`): in a DM there is no server owner to send it to. When the homeserver
+  supports it (Matrix `POST /rooms/{roomId}/report/{eventId}` and `/users/{userId}/report`, MSC4151/MSC4260), send
+  DM and user reports to the homeserver admins instead, and only show Report where that will reach someone.
+- **Emulator keyboard:** Gboard always floats on the emulator (it sees the built-in AT keyboard as a physical one,
+  which can't be removed). The AVD uses HeliBoard (open source, installed from its GitHub release), which docks.
+- **Demo community:** `node scripts/demo-hall.mjs` (needs the test Synapse) fills it and runs the bot; sign in as
+  `demo` / `meadhall-demo` at `http://localhost:8008`. Android emulator: SDK in `%LOCALAPPDATA%\Android\Sdk`, AVD
+  `Meadhall_Pixel` (API 36); build debug APKs with JDK 21 and Gradle 8.14.3 (the owner's local wrapper edit points at
+  9.7.1, which AGP 8 can't use), `adb reverse tcp:8008 tcp:8008`, debug builds allow HTTP to localhost.
 
 ### 10.1 Owner's v0.3.1 backlog (requested 2026-10-22/23; done on branch `v0.3.1`)
 Each item shipped with tests; the design reasons are in §7. Numbers are the owner's.
@@ -765,4 +864,5 @@ Each item shipped with tests; the design reasons are in §7. Numbers are the own
 | 2026-10-23 | v0.3.3 (§10.3): Linux `.rpm`/`.deb` updates via the package manager, `.deb` package, declared deps, GNOME and Windows taskbar icons; verification fix; Unencrypted chip; icon style; Logs and call-ended notice; Report a bug; server notices and group-chat invites; cross-server status ? and Share my status; log redaction. Packages verified in clean Ubuntu 24.04 and Fedora 42 containers. |
 | 2026-10-26 | v0.4.0 (§10.5): sound style, soundboard track and volumes, 10 voice effects, notification fixes, deletion placeholders, webcam, push to talk, polls, code blocks and preview privacy, Rich Presence/game detection/MPRIS with audiences, reduce motion and axe checks, translations, QR sign-in, provenance attestations, Flatpak (built in Flathub's CI image) and F-Droid metadata, SignPath plan. Power cut mid-work: repaired a zeroed branch ref. |
 | 2026-10-27 | v0.4.1: threads (bot replies via baibot were invisible), inbox mark-read for thread replies, verification fixes (recovery key now cross-signs the session, SAS no longer cancelled by QR generation, no orphaning another app's recovery key). |
+| 2026-11-01 | v0.4.2 published. v0.5.0: server bots (apps/bot + Server Settings → Community), UI pass from the owner's design PDF and an iOS guide (tokens, 44 px targets, phone tab bar, drill-in settings, long-press menus), camera preview, logo rebuilt from its pixel grid, stuck Playing status fixed; Android SDK + emulator (Meadhall_Pixel, API 36) installed on the owner's PC. |
 | 2026-10-24 | v0.3.4 (§10.4): bug reports visible to the developer; server menus, muting, channel types, banners, rail badges, inbox, update arrow; members by role with role editing; voice channel chat; badges (signed, fingerprinted list); profile style; style profiles and .meadhall sharing; screen share picker fixes; pasted GIFs; calls in channels no longer notify; per-call history; README screenshots. |

@@ -28,6 +28,7 @@ export interface StyleSettings {
     customFontFamily?: string;
     pixelEmoji?: boolean;
     iconStyle?: "pixel" | "smooth";
+    shapeStyle?: "pixel" | "smooth";
     compactMode?: boolean;
     showTimestamps?: boolean;
     chatLineLengthCh?: number;
@@ -68,6 +69,7 @@ export function cleanStyleSettings(value: unknown): StyleSettings {
     if (typeof input.customFontFamily === "string" && /^[\w \-.,'"]{0,64}$/.test(input.customFontFamily)) out.customFontFamily = input.customFontFamily;
     if (typeof input.pixelEmoji === "boolean") out.pixelEmoji = input.pixelEmoji;
     if (input.iconStyle === "pixel" || input.iconStyle === "smooth") out.iconStyle = input.iconStyle;
+    if (input.shapeStyle === "pixel" || input.shapeStyle === "smooth") out.shapeStyle = input.shapeStyle;
     if (typeof input.compactMode === "boolean") out.compactMode = input.compactMode;
     if (typeof input.showTimestamps === "boolean") out.showTimestamps = input.showTimestamps;
     if (typeof input.chatLineLengthCh === "number" && Number.isFinite(input.chatLineLengthCh)) out.chatLineLengthCh = Math.min(200, Math.max(40, Math.round(input.chatLineLengthCh)));

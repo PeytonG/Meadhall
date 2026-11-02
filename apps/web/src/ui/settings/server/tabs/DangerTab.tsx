@@ -28,7 +28,7 @@ export function DangerTab({ client, spaceRoom, onLeftSpace, onToast }: DangerTab
         } catch (error) {
             onToast({
                 type: "error",
-                message: error instanceof Error ? error.message : "Failed to leave server.",
+                message: error instanceof Error ? error.message : "Failed to leave space.",
             });
         } finally {
             setLeaving(false);
@@ -38,11 +38,11 @@ export function DangerTab({ client, spaceRoom, onLeftSpace, onToast }: DangerTab
     return (
         <div className="settings-tab">
             <h2 className="settings-tab-title">Danger zone</h2>
-            <p className="settings-tab-description">Irreversible actions for this server.</p>
+            <p className="settings-tab-description">Irreversible actions for this space.</p>
 
             <div className="settings-danger-card">
                 <div>
-                    <h3>Leave server</h3>
+                    <h3>Leave space</h3>
                     <p>
                         You will leave this Space and lose quick access to its channels until invited again or re-joined.
                     </p>
@@ -53,17 +53,17 @@ export function DangerTab({ client, spaceRoom, onLeftSpace, onToast }: DangerTab
                     onClick={() => void leaveSpace()}
                     disabled={leaving}
                 >
-                    {leaving ? "Leaving..." : "Leave server"}
+                    {leaving ? "Leaving..." : "Leave space"}
                 </button>
             </div>
 
             <div className="settings-danger-card">
                 <div>
-                    <h3>Delete server (TODO)</h3>
+                    <h3>Delete space (TODO)</h3>
                     <p>Not implemented in UI yet.</p>
                 </div>
                 <button type="button" className="settings-button settings-button-secondary" disabled>
-                    Delete server
+                    Delete space
                 </button>
             </div>
         </div>

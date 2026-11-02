@@ -135,6 +135,29 @@ export function AppearanceTab({
                 <p className="settings-field-help">The buttons and controls: pixel art to match the theme, or smooth lines.</p>
             </div>
 
+            <div className="settings-section-card">
+                <h3>Shapes</h3>
+                <div className="settings-theme-row" role="radiogroup" aria-label="Shapes">
+                    {(["smooth", "pixel"] as const).map((shape) => (
+                        <button
+                            key={shape}
+                            type="button"
+                            role="radio"
+                            aria-checked={settings.shapeStyle === shape}
+                            className={`settings-theme-button${settings.shapeStyle === shape ? " is-active" : ""}`}
+                            onClick={() => onChange({ ...settings, shapeStyle: shape })}
+                            data-testid={`shape-${shape}`}
+                        >
+                            {shape === "pixel" ? "Square" : "Rounded"}
+                        </button>
+                    ))}
+                </div>
+                <p className="settings-field-help">
+                    Cards, buttons and menus: rounded corners (the default), or square pixel frames with bevelled buttons. Combine with the
+                    font and icon choices for the look you like.
+                </p>
+            </div>
+
             <LanguageCard />
 
             <div className="settings-section-card">

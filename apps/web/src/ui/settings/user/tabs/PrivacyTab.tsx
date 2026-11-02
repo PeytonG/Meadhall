@@ -63,7 +63,7 @@ export function PrivacyTab({ client, settings, onChange }: PrivacyTabProps): Rea
                     checked={settings.allowDmsFromServerMembers}
                     onChange={(event) => onChange({ ...settings, allowDmsFromServerMembers: event.target.checked })}
                 />
-                Allow DMs from server members (stub)
+                Allow DMs from space members (stub)
             </label>
 
             <label className="settings-toggle">

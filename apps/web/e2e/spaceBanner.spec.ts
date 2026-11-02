@@ -20,7 +20,7 @@ test("a server banner shows under the server's name, and GIF banners play", asyn
     await page.getByTitle("Banner Hall").first().click();
     await expect(page.getByTestId("space-banner")).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Server", exact: true }).click();
+    await page.getByRole("button", { name: "Space settings", exact: true }).click();
     const settings = page.getByTestId("space-banner-settings");
     await settings.getByTestId("space-banner-input").setInputFiles({ name: "banner.gif", mimeType: "image/gif", buffer: GIF });
     await expect(settings.getByRole("img", { name: "Current banner" })).toBeVisible({ timeout: 20_000 });

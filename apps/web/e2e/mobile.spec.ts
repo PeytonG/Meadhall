@@ -68,3 +68,21 @@ test("swiping right goes back to the list, swiping left returns to the chat", as
     await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await expect(page.locator(".timeline").getByText("hello from bob")).toBeVisible();
 });
+
+test("on phones, poll and stickers live in the + menu next to the message box", async ({ page }) => {
+    await openDmWithMessage(page);
+    // Only emoji and send sit inside the message box.
+    await expect(page.getByTestId("composer-poll")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Open sticker picker" })).toBeHidden();
+    await page.getByTestId("composer-plus").tap();
+    const menu = page.getByTestId("composer-plus-menu");
+    await expect(menu.getByRole("menuitem")).toHaveText([/Upload a file/, /Create a poll/, /Send a sticker/]);
+    if (process.env.PREVIEW_DIR) await page.screenshot({ path: `${process.env.PREVIEW_DIR}/phone-${test.info().project.name}-plus-menu.png` });
+    await menu.getByRole("menuitem", { name: /Send a sticker/ }).tap();
+    await expect(menu).toBeHidden();
+    await expect(page.getByRole("dialog", { name: "Stickers" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByTestId("composer-plus").tap();
+    await page.getByTestId("composer-plus-menu").getByRole("menuitem", { name: /Create a poll/ }).tap();
+    await expect(page.getByRole("dialog", { name: /poll/i })).toBeVisible();
+});

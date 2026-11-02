@@ -507,7 +507,7 @@ test("Rich Presence: a game's activity is shared (named from the local list), ca
         frame(1, {
             cmd: "SET_ACTIVITY",
             nonce: "1",
-            args: { pid: 4242, activity: { details: "In a match", state: "3 of 5", timestamps: { start: Math.floor(Date.now() / 1000) } } },
+            args: { pid: process.pid, activity: { details: "In a match", state: "3 of 5", timestamps: { start: Math.floor(Date.now() / 1000) } } },
         }),
     );
     // Named from the game list (the game only sends its id), before Steam's game; details only when allowed.

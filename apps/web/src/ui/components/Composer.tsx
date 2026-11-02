@@ -19,6 +19,8 @@ import { mxcThumbnailToHttp } from "../utils/mxc";
 import { fetchPastedGif, findPastedGifUrl } from "../utils/pastedGif";
 import { ComposerBar } from "./composer/ComposerBar";
 import { t, useLanguage } from "../i18n";
+import { BOTS_EVENT, COMMAND_CONTENT_KEY, COMMANDS_EVENT, parseCommandInput, type BotCommand } from "../../core/bots/botProtocol";
+import { readServerCommands, useSpaceState } from "../../core/bots/serverBots";
 import { EmojiPicker } from "./composer/EmojiPicker";
 import { sendSticker } from "../stickers/sendSticker";
 import { StickerButton } from "../stickers/StickerButton";
@@ -27,6 +29,7 @@ import { sendPoll } from "../polls/pollActions";
 import { PixelIcon } from "./PixelIcon";
 import { Toast, type ToastState } from "./Toast";
 import { TypingIndicator } from "./typing/TypingIndicator";
+import { CloseIcon } from "./CloseIcon";
 
 interface ComposerProps {
     client: MatrixClient;
@@ -795,6 +798,19 @@ function buildMentionsPayload(rawText: string, room: Room): MentionsContent | un
     return { user_ids: userIds };
 }
 
+const COMMAND_STATE_TYPES = [BOTS_EVENT, COMMANDS_EVENT] as const;
+
+// The command being typed ("/warn @bob…"), once its name is complete.
+function commandForText(text: string, commands: BotCommand[]): BotCommand | null {
+    const name = /^\/([a-z0-9][a-z0-9_-]*)(?:\s|$)/i.exec(text)?.[1]?.toLowerCase();
+    return name ? (commands.find((command) => command.name === name) ?? null) : null;
+}
+
+// "/warn <user> [reason]": required options in <>, optional in [].
+export function commandUsage(command: BotCommand): string {
+    return [`/${command.name}`, ...command.options.map((option) => (option.required ? `<${option.name}>` : `[${option.name}]`))].join(" ");
+}
+
 export function Composer({
     client,
     room,
@@ -834,6 +850,8 @@ export function Composer({
     const typingRoomIdRef = useRef<string | null>(null);
     const currentRoomIdRef = useRef<string | null>(room?.roomId ?? null);
     const [pollDialogOpen, setPollDialogOpen] = useState(false);
+    // Phones open the sticker picker from the "+" menu.
+    const [stickerOpenRequest, setStickerOpenRequest] = useState(0);
     const replySenderName = replyToEvent ? getReplySenderName(room, replyToEvent) : null;
     const replySnippet = replyToEvent ? getReplySnippet(replyToEvent) : null;
     const editingEventId = editingEvent?.getId() ?? null;
@@ -961,6 +979,31 @@ export function Composer({
             ...nextToast,
         });
     }, []);
+
+    // Slash commands of the server's bots: a menu while you type the name, then how to use the command.
+    const commandSpace = activeSpaceId ? client.getRoom(activeSpaceId) : null;
+    const commandRevision = useSpaceState(commandSpace, COMMAND_STATE_TYPES);
+    const serverCommands = useMemo(() => (threadId ? [] : readServerCommands(commandSpace)), [commandSpace, commandRevision, threadId]);
+    const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
+    const [commandSelectionIndex, setCommandSelectionIndex] = useState(0);
+    const typedCommandName = editingEventId ? null : (/^\/([a-z0-9_-]*)$/i.exec(text)?.[1]?.toLowerCase() ?? null);
+    const commandCandidates = useMemo(
+        () =>
+            typedCommandName === null || commandMenuDismissed
+                ? []
+                : serverCommands.filter((command) => command.name.startsWith(typedCommandName)).slice(0, 8),
+        [commandMenuDismissed, serverCommands, typedCommandName],
+    );
+    const activeCommand = editingEventId ? null : commandForText(text, serverCommands);
+    useEffect(() => {
+        setCommandSelectionIndex(0);
+        if (typedCommandName === null) setCommandMenuDismissed(false);
+    }, [typedCommandName]);
+    const applyCommandCandidate = (command: BotCommand): void => {
+        setText(`/${command.name} `);
+        setCommandMenuDismissed(true);
+        window.requestAnimationFrame(() => textareaRef.current?.focus());
+    };
 
     const syncMentionQuery = useCallback((nextText: string, caret: number | null): void => {
         if (caret === null) {
@@ -1467,6 +1510,15 @@ export function Composer({
             return;
         }
 
+        // A bot's command: sent with what it means, so the bot doesn't have to guess from the text. Incomplete
+        // ones stay in the box with how to use them.
+        const typedCommand = editingEventId ? null : commandForText(rawText, serverCommands);
+        const invocation = typedCommand ? parseCommandInput(rawText, serverCommands, typedCommand.bot) : null;
+        if (typedCommand && !invocation) {
+            setError(`Usage: ${commandUsage(typedCommand)}`);
+            return;
+        }
+
         const wasEditingMessage = Boolean(editingEventId);
         const hadReply = Boolean(replyToEvent) && !wasEditingMessage;
         restoreFocusRoomIdRef.current =
@@ -1509,6 +1561,10 @@ export function Composer({
                     };
                     if (mentions) {
                         content["m.mentions"] = mentions;
+                    }
+                    if (invocation) {
+                        (content as unknown as Record<string, unknown>)[COMMAND_CONTENT_KEY] = invocation;
+                        content["m.mentions"] = { user_ids: [...new Set([...(content["m.mentions"]?.user_ids ?? []), invocation.bot])] };
                     }
                     attachReplyRelation(content, replyToEvent?.getId() ?? null);
 
@@ -1831,6 +1887,26 @@ export function Composer({
     );
 
     const handleTextKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+        if (commandCandidates.length > 0) {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                const step = event.key === "ArrowDown" ? 1 : -1;
+                setCommandSelectionIndex((current) => (current + step + commandCandidates.length) % commandCandidates.length);
+                return;
+            }
+            if (event.key === "Enter" || event.key === "Tab") {
+                event.preventDefault();
+                const selected = commandCandidates[Math.min(commandSelectionIndex, commandCandidates.length - 1)];
+                if (selected) applyCommandCandidate(selected);
+                return;
+            }
+            if (event.key === "Escape") {
+                event.preventDefault();
+                setCommandMenuDismissed(true);
+                return;
+            }
+        }
+
         if (mentionQuery && mentionCandidates.length > 0) {
             if (event.key === "ArrowDown") {
                 event.preventDefault();
@@ -1957,7 +2033,7 @@ export function Composer({
                         aria-label="Cancel reply"
                         title="Cancel reply"
                     >
-                        x
+                        <CloseIcon size={14} />
                     </button>
                 </div>
             ) : null}
@@ -1974,7 +2050,7 @@ export function Composer({
                         aria-label="Cancel editing"
                         title="Cancel editing"
                     >
-                        x
+                        <CloseIcon size={14} />
                     </button>
                 </div>
             ) : null}
@@ -2014,6 +2090,8 @@ export function Composer({
                 onToggleEmoji={() => setEmojiPickerOpen((open) => !open)}
                 onSend={() => void sendMessage()}
                 canSend={text.trim().length > 0 || uploads.some((upload) => upload.roomId === room?.roomId && upload.status === "queued")}
+                onCreatePoll={threadId || !room ? undefined : () => setPollDialogOpen(true)}
+                onOpenStickers={threadId || !room ? undefined : () => setStickerOpenRequest((count) => count + 1)}
                 stickerControl={
                     threadId ? null : <>
                         <button
@@ -2029,6 +2107,7 @@ export function Composer({
                         </button>
                         <StickerButton
                             disabled={!room}
+                            openRequest={stickerOpenRequest}
                             onSend={async (sticker) => {
                                 if (room) await sendSticker(client, room.roomId, sticker);
                             }}
@@ -2056,6 +2135,43 @@ export function Composer({
                 <div className="composer-live-preview" role="status" aria-live="polite">
                     <span className="composer-live-preview-label">Preview</span>
                     <div className="composer-live-preview-body">{composerPreview.nodes}</div>
+                </div>
+            ) : null}
+            {commandCandidates.length > 0 ? (
+                <div className="composer-mentions-popover composer-commands-popover" role="listbox" aria-label="Commands" data-testid="command-menu">
+                    {commandCandidates.map((command, index) => (
+                        <button
+                            type="button"
+                            key={`${command.bot}/${command.name}`}
+                            className={`composer-mention-item composer-command-item${index === commandSelectionIndex ? " is-active" : ""}`}
+                            role="option"
+                            aria-selected={index === commandSelectionIndex}
+                            onMouseDown={(event) => {
+                                event.preventDefault();
+                                applyCommandCandidate(command);
+                            }}
+                        >
+                            <span className="composer-command-name">{commandUsage(command)}</span>
+                            <span className="composer-command-description">{command.description}</span>
+                            <span className="composer-mention-id">{room?.getMember(command.bot)?.name ?? command.bot}</span>
+                        </button>
+                    ))}
+                </div>
+            ) : activeCommand ? (
+                <div className="composer-command-hint" role="status" data-testid="command-hint">
+                    <strong>{commandUsage(activeCommand)}</strong>
+                    {activeCommand.description ? <span> · {activeCommand.description}</span> : null}
+                    {activeCommand.options.length ? (
+                        <span className="composer-command-options">
+                            {activeCommand.options.map((option) => (
+                                <span key={option.name}>
+                                    <code>{option.name}</code>
+                                    {option.type === "user" ? " (someone)" : option.type === "number" ? " (number)" : option.choices ? ` (${option.choices.join(", ")})` : ""}
+                                    {option.description ? `: ${option.description}` : ""}
+                                </span>
+                            ))}
+                        </span>
+                    ) : null}
                 </div>
             ) : null}
             {mentionQuery && mentionCandidates.length > 0 ? (

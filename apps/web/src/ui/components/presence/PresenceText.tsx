@@ -22,6 +22,11 @@ export function PresenceText({ presence, className }: PresenceTextProps): React.
                     {presence.statusText}
                 </span>
             ) : null}
+            {presence.activityText ? (
+                <span className="presence-text-status presence-text-activity" data-testid="presence-activity-text">
+                    {presence.activityText}
+                </span>
+            ) : null}
         </div>
     );
 }

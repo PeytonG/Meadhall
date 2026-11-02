@@ -4,6 +4,74 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.5.0 (2026-11-01)
+
+### New
+- **Space bots**, like Discord's apps (Space Settings → Community):
+  - **Bots:** add any Matrix account as one of the space's bots, give it roles, and remove it. Bots get a **BOT**
+    tag, and their **slash commands** appear when you type `/` in the message box, with how to use each one.
+  - **Onboarding:** new members read the space's rules and answer a few questions before they can talk. Answers can
+    give roles. Choose "Ask first", or "Require it" to have the homeserver enforce it (only members who finished can
+    talk). A **welcome message** can greet them in a channel.
+  - **Auto-mod:** blocked words and phrases, links, and too many mentions. The bot removes the message and can warn the
+    person or time them out.
+  - **The Meadhall bot** (`apps/bot`, runs with Node or Docker): does onboarding, welcomes, auto-mod and moderation
+    commands (`/warn`, `/timeout`, `/untimeout`, `/kick`, `/ban`, `/rules`, `/help`), always checking that the person
+    asking is allowed to.
+- **Camera preview:** turning your camera on in a call first shows you how you look (only to you), with the camera
+  picker. Settings → Audio has a Camera section with a Test camera button.
+- **Reports and moderation in spaces:** report someone, or one of their messages (hold or right-click it), with
+  the reasons the space's owner chose (curse words, unauthorized self-promotion and so on). Only the space's
+  moderators see reports, in **Space Settings → Reports**, with quick actions: warn, kick, ban, **ban for a time**,
+  **mute for a time** and **shadow mute** (their messages are hidden from everyone else; they aren't told). **Member
+  records** show everything moderators did to someone in that space and what's in force now. Timed bans and mutes
+  end on their own.
+- **Message links open in Meadhall:** "Copy link" makes a `meadhall://` link that opens the app right at that
+  message (desktop and Android), and room links from matrix.to clicked inside Meadhall open there too. Links in
+  messages show a **preview**: the conversation, and for a message who wrote it and how it starts.
+- **Phones, redesigned:** a centered bottom tab bar (Home, Inbox, You; settings are under You, and homeserver admins get an
+  **Admin** tab for the admin panel), a cleaner top bar in chats (the name, a small lock, call and a "…" menu), settings as a list you
+  tap into, hold a message for its menu, dialogs as sheets from the bottom, every button big enough to tap (48 px),
+  16 px text in fields (no more zooming in on iPhone), and room for the notch and home indicator. In calls, the
+  buttons are Mute, Camera, More (sounds, deafen, voice settings) and Leave; tap "Voice Connected" to get back to the
+  call.
+- **Shapes** (Settings → Appearance): **rounded corners are the new default**, the same across the app; choose
+  **Square** for the blocky pixel frames and bevelled buttons of earlier versions. Mix it with the font (Pixel, Pixel
+  headings, System or any installed font) and icon choices; style profiles keep it too.
+- **Pick your look when you sign in:** pixel or smooth for everything, or part by part (font, icons, shapes, emoji and
+  your speaking campfire), with a live preview. Your look now **follows your account**, so your PC and phone match.
+- **New message button** next to "Find a conversation".
+- **Sign in another device** from the You menu: shows a QR code that works for 3 minutes.
+- **Status and game together:** someone with a status who is also playing shows both.
+
+### Changed
+- **Spaces are called spaces:** "server" now only means a Matrix homeserver. Space Settings, "Leave space", "Mute
+  space", per-space profiles and so on.
+- Game detection updates within seconds, so quitting or switching games shows quickly.
+- Turn people up to **130%** in calls (was 120%), and keep up to **100 sounds** on your soundboard (was 24).
+- "Set up secure backup" no longer comes back every time you start Meadhall after you choose "Skip for now" (it asks
+  again after a week; Settings → Security sets it up any time).
+- On phones, polls and stickers moved into the "+" menu next to the message box; "+" now matches the message box.
+- The Home tab on phones is a house icon (pixel or smooth, with your icon style).
+- Report is only offered in spaces for now (it goes to the space's moderators). Screen sharing isn't offered on
+  phones, where it can't work.
+- Pictures and read receipts stay inside a message's highlight; rounded conversation rows and search with smooth
+  shapes; no empty strip above a chat's title on Windows.
+- **Sharper logo:** the icon is rebuilt as clean pixel art, without the gray fringe around its edges, at every size.
+- **A real phone app icon:** on Android and iOS the icon is the hall scene filling the icon shape (no more badge with
+  its corners cut off by the round mask).
+- Clearer, calmer desktop layout: one set of text sizes (titles, names and messages, secondary text, labels), spacing
+  on an 8 px grid, and one main button per screen (the others are outlined).
+- Easier to read: no important text smaller than 12 px, larger names and list rows, settings pages at a readable
+  width, a visible focus ring on every control for keyboard users, and no gray flash where you tap.
+
+### Fixed
+- **"Playing …" stuck on the old game:** quitting one game and starting another now shows the new one.
+- Everyone (you too) no longer blinks offline for a moment when Meadhall reconnects.
+- The "+" buttons (attach, create a space, add a sound) and the close buttons of the image viewer and Settings are
+  centered exactly (drawn icons instead of typed characters), and Settings has no empty band above its title on
+  Windows.
+
 ## v0.4.2 (2026-10-27)
 
 ### Fixed

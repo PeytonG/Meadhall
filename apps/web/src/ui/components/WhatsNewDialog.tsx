@@ -6,6 +6,7 @@ import changelog from "../../../../../CHANGELOG.md?raw";
 import { currentAppVersion } from "../../core/updates/mobileUpdates";
 import { currentPlatform } from "../presence/clientStatus";
 import { markVersionSeen, pendingReleaseNotes, type ReleaseNotes } from "../../core/updates/whatsNew";
+import { CloseIcon } from "./CloseIcon";
 
 // **bold** inside a line of CHANGELOG text.
 function inline(text: string): React.ReactNode[] {
@@ -80,7 +81,7 @@ export function WhatsNewDialog(): React.ReactElement | null {
                 <header>
                     <h2>What&apos;s new in Meadhall {notes[0].version}</h2>
                     <button type="button" className="whats-new-close" onClick={close} aria-label="Close">
-                        ×
+                        <CloseIcon />
                     </button>
                 </header>
                 <div className="whats-new-body">

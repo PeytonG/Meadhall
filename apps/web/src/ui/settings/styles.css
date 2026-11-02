@@ -241,10 +241,6 @@
     gap: 12px;
 }
 
-.app-shell.is-desktop-runtime.is-desktop-win32 .settings-header {
-    padding-top: calc(16px + var(--desktop-titlebar-overlay-height, 0px));
-}
-
 .settings-header h1 {
     margin: 0;
     font-size: 22px;
@@ -257,8 +253,10 @@
     border-radius: 10px;
     background: var(--bg-pane);
     color: var(--text-main);
-    font-size: 20px;
-    line-height: 1;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    flex-shrink: 0;
     cursor: pointer;
 }
 
@@ -1610,6 +1608,16 @@
     min-width: 0;
 }
 
+/* Text fields in settings without their own style look like the others (not the browser's default box). */
+:where(.settings-content) :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), textarea, select) {
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    border-radius: 8px;
+    color: var(--text-main);
+    padding: 9px 10px;
+    font: inherit;
+}
+
 .style-profiles-list {
     list-style: none;
     margin: 0 0 10px;
@@ -1642,4 +1650,72 @@
 .style-profile-text small {
     color: var(--text-muted);
     font-size: 11px;
+}
+
+/* Server Settings → Bots / Onboarding / Auto-mod */
+.settings-fieldset {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+}
+
+.settings-fieldset legend {
+    padding: 0 4px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.bot-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.bot-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+}
+
+.bot-row-main {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.bot-row-main small {
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.bot-row-commands {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.onboarding-answer-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+@media (max-width: 560px) {
+    .onboarding-answer-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .onboarding-answer-row select {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
 }

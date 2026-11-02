@@ -22,9 +22,11 @@ interface StatusMenuProps {
     accounts?: StoredAccount[];
     onSwitchAccount?: (userId: string) => void;
     onAddAccount?: () => void;
+    // Settings → Devices, where a signed-in device shows a QR code to sign in another one.
+    onSignInDevice?: () => void;
 }
 
-export function StatusMenu({ status, onChange, onOpenSettings, onClose, accounts = [], onSwitchAccount, onAddAccount }: StatusMenuProps): React.ReactElement {
+export function StatusMenu({ status, onChange, onOpenSettings, onClose, accounts = [], onSwitchAccount, onAddAccount, onSignInDevice }: StatusMenuProps): React.ReactElement {
     const [text, setText] = useState(status.text);
     const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -114,9 +116,14 @@ export function StatusMenu({ status, onChange, onOpenSettings, onClose, accounts
                     Add an account
                 </button>
             ) : null}
+            {onSignInDevice ? (
+                <button type="button" role="menuitem" className="status-menu-item" onClick={() => { onClose(); onSignInDevice(); }} data-testid="sign-in-device">
+                    Sign in another device (QR code)
+                </button>
+            ) : null}
             <div className="status-menu-divider" />
             <button type="button" role="menuitem" className="status-menu-item" onClick={() => { onClose(); onOpenSettings(); }}>
-                User settings
+                Settings
             </button>
         </div>
     );

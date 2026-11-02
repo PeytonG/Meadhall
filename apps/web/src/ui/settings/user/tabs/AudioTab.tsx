@@ -7,6 +7,7 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import type { AudioSettings } from "../settingsStore";
 import { CampfireSettings } from "./CampfireSettings";
 import { SoundboardSettings } from "./SoundboardSettings";
+import { CameraPreview } from "../../../components/voice/CameraPreview";
 
 interface AudioTabProps {
     client: MatrixClient;
@@ -34,6 +35,8 @@ function buildMicConstraints(settings: AudioSettings): MediaTrackConstraints {
 export function AudioTab({ client, settings, onChange }: AudioTabProps): React.ReactElement {
     const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
     const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
+    const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
+    const [cameraTestOn, setCameraTestOn] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [micTestActive, setMicTestActive] = useState(false);
     const [micLevel, setMicLevel] = useState(0);
@@ -54,15 +57,17 @@ export function AudioTab({ client, settings, onChange }: AudioTabProps): React.R
         const loadDevices = async (): Promise<void> => {
             setError(null);
             try {
-                const [inputs, outputs] = await Promise.all([
+                const [inputs, outputs, cameras] = await Promise.all([
                     Room.getLocalDevices("audioinput"),
                     Room.getLocalDevices("audiooutput"),
+                    Room.getLocalDevices("videoinput", false).catch(() => [] as MediaDeviceInfo[]),
                 ]);
                 if (disposed) {
                     return;
                 }
                 setAudioInputs(inputs);
                 setAudioOutputs(outputs);
+                setVideoInputs(cameras);
             } catch (deviceError) {
                 if (!disposed) {
                     setError(deviceError instanceof Error ? deviceError.message : "Unable to enumerate audio devices.");
@@ -355,6 +360,31 @@ export function AudioTab({ client, settings, onChange }: AudioTabProps): React.R
                         data-testid="voice-effect-preview"
                     >
                         {hearingSelf ? "Stop listening" : "Hear yourself"}
+                    </button>
+                </div>
+            </div>
+
+            <div className="settings-section-card" data-testid="camera-settings">
+                <h3>Camera</h3>
+                <label className="settings-field">
+                    <span>Camera</span>
+                    <select
+                        value={settings.preferredVideoInputId}
+                        onChange={(event) => onChange({ ...settings, preferredVideoInputId: event.target.value })}
+                        aria-label="Camera"
+                    >
+                        <option value="default">System default</option>
+                        {videoInputs.map((device) => (
+                            <option key={device.deviceId} value={device.deviceId}>
+                                {formatDeviceLabel(device)}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                {cameraTestOn ? <CameraPreview deviceId={settings.preferredVideoInputId} /> : null}
+                <div className="settings-actions-row">
+                    <button type="button" className="settings-button" onClick={() => setCameraTestOn((on) => !on)} data-testid="camera-test">
+                        {cameraTestOn ? "Stop camera test" : "Test camera"}
                     </button>
                 </div>
             </div>

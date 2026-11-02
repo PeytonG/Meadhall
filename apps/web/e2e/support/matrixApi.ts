@@ -45,7 +45,18 @@ export async function registerUser(prefix: string): Promise<ApiUser> {
         user_id: string;
         access_token: string;
     };
-    return { userId, username, password, accessToken };
+    const user = { userId, username, password, accessToken };
+    await skipLookPicker(user);
+    return user;
+}
+
+// Test accounts start with a look already chosen, so the sign-in look picker doesn't cover the app (the look
+// picker's own test clears this): the defaults, or for README screenshots the smooth look (system font, smooth
+// icons, rounded shapes, standard emoji) so they show Meadhall without the pixel art.
+export const SMOOTH_LOOK = { fontStyle: "system", iconStyle: "smooth", shapeStyle: "smooth", pixelEmoji: false };
+
+export async function skipLookPicker(user: ApiUser): Promise<void> {
+    await setAccountData(user, "io.github.peytong.meadhall.appearance", { appearance: process.env.CAPTURE_SCREENSHOTS ? SMOOTH_LOOK : {} });
 }
 
 export async function createRoom(user: ApiUser, options: Record<string, unknown>): Promise<string> {
@@ -193,7 +204,9 @@ export async function registerAdmin(prefix: string): Promise<ApiUser> {
         throw new Error(`creating admin failed: HTTP ${response.status} ${await response.text()}`);
     }
     const session = await login(username, password);
-    return { userId: session.user_id, username, password, accessToken: session.access_token };
+    const user = { userId: session.user_id, username, password, accessToken: session.access_token };
+    await skipLookPicker(user);
+    return user;
 }
 
 // Synapse rate-limits presence changes (by default about one per 10 s): wait it out like the app does.

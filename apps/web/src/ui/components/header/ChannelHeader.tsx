@@ -200,6 +200,17 @@ export function ChannelHeader({
             <div className="channel-header-main">
                 <div className="channel-header-title-row">
                     <h1 className="channel-header-title">{`${titlePrefix}${roomName}`}</h1>
+                    {/* Phones: a small lock instead of the chip (the chip is hidden there). */}
+                    {room ? (
+                        <span
+                            className={`channel-header-lock${encrypted ? " is-encrypted" : ""}`}
+                            title={encrypted ? "End-to-end encrypted" : "Not end-to-end encrypted: the server can read messages here"}
+                            aria-label={encrypted ? "End-to-end encrypted" : "Not encrypted"}
+                            role="img"
+                        >
+                            {encrypted ? "🔒" : "🔓"}
+                        </span>
+                    ) : null}
                     {room && encrypted ? (
                         <span className="channel-header-chip channel-header-chip-encrypted" data-testid="encryption-chip">
                             <span aria-hidden="true">{"\uD83D\uDD12"}</span>
@@ -330,6 +341,29 @@ export function ChannelHeader({
                     </button>
                     {menuOpen ? (
                         <div className="channel-header-menu-panel" role="menu">
+                            {/* Phones keep the bar to the title and call; these move here (hidden on wider screens). */}
+                            {(
+                                [
+                                    ["search", "Search messages"],
+                                    ["members", "Members"],
+                                    ["pins", "Pinned messages"],
+                                ] as const
+                            ).map(([mode, label]) => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    className="channel-header-menu-item channel-header-menu-item-phone"
+                                    role="menuitem"
+                                    disabled={!room}
+                                    onClick={() => {
+                                        toggleMode(mode);
+                                        setMenuOpen(false);
+                                    }}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                            <hr className="channel-header-menu-divider channel-header-menu-item-phone" />
                             <button
                                 type="button"
                                 className="channel-header-menu-item"

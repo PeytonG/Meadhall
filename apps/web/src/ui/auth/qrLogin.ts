@@ -12,13 +12,28 @@ import type { MatrixCredentials } from "../../core/types/credentials";
 
 const PREFIX = "meadhall-login:1?";
 
+// A sign-in code works for 3 minutes at most (less if the homeserver's token expires sooner). The code carries its
+// expiry, and the scanning device refuses it afterwards; the homeserver's own token_timeout is what finally ends
+// it (set it to 3m: docs/self-hosting).
+export const QR_LOGIN_LIFETIME_MS = 3 * 60 * 1000;
+
 export interface QrLoginPayload {
     homeserver: string;
     token: string;
+    // When the code stops working (ms since 1970), if it says.
+    expiresAt?: number;
 }
 
 export function encodeQrPayload(payload: QrLoginPayload): string {
-    return PREFIX + new URLSearchParams({ hs: payload.homeserver, t: payload.token }).toString();
+    return (
+        PREFIX +
+        new URLSearchParams({ hs: payload.homeserver, t: payload.token, ...(payload.expiresAt ? { x: String(payload.expiresAt) } : {}) }).toString()
+    );
+}
+
+// Whether a scanned code is past its expiry (a minute of leeway for clocks that differ between devices).
+export function qrPayloadExpired(payload: QrLoginPayload, now = Date.now()): boolean {
+    return payload.expiresAt !== undefined && now > payload.expiresAt + 60_000;
 }
 
 // Only http(s) homeservers and token-like strings: a QR code from anywhere else is refused.
@@ -37,7 +52,12 @@ export function parseQrPayload(text: string): QrLoginPayload | null {
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
     if (url.username || url.password) return null;
     if (!/^[A-Za-z0-9._~+/=-]{8,512}$/.test(token)) return null;
-    return { homeserver: url.origin + url.pathname.replace(/\/$/, ""), token };
+    const expiresAt = Number(params.get("x"));
+    return {
+        homeserver: url.origin + url.pathname.replace(/\/$/, ""),
+        token,
+        ...(params.has("x") && Number.isFinite(expiresAt) && expiresAt > 0 ? { expiresAt } : {}),
+    };
 }
 
 export async function serverAllowsQrLogin(client: MatrixClient): Promise<boolean> {
@@ -68,7 +88,7 @@ export async function makeLoginToken(client: MatrixClient, password: string): Pr
         response = (await client.requestLoginToken({ type: "m.login.password", identifier: { type: "m.id.user", user: userId }, password, session } as never)) as typeof response;
     }
     if (!response?.login_token) throw new Error("The homeserver didn't give a sign-in code.");
-    return { token: response.login_token, expiresAt: Date.now() + (response.expires_in_ms ?? 120_000) };
+    return { token: response.login_token, expiresAt: Date.now() + Math.min(response.expires_in_ms ?? QR_LOGIN_LIFETIME_MS, QR_LOGIN_LIFETIME_MS) };
 }
 
 export async function loginWithQrPayload(payload: QrLoginPayload, deviceDisplayName?: string): Promise<MatrixCredentials> {

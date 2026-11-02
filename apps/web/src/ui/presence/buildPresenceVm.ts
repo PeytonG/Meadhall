@@ -10,6 +10,8 @@ export interface PresenceVm {
     lastActiveAgo: number | null;
     // The custom status text people type (Matrix status_msg).
     statusText?: string | null;
+    // What they're doing ("Playing …"), when they also have a custom status (otherwise it is the statusText).
+    activityText?: string | null;
     // On the Android/iOS app and online without a manually picked status: shown as a green phone.
     onMobile?: boolean;
     // Their homeserver doesn't share presence (presenceSupport.ts): shown as "?" instead of a dot.
@@ -162,7 +164,7 @@ export function buildPresenceVm(source: PresenceSource | null | undefined): Pres
         }
     }
 
-    // A custom status wins; otherwise what they're doing (only while they're around).
+    // The custom status first; what they're doing (only while they're around) next to it, or on its own.
     const activity = state !== "offline" && state !== "unknown" ? published?.activity ?? null : null;
     const statusText =
         typeof source?.statusMessage === "string" && source.statusMessage.trim()
@@ -177,6 +179,7 @@ export function buildPresenceVm(source: PresenceSource | null | undefined): Pres
         isCurrentlyActive,
         lastActiveAgo,
         statusText,
+        activityText: activity && statusText && statusText !== activityText(activity) ? activityText(activity) : null,
         onMobile: state === "online" && published?.platform === "mobile" && published.state === null,
     };
 }

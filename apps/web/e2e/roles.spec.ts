@@ -11,7 +11,7 @@ test("owners create roles in the member browser and give them to members", async
     const { spaceId, channelId } = await createSpaceWithChannel(owner, bob, { space: "Hall", channel: "general" });
     await signIn(page, owner);
     await page.getByTitle("Hall").click();
-    await page.getByRole("button", { name: "Server", exact: true }).click();
+    await page.getByRole("button", { name: "Space settings", exact: true }).click();
     await page.getByRole("button", { name: "Members", exact: true }).click();
 
     const roles = page.getByTestId("roles-section");
@@ -49,7 +49,7 @@ test("Can talk limits a channel to a role and above, enforced by the server", as
     });
     await signIn(page, owner);
     await page.getByTitle("Hall").click();
-    await page.getByRole("button", { name: "Server", exact: true }).click();
+    await page.getByRole("button", { name: "Space settings", exact: true }).click();
     await page.getByRole("button", { name: "Members", exact: true }).click();
 
     const access = page.getByTestId("channel-access-section");

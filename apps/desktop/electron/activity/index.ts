@@ -49,12 +49,30 @@ export async function currentActivities(options: ActivityOptions): Promise<Deskt
     if (steam) list.push({ source: "steam", kind: "playing", name: steam.name, appId: steam.appId });
     for (const game of games) list.push({ source: "game", kind: "playing", name: game.name, appId: game.id, startedAt: game.startedAt });
     if (media) list.push({ source: "media", kind: "listening", name: media.title, details: media.artist ? `by ${media.artist}` : undefined, state: media.player });
-    // One entry per name (Steam and the game list often both find the same game).
+    return newestFirst(list);
+}
+
+const firstSeen = new Map<string, number>();
+
+// One entry per name (Steam and the game list often both find the same game; the first source, with the most
+// details, wins), then the game you started most recently first, so quitting one game and starting another switches
+// to the new one even if something still reports the old one. Music comes after games.
+export function newestFirst(list: DesktopActivity[], now = Date.now()): DesktopActivity[] {
     const seen = new Set<string>();
-    return list.filter((activity) => {
+    const unique = list.filter((activity) => {
         const key = `${activity.kind}:${activity.name.toLowerCase()}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
     });
+    for (const key of [...firstSeen.keys()]) if (!seen.has(key)) firstSeen.delete(key);
+    for (const key of seen) if (!firstSeen.has(key)) firstSeen.set(key, now);
+    const order = (activity: DesktopActivity): number => firstSeen.get(`${activity.kind}:${activity.name.toLowerCase()}`) ?? now;
+    return unique
+        .map((activity, index) => ({ activity, index }))
+        .sort((a, b) => {
+            const media = Number(a.activity.source === "media") - Number(b.activity.source === "media");
+            return media || order(b.activity) - order(a.activity) || a.index - b.index;
+        })
+        .map(({ activity }) => activity);
 }

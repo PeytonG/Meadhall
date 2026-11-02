@@ -5,6 +5,7 @@ import type { MatrixClient, MatrixEvent, Room } from "matrix-js-sdk/src/matrix";
 import type { ToastState } from "../Toast";
 import { ReactionPicker } from "../ReactionPicker";
 import { MessageContextMenu } from "./MessageContextMenu";
+import { ReportDialog } from "../../moderation/ReportDialog";
 import { useMessageActions } from "../../hooks/useMessageActions";
 
 interface Position {
@@ -53,6 +54,9 @@ export function MessageActionsBar({
         react,
     } = useMessageActions({ client, room, event });
 
+    const [reporting, setReporting] = useState(false);
+    // The server this message is in (reports go to its moderators); none in DMs.
+    const reportSpace = activeSpaceId ? client.getRoom(activeSpaceId) : null;
     const [barReactionPickerOpen, setBarReactionPickerOpen] = useState(false);
     const [menuReactionPickerPosition, setMenuReactionPickerPosition] = useState<Position | null>(null);
     const moreButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -323,7 +327,21 @@ export function MessageActionsBar({
                 onCopyEventId={() => {
                     void withToast(() => copyEventId(), "Copied event ID.", "Failed to copy event ID.", true);
                 }}
+                onReport={reportSpace && event.getSender() !== client.getUserId() && event.getId()?.startsWith("$") ? () => setReporting(true) : undefined}
             />
+            {reporting && reportSpace ? (
+                <ReportDialog
+                    client={client}
+                    space={reportSpace}
+                    userId={event.getSender() ?? ""}
+                    message={{ roomId: room.roomId, eventId: event.getId() ?? "", excerpt: plainTextBody?.slice(0, 1000) ?? "" }}
+                    onClose={() => setReporting(false)}
+                    onDone={(message) => {
+                        setReporting(false);
+                        onToast({ type: "success", message });
+                    }}
+                />
+            ) : null}
 
             {menuReactionPickerPosition
                 ? createPortal(

@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import type { MatrixCredentials } from "../../core/types/credentials";
-import { encodeQrPayload, loginWithQrPayload, makeLoginToken, parseQrPayload, readQrFromVideo, serverAllowsQrLogin } from "./qrLogin";
+import { encodeQrPayload, loginWithQrPayload, makeLoginToken, parseQrPayload, qrPayloadExpired, readQrFromVideo, serverAllowsQrLogin } from "./qrLogin";
 
 export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.ReactElement | null {
     const [supported, setSupported] = useState<boolean | null>(null);
@@ -50,7 +50,7 @@ export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.Rea
         setError(null);
         try {
             const { token, expiresAt } = await makeLoginToken(client, password);
-            setCode({ payload: encodeQrPayload({ homeserver: client.getHomeserverUrl(), token }), expiresAt });
+            setCode({ payload: encodeQrPayload({ homeserver: client.getHomeserverUrl(), token, expiresAt }), expiresAt });
             setNow(Date.now());
             setAsking(false);
         } catch (createError) {
@@ -135,6 +135,10 @@ export function ScanLoginQr({
         const payload = parseQrPayload(text);
         if (!payload) {
             setError("That isn't a Meadhall sign-in code.");
+            return;
+        }
+        if (qrPayloadExpired(payload)) {
+            setError("That code has expired (they last 3 minutes). Make a new one.");
             return;
         }
         busyRef.current = true;

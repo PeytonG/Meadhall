@@ -6,14 +6,20 @@ import { STICKERS, type Sticker } from "./stickerPack";
 interface StickerButtonProps {
     disabled: boolean;
     onSend: (sticker: Sticker) => Promise<void>;
+    // Opens the picker from elsewhere (the phone "+" menu): each new number opens it.
+    openRequest?: number;
 }
 
 // Composer button that opens the pixel sticker picker; picking a sticker sends it straight away.
-export function StickerButton({ disabled, onSend }: StickerButtonProps): React.ReactElement {
+export function StickerButton({ disabled, onSend, openRequest = 0 }: StickerButtonProps): React.ReactElement {
     const [open, setOpen] = useState(false);
     const [sending, setSending] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const anchorRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (openRequest > 0) setOpen(true);
+    }, [openRequest]);
 
     useEffect(() => {
         if (!open) return;
