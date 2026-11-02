@@ -6,6 +6,12 @@ import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import type { MatrixCredentials } from "../../core/types/credentials";
 import { encodeQrPayload, loginWithQrPayload, makeLoginToken, parseQrPayload, qrPayloadExpired, readQrFromVideo, serverAllowsQrLogin } from "./qrLogin";
 
+// What a Synapse admin adds to homeserver.yaml for sign-in codes (Matrix "login/get_token", MSC3882).
+const SYNAPSE_QR_CONFIG = `login_via_existing_session:
+  enabled: true
+  require_ui_auth: true
+  token_timeout: "3m"`;
+
 export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.ReactElement | null {
     const [supported, setSupported] = useState<boolean | null>(null);
     const [asking, setAsking] = useState(false);
@@ -66,10 +72,18 @@ export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.Rea
         <div className="settings-section-card" data-testid="qr-login-show">
             <h3>Sign in another device</h3>
             {!supported ? (
-                <p className="settings-inline-note">
-                    Your homeserver doesn&apos;t allow signing in with a code from another device. (Server admins: enable
-                    login_via_existing_session in Synapse.)
-                </p>
+                <>
+                    <p className="settings-inline-note">
+                        Your homeserver doesn&apos;t allow signing in with a code from another device yet. Whoever runs it can turn
+                        it on: add this to Synapse&apos;s <code>homeserver.yaml</code> and restart Synapse, then reopen this page.
+                    </p>
+                    <pre className="qr-login-config" data-testid="qr-login-config">{SYNAPSE_QR_CONFIG}</pre>
+                    <div className="settings-actions-row">
+                        <button type="button" className="settings-button settings-button-secondary" onClick={() => void navigator.clipboard?.writeText(SYNAPSE_QR_CONFIG)}>
+                            Copy setting
+                        </button>
+                    </div>
+                </>
             ) : code ? (
                 <>
                     <canvas ref={canvasRef} className="qr-login-canvas" aria-label="Sign-in QR code" role="img" />

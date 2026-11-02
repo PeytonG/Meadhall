@@ -6,11 +6,11 @@ import { Method, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 const ADMIN_PREFIX = "/_synapse/admin";
 
-function admin<T>(client: MatrixClient, method: Method, path: string, options?: { query?: Record<string, string>; body?: unknown }): Promise<T> {
+export function admin<T>(client: MatrixClient, method: Method, path: string, options?: { query?: Record<string, string>; body?: unknown }): Promise<T> {
     return client.http.authedRequest<T>(method, path, options?.query, options?.body as never, { prefix: ADMIN_PREFIX });
 }
 
-function userPath(userId: string): string {
+export function userPath(userId: string): string {
     return encodeURIComponent(userId);
 }
 

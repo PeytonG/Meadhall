@@ -1719,3 +1719,15 @@
         grid-row: 2;
     }
 }
+
+.qr-login-config {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    white-space: pre;
+    overflow-x: auto;
+}
