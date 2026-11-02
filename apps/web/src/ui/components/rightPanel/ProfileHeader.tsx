@@ -6,6 +6,7 @@ import { toAvatarPresenceState } from "../../presence/buildPresenceVm";
 import { PresenceText } from "../presence/PresenceText";
 import { BannerImage } from "./BannerImage";
 import { DEFAULT_BANNER_CROP, type BannerCrop } from "../../../core/profile/richProfile";
+import { CloseIcon } from "../CloseIcon";
 
 interface ProfileHeaderProps {
     displayName: string;
@@ -89,7 +90,7 @@ export function ProfileHeader({
                 {bannerUrl ? <BannerImage className="rp-profile-banner-image" url={bannerUrl} crop={bannerCrop} /> : null}
             </div>
             <button type="button" className="rp-profile-close" onClick={onBack} aria-label="Close profile">
-                x
+                <CloseIcon />
             </button>
             <Avatar
                 className="rp-profile-avatar"

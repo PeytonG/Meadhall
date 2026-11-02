@@ -16,6 +16,7 @@ import {
 import { decodeSoundFile, initialSelection, trimToWav } from "../../voice/soundboard/trim";
 import { PixelIcon } from "../PixelIcon";
 import { SoundTrimmer } from "./SoundTrimmer";
+import { CloseIcon } from "../CloseIcon";
 
 export type SoundChoice = { kind: "builtin"; id: string; name: string } | { kind: "custom"; sound: CustomSound };
 
@@ -192,7 +193,7 @@ export function SoundboardPanel({ client, onPlay, onClose, hint = "Everyone in t
                             title={`Remove ${sound.name}`}
                             onClick={() => void removeCustomSound(client, sound.id).then(() => setCustom((current) => current.filter((item) => item.id !== sound.id)))}
                         >
-                            ×
+                            <CloseIcon size={14} />
                         </button>
                     </span>
                 ))}

@@ -137,7 +137,7 @@ test("captures the feature screenshots", async ({ page, browser }) => {
     const voiceChanger = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Voice changer" }) });
     await voiceChanger.scrollIntoViewIfNeeded();
     await capture(voiceChanger, "voice-changer");
-    const soundboard = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Soundboard" }) });
+    const soundboard = page.locator(".settings-section-card", { has: page.getByRole("heading", { name: "Soundboard", exact: true }) }).first();
     await soundboard.scrollIntoViewIfNeeded();
     await capture(soundboard, "soundboard");
     await page.keyboard.press("Escape");

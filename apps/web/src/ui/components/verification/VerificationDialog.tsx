@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
+import { CloseIcon } from "../CloseIcon";
 
 export interface VerificationTarget {
     userId: string;
@@ -559,7 +560,7 @@ export function VerificationDialog({
                         onClick={handleClose}
                         aria-label="Close verification dialog"
                     >
-                        x
+                        <CloseIcon />
                     </button>
                 </header>
 

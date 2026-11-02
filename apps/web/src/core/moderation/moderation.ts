@@ -199,41 +199,65 @@ export function modLogRoom(client: MatrixClient, space: Room): Room | null {
     return typeof roomId === "string" ? client.getRoom(roomId) : null;
 }
 
-// The log room, made by the first moderator who needs it; every moderator is invited (and joins when they look).
+// The log room's ID, made by the first moderator who needs it; every moderator is invited (and joins when they
+// look). One creation per space even when two actions come at once (the space's state only says so after a sync).
+const creatingLogRoom = new Map<string, Promise<string | null>>();
+
+async function modLogRoomId(client: MatrixClient, space: Room): Promise<string | null> {
+    const known = space.currentState.getStateEvents(MOD_ROOM_EVENT as never, "")?.getContent()?.room_id;
+    if (typeof known === "string") {
+        const room = client.getRoom(known);
+        if (room?.getMyMembership() !== "join") await client.joinRoom(known).catch(() => undefined);
+        const joined = client.getRoom(known);
+        if (joined) {
+            // Moderators added since get invited.
+            for (const userId of moderators(space)) {
+                const membership = joined.getMember(userId)?.membership;
+                if (!membership || membership === "leave") await client.invite(known, userId).catch(() => undefined);
+            }
+        }
+        return known;
+    }
+    let pending = creatingLogRoom.get(space.roomId);
+    if (!pending) {
+        pending = (async (): Promise<string | null> => {
+            const mods = moderators(space).filter((userId) => userId !== client.getSafeUserId());
+            const created = await client.createRoom({
+                name: `${space.name || "Space"} moderation log`.slice(0, 80),
+                preset: Preset.PrivateChat,
+                invite: mods,
+                creation_content: { type: MODLOG_ROOM_TYPE },
+                initial_state: [{ type: EventType.RoomHistoryVisibility, state_key: "", content: { history_visibility: "shared" } }],
+                power_level_content_override: { users: Object.fromEntries(mods.map((userId) => [userId, 50])), events_default: 50 },
+            } as never);
+            await client.sendStateEvent(space.roomId, MOD_ROOM_EVENT as never, { room_id: created.room_id } as never, "");
+            return created.room_id;
+        })().catch(() => {
+            creatingLogRoom.delete(space.roomId);
+            return null;
+        });
+        creatingLogRoom.set(space.roomId, pending);
+    }
+    return pending;
+}
+
+// A room just made or joined only exists in the client after the next sync.
+async function roomWhenSynced(client: MatrixClient, roomId: string, waitMs = 5_000): Promise<Room | null> {
+    for (let waited = 0; waited <= waitMs; waited += 200) {
+        const room = client.getRoom(roomId);
+        if (room?.getMyMembership() === "join") return room;
+        await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    return client.getRoom(roomId);
+}
+
 export async function ensureModLogRoom(client: MatrixClient, space: Room): Promise<Room | null> {
-    const roomId = space.currentState.getStateEvents(MOD_ROOM_EVENT as never, "")?.getContent()?.room_id;
-    let room = typeof roomId === "string" ? client.getRoom(roomId) : null;
-    if (typeof roomId === "string" && room?.getMyMembership() !== "join") {
-        try {
-            room = await client.joinRoom(roomId);
-        } catch {
-            room = null;
-        }
-    }
-    if (!room && typeof roomId !== "string") {
-        const mods = moderators(space).filter((userId) => userId !== client.getSafeUserId());
-        const created = await client.createRoom({
-            name: `${space.name || "Space"} moderation log`.slice(0, 80),
-            preset: Preset.PrivateChat,
-            invite: mods,
-            creation_content: { type: MODLOG_ROOM_TYPE },
-            initial_state: [{ type: EventType.RoomHistoryVisibility, state_key: "", content: { history_visibility: "shared" } }],
-            power_level_content_override: { users: Object.fromEntries(mods.map((userId) => [userId, 50])), events_default: 50 },
-        } as never);
-        await client.sendStateEvent(space.roomId, MOD_ROOM_EVENT as never, { room_id: created.room_id } as never, "");
-        room = client.getRoom(created.room_id);
-    }
-    if (room) {
-        // Moderators added since get invited.
-        for (const userId of moderators(space)) {
-            if (!room.getMember(userId) || room.getMember(userId)?.membership === "leave") await client.invite(room.roomId, userId).catch(() => undefined);
-        }
-    }
-    return room;
+    const roomId = await modLogRoomId(client, space).catch(() => null);
+    return roomId ? roomWhenSynced(client, roomId) : null;
 }
 
 export async function readModLog(client: MatrixClient, space: Room, userId?: string): Promise<ModLogEntry[]> {
-    const room = await ensureModLogRoom(client, space).catch(() => null);
+    const room = await ensureModLogRoom(client, space);
     if (!room) return [];
     const read = (): ModLogEntry[] =>
         room
@@ -249,9 +273,10 @@ export async function readModLog(client: MatrixClient, space: Room, userId?: str
     return read().sort((left, right) => right.at - left.at);
 }
 
+// Sent by room ID, so it works even before a brand-new log room has synced.
 async function logAction(client: MatrixClient, space: Room, entry: Omit<ModLogEntry, "by" | "at">): Promise<void> {
-    const room = await ensureModLogRoom(client, space).catch(() => null);
-    if (room) await client.sendEvent(room.roomId, MOD_ACTION_EVENT as never, modActionContent(entry) as never);
+    const roomId = await modLogRoomId(client, space);
+    if (roomId) await client.sendEvent(roomId, MOD_ACTION_EVENT as never, modActionContent(entry) as never);
 }
 
 // --- Actions ---

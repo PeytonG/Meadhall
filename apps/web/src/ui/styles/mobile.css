@@ -1132,3 +1132,18 @@ html {
 .timeline-app-link-preview .timeline-link-preview-body {
     padding-left: 0;
 }
+
+/* Close buttons hold a drawn X (CloseIcon.tsx), centered. */
+:is(.rp-profile-close, .room-dialog-close, .verification-dialog-close, .whats-new-close, .thread-panel-close) {
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    line-height: 1;
+}
+
+/* Remove and cancel buttons hold the same drawn X, centered. */
+:is(.space-onboarding-dismiss, .composer-emoji-close, .composer-reply-cancel, .composer-editing-cancel, .room-dialog-recipient-remove, .soundboard-remove, .poll-dialog-remove, .settings-button:has(> svg:only-child), .activity-hidden-chip > button) {
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+}

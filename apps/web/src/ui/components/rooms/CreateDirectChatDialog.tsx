@@ -7,6 +7,7 @@ import { Avatar } from "../Avatar";
 import { RoomDialog } from "./RoomDialog";
 import { matchesUserSearch, userSearchScore } from "../../search/userSearch";
 import { isSentBugReport } from "../../../core/bugReport/bugReport";
+import { CloseIcon } from "../CloseIcon";
 
 interface CreateDirectChatDialogProps {
     client: MatrixClient;
@@ -535,7 +536,7 @@ export function CreateDirectChatDialog({
                                         aria-label={`Remove ${target.displayName}`}
                                         disabled={creating}
                                     >
-                                        x
+                                        <CloseIcon size={14} />
                                     </button>
                                 </div>
                             );

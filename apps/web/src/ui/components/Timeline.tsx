@@ -7,6 +7,7 @@ import {
     MsgType,
     RelationType,
     RoomEvent,
+    RoomStateEvent,
     ThreadEvent,
     type MatrixClient,
     type MatrixEvent,
@@ -40,6 +41,7 @@ import { ThreadSummaryBar } from "../threads/ThreadSummaryBar";
 import { parseAppLink } from "../utils/permalink";
 import { AppLinkPreview } from "./messages/AppLinkPreview";
 import { isModerator, isShadowMuted } from "../../core/moderation/moderation";
+import { SANCTION_EVENT } from "../../core/moderation/moderationProtocol";
 
 interface TimelineProps {
     client: MatrixClient;
@@ -1389,6 +1391,17 @@ export function Timeline({
     const refreshEvents = useCallback(() => {
         setEvents(extractMessageEvents(room, threadRootId));
     }, [room, threadRootId]);
+
+    // Shadow mutes are the space's state: when one is set, lifted or first arrives, hide or show their messages.
+    useEffect(() => {
+        const onState = (event: MatrixEvent): void => {
+            if (event.getType() === SANCTION_EVENT) refreshEvents();
+        };
+        client.on(RoomStateEvent.Events, onState);
+        return () => {
+            client.off(RoomStateEvent.Events, onState);
+        };
+    }, [client, refreshEvents]);
 
     const latestEditEventsByTarget = useMemo(
         () => collectLatestEditEventsByTarget(room, threadRootId),

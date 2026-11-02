@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { CloseIcon } from "../CloseIcon";
 
 interface RoomDialogProps {
     open: boolean;
@@ -46,7 +47,7 @@ export function RoomDialog({ open, title, onClose, children, footer }: RoomDialo
                 <div className="room-dialog-header">
                     <h2 className="room-dialog-title">{title}</h2>
                     <button type="button" className="room-dialog-close" onClick={onClose} aria-label="Close dialog">
-                        x
+                        <CloseIcon />
                     </button>
                 </div>
                 <div className="room-dialog-body">{children}</div>

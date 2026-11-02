@@ -29,6 +29,7 @@ import { sendPoll } from "../polls/pollActions";
 import { PixelIcon } from "./PixelIcon";
 import { Toast, type ToastState } from "./Toast";
 import { TypingIndicator } from "./typing/TypingIndicator";
+import { CloseIcon } from "./CloseIcon";
 
 interface ComposerProps {
     client: MatrixClient;
@@ -2032,7 +2033,7 @@ export function Composer({
                         aria-label="Cancel reply"
                         title="Cancel reply"
                     >
-                        x
+                        <CloseIcon size={14} />
                     </button>
                 </div>
             ) : null}
@@ -2049,7 +2050,7 @@ export function Composer({
                         aria-label="Cancel editing"
                         title="Cancel editing"
                     >
-                        x
+                        <CloseIcon size={14} />
                     </button>
                 </div>
             ) : null}

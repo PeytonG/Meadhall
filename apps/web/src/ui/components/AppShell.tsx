@@ -120,6 +120,7 @@ import { loadBadgeList } from "../../core/badges/badges";
 import { setSoundStyle } from "../notifications/soundStyle";
 import { MotionImage } from "./MotionImage";
 import { closeExpiredPolls } from "../polls/pollActions";
+import { CloseIcon } from "./CloseIcon";
 
 interface AppShellProps {
     client: MatrixClient;
@@ -2829,7 +2830,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                 aria-label="Dismiss onboarding"
                                 onClick={() => setSpaceOnboardingSpaceId(null)}
                             >
-                                x
+                                <CloseIcon size={14} />
                             </button>
                         </div>
                         <p className="space-onboarding-text">Create your first channel or set up the space.</p>

@@ -16,7 +16,7 @@ Windows · Linux · Android · Web · works with Element · end-to-end encrypted
 
 **[⬇️ Download](#download) · [✨ Features](#features) · [🖼️ Screenshots](#screenshots) · [📝 Signing up](#signing-up) · [🏰 Self-hosting](docs/self-hosting.md) · [🛠️ Development](#development)**
 
-<a href="docs/screenshots/space-roles.png"><img src="docs/screenshots/space-roles.png" alt="Meadhall: a server with channels, a conversation with a pixel sticker, and a member list in role colors" width="900" /></a>
+<a href="docs/screenshots/space-roles.png"><img src="docs/screenshots/space-roles.png" alt="Meadhall: a space with channels, a conversation with a sticker, and a member list in role colors" width="900" /></a>
 
 </div>
 
@@ -204,138 +204,150 @@ web in Safari, or [Element](https://element.io) for iPhone: you'll be in the sam
 
 ## 🖼️ Screenshots
 
-### New in v0.4.0
+All taken from Meadhall v0.5.0 in the smooth look (system font, smooth icons, rounded corners). The pixel-art look is
+one click away in Settings → Appearance, or in the look picker when you first sign in.
+
+### New in v0.5.0
 
 <table>
 <tr>
-<td width="50%"><a href="docs/screenshots/webcam.png"><img src="docs/screenshots/webcam.png" alt="A webcam in a call" /></a></td>
-<td width="50%"><a href="docs/screenshots/push-to-talk.png"><img src="docs/screenshots/push-to-talk.png" alt="Push to talk settings and reminder" /></a></td>
+<td width="50%"><a href="docs/screenshots/look-picker.png"><img src="docs/screenshots/look-picker.png" alt="The look picker shown at first sign-in" /></a></td>
+<td width="50%"><a href="docs/screenshots/reports.png"><img src="docs/screenshots/reports.png" alt="A report in Space Settings → Reports with quick actions" /></a></td>
 </tr>
 <tr>
-<td><b>Webcam</b> in calls, for everyone in the call.</td>
-<td><b>Push to talk</b>, with a reminder when you talk without the key.</td>
+<td><b>Pick your look</b> when you sign in: pixel or smooth, part by part, with a live preview.</td>
+<td><b>Reports and moderation:</b> warn, kick, ban or mute (also for a set time), shadow mute, member records.</td>
 </tr>
 <tr>
-<td><a href="docs/screenshots/poll.png"><img src="docs/screenshots/poll.png" alt="An anonymous poll with percentages" /></a></td>
-<td><a href="docs/screenshots/code-blocks.png"><img src="docs/screenshots/code-blocks.png" alt="Highlighted code blocks" /></a></td>
+<td width="50%"><a href="docs/screenshots/app-link-preview.png"><img src="docs/screenshots/app-link-preview.png" alt="A Meadhall message link with its preview card" /></a></td>
+<td width="50%"><a href="docs/screenshots/onboarding.png"><img src="docs/screenshots/onboarding.png" alt="A space's onboarding: rules and a question" /></a></td>
+</tr>
+<tr>
+<td><b>Message links</b> open in Meadhall at the message, with a preview card.</td>
+<td><b>Space bots and onboarding:</b> rules and questions before newcomers talk.</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/camera-preview.png"><img src="docs/screenshots/camera-preview.png" alt="The camera preview before turning the camera on" /></a></td>
+<td width="50%"><a href="docs/screenshots/phone.png"><img src="docs/screenshots/phone.png" alt="Meadhall on a phone" /></a></td>
+</tr>
+<tr>
+<td><b>Camera preview:</b> see yourself before anyone else does.</td>
+<td><b>On your phone:</b> Home, Inbox and You, built for touch.</td>
+</tr>
+</table>
+
+### Spaces and chat
+
+<a href="docs/screenshots/server-features.png"><img src="docs/screenshots/server-features.png" alt="A space with a banner, channel types, unread counts, members grouped by role with nameplates" width="900" /></a>
+
+<table>
+<tr>
+<td width="50%"><a href="docs/screenshots/server-menu.png"><img src="docs/screenshots/server-menu.png" alt="The space right-click menu" /></a></td>
+<td width="50%"><a href="docs/screenshots/inbox.png"><img src="docs/screenshots/inbox.png" alt="The inbox" /></a></td>
+</tr>
+<tr>
+<td><b>Right-click a space:</b> mark as read, mute, notifications, hide muted channels, nickname, move, leave.</td>
+<td><b>Inbox:</b> every unread message (or only mentions), grouped by conversation.</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/poll.png"><img src="docs/screenshots/poll.png" alt="An anonymous poll with percentages" /></a></td>
+<td width="50%"><a href="docs/screenshots/code-blocks.png"><img src="docs/screenshots/code-blocks.png" alt="Highlighted code blocks" /></a></td>
 </tr>
 <tr>
 <td><b>Polls:</b> anonymous or not, percentages, time limits.</td>
 <td><b>Code blocks</b> highlighted, with a Copy button.</td>
 </tr>
 <tr>
-<td><a href="docs/screenshots/activity-settings.png"><img src="docs/screenshots/activity-settings.png" alt="Activity privacy settings" /></a></td>
-<td><a href="docs/screenshots/qr-login.png"><img src="docs/screenshots/qr-login.png" alt="A sign-in QR code" /></a></td>
-</tr>
-<tr>
-<td><b>Activity:</b> Rich Presence, Steam and more, shared only with whom you choose.</td>
-<td><b>Sign in with a QR code</b> from a device you're already signed in on.</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/language.png"><img src="docs/screenshots/language.png" alt="Settings in Spanish" /></a></td>
-<td></td>
-</tr>
-<tr>
-<td><b>Languages:</b> the main screens in 5 languages.</td>
-<td></td>
-</tr>
-</table>
-
-### New in v0.3.4
-
-<a href="docs/screenshots/server-features.png"><img src="docs/screenshots/server-features.png" alt="A server with a banner, channel types, unread counts, members grouped by role with nameplates, and the founder coin" width="900" /></a>
-
-<table>
-<tr>
-<td width="50%"><a href="docs/screenshots/server-menu.png"><img src="docs/screenshots/server-menu.png" alt="The server right-click menu" /></a></td>
-<td width="50%"><a href="docs/screenshots/inbox.png"><img src="docs/screenshots/inbox.png" alt="The inbox" /></a></td>
-</tr>
-<tr>
-<td><b>Right-click a server:</b> mark as read, mute, notifications, hide muted channels, nickname, move, leave.</td>
-<td><b>Inbox:</b> every unread message (or only mentions), grouped by conversation.</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/profile-style.png"><img src="docs/screenshots/profile-style.png" alt="A profile card with a gradient and the founder coin" /></a></td>
-<td><a href="docs/screenshots/profile-style-settings.png"><img src="docs/screenshots/profile-style-settings.png" alt="Choosing a card gradient and nameplate" /></a></td>
-</tr>
-<tr>
-<td><b>Profile cards</b> with a gradient, and badges after names.</td>
-<td><b>Profile style:</b> 10 gradients or your own colors, drawn in pixel bands.</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/sharing.png"><img src="docs/screenshots/sharing.png" alt="A shared soundboard sound in a chat" /></a></td>
-<td></td>
-</tr>
-<tr>
-<td><b>Sharing:</b> a friend's sound arrives as a card; play it, then Adopt.</td>
-<td></td>
-</tr>
-</table>
-
-### Everything else
-
-<table>
-<tr>
-<td width="50%"><a href="docs/screenshots/direct-messages.png"><img src="docs/screenshots/direct-messages.png" alt="Direct messages" /></a></td>
-<td width="50%"><a href="docs/screenshots/profile.png"><img src="docs/screenshots/profile.png" alt="A profile" /></a></td>
-</tr>
-<tr>
-<td><b>Direct messages:</b> status and the latest message under every name.</td>
-<td><b>Profiles:</b> banner, About me, links and roles in mutual servers.</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/campfire.png"><img src="docs/screenshots/campfire.png" alt="The speaking campfire on and off" /></a></td>
-<td><a href="docs/screenshots/status-menu.png"><img src="docs/screenshots/status-menu.png" alt="The status menu" /></a></td>
-</tr>
-<tr>
-<td><b>Speaking campfire:</b> flames while you talk, or a simple ring.</td>
-<td><b>Status:</b> custom status, Online, Away, Do Not Disturb, Invisible and your other accounts.</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/soundboard-call.png"><img src="docs/screenshots/soundboard-call.png" alt="The soundboard in a call" /></a></td>
-<td><a href="docs/screenshots/screen-share.png"><img src="docs/screenshots/screen-share.png" alt="Two screen shares side by side" /></a></td>
-</tr>
-<tr>
-<td><b>Soundboard:</b> built-in 8-bit sounds and your own, played over your mic.</td>
-<td><b>Screen sharing:</b> several streams side by side, sized to fit the window.</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/screen-share-picker.png"><img src="docs/screenshots/screen-share-picker.png" alt="Choosing what to share, with previews" /></a></td>
-<td><a href="docs/screenshots/soundboard-trim.png"><img src="docs/screenshots/soundboard-trim.png" alt="Trimming a sound" /></a></td>
-</tr>
-<tr>
-<td><b>Pick what to share</b> from previews of every screen and window.</td>
-<td><b>Trim your own sounds</b> to the part you want, up to 8 seconds.</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/roles-editor.png"><img src="docs/screenshots/roles-editor.png" alt="The roles editor" /></a></td>
-<td><a href="docs/screenshots/channel-access.png"><img src="docs/screenshots/channel-access.png" alt="Channel access by role" /></a></td>
+<td width="50%"><a href="docs/screenshots/roles-editor.png"><img src="docs/screenshots/roles-editor.png" alt="The roles editor" /></a></td>
+<td width="50%"><a href="docs/screenshots/channel-access.png"><img src="docs/screenshots/channel-access.png" alt="Channel access by role" /></a></td>
 </tr>
 <tr>
 <td><b>Roles:</b> colors, ranks and moderation powers.</td>
 <td><b>Channel access:</b> who can see and who can talk, per channel.</td>
 </tr>
 <tr>
-<td><a href="docs/screenshots/chat-light.png"><img src="docs/screenshots/chat-light.png" alt="Light theme" /></a></td>
-<td><a href="docs/screenshots/chat-high-contrast.png"><img src="docs/screenshots/chat-high-contrast.png" alt="High contrast theme" /></a></td>
+<td width="50%"><a href="docs/screenshots/direct-messages.png"><img src="docs/screenshots/direct-messages.png" alt="Direct messages" /></a></td>
+<td width="50%"><a href="docs/screenshots/sharing.png"><img src="docs/screenshots/sharing.png" alt="A shared soundboard sound in a chat" /></a></td>
 </tr>
 <tr>
-<td><b>Light theme</b>, recolored with the pixel color wheel.</td>
-<td><b>High contrast:</b> every piece of text at least 7:1 (WCAG AAA).</td>
-</tr>
-<tr>
-<td><a href="docs/screenshots/sign-up-token.png"><img src="docs/screenshots/sign-up-token.png" alt="Signing up with a registration token" /></a></td>
-<td><a href="docs/screenshots/phone.png"><img src="docs/screenshots/phone.png" alt="Meadhall on a phone" /></a></td>
-</tr>
-<tr>
-<td><b>Signing up</b> on a server that uses registration tokens.</td>
-<td><b>On your phone:</b> your conversations, then the chat. Swipe to go back.</td>
+<td><b>Direct messages:</b> status and the latest message under every name.</td>
+<td><b>Sharing:</b> a friend's sound arrives as a card; play it, then Adopt.</td>
 </tr>
 </table>
 
-**[All screenshots →](docs/SCREENSHOTS.md)**
+### Calls
 
-<a id="signing-up"></a>
+<table>
+<tr>
+<td width="50%"><a href="docs/screenshots/webcam.png"><img src="docs/screenshots/webcam.png" alt="A webcam in a call" /></a></td>
+<td width="50%"><a href="docs/screenshots/soundboard-call.png"><img src="docs/screenshots/soundboard-call.png" alt="The soundboard in a call" /></a></td>
+</tr>
+<tr>
+<td><b>Webcam</b> in calls, for everyone in the call.</td>
+<td><b>Soundboard:</b> built-in 8-bit sounds and up to 100 of your own.</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/screen-share.png"><img src="docs/screenshots/screen-share.png" alt="Two screen shares side by side" /></a></td>
+<td width="50%"><a href="docs/screenshots/screen-share-picker.png"><img src="docs/screenshots/screen-share-picker.png" alt="Choosing what to share, with previews" /></a></td>
+</tr>
+<tr>
+<td><b>Screen sharing:</b> several streams side by side, sized to fit the window.</td>
+<td><b>Pick what to share</b> from previews of every screen and window.</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/campfire.png"><img src="docs/screenshots/campfire.png" alt="The speaking campfire on and off" /></a></td>
+<td width="50%"><a href="docs/screenshots/soundboard-trim.png"><img src="docs/screenshots/soundboard-trim.png" alt="Trimming a sound" /></a></td>
+</tr>
+<tr>
+<td><b>Speaking campfire:</b> flames while you talk, or a simple ring.</td>
+<td><b>Trim your own sounds</b> to the part you want, up to 8 seconds.</td>
+</tr>
+</table>
+
+### You and your settings
+
+<table>
+<tr>
+<td width="50%"><a href="docs/screenshots/profile.png"><img src="docs/screenshots/profile.png" alt="A profile" /></a></td>
+<td width="50%"><a href="docs/screenshots/profile-style.png"><img src="docs/screenshots/profile-style.png" alt="A profile card with a gradient" /></a></td>
+</tr>
+<tr>
+<td><b>Profiles:</b> banner, About me, links and roles in shared spaces.</td>
+<td><b>Profile cards</b> with a gradient, and badges after names.</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/status-menu.png"><img src="docs/screenshots/status-menu.png" alt="The status menu" /></a></td>
+<td width="50%"><a href="docs/screenshots/profile-style-settings.png"><img src="docs/screenshots/profile-style-settings.png" alt="Choosing a card gradient and nameplate" /></a></td>
+</tr>
+<tr>
+<td><b>Status:</b> custom status, Online, Away, Do Not Disturb, Invisible and your other accounts.</td>
+<td><b>Profile style:</b> 10 gradients or your own colors.</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/qr-login.png"><img src="docs/screenshots/qr-login.png" alt="A sign-in QR code" /></a></td>
+<td width="50%"><a href="docs/screenshots/language.png"><img src="docs/screenshots/language.png" alt="Settings in Spanish" /></a></td>
+</tr>
+<tr>
+<td><b>Sign in with a QR code</b> from a device you're already signed in on (codes last 3 minutes).</td>
+<td><b>Languages:</b> the main screens in 5 languages.</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/chat-light.png"><img src="docs/screenshots/chat-light.png" alt="Light theme" /></a></td>
+<td width="50%"><a href="docs/screenshots/chat-high-contrast.png"><img src="docs/screenshots/chat-high-contrast.png" alt="High contrast theme" /></a></td>
+</tr>
+<tr>
+<td><b>Light theme</b>, recolored with the color wheel.</td>
+<td><b>High contrast:</b> every piece of text at least 7:1 (WCAG AAA).</td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/sign-up-token.png"><img src="docs/screenshots/sign-up-token.png" alt="Signing up with a registration token" /></a></td>
+<td width="50%"><a href="docs/screenshots/admin-panel.png"><img src="docs/screenshots/admin-panel.png" alt="The homeserver admin panel" /></a></td>
+</tr>
+<tr>
+<td><b>Signing up</b> on a homeserver that uses registration tokens.</td>
+<td><b>Homeserver admin panel</b> for people who run their own Matrix server.</td>
+</tr>
+</table>
 
 ## 📝 Signing up
 

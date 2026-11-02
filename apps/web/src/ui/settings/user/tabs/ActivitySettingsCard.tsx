@@ -12,6 +12,7 @@ import {
     type ActivitySettings,
 } from "../../../presence/activitySharing";
 import type { PrivacySettings } from "../settingsStore";
+import { CloseIcon } from "../../../components/CloseIcon";
 
 const AUDIENCES: Array<{ value: ActivityAudience; label: string; hint: string }> = [
     { value: "contacts", label: "People I share a chat or server with", hint: "Shown as your status text, which your homeserver only shows to people you share a chat or server with." },
@@ -137,7 +138,7 @@ export function ActivitySettingsCard({ settings, onChange }: ActivitySettingsCar
                                         aria-label={`Share ${entry} again`}
                                         onClick={() => update({ hidden: activity.hidden.filter((item) => item !== entry) })}
                                     >
-                                        x
+                                        <CloseIcon size={14} />
                                     </button>
                                 </span>
                             ))}

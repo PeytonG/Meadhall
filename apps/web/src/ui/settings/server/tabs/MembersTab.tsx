@@ -12,6 +12,7 @@ import { memberAvatarSources } from "../../../adapters/avatar";
 import { Avatar } from "../../../components/Avatar";
 import { getUserPowerLevel } from "../../../components/rooms/roomAdminUtils";
 import { matchesUserSearch } from "../../../search/userSearch";
+import { CloseIcon } from "../../../components/CloseIcon";
 
 interface MembersTabProps {
     client: MatrixClient;
@@ -222,7 +223,7 @@ export function MembersTab({ client, spaceRoom, channels, onToast }: MembersTabP
                                                             )
                                                         }
                                                     >
-                                                        ×
+                                                        <CloseIcon size={14} />
                                                     </button>
                                                 ) : null}
                                             </span>

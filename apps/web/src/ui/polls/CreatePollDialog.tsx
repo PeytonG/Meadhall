@@ -4,6 +4,7 @@ import React, { useState } from "react";
 
 import { RoomDialog } from "../components/rooms/RoomDialog";
 import { MAX_POLL_ANSWERS, MAX_POLL_TEXT, type NewPoll } from "./pollModel";
+import { CloseIcon } from "../components/CloseIcon";
 
 const DURATIONS: Array<{ label: string; minutes: number | null }> = [
     { label: "No time limit", minutes: null },
@@ -125,7 +126,7 @@ export function CreatePollDialog({ open, onClose, onCreate }: CreatePollDialogPr
                                 onClick={() => setAnswers((current) => current.filter((_, i) => i !== index))}
                                 disabled={saving}
                             >
-                                x
+                                <CloseIcon size={14} />
                             </button>
                         ) : null}
                     </div>

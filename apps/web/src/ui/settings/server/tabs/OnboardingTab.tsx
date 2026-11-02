@@ -10,6 +10,7 @@ import type { ToastState } from "../../../components/Toast";
 import { ONBOARDING_EVENT, type OnboardingConfig, type OnboardingQuestion } from "../../../../core/bots/botProtocol";
 import { BOT_STATE_TYPES, readBots, readOnboarding, saveOnboarding, useSpaceState } from "../../../../core/bots/serverBots";
 import { readRoles } from "../../../../core/roles/applyRoles";
+import { CloseIcon } from "../../../components/CloseIcon";
 
 interface OnboardingTabProps {
     client: MatrixClient;
@@ -131,7 +132,7 @@ export function OnboardingTab({ client, spaceRoom, channels, onToast }: Onboardi
                                     disabled={disabled}
                                     aria-label={`Remove answer ${answerIndex + 1}`}
                                 >
-                                    ×
+                                    <CloseIcon size={14} />
                                 </button>
                             </div>
                         ))}

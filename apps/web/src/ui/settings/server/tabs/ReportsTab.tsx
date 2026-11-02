@@ -3,7 +3,7 @@
 // a time, mute for a time, shadow mute), member records (everything moderators did to someone here, and what's
 // in force now), and the report reasons members choose from (owner).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ClientEvent, RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
+import { ClientEvent, RoomEvent, RoomStateEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk/src/matrix";
 
 import type { ToastState } from "../../../components/Toast";
 import {
@@ -17,7 +17,7 @@ import {
     saveReportReasons,
     type ReportItem,
 } from "../../../../core/moderation/moderation";
-import { DURATIONS, MOD_ACTION_LABELS, REPORT_REASONS_EVENT, reasonsFromLabels, type ModAction, type ModLogEntry } from "../../../../core/moderation/moderationProtocol";
+import { DURATIONS, MOD_ACTION_EVENT, MOD_ACTION_LABELS, REPORT_REASONS_EVENT, SANCTION_EVENT, reasonsFromLabels, type ModAction, type ModLogEntry } from "../../../../core/moderation/moderationProtocol";
 
 interface ReportsTabProps {
     client: MatrixClient;
@@ -153,9 +153,24 @@ export function QuickActions({ client, space, userId, defaultReason, onDone, onT
 function MemberRecord({ client, space, userId, onToast }: { client: MatrixClient; space: Room; userId: string; onToast: ReportsTabProps["onToast"] }): React.ReactElement {
     const [entries, setEntries] = useState<ModLogEntry[] | null>(null);
     const [version, setVersion] = useState(0);
+    // Read again when a moderator (here or elsewhere) logs an action or changes a sanction: an action's log entry
+    // arrives a moment after it's sent, so reading once right after the action could miss it.
+    useEffect(() => {
+        const onTimeline = (event: MatrixEvent): void => {
+            if (event.getType() === MOD_ACTION_EVENT) setVersion((value) => value + 1);
+        };
+        const onState = (event: MatrixEvent): void => {
+            if (event.getRoomId() === space.roomId && (event.getType() === SANCTION_EVENT || event.getType() === "m.room.member")) setVersion((value) => value + 1);
+        };
+        client.on(RoomEvent.Timeline, onTimeline);
+        client.on(RoomStateEvent.Events, onState);
+        return () => {
+            client.off(RoomEvent.Timeline, onTimeline);
+            client.off(RoomStateEvent.Events, onState);
+        };
+    }, [client, space]);
     useEffect(() => {
         let cancelled = false;
-        setEntries(null);
         void readModLog(client, space, userId).then((found) => {
             if (!cancelled) setEntries(found);
         });
