@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Settings -> Server admin (server admins only): what the Synapse admin page is used for, inside Meadhall.
-// Registration tokens (invite codes for sign-up) and user management: create accounts, reset passwords,
-// make admins, deactivate. Server notices to everyone or chosen users. Every action goes through the Synapse Admin API, which rejects non-admins.
+// Settings -> Server admin (server admins only): what Synapse-Admin does, inside Meadhall, in sections: overview,
+// users (create, import/export, details in admin/AdminSections.tsx), rooms, users' media, reported events, room
+// directory, federation, registration tokens and server notices. Every action goes through the Synapse Admin API, which rejects non-admins.
 import React, { useCallback, useEffect, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
@@ -15,15 +15,15 @@ import {
     isServerNoticesDisabled,
     listActiveUserIds,
     listRegistrationTokens,
-    listUsers,
     parseNoticeRecipients,
     resetUserPassword,
     sendServerNotice,
     setUserAdmin,
-    type AdminUser,
     type RegistrationToken,
 } from "../../../../core/admin/synapseAdmin";
+import { downloadText, listUsersFiltered, parseUsersCsv, toCsv, updateUser, type AdminUserRow } from "../../../../core/admin/synapseAdminMore";
 import { thumbnailFromMxc } from "../../../adapters/media";
+import { DirectorySection, FederationSection, MediaSection, OverviewSection, ReportedEventsSection, RoomsSection, UserDetail } from "../admin/AdminSections";
 import { Avatar } from "../../../components/Avatar";
 
 interface ServerAdminTabProps {
@@ -146,7 +146,10 @@ function TokensSection({ client, onToast }: ServerAdminTabProps): React.ReactEle
 
 function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElement {
     const [search, setSearch] = useState("");
-    const [users, setUsers] = useState<AdminUser[] | null>(null);
+    const [users, setUsers] = useState<AdminUserRow[] | null>(null);
+    const [filters, setFilters] = useState({ guests: false, deactivated: true, locked: true });
+    const [detail, setDetail] = useState<string | null>(null);
+    const [importing, setImporting] = useState<string | null>(null);
     const [newUser, setNewUser] = useState({ username: "", displayName: "", password: generatePassword() });
     const [reveal, setReveal] = useState<{ userId: string; password: string } | null>(null);
     // The password reset form open under one user (an in-page form: the desktop app has no window.prompt).
@@ -155,11 +158,11 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
 
     const reload = useCallback(async (term: string) => {
         try {
-            setUsers((await listUsers(client, { search: term, limit: 100 })).users);
+            setUsers((await listUsersFiltered(client, { search: term, limit: 100, ...filters })).users);
         } catch (error) {
             onToast({ type: "error", message: `Couldn't load users: ${errorText(error)}` });
         }
-    }, [client, onToast]);
+    }, [client, onToast, filters]);
     useEffect(() => {
         const timer = window.setTimeout(() => void reload(search), 200);
         return () => window.clearTimeout(timer);
@@ -175,6 +178,29 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
         }
     };
 
+    // CSV import: accounts in Synapse-Admin's format; a missing password gets a generated one (listed afterwards).
+    const importCsv = async (text: string): Promise<void> => {
+        const rows = parseUsersCsv(text);
+        if (rows.length === 0) throw new Error("No users in the file.");
+        if (!window.confirm(`Create ${rows.length} account${rows.length === 1 ? "" : "s"}?`)) return;
+        const lines: string[] = [];
+        for (const [index, row] of rows.entries()) {
+            setImporting(`Creating ${index + 1} of ${rows.length}…`);
+            const password = row.password ?? generatePassword();
+            try {
+                const userId = await createUserAccount(client, { username: row.username, password, displayName: row.displayname });
+                if (row.admin) await updateUser(client, userId, { admin: true });
+                lines.push(`${userId},${row.password ? "(from the file)" : password}`);
+            } catch (error) {
+                lines.push(`${row.username},FAILED: ${errorText(error)}`);
+            }
+        }
+        downloadText("imported-accounts.csv", `user,password\r\n${lines.join("\r\n")}`);
+        onToast({ type: "success", message: "Import finished: imported-accounts.csv lists the results and new passwords." });
+        await reload(search);
+    };
+
+    if (detail) return <UserDetail client={client} onToast={onToast} userId={detail} onBack={() => (setDetail(null), void reload(search))} />;
     return (
         <div className="settings-section-card" data-testid="admin-users">
             <h3>Users</h3>
@@ -221,6 +247,57 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
                     </button>
                 </div>
             ) : null}
+            <div className="admin-toolbar">
+                {(["guests", "deactivated", "locked"] as const).map((key) => (
+                    <label key={key} className="settings-toggle">
+                        <input type="checkbox" checked={filters[key]} onChange={(event) => setFilters((current) => ({ ...current, [key]: event.target.checked }))} />
+                        Show {key === "guests" ? "guests" : key === "deactivated" ? "deactivated users" : "locked users"}
+                    </label>
+                ))}
+                <button
+                    type="button"
+                    className="settings-button settings-button-secondary"
+                    disabled={!users?.length}
+                    onClick={() =>
+                        downloadText(
+                            "users.csv",
+                            toCsv(
+                                (users ?? []).map((user) => ({
+                                    id: user.name,
+                                    displayname: user.displayname ?? "",
+                                    guest: user.is_guest,
+                                    admin: user.admin,
+                                    deactivated: user.deactivated,
+                                    locked: user.locked,
+                                    erased: user.erased,
+                                    user_type: user.user_type ?? "",
+                                    created: new Date(user.creation_ts).toISOString(),
+                                })),
+                            ),
+                        )
+                    }
+                >
+                    Export
+                </button>
+                <label className="settings-button settings-button-secondary admin-file-button">
+                    {importing ?? "CSV import"}
+                    <input
+                        type="file"
+                        accept=".csv,text/csv"
+                        disabled={importing !== null}
+                        onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            event.target.value = "";
+                            if (!file) return;
+                            void file
+                                .text()
+                                .then(importCsv)
+                                .catch((error) => onToast({ type: "error", message: errorText(error) }))
+                                .finally(() => setImporting(null));
+                        }}
+                    />
+                </label>
+            </div>
             <label className="settings-field">
                 Search users
                 <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or username" />
@@ -243,9 +320,17 @@ function UsersSection({ client, onToast }: ServerAdminTabProps): React.ReactElem
                                 <span className="admin-row-meta">
                                     {user.name}
                                     {user.admin ? " · Admin" : ""}
+                                    {user.is_guest ? " · Guest" : ""}
+                                    {user.locked ? " · Locked" : ""}
                                     {user.deactivated ? " · Deactivated" : ""}
+                                    {user.erased ? " · Erased" : ""}
+                                    {user.shadow_banned ? " · Shadow-banned" : ""}
+                                    {user.creation_ts ? ` · Created ${new Date(user.creation_ts).toLocaleDateString()}` : ""}
                                 </span>
                             </span>
+                            <button type="button" className="settings-button settings-button-secondary" onClick={() => setDetail(user.name)}>
+                                Details
+                            </button>
                             {!user.deactivated ? (
                                 <>
                                     <button
@@ -441,9 +526,23 @@ function NoticesSection({ client, onToast }: ServerAdminTabProps): React.ReactEl
     );
 }
 
+type AdminSection = "overview" | "users" | "rooms" | "media" | "reports" | "directory" | "federation" | "tokens" | "notices";
+const ADMIN_SECTIONS: Array<{ id: AdminSection; label: string }> = [
+    { id: "overview", label: "Overview" },
+    { id: "users", label: "Users" },
+    { id: "rooms", label: "Rooms" },
+    { id: "media", label: "Users' media" },
+    { id: "reports", label: "Reported events" },
+    { id: "directory", label: "Room directory" },
+    { id: "federation", label: "Federation" },
+    { id: "tokens", label: "Registration tokens" },
+    { id: "notices", label: "Server notices" },
+];
+
 export function ServerAdminTab({ client, onToast }: ServerAdminTabProps): React.ReactElement {
     // Checked again here, so even a hand-crafted way into this tab shows nothing to non-admins.
     const [allowed, setAllowed] = useState<boolean | null>(null);
+    const [section, setSection] = useState<AdminSection>("users");
     useEffect(() => {
         let cancelled = false;
         void isServerAdmin(client).then((admin) => {
@@ -463,10 +562,29 @@ export function ServerAdminTab({ client, onToast }: ServerAdminTabProps): React.
                 <p className="settings-tab-description">Only server admins can use this page.</p>
             ) : (
                 <>
-                    <p className="settings-tab-description">Manage {client.getDomain()}: invite codes, accounts and server notices.</p>
-                    <TokensSection client={client} onToast={onToast} />
-                    <UsersSection client={client} onToast={onToast} />
-                    <NoticesSection client={client} onToast={onToast} />
+                    <p className="settings-tab-description">Manage {client.getDomain()}: everything Synapse-Admin does, inside Meadhall.</p>
+                    <nav className="admin-sections" aria-label="Admin sections">
+                        {ADMIN_SECTIONS.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                className={`admin-section-button${section === item.id ? " is-active" : ""}`}
+                                aria-current={section === item.id ? "page" : undefined}
+                                onClick={() => setSection(item.id)}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </nav>
+                    {section === "overview" ? <OverviewSection client={client} onToast={onToast} /> : null}
+                    {section === "users" ? <UsersSection client={client} onToast={onToast} /> : null}
+                    {section === "rooms" ? <RoomsSection client={client} onToast={onToast} /> : null}
+                    {section === "media" ? <MediaSection client={client} onToast={onToast} /> : null}
+                    {section === "reports" ? <ReportedEventsSection client={client} onToast={onToast} /> : null}
+                    {section === "directory" ? <DirectorySection client={client} onToast={onToast} /> : null}
+                    {section === "federation" ? <FederationSection client={client} onToast={onToast} /> : null}
+                    {section === "tokens" ? <TokensSection client={client} onToast={onToast} /> : null}
+                    {section === "notices" ? <NoticesSection client={client} onToast={onToast} /> : null}
                 </>
             )}
         </div>

@@ -25,6 +25,10 @@ async function openAdmin(page: Page): Promise<void> {
     await expect(page.getByRole("heading", { name: "Server admin" })).toBeVisible();
 }
 
+async function openSection(page: Page, name: string): Promise<void> {
+    await page.getByRole("navigation", { name: "Admin sections" }).getByRole("button", { name, exact: true }).click();
+}
+
 test("people who aren't server admins don't get the admin tab", async ({ page }) => {
     const alice = await registerUser("alice");
     await signIn(page, alice);
@@ -38,6 +42,7 @@ test("admins create and delete registration tokens", async ({ page }) => {
     const admin = await registerAdmin("admin");
     await signIn(page, admin);
     await openAdmin(page);
+    await openSection(page, "Registration tokens");
 
     const tokens = page.getByTestId("admin-tokens");
     await tokens.getByLabel("Uses (blank = unlimited)").fill("2");
@@ -95,6 +100,7 @@ test("admins send server notices to chosen users", async ({ page, browser }) => 
     const bob = await registerUser("bob");
     await signIn(page, admin);
     await openAdmin(page);
+    await openSection(page, "Server notices");
     const notices = page.getByTestId("admin-notices");
     await notices.getByLabel("Message").fill("Maintenance tonight at 22:00.");
     await notices.getByRole("radio", { name: "Specific users" }).click();
