@@ -27,7 +27,8 @@ Versions follow `vX.Y.Z`.
   records** show everything moderators did to someone in that space and what's in force now. Timed bans and mutes
   end on their own.
 - **Message links open in Meadhall:** "Copy link" makes a `meadhall://` link that opens the app right at that
-  message (desktop and Android), and room links from matrix.to clicked inside Meadhall open there too.
+  message (desktop and Android), and room links from matrix.to clicked inside Meadhall open there too. Links in
+  messages show a **preview**: the conversation, and for a message who wrote it and how it starts.
 - **Phones, redesigned:** a centered bottom tab bar (Home, Inbox, You; settings are under You, and homeserver admins get an
   **Admin** tab for the admin panel), a cleaner top bar in chats (the name, a small lock, call and a "…" menu), settings as a list you
   tap into, hold a message for its menu, dialogs as sheets from the bottom, every button big enough to tap (48 px),

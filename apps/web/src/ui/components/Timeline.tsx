@@ -38,6 +38,7 @@ import { SHARE_CONTENT_KEY, parseShareSummary } from "../../core/sharing/meadhal
 import { getOrCreateThread, isThreadReplyFallback, threadEvents, threadSummary } from "../threads/threads";
 import { ThreadSummaryBar } from "../threads/ThreadSummaryBar";
 import { parseAppLink } from "../utils/permalink";
+import { AppLinkPreview } from "./messages/AppLinkPreview";
 import { isModerator, isShadowMuted } from "../../core/moderation/moderation";
 
 interface TimelineProps {
@@ -1015,6 +1016,14 @@ function getFirstPreviewableUrl(body: string): string | null {
         }
     }
 
+    return null;
+}
+
+// The first Meadhall room or message link in a message (shown as a preview card).
+function getFirstAppLink(body: string): string | null {
+    for (const segment of tokenizeMessage(body)) {
+        if (segment.type === "link" && parseAppLink(segment.href)) return segment.href;
+    }
     return null;
 }
 
@@ -2224,6 +2233,8 @@ export function Timeline({
                     const imageAlt = hasTextBody ? body : "image";
                     const previewUrl = hasTextBody && !mediaMsgType ? getFirstPreviewableUrl(body) : null;
                     const linkPreview = previewUrl && previewsAllowed ? linkPreviewByUrlRef.current[previewUrl] : null;
+                    const appLinkHref = hasTextBody && !mediaMsgType ? getFirstAppLink(body) : null;
+                    const appLink = appLinkHref ? parseAppLink(appLinkHref) : null;
                     const format = typeof content.format === "string" ? content.format : undefined;
                     const formattedBody = typeof content.formatted_body === "string" ? content.formatted_body : undefined;
                     const hasFormattedBody = format === "org.matrix.custom.html" && typeof formattedBody === "string";
@@ -2560,6 +2571,7 @@ export function Timeline({
                                             </span>
                                         </a>
                                     ) : null}
+                                    {appLink && appLinkHref ? <AppLinkPreview client={client} link={appLink} href={appLinkHref} grouped={!showHeader} /> : null}
                                 </>
                             ) : null}
                             <ReactionsRow
