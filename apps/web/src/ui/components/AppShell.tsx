@@ -29,7 +29,7 @@ import { enforceAutomod, grantOnboardingRoles, grantPendingOnboardingRoles } fro
 import { ONBOARDING_RESPONSE_EVENT } from "../../core/bots/botProtocol";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
-import { OnboardingGate } from "../bots/OnboardingDialog";
+import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
 import { isVoiceChatEnabled } from "../../core/voice/voiceChat";
@@ -1277,7 +1277,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     );
     // The server's onboarding (rules and questions) stands in for the message box until you've done it.
     const botStateRevision = useSpaceState(selectedSpaceRoom, BOT_STATE_TYPES);
-    const onboardingNeeded = useMemo(() => needsOnboarding(client, selectedSpaceRoom), [client, selectedSpaceRoom, botStateRevision]);
+    const selectedSpaceMembership = selectedSpaceRoom?.getMyMembership();
+    const onboardingNeeded = useMemo(
+        () => needsOnboarding(client, selectedSpaceRoom),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [client, selectedSpaceRoom, botStateRevision, selectedSpaceMembership],
+    );
 
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
@@ -1479,10 +1484,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             return;
         }
 
-        if (!spaces.some((space) => space.roomId === selectedSpaceId)) {
+        // A space you're joining can drop out of the list for a moment (invite → join): keep it selected.
+        const membership = client.getRoom(selectedSpaceId)?.getMyMembership();
+        if (!spaces.some((space) => space.roomId === selectedSpaceId) && membership !== "join" && membership !== "invite") {
             setSelectedSpaceId(PEOPLE_SPACE_ID);
         }
-    }, [selectedSpaceId, spaces]);
+    }, [client, selectedSpaceId, spaces]);
 
     useEffect(() => {
         const visibleSpaceIds = new Set(spaces.map((space) => space.roomId));
@@ -2217,9 +2224,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     const requestJoinRoom = useCallback(
         async (target: string, options?: { viaServers?: string[]; preferredSpaceId?: string | null }): Promise<string> => {
+            // An invited space can look like a plain room right after joining (its full state arrives with the next
+            // sync), so remember what it was.
+            const wasSpace = client.getRoom(target)?.isSpaceRoom() === true;
             const joinedRoom = await joinRoomWithRetry(client, target, { viaServers: options?.viaServers });
 
-            if (joinedRoom.isSpaceRoom()) {
+            if (wasSpace || joinedRoom.isSpaceRoom()) {
                 setSelectedSpaceId(joinedRoom.roomId);
                 setActiveRoomId(null);
                 setPendingFocusRoomId(null);
@@ -2364,7 +2374,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             if (room.isSpaceRoom() || room.getMyMembership() !== "invite" || directRoomIds.has(room.roomId)) {
                 continue;
             }
-            if (!findParentSpaceIdForRoom(room.roomId, spaces) || autoJoiningChannelIdsRef.current.has(room.roomId)) {
+            // Only for spaces you have joined: an invited space has to be accepted first (its onboarding and rules
+            // can only be read once you are in it).
+            const parentId = findParentSpaceIdForRoom(room.roomId, spaces);
+            if (!parentId || client.getRoom(parentId)?.getMyMembership() !== "join" || autoJoiningChannelIdsRef.current.has(room.roomId)) {
                 continue;
             }
             autoJoiningChannelIdsRef.current.add(room.roomId);
@@ -2847,6 +2860,46 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 {selectedSpaceBannerUrl ? (
                     <div className="space-banner" data-testid="space-banner">
                         <MotionImage src={selectedSpaceBannerUrl} alt="" />
+                    </div>
+                ) : null}
+                {onboardingNeeded && selectedSpaceRoom ? <OnboardingAutoOpen key={selectedSpaceRoom.roomId} client={client} space={selectedSpaceRoom} /> : null}
+                {selectedSpaceRoom && selectedSpaceRoom.getMyMembership() === "invite" ? (
+                    <div className="space-onboarding-card" data-testid="space-invite-card">
+                        <div className="space-onboarding-header">
+                            <h3 className="space-onboarding-title">You're invited to {selectedSpaceRoom.name || "this space"}</h3>
+                        </div>
+                        <p className="space-onboarding-text">
+                            {(() => {
+                                const inviter = selectedSpaceRoom.getMember(client.getSafeUserId())?.events.member?.getSender();
+                                return inviter ? `Invited by ${selectedSpaceRoom.getMember(inviter)?.name ?? inviter}.` : "Join to see its channels.";
+                            })()}
+                        </p>
+                        <div className="space-onboarding-actions">
+                            <button
+                                type="button"
+                                className="room-dialog-button room-dialog-button-primary"
+                                data-testid="space-invite-accept"
+                                onClick={() => {
+                                    const spaceId = selectedSpaceRoom.roomId;
+                                    void requestJoinRoom(spaceId, { preferredSpaceId: null }).catch((joinError) =>
+                                        pushToast({ type: "error", message: describeJoinError(joinError, spaceId) }),
+                                    );
+                                }}
+                            >
+                                Accept
+                            </button>
+                            <button
+                                type="button"
+                                className="room-dialog-button"
+                                onClick={() => {
+                                    const spaceId = selectedSpaceRoom.roomId;
+                                    setSelectedSpaceId(PEOPLE_SPACE_ID);
+                                    void client.leave(spaceId).catch(() => undefined);
+                                }}
+                            >
+                                Decline
+                            </button>
+                        </div>
                     </div>
                 ) : null}
                 {showSpaceOnboarding ? (

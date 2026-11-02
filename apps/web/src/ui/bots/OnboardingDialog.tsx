@@ -134,7 +134,8 @@ interface OnboardingGateProps {
 // time you come in.
 const openedFor = new Set<string>();
 
-export function OnboardingGate({ client, space }: OnboardingGateProps): React.ReactElement {
+// Opens onboarding by itself the first time you enter a space that needs it, even before you open a channel.
+export function OnboardingAutoOpen({ client, space }: OnboardingGateProps): React.ReactElement | null {
     const [open, setOpen] = useState(false);
     useEffect(() => {
         if (!openedFor.has(space.roomId)) {
@@ -142,6 +143,12 @@ export function OnboardingGate({ client, space }: OnboardingGateProps): React.Re
             setOpen(true);
         }
     }, [space.roomId]);
+    return open ? <OnboardingDialog client={client} space={space} open onClose={() => setOpen(false)} /> : null;
+}
+
+// (OnboardingAutoOpen opens it the first time; this is the way back in.)
+export function OnboardingGate({ client, space }: OnboardingGateProps): React.ReactElement {
+    const [open, setOpen] = useState(false);
     return (
         <div className="onboarding-gate" data-testid="onboarding-gate">
             <span>Finish joining {space.name || "this space"} to chat: read the rules and answer a few questions.</span>
