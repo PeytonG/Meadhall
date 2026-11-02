@@ -123,6 +123,10 @@ Click a voice channel in a space. You join the call right away. Leave with the r
 ### How do I call someone directly?
 Open their profile card → Call, or open your DM with them and press the phone button at the top.
 
+### What are the buttons under "Voice Connected"?
+While you are in a call, the box under the channel list shows the call (click it to go back to the call), a red
+phone to leave, and four buttons: camera, share screen, soundboard and call settings.
+
 ### How do I mute or deafen?
 In a call, use the microphone button (Mute microphone) and the headphones button (Deafen). The same buttons are next to
 your name at the bottom left and work any time.

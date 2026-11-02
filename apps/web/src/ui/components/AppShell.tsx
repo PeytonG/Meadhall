@@ -3052,6 +3052,72 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     <PixelIcon name="hangup" />
                                 </button>
                             )}
+                            {voiceSessionStatus === "connected" ? (
+                                // Discord's row under "Voice Connected": camera, screen share, soundboard and call settings.
+                                <div className="pane-voice-actions" role="group" aria-label="Call controls">
+                                    <button
+                                        type="button"
+                                        className={`pane-voice-action${voiceControlState.cameraOn ? " is-on" : ""}`}
+                                        onClick={() => {
+                                            // Turning it on shows a preview in the call first.
+                                            openRoomAtBottom(voiceSessionRoomId);
+                                            setMobilePane("chat");
+                                            void voiceRoomRef.current?.toggleCamera();
+                                        }}
+                                        aria-pressed={Boolean(voiceControlState.cameraOn)}
+                                        aria-label={voiceControlState.cameraOn ? "Turn camera off" : "Turn camera on"}
+                                        title={voiceControlState.cameraOn ? "Turn camera off" : "Turn camera on"}
+                                        data-testid="dock-camera"
+                                    >
+                                        <PixelIcon name="camera" size={18} />
+                                    </button>
+                                    {isPhoneLayout ? null : (
+                                        <button
+                                            type="button"
+                                            className={`pane-voice-action${voiceControlState.screenSharing ? " is-on" : ""}`}
+                                            onClick={() => {
+                                                // The source picker shows in the call, so open it first.
+                                                openRoomAtBottom(voiceSessionRoomId);
+                                                void voiceRoomRef.current?.toggleScreenShare();
+                                            }}
+                                            aria-pressed={Boolean(voiceControlState.screenSharing)}
+                                            aria-label={voiceControlState.screenSharing ? "Stop screen share" : "Share screen"}
+                                            title={voiceControlState.screenSharing ? "Stop screen share" : "Share screen"}
+                                            data-testid="dock-screen-share"
+                                        >
+                                            <PixelIcon name="screen" size={18} />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="pane-voice-action"
+                                        onClick={() => {
+                                            openRoomAtBottom(voiceSessionRoomId);
+                                            setMobilePane("chat");
+                                            voiceRoomRef.current?.openSoundboard();
+                                        }}
+                                        aria-label="Soundboard"
+                                        title="Soundboard"
+                                        data-testid="dock-soundboard"
+                                    >
+                                        <PixelIcon name="soundboard" size={18} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="pane-voice-action"
+                                        onClick={() => {
+                                            openRoomAtBottom(voiceSessionRoomId);
+                                            setMobilePane("chat");
+                                            voiceRoomRef.current?.openVoiceSettings();
+                                        }}
+                                        aria-label="Voice settings"
+                                        title="Voice settings"
+                                        data-testid="dock-voice-settings"
+                                    >
+                                        <PixelIcon name="gear" size={18} />
+                                    </button>
+                                </div>
+                            ) : null}
                         </div>
                     ) : null}
                     {/* Discord-style user panel: profile plus mic, deafen and settings */}

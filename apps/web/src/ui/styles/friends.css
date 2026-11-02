@@ -230,3 +230,36 @@
         width: 100%;
     }
 }
+
+/* Call controls under "Voice Connected" (camera, screen share, soundboard, call settings), like Discord. */
+.pane-voice-dock {
+    flex-wrap: wrap;
+}
+
+.pane-voice-actions {
+    display: grid;
+    flex: 1 0 100%;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 6px;
+}
+
+.pane-voice-action {
+    display: grid;
+    place-items: center;
+    min-height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.pane-voice-action:hover {
+    background: var(--bg-hover);
+}
+
+.pane-voice-action.is-on {
+    background: var(--accent);
+    color: var(--on-primary);
+}

@@ -77,6 +77,9 @@ export interface VoiceControlState {
     connected: boolean;
     micMuted: boolean;
     audioMuted: boolean;
+    // For the call controls under the channel list (AppShell's voice dock).
+    cameraOn?: boolean;
+    screenSharing?: boolean;
 }
 
 export interface VoiceRoomHandle {
@@ -85,6 +88,9 @@ export interface VoiceRoomHandle {
     toggleMute: () => Promise<void>;
     toggleAudioMute: () => Promise<void>;
     toggleCamera: () => Promise<void>;
+    toggleScreenShare: () => Promise<void>;
+    openSoundboard: () => void;
+    openVoiceSettings: () => void;
 }
 
 interface VoiceRoomProps {
@@ -2608,8 +2614,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             connected: connectionState === ConnectionState.Connected,
             micMuted,
             audioMuted,
+            cameraOn,
+            screenSharing: localScreenSharing,
         });
-    }, [audioMuted, connectionState, joining, micMuted, onControlsStateChange]);
+    }, [audioMuted, cameraOn, connectionState, joining, localScreenSharing, micMuted, onControlsStateChange]);
 
     useImperativeHandle(ref, () => ({
         join: joinVoice,
@@ -2617,6 +2625,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         toggleMute,
         toggleAudioMute,
         toggleCamera: () => toggleCamera(),
+        toggleScreenShare: () => toggleScreenShare(),
+        openSoundboard: () => setSoundboardOpen(true),
+        openVoiceSettings: () => setSettingsOpen(true),
     }));
 
     return (
