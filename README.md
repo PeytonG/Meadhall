@@ -437,8 +437,9 @@ builds Windows, Linux and Android and publishes them with checksums once every b
 
 - **Push notifications** (when the app isn't running at all) aren't implemented. The desktop app keeps notifying from
   the tray, and Android checks in the background.
-- **Calls across homeservers:** Meadhall uses the voice server (SFU) of its own homeserver. Element users publishing
-  on another homeserver's SFU can hear you, but you won't hear them yet.
+- **Calls across homeservers** work like Element Call: everyone joins the call server of whoever started the call. That
+  call server's homeserver has to let people from other homeservers join (lk-jwt-service does by default for rooms that
+  already exist).
 - **Voice needs UDP** access to LiveKit (or a TURN server).
 - The Windows app isn't code-signed yet, and the **iOS app is a beta** (TestFlight invites, no notifications while closed).
 - **Switching accounts reloads the app**, which ends a call you're in.
@@ -450,7 +451,6 @@ builds Windows, Linux and Android and publishes them with checksums once every b
 - **v1.0.0**: the first non-beta release, with a code-signed Windows installer ([code signing policy](docs/code-signing.md))
 - Meadhall on Flathub and F-Droid
 - iOS (Beta) → public release, with notifications
-- Calls across homeservers (multi-SFU)
 - Push notifications
 - More sticker packs, and sticker packs per server
 
