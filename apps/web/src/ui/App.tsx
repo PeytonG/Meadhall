@@ -21,6 +21,7 @@ import "@fontsource/silkscreen/400.css";
 import "./styles/pixel.css";
 import "./styles/mobile.css";
 import "./styles/friends.css";
+import "./styles/help.css";
 
 function LoadingView({ label }: { label: string }): React.ReactElement {
     return (

@@ -91,6 +91,8 @@ Run the relevant tests after every change.
 - **Changelog:** every user-facing change gets a plain-language line under `## Unreleased` in `CHANGELOG.md`, in the same PR.
   Before tagging, rename that section to `## vX.Y.Z (date)`: the release workflow publishes it as the release notes
   and refuses to release a tag without one.
+- **Help:** any change to where something is in the UI updates `docs/help/meadhall-help.md` in the same commit. It
+  feeds the in-app Help (? button) and is written for a small AI model to answer from (one question per `###`).
 - **Git identity:** repo-local `PeytonG <47164665+PeytonG@users.noreply.github.com>`. Never commit the owner's
   personal email.
 - **Secrets:** the Android release key lives outside the repo at `%USERPROFILE%\Meadhall-android-signing\`

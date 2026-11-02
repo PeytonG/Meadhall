@@ -1,0 +1,103 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The Help dialog (help/HelpDialog.tsx). */
+
+.help-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: min(760px, 86vw);
+}
+
+.help-search {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+}
+
+.help-layout {
+    display: flex;
+    gap: 16px;
+    min-height: 0;
+    max-height: min(62vh, 620px);
+}
+
+.help-categories {
+    display: flex;
+    flex: 0 0 200px;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+}
+
+.help-category {
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.help-category:hover,
+.help-category.is-active {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.help-topics {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+}
+
+.help-topic {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 4px;
+}
+
+.help-topic summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.help-topic summary small {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.help-topic p,
+.help-topic ul {
+    margin: 8px 0 0;
+    line-height: 1.5;
+}
+
+.help-empty {
+    color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+    .help-dialog {
+        min-width: 0;
+    }
+
+    .help-layout {
+        flex-direction: column;
+        max-height: none;
+    }
+
+    .help-categories {
+        flex: 0 0 auto;
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .help-category {
+        white-space: nowrap;
+    }
+}

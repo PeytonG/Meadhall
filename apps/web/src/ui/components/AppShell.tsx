@@ -31,6 +31,7 @@ import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
+import { HelpDialog } from "../help/HelpDialog";
 import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
@@ -1013,6 +1014,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
     // Home → Friends shows in the main pane until a conversation is opened.
     const [friendsOpen, setFriendsOpen] = useState(false);
+    const [helpOpen, setHelpOpen] = useState(false);
     const friendsList = useFriends(client);
     useEffect(() => watchFriendNotices(client), [client]);
     const openRoomAtBottom = useCallback((roomId: string): void => {
@@ -3204,6 +3206,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             ) : (
             <section className="main-pane">
                 <ChannelHeader
+                    onOpenHelp={() => setHelpOpen(true)}
                     room={activeRoom}
                     isDirectMessage={Boolean(activeRoom && isActiveRoomDirect && isOneToOneRoom(activeRoom, ownUserId))}
                     subtitle={
@@ -3378,6 +3381,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </div>
             </section>
             )}
+
+            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 
             {shouldRenderRightPanel ? (
                 <RightPanel
