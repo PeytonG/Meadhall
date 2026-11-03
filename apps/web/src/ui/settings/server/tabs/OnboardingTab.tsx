@@ -198,8 +198,8 @@ export function OnboardingTab({ client, spaceRoom, channels, onToast }: Onboardi
                         </label>
                         {!hasBot ? (
                             <p className="settings-inline-error">
-                                No bot in this space: a moderator&apos;s Meadhall gives the role when someone finishes, but only while a moderator is
-                                online, so new members may wait. Add a bot (Space Settings → Bots) to give it straight away.
+                                No bot in this space, so nothing gives the role when someone finishes: add a bot (Space Settings → Bots), or turn on
+                                &quot;Let moderators&apos; Meadhall&quot; in Auto-mod (they give it while a moderator is online).
                             </p>
                         ) : null}
                     </>

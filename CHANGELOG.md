@@ -14,7 +14,19 @@ Versions follow `vX.Y.Z`.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 
+### Changed
+- **Warnings reach the member:** warning, muting, banning or kicking someone sends them a message saying so, with the
+  reason. Warn no longer sits next to a time setting: muting and banning for a set time have their own group.
+- **Auto-mod without a bot is now opt-in:** Space Settings → Auto-mod → "Let moderators' Meadhall enforce auto-mod and
+  give onboarding roles" (off unless you turn it on).
+
 ### Fixed
+- **Bots couldn't moderate or give roles:** adding a bot with a role saved the role but not its permission level, so the
+  bot answered "I can only do that to people ranked below me". "Give the role to everyone already here" had the same
+  problem.
+- **Member records stayed empty:** the bot's /warn, /timeout, /kick and /ban now go into the moderation log too, and
+  logs on homeservers that encrypt every room are read correctly.
+- The bot could keep an old copy of permission levels (same fix as below), which could keep timeouts from ending.
 - **Room changes that never arrived:** when two changes to a room landed close together (two people leaving a call),
   one could be lost, so people showed as still in a call they had left ("2 connected" in an empty channel). The same
   could keep roles, warnings and onboarding from updating. Meadhall now applies such changes when they arrive.

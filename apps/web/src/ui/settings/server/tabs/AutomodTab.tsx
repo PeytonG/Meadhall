@@ -45,10 +45,23 @@ export function AutomodTab({ client, spaceRoom, onToast }: AutomodTabProps): Rea
             <h2 className="settings-tab-title">Auto-mod</h2>
             <p className="settings-tab-description">Messages that break these rules are removed, in every channel.</p>
             {readBots(spaceRoom).length === 0 ? (
-                <p className="settings-inline-note" data-testid="automod-no-bot">
-                    No bot in this space, so moderators&apos; Meadhall apps enforce these rules while a moderator is online and in the channel.
-                    For around-the-clock enforcement, add a bot (Space Settings → Bots; see the bot guide in Meadhall&apos;s docs).
-                </p>
+                <div className="settings-section-card" data-testid="automod-no-bot">
+                    <p className="settings-inline-note">
+                        No bot in this space. Auto-mod needs something with moderator power online: add a bot (Space Settings → Bots; see the
+                        bot guide in Meadhall&apos;s docs) for around-the-clock enforcement, or let moderators&apos; apps do it.
+                    </p>
+                    <label className="settings-toggle">
+                        <input
+                            type="checkbox"
+                            checked={draft.moderatorApps}
+                            onChange={(event) => update({ moderatorApps: event.target.checked })}
+                            disabled={disabled}
+                            data-testid="automod-moderator-apps"
+                        />
+                        Let moderators&apos; Meadhall enforce auto-mod and give onboarding roles while they&apos;re online (uses their accounts; nothing
+                        happens while no moderator is online)
+                    </label>
+                </div>
             ) : null}
 
             <div className="settings-section-card">

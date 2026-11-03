@@ -32,6 +32,7 @@ export function spacesActingFor(client: MatrixClient, room: Room): Room[] {
             space.isSpaceRoom() &&
             space.getMyMembership() === "join" &&
             readBots(space).length === 0 &&
+            readAutomod(space).moderatorApps &&
             isModerator(space, me) &&
             (space.roomId === room.roomId || spaceChannels(client, space).some((channel) => channel.roomId === room.roomId)),
     );
@@ -84,7 +85,7 @@ export async function grantOnboardingRoles(client: MatrixClient, space: Room, ev
     const me = client.getSafeUserId();
     const userId = event.getStateKey() ?? "";
     if (event.getType() !== ONBOARDING_RESPONSE_EVENT || event.getSender() !== userId) return false;
-    if (readBots(space).length > 0 || !isModerator(space, me)) return false;
+    if (readBots(space).length > 0 || !readAutomod(space).moderatorApps || !isModerator(space, me)) return false;
     if (!space.currentState.maySendStateEvent(MEMBER_ROLES_EVENT, me)) return false;
     if (space.getMember(userId)?.membership !== "join") return false;
     const config = readOnboarding(space);
@@ -107,7 +108,7 @@ export async function grantOnboardingRoles(client: MatrixClient, space: Room, ev
 
 // Catches up on answers sent while no moderator was online.
 export async function grantPendingOnboardingRoles(client: MatrixClient, space: Room): Promise<void> {
-    if (readBots(space).length > 0 || !isModerator(space, client.getSafeUserId())) return;
+    if (readBots(space).length > 0 || !readAutomod(space).moderatorApps || !isModerator(space, client.getSafeUserId())) return;
     for (const event of space.currentState.getStateEvents(ONBOARDING_RESPONSE_EVENT)) {
         await grantOnboardingRoles(client, space, event).catch(() => undefined);
     }

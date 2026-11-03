@@ -7,9 +7,32 @@
 //
 // Fix: when a state event arrives in the live timeline and says it replaces exactly the event we hold for that
 // type and key (unsigned.replaces_state), apply it. That chain comes from the server, so it can't roll state back.
-import { RoomEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk/src/matrix";
+// No matrix-js-sdk imports: the bot (apps/bot) runs this file too, with its own copy of the SDK. These are the few
+// parts used.
+interface StateEventLike {
+    isState(): boolean;
+    isRedacted(): boolean;
+    getStateKey(): string | undefined;
+    getType(): string;
+    getId(): string | undefined;
+    getUnsigned(): unknown;
+}
 
-export function applyMissedStateEvent(room: Room, event: MatrixEvent): boolean {
+interface RoomLike {
+    currentState: {
+        getStateEvents(type: string, key: string): StateEventLike | null;
+        setStateEvents(events: never[]): void;
+    };
+}
+
+interface ClientLike {
+    on(event: never, listener: never): unknown;
+    off(event: never, listener: never): unknown;
+}
+
+const TIMELINE_EVENT = "Room.timeline"; // RoomEvent.Timeline
+
+export function applyMissedStateEvent(room: RoomLike, event: StateEventLike): boolean {
     if (!event.isState() || event.isRedacted()) return false;
     const key = event.getStateKey();
     if (key === undefined) return false;
@@ -17,20 +40,20 @@ export function applyMissedStateEvent(room: Room, event: MatrixEvent): boolean {
     if (!current || current.getId() === event.getId()) return false;
     const replaces = (event.getUnsigned() as { replaces_state?: unknown }).replaces_state;
     if (replaces !== current.getId()) return false;
-    room.currentState.setStateEvents([event]);
+    room.currentState.setStateEvents([event as never]);
     return true;
 }
 
-export function watchMissedStateEvents(client: MatrixClient): () => void {
-    const onTimeline = (event: MatrixEvent, room: Room | undefined, toStartOfTimeline: boolean | undefined, _removed: boolean, data?: { liveEvent?: boolean }): void => {
+export function watchMissedStateEvents(client: ClientLike): () => void {
+    const onTimeline = (event: StateEventLike, room: RoomLike | undefined, toStartOfTimeline: boolean | undefined, _removed: boolean, data?: { liveEvent?: boolean }): void => {
         if (!room || toStartOfTimeline || data?.liveEvent === false) return;
         // After the SDK has finished with this sync's state.
         queueMicrotask(() => {
             applyMissedStateEvent(room, event);
         });
     };
-    client.on(RoomEvent.Timeline, onTimeline);
+    client.on(TIMELINE_EVENT as never, onTimeline as never);
     return () => {
-        client.off(RoomEvent.Timeline, onTimeline);
+        client.off(TIMELINE_EVENT as never, onTimeline as never);
     };
 }

@@ -137,7 +137,7 @@ export async function syncRoles(client: MatrixClient, space: Room, channels: Roo
 }
 
 // Waits until our own copy of the room shows a state event we just sent, so syncRoles reads fresh state.
-async function sendAndWait(client: MatrixClient, room: Room, type: string, content: Record<string, unknown>, stateKey: string): Promise<void> {
+export async function sendAndWait(client: MatrixClient, room: Room, type: string, content: Record<string, unknown>, stateKey: string): Promise<void> {
     const { event_id: eventId } = await client.sendStateEvent(room.roomId, type as never, content as never, stateKey);
     const deadline = Date.now() + 10_000;
     while (room.currentState.getStateEvents(type, stateKey)?.getId() !== eventId && Date.now() < deadline) {

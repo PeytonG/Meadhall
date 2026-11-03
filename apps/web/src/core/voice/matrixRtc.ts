@@ -227,7 +227,7 @@ const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
 // Read fresh every time: the SDK's session list could keep people who had left after you rejoined and left a call
 // (the channel list then showed "2 connected" in an empty channel).
 export function callMembersFromState(room: Room, now = Date.now()): string[] | null {
-    const events = room.currentState.getStateEvents(CALL_MEMBER_EVENT);
+    const events = room.currentState?.getStateEvents?.(CALL_MEMBER_EVENT);
     if (!Array.isArray(events) || events.length === 0) return null;
     const users: string[] = [];
     for (const event of events) {

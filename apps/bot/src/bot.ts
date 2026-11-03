@@ -36,6 +36,8 @@ import {
 import { BOT_COMMANDS, HELP_TEXT, timeoutMinutes } from "./commands.ts";
 import type { BotConfig } from "./config.ts";
 import { grantRoles, powerLevel, setTimedOut, spaceChannels } from "./roles.ts";
+import { watchMissedStateEvents } from "../../web/src/core/matrix/stateCatchUp.ts";
+import { MOD_ACTION_EVENT, MOD_ROOM_EVENT, modActionContent, type ModAction } from "../../web/src/core/moderation/moderationProtocol.ts";
 
 const TIMEOUTS_ACCOUNT_DATA = "io.github.peytong.meadhall.bot.timeouts";
 const COMMAND_COOLDOWN_MS = 2_000;
@@ -92,6 +94,8 @@ export class MeadhallBot {
                 if (state === SyncState.Prepared) resolve();
             });
         });
+        // Room state the SDK can drop (people timed out "forever", stale power levels): see stateCatchUp.ts.
+        watchMissedStateEvents(this.client as never);
         await this.client.startClient({ initialSyncLimit: 1 });
         await ready;
         this.log(`signed in as ${this.userId}`);
@@ -331,16 +335,19 @@ export class MeadhallBot {
         switch (command.name) {
             case "warn":
                 await this.notice(room, `${targetName}, you've been warned by a moderator${reason ? `: ${reason}` : "."}`, [target]);
+                await this.logAction(space, target, "warn", `${reason || "No reason given"} (by ${sender} with /warn)`);
                 return;
             case "timeout": {
                 const minutes = timeoutMinutes(args.minutes);
                 await this.timeOut(space, target, minutes);
                 await this.notice(room, `${targetName} can't talk for ${minutes} minutes${reason ? `: ${reason}` : "."}`, [target]);
+                await this.logAction(space, target, "mute", `${reason || "No reason given"} (by ${sender} with /timeout)`, Date.now() + minutes * 60_000);
                 return;
             }
             case "untimeout":
                 await this.endTimeout(space, target);
                 await this.notice(room, `${targetName} can talk again.`, [target]);
+                await this.logAction(space, target, "unmute", `By ${sender} with /untimeout`);
                 return;
             case "kick":
             case "ban": {
@@ -349,6 +356,7 @@ export class MeadhallBot {
                     await action.catch(() => undefined);
                 }
                 await this.notice(room, `${targetName} was ${command.name === "ban" ? "banned" : "removed"}${reason ? `: ${reason}` : "."}`);
+                await this.logAction(space, target, command.name === "ban" ? "ban" : "kick", `${reason || "No reason given"} (by ${sender} with /${command.name})`);
                 return;
             }
         }
@@ -397,6 +405,17 @@ export class MeadhallBot {
             if (space) await this.endTimeout(space, entry.user);
             else await this.writeTimeouts(this.readTimeouts().filter((other) => other !== entry));
         }
+    }
+
+    // The space's moderation log (Space Settings → Reports → Member records), the same entries moderators' apps write.
+    // The log room is made by the first moderator's Meadhall that needs it, which invites the moderators (the bot too).
+    private async logAction(space: Room, user: string, action: ModAction, reason: string, until?: number): Promise<void> {
+        const roomId = space.currentState.getStateEvents(MOD_ROOM_EVENT, "")?.getContent()?.room_id;
+        if (typeof roomId !== "string") return;
+        if (this.client.getRoom(roomId)?.getMyMembership() !== "join") await this.client.joinRoom(roomId).catch(() => undefined);
+        await this.client
+            .sendEvent(roomId, MOD_ACTION_EVENT as never, modActionContent({ user, action, reason, ...(until ? { until } : {}) }) as never)
+            .catch((error) => this.log("couldn't write to the moderation log", error));
     }
 
     private async notice(room: Room, text: string, mention: string[] = []): Promise<void> {
