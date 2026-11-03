@@ -85,7 +85,9 @@ Pin messages permission (Space Settings → Members → Roles) can pin or unpin.
 
 ### How do I send pictures, files, polls or stickers?
 Use the + to the left of the message box for files and pictures. The poll button and the sticker button are on the right
-of the message box. Paste a picture or GIF straight into the box to send it.
+of the message box. Paste a picture or GIF straight into the box to send it. On phones, the + also has Take a photo
+(opens the camera; the picture waits in the message box until you press Send), Upload a file, Create a poll and Send a
+sticker.
 
 ### How do I quickly edit the message I just sent?
 With the message box empty, press the up arrow (↑). Your last message opens for editing in the box. Change it and press

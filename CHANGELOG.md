@@ -28,6 +28,8 @@ Versions follow `vX.Y.Z`.
   and can read your old messages without the recovery key.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
+- **Take a photo on phones:** the + next to the message box has Take a photo, which opens the camera instead of the
+  gallery. The picture waits in the message box until you send it.
 
 ### Changed
 - **Warnings reach the member:** warning, muting, banning or kicking someone sends them a message saying so, with the
@@ -50,6 +52,9 @@ Versions follow `vX.Y.Z`.
 - Menus like the category menu were see-through.
 - Roles on profile cards touched the edge of their box.
 - Long names on profile cards were cut off after a few letters: they now wrap and shrink to fit.
+- After sending a picture, the chat stopped short of the bottom once the picture loaded; it now stays at the bottom.
+- Android: the background connection could stop itself just as Meadhall asked it to start again, which Android treats
+  as a crash and closes the app.
 
 ## v0.5.1 (2026-11-02)
 

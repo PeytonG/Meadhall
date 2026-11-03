@@ -2046,6 +2046,27 @@ export function Timeline({
         container.scrollTop = container.scrollHeight;
     }, [events]);
 
+    // Pictures and videos grow the timeline after it renders (a photo you just sent, for one); stay at the bottom
+    // if you were there. Media load events don't bubble, so listen in the capture phase.
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) {
+            return;
+        }
+
+        const keepAtBottom = (): void => {
+            if (stickToBottomRef.current) {
+                container.scrollTop = container.scrollHeight;
+            }
+        };
+        container.addEventListener("load", keepAtBottom, true);
+        container.addEventListener("loadedmetadata", keepAtBottom, true);
+        return () => {
+            container.removeEventListener("load", keepAtBottom, true);
+            container.removeEventListener("loadedmetadata", keepAtBottom, true);
+        };
+    }, [room?.roomId]);
+
     useEffect(() => {
         if (!scrollContainerRef.current) {
             return;

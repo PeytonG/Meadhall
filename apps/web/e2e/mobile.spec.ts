@@ -76,7 +76,7 @@ test("on phones, poll and stickers live in the + menu next to the message box", 
     await expect(page.getByRole("button", { name: "Open sticker picker" })).toBeHidden();
     await page.getByTestId("composer-plus").tap();
     const menu = page.getByTestId("composer-plus-menu");
-    await expect(menu.getByRole("menuitem")).toHaveText([/Upload a file/, /Create a poll/, /Send a sticker/]);
+    await expect(menu.getByRole("menuitem")).toHaveText([/Take a photo/, /Upload a file/, /Create a poll/, /Send a sticker/]);
     if (process.env.PREVIEW_DIR) await page.screenshot({ path: `${process.env.PREVIEW_DIR}/phone-${test.info().project.name}-plus-menu.png` });
     await menu.getByRole("menuitem", { name: /Send a sticker/ }).tap();
     await expect(menu).toBeHidden();
@@ -85,4 +85,41 @@ test("on phones, poll and stickers live in the + menu next to the message box", 
     await page.getByTestId("composer-plus").tap();
     await page.getByTestId("composer-plus-menu").getByRole("menuitem", { name: /Create a poll/ }).tap();
     await expect(page.getByRole("dialog", { name: /poll/i })).toBeVisible();
+});
+
+test("on phones, Take a photo opens the camera and sends the picture", async ({ page }) => {
+    await openDmWithMessage(page);
+    // The camera input asks the phone for a new picture (capture), not the gallery.
+    const camera = page.getByTestId("composer-camera-input");
+    await expect(camera).toHaveAttribute("capture", "environment");
+    await expect(camera).toHaveAttribute("accept", "image/*");
+    await page.getByTestId("composer-plus").tap();
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByTestId("composer-take-photo").tap();
+    // Stand in for the photo the camera app returns: a tall (portrait) picture, like a phone takes.
+    const png = Buffer.from(
+        await page.evaluate(() => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 600;
+            canvas.height = 900;
+            const context = canvas.getContext("2d");
+            if (context) {
+                context.fillStyle = "#3a7";
+                context.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            return canvas.toDataURL("image/png").split(",")[1];
+        }),
+        "base64",
+    );
+    await (await chooser).setFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
+    // It waits in the message box, like a picked file; Send sends it.
+    await expect(page.getByText("photo.png")).toBeVisible();
+    await page.getByRole("button", { name: /^Send/ }).tap();
+    const image = page.locator(".timeline img.timeline-image").last();
+    await expect(image).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).complete && (element as HTMLImageElement).naturalHeight > 0)).toBe(true);
+    // Like Discord, the timeline stays at the bottom once the picture has loaded and grown it.
+    await expect
+        .poll(() => page.locator(".timeline").evaluate((element) => element.scrollHeight - element.scrollTop - element.clientHeight))
+        .toBeLessThan(4);
 });

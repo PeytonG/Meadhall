@@ -852,6 +852,8 @@ export function Composer({
     const [emojiQuery, setEmojiQuery] = useState<EmojiQueryState | null>(null);
     const [emojiSelectionIndex, setEmojiSelectionIndex] = useState(0);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    // Phones: opens the camera (capture) and sends the picture like any other upload.
+    const cameraInputRef = useRef<HTMLInputElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
     const emojiPickerRef = useRef<HTMLDivElement | null>(null);
@@ -2113,6 +2115,7 @@ export function Composer({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onAttach={() => fileInputRef.current?.click()}
+                onTakePhoto={room ? () => cameraInputRef.current?.click() : undefined}
                 onToggleEmoji={() => setEmojiPickerOpen((open) => !open)}
                 onSend={() => void sendMessage()}
                 canSend={text.trim().length > 0 || uploads.some((upload) => upload.roomId === room?.roomId && upload.status === "queued")}
@@ -2249,6 +2252,20 @@ export function Composer({
                     ))}
                 </div>
             ) : null}
+            <input
+                ref={cameraInputRef}
+                className="composer-file-input"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(event) => {
+                    handleFileSelection(event.target.files);
+                    event.target.value = "";
+                }}
+                disabled={!room}
+                aria-label="Take a photo"
+                data-testid="composer-camera-input"
+            />
             <input
                 ref={fileInputRef}
                 className="composer-file-input"
