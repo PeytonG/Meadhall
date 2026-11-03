@@ -709,7 +709,7 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.4.0`: §10.5 (webcam, push to talk, polls, code blocks, activity audiences, QR sign-in, translations, reduce motion, provenance, Flatpak/F-Droid prep) | ✅ tests: 248 unit, 25 smoke, 8 integration, 105 E2E (11 screenshot-only skipped), 4 real LiveKit calls, 15 real-desktop; Flatpak built and linted in Flathub's image; release workflow dry run (Windows, Linux, Android) green |
 | `v0.4.1`: threads, inbox clearing, cross-app verification (§7.23) | ✅ tests: 251 unit, 25 smoke, 111 E2E (11 screenshot-only skipped), incl. verification against a Rust-crypto client standing in for FluffyChat |
 | `v0.5.0`: server bots (onboarding, auto-mod, slash commands, Meadhall bot), phone redesign, camera preview, sharper logo, Playing fix, look picker, reports and moderation, app links (§7.24–§7.26) | ✅ published 2026-11-02 (PR #22): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.0 |
-| `v0.5.1`: §10.6 (bot guide, auto-mod without a bot, onboarding fixes, friends, help, call panel, stream previews, overlay, ...) | ☐ in progress on `release/v0.5.1` |
+| `v0.5.1`: §10.6 (bot guide, auto-mod without a bot, onboarding and invite fixes, friends, help, notification sounds, call dock, stream previews, calls across homeservers, game overlay, admin panel) | ✅ published 2026-11-03 (PR #25): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.1 |
 
 ## 10. Open issues and roadmap
 
