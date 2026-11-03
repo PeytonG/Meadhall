@@ -38,6 +38,11 @@ Settings → Appearance.
 Windows, Linux and Android downloads are on the Meadhall releases page on GitHub. iPhone: through a TestFlight invite,
 or install it yourself for free with a Mac and Xcode (docs/ios-free-install.md). Meadhall also runs in a web browser.
 
+### How do I go back on a phone?
+Use the back arrow at the top left of a chat, or swipe right. On Android the Back button or gesture works too, one
+step at a time: it closes an open menu, dialog or picture first, then goes from a chat to the list, then from a space
+to Home, and finally puts Meadhall in the background (it keeps running, so calls and notifications continue).
+
 ## Spaces and channels
 
 ### How do I create a space?

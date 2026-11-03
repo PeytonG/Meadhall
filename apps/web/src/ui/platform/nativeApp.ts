@@ -10,7 +10,8 @@ interface ListenerHandle {
 interface MeadhallNativePlugin {
     saveDownload(options: { name: string; mimeType: string; base64: string }): Promise<{ folder: string; name: string }>;
     minimize(): Promise<void>;
-    addListener(event: "backButton", listener: () => void): Promise<ListenerHandle>;
+    // Plugins reached through window.Capacitor.Plugins return the handle itself; registerPlugin() ones a promise.
+    addListener(event: "backButton", listener: () => void): ListenerHandle | Promise<ListenerHandle>;
 }
 
 function plugin(): MeadhallNativePlugin | undefined {
@@ -46,16 +47,22 @@ export function onNativeBack(handler: () => void): () => void {
     }
     let handle: ListenerHandle | null = null;
     let removed = false;
-    void native.addListener("backButton", handler).then((added) => {
-        if (removed) {
-            void added.remove();
-        } else {
-            handle = added;
-        }
-    });
+    try {
+        void Promise.resolve(native.addListener("backButton", handler))
+            .then((added) => {
+                if (removed) {
+                    void added.remove();
+                } else {
+                    handle = added;
+                }
+            })
+            .catch(() => undefined);
+    } catch {
+        // An older app without the plugin's listener: Back keeps Android's default.
+    }
     return () => {
         removed = true;
-        void handle?.remove();
+        void Promise.resolve(handle?.remove()).catch(() => undefined);
     };
 }
 

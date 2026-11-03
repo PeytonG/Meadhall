@@ -13,6 +13,8 @@ Versions follow `vX.Y.Z`.
 
 ### Fixed
 - **Opening Friends ended your call.** Browsing anywhere in Meadhall now keeps the call going, like Discord.
+- **Android's Back button did nothing.** It now closes what's open, then goes back from a chat to the list and from a
+  space to Home, and finally puts Meadhall in the background.
 
 ## v0.5.2 (2026-11-03)
 

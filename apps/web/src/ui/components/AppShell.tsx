@@ -104,6 +104,7 @@ import { cleanUpBugReportRooms, isBugReportRoom, isReceivedBugReport, isSentBugR
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
+import { minimizeNativeApp, onNativeBack } from "../platform/nativeApp";
 import { PixelIcon } from "./PixelIcon";
 import {
     MATRIX_CALL_COMPAT_EVENT,
@@ -2319,6 +2320,37 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
         setMobilePane("list");
     }, []);
+
+    // Android's Back button/gesture (MeadhallNative plugin), one step at a time like Discord: close what's open
+    // (menus, dialogs, the picture viewer, settings: they all close on Escape), else leave the chat for the list, else
+    // leave a space for Home, else put the app in the background.
+    const nativeBackRef = useRef<() => void>(() => undefined);
+    nativeBackRef.current = () => {
+        const openLayers = (): number =>
+            document.querySelectorAll('[aria-modal="true"], [role="dialog"], [role="alertdialog"], [role="menu"], .settings-overlay').length;
+        const goBack = (): void => {
+            if (isPhoneLayout && mobilePane === "chat") {
+                goBackToList();
+            } else if (selectedSpaceId !== PEOPLE_SPACE_ID) {
+                selectHome();
+            } else {
+                minimizeNativeApp();
+            }
+        };
+        const before = openLayers();
+        if (before === 0) {
+            goBack();
+            return;
+        }
+        (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        // Something that doesn't close on Escape mustn't trap Back: if nothing closed, go back a screen instead.
+        window.setTimeout(() => {
+            if (openLayers() >= before) {
+                goBack();
+            }
+        }, 80);
+    };
+    useEffect(() => onNativeBack(() => nativeBackRef.current()), []);
 
     // Phones: swipe right in a chat to go back to the list (Direct Messages / channels), swipe left from the list to
     // return to the open chat, like the Discord app.
