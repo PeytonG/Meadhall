@@ -3536,6 +3536,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 <RightPanel
                     client={client}
                     room={activeRoom}
+                    onJumpToEvent={(eventId) => activeRoom && setLinkFocus({ roomId: activeRoom.roomId, eventId, nonce: Date.now() })}
                     activeSpaceRoom={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceRoom}
                     mode={panelMode}
                     roomMode={rightSidebarMode}

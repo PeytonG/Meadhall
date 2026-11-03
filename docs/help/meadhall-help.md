@@ -75,6 +75,11 @@ conversation. Mark them read from there.
 Hover over a message (long-press on phones) to see its actions: reply, react, edit (your own), delete (your own, or
 anyone's if you can manage messages), pin, reply in thread, copy link, report.
 
+### How do I pin a message?
+Right-click the message (or hover and press ..., or long-press on phones) → Pin message. Pinned messages are in the
+pin panel: the pin button at the top of the channel. Jump goes to the message; Unpin removes it. Only people with the
+Pin messages permission (Space Settings → Members → Roles) can pin or unpin.
+
 ### How do I send pictures, files, polls or stickers?
 Use the + to the left of the message box for files and pictures. The poll button and the sticker button are on the right
 of the message box. Paste a picture or GIF straight into the box to send it.

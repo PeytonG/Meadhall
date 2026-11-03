@@ -1069,7 +1069,7 @@ textarea {
     position: absolute;
     right: 0;
     top: calc(100% + 2px);
-    background: var(--bg-panel);
+    background: var(--bg-pane);
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 4px;
@@ -1216,7 +1216,7 @@ textarea {
     position: absolute;
     right: 0;
     top: calc(100% + 2px);
-    background: var(--bg-panel);
+    background: var(--bg-pane);
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 4px;

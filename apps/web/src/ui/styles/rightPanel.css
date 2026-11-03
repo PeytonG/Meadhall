@@ -851,7 +851,9 @@
 .rp-server-roles {
     display: grid;
     gap: 6px;
-    padding: 6px 0;
+    padding: 8px 10px;
+    margin: 0 0 6px;
+    border-radius: 8px;
 }
 
 .rp-server-roles-name {
@@ -1021,4 +1023,25 @@
 .rp-profile-name-row .user-badges {
     margin-left: 0;
     flex-shrink: 0;
+}
+
+.rs-pin-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.rs-pin-action {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.rs-pin-action:hover {
+    background: var(--bg-hover);
 }

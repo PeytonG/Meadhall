@@ -23,6 +23,9 @@ interface MessageContextMenuProps {
     onCopyEventId: () => void;
     // In a server, for someone else's message: report it to the server's moderators.
     onReport?: () => void;
+    // Pin / Unpin (only for people who may pin in this room).
+    pinned?: boolean;
+    onTogglePin?: () => void;
 }
 
 export function MessageContextMenu({
@@ -41,6 +44,8 @@ export function MessageContextMenu({
     onCopyText,
     onCopyEventId,
     onReport,
+    pinned = false,
+    onTogglePin,
 }: MessageContextMenuProps): React.ReactElement | null {
     const menuRef = useRef<HTMLDivElement | null>(null);
     const [clampedPosition, setClampedPosition] = useState<Position | null>(position);
@@ -136,6 +141,11 @@ export function MessageContextMenu({
                     onClick={() => clickAction(onDelete)}
                 >
                     Delete
+                </button>
+            ) : null}
+            {onTogglePin ? (
+                <button type="button" className="message-context-menu-item" onClick={() => clickAction(onTogglePin)} data-testid="message-pin">
+                    {pinned ? "Unpin message" : "Pin message"}
                 </button>
             ) : null}
             <button type="button" className="message-context-menu-item" onClick={() => clickAction(onCopyLink)}>

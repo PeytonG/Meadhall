@@ -4,6 +4,17 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## Unreleased
+
+### New
+- **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
+  Unpin.
+
+### Fixed
+- Settings could keep saying "Verified: No" after verifying this session from another app.
+- Menus like the category menu were see-through.
+- Roles on profile cards touched the edge of their box.
+
 ## v0.5.1 (2026-11-02)
 
 ### New
