@@ -712,7 +712,7 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.4.1`: threads, inbox clearing, cross-app verification (§7.23) | ✅ tests: 251 unit, 25 smoke, 111 E2E (11 screenshot-only skipped), incl. verification against a Rust-crypto client standing in for FluffyChat |
 | `v0.5.0`: server bots (onboarding, auto-mod, slash commands, Meadhall bot), phone redesign, camera preview, sharper logo, Playing fix, look picker, reports and moderation, app links (§7.24–§7.26) | ✅ published 2026-11-02 (PR #22): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.0 |
 | `v0.5.1`: §10.6 (bot guide, auto-mod without a bot, onboarding and invite fixes, friends, help, notification sounds, call dock, stream previews, calls across homeservers, game overlay, admin panel) | ✅ published 2026-11-03 (PR #25): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.1 |
-| `v0.5.2`: §10.7 (verification CI fix, lost room state, moderation and bot fixes, ringing, pins, overlay widgets, QR keys, channel +, voice join screen, ...) | ✅ released 2026-11-03 (PR #26) |
+| `v0.5.2`: §10.7 (verification CI fix, lost room state, moderation and bot fixes, ringing, pins, overlay widgets, QR keys, channel +, voice join screen, ...) | ✅ published 2026-11-03 (PR #26): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.2 |
 
 ## 10. Open issues and roadmap
 
@@ -914,6 +914,21 @@ before marking it done. Includes the unfinished parts of §10.6 (mic/headset dev
 | 18 | **Voice channel after leaving: show Join, not a blank page** | After leaving a call with the voice channel still selected, Meadhall shows "# Test Channel" with an empty page. Discord shows the channel name, "No one is currently in voice" (or who is) and a **Join Voice** button on a gradient. Do the same, with the voice icon in the header instead of # | ✅ `VoiceJoinPrompt`, `e2e-calls/voiceJoinPrompt.spec.ts`; found and fixed lost room state (`core/matrix/stateCatchUp.ts`) |
 | 19 | **Long display names cut off on the profile card** | "Peyton Gna…" in the right-panel profile: show the whole name (wrap to two lines, then shrink the font a step) like Discord, instead of an ellipsis after a few letters; same check for the user ID line | ✅ names wrap (3 lines) and shrink by length; user ID wraps |
 | 17 | **Unfinished from v0.5.1** | Mic/headset device dropdowns in the user panel; overlay draggable widgets and video tiles (folded into #4) | ✅ device menus (`DevicePicker`, `e2e/devicePicker.spec.ts`); overlay widgets → #4 |
+
+### 10.8 Owner's v0.5.3 backlog (requested 2026-11-03; branch `release/v0.5.3`)
+Same rule as §10.7: compare with Discord step by step and test like a user (two accounts where someone else is
+involved, phone and desktop, both looks).
+
+| # | Request | Notes / plan | State |
+|---|---|---|---|
+| 1 | **Resizing the DM sidebar doesn't adapt** | Home's sidebar (Friends, Direct Messages with names and previews): when made narrower, names and message previews don't shorten or resize to fit. Discord ellipsizes names and previews and keeps avatars/badges visible | ☐ |
+| 2 | **Members / profile panel can't be resized** | The right panel (member list, profile) has no resize handle. Make it resizable like the left sidebar (remembered width, min/max) and make its contents adapt the same way as #1 | ☐ |
+| 3 | **Opening Friends ends the call** | Going to Home → Friends during a call hangs up. Discord keeps the call running while you browse anywhere; the call dock stays | ☐ |
+| 4 | **Android back button does nothing** | The system back button/gesture should go back like Discord: close a dialog/menu/viewer, then leave the chat to the list, then the space to Home, then leave the app | ☐ |
+| 5 | **PDF viewer with download** | A sent PDF is only a file link. Show a preview card (first page, page count) and open a viewer (scroll pages, zoom), with a Download button | ☐ |
+| 6 | **Other file types** | Previews for .txt/.md/code/.json/.csv (text), .docx (rendered text), audio and video players; every attachment gets a Download button | ☐ |
+| 7 | **Shared notes with nested folders** | In DMs and spaces: several notes in nested folders, opened in a view inside Meadhall and edited together live (both see each other's edits, for projects). Each note at most 0.3 MB | ☐ |
+| 8 | **Pan zoomed images** | Still can't move a zoomed-in picture with the mouse (§10 "pan zoomed images"): drag to pan, pinch on touch, click without dragging toggles zoom | ☐ |
 
 ## 11. Work log
 
