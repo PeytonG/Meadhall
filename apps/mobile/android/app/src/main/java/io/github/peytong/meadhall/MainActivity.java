@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(MeadhallSyncPlugin.class);
+        registerPlugin(MeadhallNativePlugin.class);
         super.onCreate(savedInstanceState);
     }
 

@@ -4,6 +4,16 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.5.3 (unreleased)
+
+### New
+- **Move around zoomed pictures:** in the picture viewer, click where you want to zoom in or use the mouse wheel,
+  drag to move a zoomed picture, pinch on phones; a click without dragging zooms back out. Download saves the picture
+  (to Downloads on Android).
+
+### Fixed
+- **Opening Friends ended your call.** Browsing anywhere in Meadhall now keeps the call going, like Discord.
+
 ## v0.5.2 (2026-11-03)
 
 ### New

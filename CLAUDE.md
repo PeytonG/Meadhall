@@ -928,7 +928,7 @@ involved, phone and desktop, both looks).
 | 5 | **PDF viewer with download** | A sent PDF is only a file link. Show a preview card (first page, page count) and open a viewer (scroll pages, zoom), with a Download button | ☐ |
 | 6 | **Other file types** | Previews for .txt/.md/code/.json/.csv (text), .docx (rendered text), audio and video players; every attachment gets a Download button | ☐ |
 | 7 | **Shared notes with nested folders** | In DMs and spaces: several notes in nested folders, opened in a view inside Meadhall and edited together live (both see each other's edits, for projects). Each note at most 0.3 MB | ☐ |
-| 8 | **Pan zoomed images** | Still can't move a zoomed-in picture with the mouse (§10 "pan zoomed images"): drag to pan, pinch on touch, click without dragging toggles zoom | ☐ |
+| 8 | **Pan zoomed images** | Still can't move a zoomed-in picture with the mouse (§10 "pan zoomed images"): drag to pan, pinch on touch, click without dragging toggles zoom | ✅ `ui/components/messages/ImageViewer.tsx`: click/wheel/pinch zoom at the pointer, drag to pan (clamped to the window), Download (`ui/platform/saveMedia.ts`) (`e2e/imageViewer.spec.ts`) |
 
 ## 11. Work log
 

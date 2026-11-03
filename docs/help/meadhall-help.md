@@ -89,6 +89,12 @@ of the message box. Paste a picture or GIF straight into the box to send it. On 
 (opens the camera; the picture waits in the message box until you press Send), Upload a file, Create a poll and Send a
 sticker.
 
+### How do I look at a picture up close?
+Click (tap) a picture in the chat to open it. Click where you want to zoom in, or scroll the mouse wheel; on phones
+pinch with two fingers. Drag (one finger on phones) to move around a zoomed picture. Click without dragging to zoom
+back out. Download (the arrow at the top right) saves the picture; on Android it goes to your Downloads folder. Close
+with the X, Escape (Back on Android) or a click next to the picture.
+
 ### How do I quickly edit the message I just sent?
 With the message box empty, press the up arrow (↑). Your last message opens for editing in the box. Change it and press
 Enter to save, or Escape to cancel.
