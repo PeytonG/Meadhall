@@ -125,7 +125,7 @@ export function ProfileHeader({
             <div className="rp-profile-main">
                 {/* The name shortens with "…" when long; the badges sit outside it so they're never cut off. */}
                 <div className="rp-profile-name-row">
-                    <h2 className="rp-profile-name" title={displayName}>
+                    <h2 className="rp-profile-name" title={displayName} style={{ fontSize: displayName.length <= 12 ? 25 : displayName.length <= 20 ? 21 : displayName.length <= 32 ? 18 : 16 }}>
                         {displayName}
                     </h2>
                     {badges}

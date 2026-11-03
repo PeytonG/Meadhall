@@ -3506,6 +3506,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
                                     editingEvent={editingEvent}
                                     onCancelEdit={() => setEditingEvent(null)}
+                                    onEditMessage={(event) => setEditingEvent(event)}
                                     replyToEvent={replyToEvent}
                                     onCancelReply={() => setReplyToEvent(null)}
                                 />

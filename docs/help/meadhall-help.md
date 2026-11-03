@@ -84,6 +84,10 @@ Pin messages permission (Space Settings → Members → Roles) can pin or unpin.
 Use the + to the left of the message box for files and pictures. The poll button and the sticker button are on the right
 of the message box. Paste a picture or GIF straight into the box to send it.
 
+### How do I quickly edit the message I just sent?
+With the message box empty, press the up arrow (↑). Your last message opens for editing in the box. Change it and press
+Enter to save, or Escape to cancel.
+
 ### How do I start a thread?
 Hover over a message → Reply in thread. Thread replies show as "N replies" under the message.
 

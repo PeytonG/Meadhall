@@ -7,6 +7,8 @@ Versions follow `vX.Y.Z`.
 ## Unreleased
 
 ### New
+- **↑ edits your last message:** in an empty message box, the up arrow opens your most recent message for editing
+  (Enter saves, Escape cancels), like Discord.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 
@@ -14,6 +16,7 @@ Versions follow `vX.Y.Z`.
 - Settings could keep saying "Verified: No" after verifying this session from another app.
 - Menus like the category menu were see-through.
 - Roles on profile cards touched the edge of their box.
+- Long names on profile cards were cut off after a few letters: they now wrap and shrink to fit.
 
 ## v0.5.1 (2026-11-02)
 

@@ -37,10 +37,26 @@ interface ComposerProps {
     activeSpaceId: string | null;
     editingEvent: MatrixEvent | null;
     onCancelEdit: () => void;
+    // ↑ in an empty box edits your last message, like Discord.
+    onEditMessage?: (event: MatrixEvent) => void;
     replyToEvent: MatrixEvent | null;
     onCancelReply: () => void;
     // The thread panel's composer: messages and files go into this thread (no polls or stickers there).
     threadId?: string | null;
+}
+
+// Your newest text message here (in this thread, or outside threads), for ↑ to edit.
+function lastOwnEditableMessage(room: Room, userId: string, threadId: string | null): MatrixEvent | null {
+    const events = room.getLiveTimeline().getEvents();
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+        const event = events[index]!;
+        if (event.getType() !== EventType.RoomMessage || event.getSender() !== userId || event.isRedacted()) continue;
+        if (event.isRelation("m.replace") || !event.getId()?.startsWith("$")) continue;
+        if ((event.threadRootId ?? null) !== threadId && event.getId() !== threadId) continue;
+        const msgtype = event.getContent().msgtype;
+        if (msgtype === "m.text" || msgtype === "m.emote" || msgtype === "m.notice") return event;
+    }
+    return null;
 }
 
 interface ImageDimensions {
@@ -817,6 +833,7 @@ export function Composer({
     activeSpaceId,
     editingEvent,
     onCancelEdit,
+    onEditMessage,
     replyToEvent,
     onCancelReply,
     threadId = null,
@@ -1963,6 +1980,15 @@ export function Composer({
                 event.preventDefault();
                 setEmojiQuery(null);
                 setEmojiSelectionIndex(0);
+                return;
+            }
+        }
+
+        if (event.key === "ArrowUp" && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && !editingEventId && text.length === 0 && room && onEditMessage) {
+            const own = lastOwnEditableMessage(room, client.getUserId() ?? "", threadId ?? null);
+            if (own) {
+                event.preventDefault();
+                onEditMessage(own);
                 return;
             }
         }
