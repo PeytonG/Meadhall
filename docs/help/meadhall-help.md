@@ -183,10 +183,13 @@ Settings → Audio → Microphone test shows the level. Check the right micropho
 call, and that your system allows Meadhall to use the microphone.
 
 ### How do I use the game overlay?
-On the desktop app, press Shift and ` (the key left of 1) together, in any game or app. The overlay shows the call
-buttons (mute, deafen, camera, share screen, soundboard, leave), who is in the call and talking, and recent messages.
-Press Esc or Shift + ` again to close it. It works over games in windowed or borderless fullscreen mode, not in
-exclusive fullscreen. If another app already uses Shift + `, the overlay can't open with it.
+On the desktop app, press Shift and ` (the key left of 1) together, in any game or app. If another app already uses
+that key, Meadhall uses Ctrl+Shift+` (or Shift+F10); the Game overlay button under "Voice Connected" also opens it and
+shows which key works. The overlay has the call buttons at the top and widgets: Voice (who is talking; click someone
+to change their volume), Text chat (pick a conversation, read it and type to send), Notifications (mentions and DMs)
+and Soundboard. Drag a widget by its title to move it. The gear shows or hides widgets and changes the opacity. The pin
+on a widget keeps it on screen after you close the overlay, while you play (it doesn't take your mouse). Press Esc or
+the shortcut again to close. It works over games in windowed or borderless fullscreen mode, not exclusive fullscreen.
 
 ### What is the campfire?
 The flames around someone's picture while they talk. Turn it into a simple ring in Settings → Audio → Speaking campfire.

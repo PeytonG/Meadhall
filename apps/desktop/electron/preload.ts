@@ -49,9 +49,14 @@ export interface HeorotDesktopBridge {
     setOverlayState: (state: unknown) => Promise<void>;
     getOverlayState: () => Promise<unknown>;
     onOverlayState: (listener: (state: unknown) => void) => () => void;
-    overlayCommand: (command: string) => Promise<void>;
-    onOverlayCommand: (listener: (command: string) => void) => () => void;
+    overlayCommand: (command: unknown) => Promise<void>;
+    onOverlayCommand: (listener: (command: unknown) => void) => () => void;
     closeOverlay: () => Promise<void>;
+    setOverlayPinned: (pinned: boolean) => Promise<void>;
+    toggleOverlay: () => Promise<void>;
+    getOverlayShortcut: () => Promise<string | null>;
+    getOverlayMode: () => Promise<string>;
+    onOverlayMode: (listener: (mode: string) => void) => () => void;
     getDesktopCapturerSources: (options?: { previews?: boolean }) => Promise<DesktopCaptureSource[]>;
     setPreferredDisplayMediaSource: (sourceId: string) => Promise<void>;
     getStartAtLogin: () => Promise<boolean>;
@@ -145,11 +150,26 @@ const bridge: HeorotDesktopBridge = {
             ipcRenderer.removeListener("heorot:overlayState", handler);
         };
     },
-    overlayCommand: async (command: string): Promise<void> => {
+    toggleOverlay: async (): Promise<void> => {
+        await ipcRenderer.invoke("heorot:toggleOverlay");
+    },
+    getOverlayShortcut: async (): Promise<string | null> => ipcRenderer.invoke("heorot:getOverlayShortcut"),
+    setOverlayPinned: async (pinned: boolean): Promise<void> => {
+        await ipcRenderer.invoke("heorot:setOverlayPinned", pinned);
+    },
+    getOverlayMode: async (): Promise<string> => ipcRenderer.invoke("heorot:getOverlayMode"),
+    onOverlayMode: (listener: (mode: string) => void): (() => void) => {
+        const handler = (_event: unknown, mode: string): void => listener(mode);
+        ipcRenderer.on("heorot:overlayMode", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:overlayMode", handler);
+        };
+    },
+    overlayCommand: async (command: unknown): Promise<void> => {
         await ipcRenderer.invoke("heorot:overlayCommand", command);
     },
-    onOverlayCommand: (listener: (command: string) => void): (() => void) => {
-        const handler = (_event: unknown, command: string): void => listener(command);
+    onOverlayCommand: (listener: (command: unknown) => void): (() => void) => {
+        const handler = (_event: unknown, command: unknown): void => listener(command);
         ipcRenderer.on("heorot:overlayCommand", handler);
         return () => {
             ipcRenderer.removeListener("heorot:overlayCommand", handler);

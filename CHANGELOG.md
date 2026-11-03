@@ -20,6 +20,10 @@ Versions follow `vX.Y.Z`.
   their stream full size. Your own badge says "You're Streaming!".
 - **Device menus:** the small arrows next to the mic and headphones under your name pick the microphone or speaker,
   or open Voice Settings, like Discord.
+- **Game overlay, much fuller:** movable widgets for Voice (who's talking, and each person's volume), Text chat (read
+  and send to the call's chat, DMs and channels), Notifications (mentions and DMs) and Soundboard. Pin a widget to keep
+  it on screen while you play (clicks go through to the game). Overlay settings choose widgets and opacity. If another
+  app already uses Shift+`, Meadhall uses Ctrl+Shift+` (or Shift+F10), and the voice panel has a Game overlay button.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 

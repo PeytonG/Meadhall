@@ -59,8 +59,8 @@ import { ScreenSharePicker } from "./ScreenSharePicker";
 import { mergeCapturePreviews } from "../../voice/capturePreviews";
 import { stageGridStyle } from "../../voice/stageGrid";
 import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
-import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
-import { decodeCustomSound, type CustomSound } from "../../voice/soundboard/soundboard";
+import { BUILTIN_SOUNDS, renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
+import { decodeCustomSound, loadCustomSounds, type CustomSound } from "../../voice/soundboard/soundboard";
 import { SoundboardTrack, isSoundboardTrack } from "../../voice/soundboard/soundboardTrack";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { RECONNECT_DELAYS_MS, announceCallEnded, beginCallLog, currentCallLogId, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
@@ -95,6 +95,10 @@ export interface VoiceRoomHandle {
     openVoiceSettings: () => void;
     // Watch Stream from the channel list: show this person's screen share big (once it's there).
     focusScreenShare: (userId: string) => void;
+    // The game overlay: play a sound ("builtin:<id>" or "custom:<id>") and per-person volume.
+    playSound: (key: string) => Promise<void>;
+    setUserVolume: (userId: string, percent: number) => void;
+    getUserVolume: (userId: string) => number;
 }
 
 interface VoiceRoomProps {
@@ -2674,6 +2678,18 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         toggleScreenShare: () => toggleScreenShare(),
         openSoundboard: () => setSoundboardOpen(true),
         openVoiceSettings: () => setSettingsOpen(true),
+        playSound: async (key: string) => {
+            const [kind, id] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
+            if (kind === "builtin") {
+                const sound = BUILTIN_SOUNDS.find((item) => item.id === id);
+                if (sound) await playSoundboardSound({ kind: "builtin", id: sound.id, name: sound.name });
+            } else if (kind === "custom") {
+                const sound = loadCustomSounds(client).find((item) => item.id === id);
+                if (sound) await playSoundboardSound({ kind: "custom", sound });
+            }
+        },
+        setUserVolume: (userId: string, percent: number) => setParticipantVolumePercent(userId, percent),
+        getUserVolume: (userId: string) => getParticipantVolumePercent(userId),
         focusScreenShare: (userId: string) => {
             const match = screenShareParticipants.find((participant) => participant.matrixUserId === userId || participant.identity.startsWith(`${userId}:`));
             if (match) {

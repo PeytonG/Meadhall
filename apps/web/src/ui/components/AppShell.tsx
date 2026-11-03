@@ -35,7 +35,9 @@ import { HelpDialog } from "../help/HelpDialog";
 import { declineCall, useOutgoingRing } from "../hooks/useOutgoingRing";
 import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
 import { DevicePicker } from "./voice/DevicePicker";
-import type { OverlayState } from "../overlay/overlayState";
+import { parseOverlayCommand, type OverlayState } from "../overlay/overlayState";
+import { BUILTIN_SOUNDS } from "../voice/soundboard/builtinSounds";
+import { loadCustomSounds } from "../voice/soundboard/soundboard";
 import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
@@ -851,6 +853,28 @@ async function resolveSpaceHierarchyVoiceHints(
 }
 
 const SPACE_CHILD_TYPES = ["m.space.child"] as const;
+
+// Re-renders (at most every 2 s) when anything new arrives, for the overlay's chats and notifications.
+function useAnyTimelineTick(client: MatrixClient, enabled: boolean): number {
+    const [tick, setTick] = useState(0);
+    useEffect(() => {
+        if (!enabled) return undefined;
+        let timer: number | null = null;
+        const onTimeline = (): void => {
+            if (timer !== null) return;
+            timer = window.setTimeout(() => {
+                timer = null;
+                setTick((value) => value + 1);
+            }, 2_000);
+        };
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.off(RoomEvent.Timeline, onTimeline);
+            if (timer !== null) window.clearTimeout(timer);
+        };
+    }, [client, enabled]);
+    return tick;
+}
 
 function useRoomTimelineTick(client: MatrixClient, roomId: string | null): number {
     const [tick, setTick] = useState(0);
@@ -2104,6 +2128,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     // The desktop game overlay (Shift+`): what it shows, and its buttons acting here (overlay/OverlayApp.tsx).
     const overlayRoomTick = useRoomTimelineTick(client, voiceSessionRoomId);
+    const overlayAnyTick = useAnyTimelineTick(client, Boolean(window.heorotDesktop?.setOverlayState));
     useEffect(() => {
         if (!window.heorotDesktop?.setOverlayState) return;
         const inCall = voiceSessionStatus === "connected" && Boolean(voiceSessionRoomId);
@@ -2111,7 +2136,58 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         const speaking = voiceSpeakingByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
         const sharing = voiceScreenShareByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
         const people = [...(voiceParticipantsByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>())];
+        const me = client.getUserId() ?? "";
+        const messagesOf = (target: Room, limit: number) =>
+            target
+                .getLiveTimeline()
+                .getEvents()
+                .filter((event) => event.getType() === EventType.RoomMessage && !event.isRedacted() && typeof event.getContent().body === "string")
+                .slice(-limit)
+                .map((event) => ({
+                    id: event.getId() ?? "",
+                    sender: target.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
+                    body: String(event.getContent().body).slice(0, 500),
+                    room: getRoomName(target),
+                }));
+        // Chats you can use from the overlay: the call's room, then your most recently active conversations.
+        const recent = client
+            .getRooms()
+            .filter((candidate) => candidate.getMyMembership() === "join" && !candidate.isSpaceRoom() && !isRoomVoiceChannel(candidate))
+            .sort((left, right) => right.getLastActiveTimestamp() - left.getLastActiveTimestamp())
+            .slice(0, 8);
+        const chatRooms = [...(room ? [room] : []), ...recent.filter((candidate) => candidate.roomId !== room?.roomId)].slice(0, 8);
+        // Notifications: DMs and mentions of you from others, across your rooms (newest last).
+        const notifications = client
+            .getRooms()
+            .filter((candidate) => candidate.getMyMembership() === "join")
+            .flatMap((candidate) =>
+                candidate
+                    .getLiveTimeline()
+                    .getEvents()
+                    .slice(-20)
+                    .filter((event) => {
+                        if (event.getType() !== EventType.RoomMessage || event.getSender() === me || event.isRedacted()) return false;
+                        const mentioned = (event.getContent()["m.mentions"] as { user_ids?: string[] } | undefined)?.user_ids?.includes(me);
+                        return directRoomIds.has(candidate.roomId) || Boolean(mentioned);
+                    })
+                    .map((event) => ({ event, candidate })),
+            )
+            .sort((left, right) => left.event.getTs() - right.event.getTs())
+            .slice(-8)
+            .map(({ event, candidate }) => ({
+                id: event.getId() ?? "",
+                sender: candidate.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
+                body: String(event.getContent().body ?? "").slice(0, 300),
+                room: getRoomName(candidate),
+            }));
+        const sounds = [
+            ...BUILTIN_SOUNDS.map((sound) => ({ key: `builtin:${sound.id}`, name: sound.name, emoji: sound.emoji })),
+            ...loadCustomSounds(client).map((sound) => ({ key: `custom:${sound.id}`, name: sound.name, emoji: sound.emoji ?? "" })),
+        ];
         const state: OverlayState = {
+            notifications,
+            chats: chatRooms.map((target) => ({ roomId: target.roomId, name: getRoomName(target), messages: messagesOf(target, 12) })),
+            sounds,
             inCall,
             channel: room ? getRoomName(room) : null,
             micMuted: selfVoice.muted,
@@ -2124,26 +2200,17 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                       name: room?.getMember(userId)?.name ?? client.getUser(userId)?.displayName ?? userId,
                       speaking: speaking.has(userId),
                       sharing: sharing.has(userId),
+                      ...(userId !== me ? { volume: voiceRoomRef.current?.getUserVolume(userId) ?? 100 } : {}),
                   }))
-                : [],
-            messages: room
-                ? room
-                      .getLiveTimeline()
-                      .getEvents()
-                      .filter((event) => event.getType() === EventType.RoomMessage && !event.isRedacted() && typeof event.getContent().body === "string")
-                      .slice(-5)
-                      .map((event) => ({
-                          id: event.getId() ?? "",
-                          sender: room.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
-                          body: String(event.getContent().body).slice(0, 300),
-                          room: getRoomName(room),
-                      }))
                 : [],
         };
         void window.heorotDesktop.setOverlayState(state);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         client,
         overlayRoomTick,
+        overlayAnyTick,
+        directRoomIds,
         selfVoice.deafened,
         selfVoice.muted,
         voiceControlState.cameraOn,
@@ -2154,16 +2221,50 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         voiceSessionStatus,
         voiceSpeakingByRoomId,
     ]);
-    const overlayCommandRef = useRef<(command: string) => void>(() => undefined);
-    overlayCommandRef.current = (command) => {
-        if (command === "toggleMute") toggleVoiceMicFromDock();
-        else if (command === "toggleDeafen") toggleVoiceAudioFromDock();
-        else if (command === "toggleCamera") void voiceRoomRef.current?.toggleCamera();
-        else if (command === "leave") leaveVoiceFromDock();
-        else if (voiceSessionRoomId && (command === "toggleScreenShare" || command === "openSoundboard")) {
-            openRoomAtBottom(voiceSessionRoomId);
-            if (command === "toggleScreenShare") void voiceRoomRef.current?.toggleScreenShare();
-            else voiceRoomRef.current?.openSoundboard();
+    const [overlayShortcutLabel, setOverlayShortcutLabel] = useState<string | null>(null);
+    useEffect(() => {
+        void window.heorotDesktop?.getOverlayShortcut?.().then((shortcut) => setOverlayShortcutLabel(shortcut ?? null));
+    }, []);
+    const overlayCommandRef = useRef<(raw: unknown) => void>(() => undefined);
+    overlayCommandRef.current = (raw) => {
+        const command = parseOverlayCommand(raw);
+        if (!command) return;
+        switch (command.type) {
+            case "toggleMute":
+                toggleVoiceMicFromDock();
+                return;
+            case "toggleDeafen":
+                toggleVoiceAudioFromDock();
+                return;
+            case "toggleCamera":
+                void voiceRoomRef.current?.toggleCamera();
+                return;
+            case "leave":
+                leaveVoiceFromDock();
+                return;
+            case "playSound":
+                void voiceRoomRef.current?.playSound(command.key).catch(() => undefined);
+                return;
+            case "setVolume":
+                voiceRoomRef.current?.setUserVolume(command.userId, command.percent);
+                return;
+            case "sendMessage":
+                void client.sendTextMessage(command.roomId, command.body).catch((error: unknown) =>
+                    pushToast({ type: "error", message: error instanceof Error ? error.message : "Couldn't send from the overlay." }),
+                );
+                return;
+            case "openRoom":
+                focusRoom(command.roomId);
+                return;
+            case "toggleScreenShare":
+            case "openSoundboard":
+                if (!voiceSessionRoomId) return;
+                openRoomAtBottom(voiceSessionRoomId);
+                if (command.type === "toggleScreenShare") void voiceRoomRef.current?.toggleScreenShare();
+                else voiceRoomRef.current?.openSoundboard();
+                return;
+            case "openApp":
+                return;
         }
     };
     useEffect(() => window.heorotDesktop?.onOverlayCommand?.((command) => overlayCommandRef.current(command)), []);
@@ -3230,6 +3331,18 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     >
                                         <PixelIcon name="soundboard" size={18} />
                                     </button>
+                                    {window.heorotDesktop?.toggleOverlay ? (
+                                        <button
+                                            type="button"
+                                            className="pane-voice-action"
+                                            onClick={() => void window.heorotDesktop?.toggleOverlay?.()}
+                                            aria-label="Game overlay"
+                                            title={`Game overlay${overlayShortcutLabel ? ` (${overlayShortcutLabel})` : ""}`}
+                                            data-testid="dock-overlay"
+                                        >
+                                            <PixelIcon name="events" size={18} />
+                                        </button>
+                                    ) : null}
                                     <button
                                         type="button"
                                         className="pane-voice-action"
