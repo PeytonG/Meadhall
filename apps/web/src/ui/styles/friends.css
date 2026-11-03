@@ -547,3 +547,8 @@ button.stream-hover-preview {
     border: 0;
     border-top: 1px solid var(--border);
 }
+
+/* The chat pane stays mounted behind Friends so a call keeps going (AppShell). */
+.main-pane.is-behind-friends {
+    display: none;
+}

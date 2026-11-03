@@ -51,3 +51,13 @@ export async function joinCall(browser: Browser, user: ApiUser): Promise<Page> {
     await page.locator(".room-item").filter({ hasText: "Voice" }).locator(".room-item-select").click();
     return page;
 }
+
+// Live audio from someone else, playing in this page (Chromium's fake microphone sends a tone).
+export async function hearsSomeone(page: Page): Promise<boolean> {
+    return page.evaluate(() =>
+        [...document.querySelectorAll<HTMLAudioElement>("audio[data-source='microphone']")].some((element) => {
+            const stream = element.srcObject as MediaStream | null;
+            return Boolean(stream?.getAudioTracks().some((track) => track.readyState === "live"));
+        }),
+    );
+}

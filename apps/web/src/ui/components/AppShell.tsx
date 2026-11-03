@@ -1660,6 +1660,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const shouldShowReadReceipts =
         userSettings.privacy.showReadReceipts && selectedSpaceId === PEOPLE_SPACE_ID && isActiveRoomDirect;
     const isActiveRoomVoiceChannel = isRoomVoiceChannel(activeRoom);
+    const showFriends = friendsOpen && selectedSpaceId === PEOPLE_SPACE_ID && !activeRoom;
     const shouldShowVoicePanel = Boolean(activeRoom && isActiveRoomVoiceChannel && voiceSessionRoomId === activeRoom.roomId);
     // Voice channels with text chat turned on (channel settings) show it beside the call.
     const voiceChatBeside = shouldShowVoicePanel && isVoiceChatEnabled(activeRoom);
@@ -3518,12 +3519,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </div>
             </section>
 
-            {friendsOpen && selectedSpaceId === PEOPLE_SPACE_ID && !activeRoom ? (
+            {showFriends ? (
                 <section className="main-pane friends-pane">
                     <FriendsView client={client} onOpenRoom={selectChannel} onCallUser={(userId) => void callUser(userId)} onToast={pushToast} />
                 </section>
-            ) : (
-            <section className="main-pane">
+            ) : null}
+            {/* Stays mounted behind Friends: it holds the call, and unmounting it would hang up (like Discord, browsing
+                never ends a call). */}
+            <section className={`main-pane${showFriends ? " is-behind-friends" : ""}`} aria-hidden={showFriends || undefined}>
                 <ChannelHeader
                     onOpenHelp={() => setHelpOpen(true)}
                     room={activeRoom}
@@ -3707,7 +3710,6 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 ) : null}
                 </div>
             </section>
-            )}
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 

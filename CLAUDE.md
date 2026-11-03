@@ -923,7 +923,7 @@ involved, phone and desktop, both looks).
 |---|---|---|---|
 | 1 | **Resizing the DM sidebar doesn't adapt** | Home's sidebar (Friends, Direct Messages with names and previews): when made narrower, names and message previews don't shorten or resize to fit. Discord ellipsizes names and previews and keeps avatars/badges visible | ☐ |
 | 2 | **Members / profile panel can't be resized** | The right panel (member list, profile) has no resize handle. Make it resizable like the left sidebar (remembered width, min/max) and make its contents adapt the same way as #1 | ☐ |
-| 3 | **Opening Friends ends the call** | Going to Home → Friends during a call hangs up. Discord keeps the call running while you browse anywhere; the call dock stays | ☐ |
+| 3 | **Opening Friends ends the call** | Going to Home → Friends during a call hangs up. Discord keeps the call running while you browse anywhere; the call dock stays | ✅ the chat pane (which holds the call) stays mounted behind Friends (`e2e-calls/friendsKeepsCall.spec.ts`, two accounts) |
 | 4 | **Android back button does nothing** | The system back button/gesture should go back like Discord: close a dialog/menu/viewer, then leave the chat to the list, then the space to Home, then leave the app | ☐ |
 | 5 | **PDF viewer with download** | A sent PDF is only a file link. Show a preview card (first page, page count) and open a viewer (scroll pages, zoom), with a Download button | ☐ |
 | 6 | **Other file types** | Previews for .txt/.md/code/.json/.csv (text), .docx (rendered text), audio and video players; every attachment gets a Download button | ☐ |
