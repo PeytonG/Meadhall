@@ -11,6 +11,8 @@ Versions follow `vX.Y.Z`.
   (Enter saves, Escape cancels), like Discord.
 - **Voice channels you're not in** show who's in voice and a **Join Voice** button (after leaving a call too), instead of
   an empty page, with the speaker icon instead of # in the header.
+- **Add channels like Discord:** a + on Channels and on each category creates a channel right there (a category of voice
+  channels starts with Voice picked), and hovering a channel shows Create Invite next to its settings.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 
@@ -21,6 +23,7 @@ Versions follow `vX.Y.Z`.
   give onboarding roles" (off unless you turn it on).
 
 ### Fixed
+- **New channels didn't show up** in the channel list until Meadhall was reopened.
 - **Bots couldn't moderate or give roles:** adding a bot with a role saved the role but not its permission level, so the
   bot answered "I can only do that to people ranked below me". "Give the role to everyone already here" had the same
   problem.

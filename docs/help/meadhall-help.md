@@ -48,11 +48,13 @@ Invited spaces appear in the space list on the left. Click it, then press Accept
 If the space has onboarding, its rules and questions open right away.
 
 ### How do I invite people to a space?
-Right-click the space in the space list → Invite to space. Type their Matrix ID (like
+Right-click the space in the space list → Invite to space, or hover any channel and press the invite icon (Create
+Invite) next to its settings. Type their Matrix ID (like
 @name:example.org). They see the invite in their space list.
 
 ### How do I create a channel?
-Right-click the space in the space list → Create channel, or use the + next to the channel list. Choose text or voice. Only people who may
+Use the + next to Channels at the top of the channel list, or the + on a category (the channel goes in that
+category), or right-click the space in the space list → Create channel. Pick Text, Voice or another type, then Create. Choose text or voice. Only people who may
 manage channels can do this.
 
 ### How do I make a channel private, or limit who can talk?
@@ -240,16 +242,19 @@ Hover over the message (long-press on phones) → Report, or open their profile 
 moderators.
 
 ### How do moderators handle reports?
-Space Settings → Reports. Open a report and warn, mute (also for a set time), shadow mute, kick or ban. Member records
-show everything done to someone.
+Space Settings → Reports. Open a report, or pick someone under Member records. Warn, shadow mute, kick or ban; or mute
+or ban for a set time (choose how long under For a set time). The person gets a message saying what happened and why.
+Member records show everything done to someone, including what the Meadhall bot did with /warn, /timeout, /kick and
+/ban.
 
 ### How do I set up onboarding (rules and questions for newcomers)?
 Space Settings → Onboarding. Turn it on, write rules and questions; answers can give roles. Use Preview as a newcomer to
 see it, since admins and moderators skip it. "Require it" means only people with the member role can talk.
 
 ### How do I set up auto-mod?
-Space Settings → Auto-mod. Block words, links and mention spam, and choose delete, warn or time out. Without a bot, an
-online moderator's Meadhall enforces it; with a bot it works around the clock.
+Space Settings → Auto-mod. Block words, links and mention spam, and choose delete, warn or time out. It needs a bot
+(works around the clock). Without one, you can tick "Let moderators' Meadhall enforce auto-mod": then a moderator's
+Meadhall does it while they are online.
 
 ### How do I add a bot?
 Make an account for the bot and run the Meadhall bot (see docs/bots.md). Then Space Settings → Bots → Add a bot, type

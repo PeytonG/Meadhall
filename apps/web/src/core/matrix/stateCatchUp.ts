@@ -6,7 +6,8 @@
 // roles, sanctions and onboarding answers that never updated.
 //
 // Fix: when a state event arrives in the live timeline and says it replaces exactly the event we hold for that
-// type and key (unsigned.replaces_state), apply it. That chain comes from the server, so it can't roll state back.
+// type and key (unsigned.replaces_state), or it is the first one for that type and key, apply it. That chain comes
+// from the server, so it can't roll state back.
 // No matrix-js-sdk imports: the bot (apps/bot) runs this file too, with its own copy of the SDK. These are the few
 // parts used.
 interface StateEventLike {
@@ -37,9 +38,14 @@ export function applyMissedStateEvent(room: RoomLike, event: StateEventLike): bo
     const key = event.getStateKey();
     if (key === undefined) return false;
     const current = room.currentState.getStateEvents(event.getType(), key);
-    if (!current || current.getId() === event.getId()) return false;
     const replaces = (event.getUnsigned() as { replaces_state?: unknown }).replaces_state;
-    if (replaces !== current.getId()) return false;
+    if (current) {
+        if (current.getId() === event.getId() || replaces !== current.getId()) return false;
+    } else if (replaces !== undefined) {
+        // It replaces something we never had: not ours to guess.
+        return false;
+    }
+    // (No current event and nothing replaced: a brand-new type/key, like a channel just added to a space.)
     room.currentState.setStateEvents([event as never]);
     return true;
 }

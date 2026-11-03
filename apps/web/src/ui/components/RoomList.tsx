@@ -82,6 +82,10 @@ interface RoomListProps {
     mutedRoomIds?: ReadonlySet<string>;
     // Right-click (or long-press) on a channel: Mark as read, Mute, notification settings...
     onRoomContextMenu?: (roomId: string, x: number, y: number) => void;
+    // Discord's "+" on a category (and on Channels): create a channel there, of the kind the category mostly holds.
+    onCreateChannel?: (categoryId: string | null, kind: "text" | "voice") => void;
+    // The invite icon on a hovered channel.
+    onInviteToChannel?: (roomId: string) => void;
 }
 
 interface VoiceParticipantInfo {
@@ -255,6 +259,8 @@ export function RoomList({
     liveParticipantsByRoomId = new Map(),
     liveParticipantsOverrideRoomId = null,
     onOpenRoomSettings,
+    onCreateChannel,
+    onInviteToChannel,
     voiceDiscoveryReady = false,
     mutedRoomIds = EMPTY_MUTED_ROOM_IDS,
     onRoomContextMenu,
@@ -1005,6 +1011,20 @@ export function RoomList({
                     </button>
                     {unreadCount > 0 ? <span className="room-item-unread">{unreadCount}</span> : null}
                     {unreadCount === 0 && showActivityDot ? <span className="room-item-activity" /> : null}
+                    {onInviteToChannel ? (
+                        <button
+                            type="button"
+                            className="room-item-settings-button room-item-invite-button"
+                            aria-label={`Invite people to ${roomName}`}
+                            title="Create Invite"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onInviteToChannel(room.roomId);
+                            }}
+                        >
+                            <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M19 8v6M16 11h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                        </button>
+                    ) : null}
                     {showChannelSettingsButton ? (
                         <button
                             type="button"
@@ -1225,6 +1245,18 @@ export function RoomList({
                 <div className="room-list-header-row">
                     <h2>Channels</h2>
                     <div className="room-list-header-actions">
+                        {canManageCats && onCreateChannel ? (
+                            <button
+                                type="button"
+                                className="room-category-add-button"
+                                onClick={() => onCreateChannel(null, "text")}
+                                title="Create Channel"
+                                aria-label="Create Channel"
+                                data-testid="create-channel"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+                            </button>
+                        ) : null}
                         {canManageCats ? (
                             <button
                                 type="button"
@@ -1308,6 +1340,22 @@ export function RoomList({
                             )}
                             {collapsed ? (
                                 <span className="room-category-hidden-count">{catRooms.length}</span>
+                            ) : null}
+                            {canManageCats && onCreateChannel && editingCatId !== cat.id ? (
+                                <button
+                                    type="button"
+                                    className="room-category-add-button"
+                                    title="Create Channel"
+                                    aria-label={`Create Channel in ${cat.name}`}
+                                    data-testid="category-create-channel"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        const voice = catRooms.filter((room) => isVoiceChannelRoom(room) || voiceChannelHintRoomIds?.has(room.roomId)).length;
+                                        onCreateChannel(cat.id, catRooms.length > 0 && voice * 2 > catRooms.length ? "voice" : "text");
+                                    }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+                                </button>
                             ) : null}
                             {canManageCats && editingCatId !== cat.id ? (
                                 <div className="room-category-menu-wrapper">

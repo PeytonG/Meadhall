@@ -848,6 +848,8 @@ async function resolveSpaceHierarchyVoiceHints(
     return { childOrderOverride, customOrderOverride, voiceHintRoomIds };
 }
 
+const SPACE_CHILD_TYPES = ["m.space.child"] as const;
+
 function useRoomTimelineTick(client: MatrixClient, roomId: string | null): number {
     const [tick, setTick] = useState(0);
     useEffect(() => {
@@ -1310,6 +1312,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         [client, selectedSpaceRoom, botStateRevision, selectedSpaceMembership],
     );
 
+    // Recompute the channel list when the space's children change (a channel added or removed).
+    const selectedSpaceChildTick = useSpaceState(selectedSpaceRoom, SPACE_CHILD_TYPES);
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
             return homeRooms;
@@ -1319,17 +1323,21 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             return [];
         }
 
+        // The space's channels now, plus any the server's room directory listed (it's fetched once, so on its own it
+        // missed channels made afterwards: a new channel didn't show until the app was reopened).
+        const fromState = getSpaceChannels(selectedSpaceRoom, roomById);
         if (selectedSpaceHierarchyJoinedRoomIds.length > 0) {
+            const known = new Set(fromState.map((room) => room.roomId));
             const hierarchyRooms = selectedSpaceHierarchyJoinedRoomIds
                 .map((roomId) => roomById.get(roomId))
-                .filter((room): room is Room => Boolean(room && !room.isSpaceRoom() && isVisibleMembership(room)));
+                .filter((room): room is Room => Boolean(room && !room.isSpaceRoom() && isVisibleMembership(room) && !known.has(room.roomId)));
             if (hierarchyRooms.length > 0) {
-                return sortRoomsBySpaceOrder(selectedSpaceRoom, hierarchyRooms);
+                return sortRoomsBySpaceOrder(selectedSpaceRoom, [...fromState, ...hierarchyRooms]);
             }
         }
-
-        return getSpaceChannels(selectedSpaceRoom, roomById);
-    }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
+        return fromState;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom, selectedSpaceChildTick]);
     const selectedSpaceView = useSpaceView(selectedSpaceId);
     const selectedSpaceBannerMxc = getSpaceBanner(selectedSpaceRoom);
     const selectedSpaceBannerUrl = selectedSpaceBannerMxc ? mediaFromMxc(client, selectedSpaceBannerMxc) : null;
@@ -2593,8 +2601,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         });
     }, [selectedSpaceRoom]);
 
-    const openCreateRoomDialog = useCallback((parentSpaceId: string | null): void => {
+    // From a category's "+" too: the kind it starts as, and the category the channel goes in.
+    const [createRoomPreset, setCreateRoomPreset] = useState<{ kind: "text" | "voice"; categoryId: string | null }>({ kind: "text", categoryId: null });
+    const openCreateRoomDialog = useCallback((parentSpaceId: string | null, preset?: { kind: "text" | "voice"; categoryId: string | null }): void => {
         setCreateRoomParentSpaceId(parentSpaceId);
+        setCreateRoomPreset(preset ?? { kind: "text", categoryId: null });
         setCreateRoomOpen(true);
     }, []);
 
@@ -3086,6 +3097,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     liveParticipantsByRoomId={voiceParticipantsByRoomId}
                     liveParticipantsOverrideRoomId={liveVoiceParticipantsOverrideRoomId}
                     onOpenRoomSettings={openRoomSettingsFor}
+                    onCreateChannel={(categoryId, kind) => openCreateRoomDialog(selectedSpaceRoom?.roomId ?? null, { kind, categoryId })}
+                    onInviteToChannel={() => openInviteDialogFor(selectedSpaceRoom?.roomId ?? null)}
                 />
                 </>
                 )}
@@ -3601,6 +3614,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 client={client}
                 open={createRoomOpen}
                 spaceParentId={createRoomParentSpaceId}
+                initialKind={createRoomPreset.kind}
+                categoryId={createRoomPreset.categoryId}
                 onClose={() => {
                     setCreateRoomOpen(false);
                     setCreateRoomParentSpaceId(null);

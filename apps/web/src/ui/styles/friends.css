@@ -378,3 +378,32 @@
     margin-right: 6px;
     vertical-align: -2px;
 }
+
+/* Discord-style "+" on Channels and on each category: create a channel there. */
+.room-category-add-button {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.room-category-add-button:hover {
+    color: var(--text-main);
+    background: var(--bg-hover);
+}
+
+.room-category-add-button + .room-category-menu-wrapper {
+    margin-left: 2px;
+}
+
+.room-item-invite-button {
+    display: inline-grid;
+    place-items: center;
+}

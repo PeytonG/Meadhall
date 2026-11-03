@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { EventType, Preset, Visibility, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { RoomDialog } from "./RoomDialog";
+import { readCategories, writeCategories } from "../../stores/CategoryStore";
 import { readBots } from "../../../core/bots/serverBots";
 import { setUpNewChannel } from "../../../core/roles/applyRoles";
 import {
@@ -26,6 +27,9 @@ interface CreateRoomDialogProps {
     spaceParentId?: string | null;
     onClose: () => void;
     onCreated?: (roomId: string) => void;
+    // From a category's "+": start as this kind, and put the new channel in that category.
+    initialKind?: "text" | "voice";
+    categoryId?: string | null;
 }
 
 function parseUserIds(input: string): string[] {
@@ -66,6 +70,8 @@ export function CreateRoomDialog({
     spaceParentId = null,
     onClose,
     onCreated,
+    initialKind = "text",
+    categoryId = null,
 }: CreateRoomDialogProps): React.ReactElement | null {
     const [name, setName] = useState("");
     const [topic, setTopic] = useState("");
@@ -89,10 +95,10 @@ export function CreateRoomDialog({
         setAliasLocalPart("");
         setInviteInput("");
         setEnableEncryption(true);
-        setKind("text");
+        setKind(initialKind);
         setSaving(false);
         setError(null);
-    }, [open]);
+    }, [open, initialKind]);
 
     const submit = async (): Promise<void> => {
         const parsedInvites = parseUserIds(inviteInput);
@@ -168,6 +174,12 @@ export function CreateRoomDialog({
                     spaceParentId,
                 );
                 const space = client.getRoom(spaceParentId);
+                if (space && categoryId) {
+                    const categories = readCategories(space).map((category) =>
+                        category.id === categoryId ? { ...category, roomIds: [...category.roomIds.filter((id) => id !== response.room_id), response.room_id] } : category,
+                    );
+                    await writeCategories(client, spaceParentId, categories).catch(() => undefined);
+                }
                 if (space) {
                     // In the background: the dialog closes now.
                     void setUpNewChannel(client, space, response.room_id, readBots(space).map((bot) => bot.userId)).catch(() => undefined);
