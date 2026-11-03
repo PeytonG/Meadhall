@@ -619,6 +619,8 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 
 | Symptom | Cause / fix |
 |---|---|
+| Room state stuck on an old value (people "in" a call they left) | js-sdk 40 syncs with MSC4222 `state_after` and doesn't apply timeline state; a change could be missing from `state_after`. `core/matrix/stateCatchUp.ts` applies a timeline state event whose `unsigned.replaces_state` is the event we hold. Suspect this first for any "state didn't update" bug |
+| Bash heredocs with `'` or backticks fail ("unexpected EOF") | Write scripts with the Write tool into the scratchpad and run them with node |
 | `require("electron")` returns a path | VS Code sets `ELECTRON_RUN_AS_NODE=1`; unset it before launching Electron |
 | Code silently dropped by PowerShell edits | `"$nlimport"` is one variable; use the Edit tool for source edits |
 | `// SPDX` became `/ SPDX` | Git Bash mangles a leading `//` in arguments |
@@ -908,7 +910,7 @@ before marking it done. Includes the unfinished parts of §10.6 (mic/headset dev
 | 14 | **Add channels like Discord** | Discord shows "Text Channels ⌄ +" and "Voice Channels ⌄ +" category headers with a + to add a channel of that kind, and hovering a channel shows invite and settings icons. Same in Meadhall; also make editing (rename/delete category, channel settings) as direct as Discord's | ☐ |
 | 15 | **Right-click menu transparency** | The category "..." / right-click menu (Rename, Delete) is see-through: text behind it shows through. Give menus a solid background in both looks | ☐ |
 | 16 | **Watch a stream from its preview** | Clicking the Streaming Now preview (or Watch Stream) joins the call and opens that person's stream full size, like Discord. When you are the one streaming, the card says "You're Streaming!" | ☐ |
-| 18 | **Voice channel after leaving: show Join, not a blank page** | After leaving a call with the voice channel still selected, Meadhall shows "# Test Channel" with an empty page. Discord shows the channel name, "No one is currently in voice" (or who is) and a **Join Voice** button on a gradient. Do the same, with the voice icon in the header instead of # | ☐ |
+| 18 | **Voice channel after leaving: show Join, not a blank page** | After leaving a call with the voice channel still selected, Meadhall shows "# Test Channel" with an empty page. Discord shows the channel name, "No one is currently in voice" (or who is) and a **Join Voice** button on a gradient. Do the same, with the voice icon in the header instead of # | ✅ `VoiceJoinPrompt`, `e2e-calls/voiceJoinPrompt.spec.ts`; found and fixed lost room state (`core/matrix/stateCatchUp.ts`) |
 | 19 | **Long display names cut off on the profile card** | "Peyton Gna…" in the right-panel profile: show the whole name (wrap to two lines, then shrink the font a step) like Discord, instead of an ellipsis after a few letters; same check for the user ID line | ✅ names wrap (3 lines) and shrink by length; user ID wraps |
 | 17 | **Unfinished from v0.5.1** | Mic/headset device dropdowns in the user panel; overlay draggable widgets and video tiles (folded into #4) | ☐ |
 

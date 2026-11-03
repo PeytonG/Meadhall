@@ -32,6 +32,7 @@ import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
 import { HelpDialog } from "../help/HelpDialog";
+import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
 import type { OverlayState } from "../overlay/overlayState";
 import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
@@ -1627,6 +1628,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const shouldShowVoicePanel = Boolean(activeRoom && isActiveRoomVoiceChannel && voiceSessionRoomId === activeRoom.roomId);
     // Voice channels with text chat turned on (channel settings) show it beside the call.
     const voiceChatBeside = shouldShowVoicePanel && isVoiceChatEnabled(activeRoom);
+    // A voice channel you're not in shows who's there and Join Voice (VoiceJoinPrompt), not an empty page.
+    const showVoiceJoin = Boolean(
+        activeRoom &&
+            isActiveRoomVoiceChannel &&
+            !(voiceSessionRoomId === activeRoom.roomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining")),
+    );
+    const voiceJoinChatBeside = showVoiceJoin && isVoiceChatEnabled(activeRoom);
     const shouldPrefixRoomWithHash = selectedSpaceId !== PEOPLE_SPACE_ID;
     const activeVoiceSessionRoom = useMemo(
         () => (voiceSessionRoomId ? roomById.get(voiceSessionRoomId) ?? client.getRoom(voiceSessionRoomId) ?? null : null),
@@ -3378,6 +3386,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                               : undefined
                     }
                     showHashPrefix={shouldPrefixRoomWithHash}
+                    isVoiceChannel={isActiveRoomVoiceChannel}
                     sidebarMode={isNarrowLayout && !narrowPanelOpen ? "closed" : rightSidebarMode}
                     searchQuery={sidebarSearchQuery}
                     canInviteInRoom={canInviteInActiveRoom}
@@ -3403,7 +3412,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             : undefined
                     }
                 />
-                <div className={`main-body${voiceChatBeside ? " has-voice-chat" : ""}${activeThread && (!shouldShowVoicePanel || voiceChatBeside) ? " has-thread" : ""}`}>
+                <div className={`main-body${voiceChatBeside || voiceJoinChatBeside ? " has-voice-chat" : ""}${activeThread && (!shouldShowVoicePanel || voiceChatBeside) ? " has-thread" : ""}`}>
                 {hasActiveVoiceSession && voiceSessionRoomId ? (
                     <div
                         className={`main-voice-slot${
@@ -3453,7 +3462,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         />
                     </div>
                 ) : null}
-                {!shouldShowVoicePanel || voiceChatBeside ? (
+                {showVoiceJoin && activeRoom ? (
+                    <div className="main-voice-slot">
+                        <VoiceJoinPrompt client={client} room={activeRoom} onJoin={() => selectChannel(activeRoom.roomId)} />
+                    </div>
+                ) : null}
+                {(showVoiceJoin ? voiceJoinChatBeside : !shouldShowVoicePanel || voiceChatBeside) ? (
                     <div className="main-chat-stack" data-testid={voiceChatBeside ? "voice-channel-chat" : undefined}>
                         {isActiveRoomCallable && activeRoom && !isInActiveRoomCall && activeRoomCallOthers.length > 0 ? (
                             <div className="room-call-banner" role="status" data-testid="room-call-banner">

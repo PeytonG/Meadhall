@@ -12,6 +12,7 @@ import type { MatrixClientAssignOpts, MatrixCredentials } from "../types/credent
 import { createMatrixClient } from "./createMatrixClient";
 import { coreCryptoCallbacks } from "./cryptoCallbacks";
 import { storeNames } from "../storage/accounts";
+import { watchMissedStateEvents } from "../matrix/stateCatchUp";
 
 export interface MatrixClientManagerOptions {
     initialSyncLimit?: number;
@@ -21,6 +22,7 @@ export interface MatrixClientManagerOptions {
 
 export class MatrixClientManager {
     private matrixClient: MatrixClient | null = null;
+    private stopStateCatchUp: (() => void) | null = null;
     private readonly lazyLoadMembers: boolean;
     private readonly rustCryptoEnabled: boolean;
 
@@ -59,6 +61,8 @@ export class MatrixClientManager {
             return;
         }
 
+        this.stopStateCatchUp?.();
+        this.stopStateCatchUp = null;
         this.matrixClient.stopClient();
         this.matrixClient.removeAllListeners();
         this.matrixClient.store.destroy();
@@ -104,6 +108,9 @@ export class MatrixClientManager {
 
     public async start(assignOpts: MatrixClientAssignOpts = {}): Promise<void> {
         const opts = await this.assign(assignOpts);
+        // Room state the SDK can drop with MSC4222 sync (core/matrix/stateCatchUp.ts).
+        this.stopStateCatchUp?.();
+        this.stopStateCatchUp = watchMissedStateEvents(this.safeGet());
         await this.safeGet().startClient(opts);
     }
 

@@ -129,6 +129,9 @@ DMs with more than one other person. Start one from Home → Group Chats → +.
 ### How do I join a voice channel?
 Click a voice channel in a space. You join the call right away. Leave with the red phone button (Leave voice channel).
 
+### I left a call. How do I get back in?
+Open the voice channel (or stay on it): it shows who is in voice and a Join Voice button. Click it to join again.
+
 ### How do I call someone directly?
 Open their profile card → Call, or open your DM with them and press the phone button at the top.
 

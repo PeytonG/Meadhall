@@ -9,10 +9,15 @@ Versions follow `vX.Y.Z`.
 ### New
 - **↑ edits your last message:** in an empty message box, the up arrow opens your most recent message for editing
   (Enter saves, Escape cancels), like Discord.
+- **Voice channels you're not in** show who's in voice and a **Join Voice** button (after leaving a call too), instead of
+  an empty page, with the speaker icon instead of # in the header.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 
 ### Fixed
+- **Room changes that never arrived:** when two changes to a room landed close together (two people leaving a call),
+  one could be lost, so people showed as still in a call they had left ("2 connected" in an empty channel). The same
+  could keep roles, warnings and onboarding from updating. Meadhall now applies such changes when they arrive.
 - Settings could keep saying "Verified: No" after verifying this session from another app.
 - Menus like the category menu were see-through.
 - Roles on profile cards touched the edge of their box.
