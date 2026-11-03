@@ -825,11 +825,21 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
                 .then(() => triggerRoomHistoryDecryption(client))
                 .catch(() => undefined);
         };
+        // Another session signing this one arrives as a change to our own device list, not as a trust change of the
+        // account: check again then too (the "Verified: No" that stayed after a finished verification).
+        const onDevicesUpdated = (userIds: string[]): void => {
+            if (userIds.includes(client.getUserId() ?? "")) void refreshTrustStatus();
+        };
+        const onKeysChanged = (): void => void refreshTrustStatus();
         client.on(CryptoEvent.UserTrustStatusChanged, onTrustChanged);
         client.on(CryptoEvent.KeyBackupDecryptionKeyCached, onBackupKeyArrived);
+        client.on(CryptoEvent.DevicesUpdated, onDevicesUpdated);
+        client.on(CryptoEvent.KeysChanged, onKeysChanged);
         return () => {
             client.removeListener(CryptoEvent.UserTrustStatusChanged, onTrustChanged);
             client.removeListener(CryptoEvent.KeyBackupDecryptionKeyCached, onBackupKeyArrived);
+            client.removeListener(CryptoEvent.DevicesUpdated, onDevicesUpdated);
+            client.removeListener(CryptoEvent.KeysChanged, onKeysChanged);
         };
     }, [refreshTrustStatus, state.client, state.status]);
 
