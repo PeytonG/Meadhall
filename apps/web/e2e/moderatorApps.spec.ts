@@ -3,7 +3,7 @@
 // stays; on, the moderator's open Meadhall removes it and warns.
 import { expect, test } from "@playwright/test";
 
-import { createSpaceWithChannel, readEvents, registerUser, sendMessage, sendState } from "./support/matrixApi";
+import { createSpaceWithChannel, readEvents, readState, registerUser, sendMessage, sendState } from "./support/matrixApi";
 import { signIn } from "./support/ui";
 
 const AUTOMOD = { enabled: true, blocked_words: ["grog"], block_links: false, max_mentions: 0, action: "warn", timeout_minutes: 10, exempt_rank: 50 };
@@ -32,6 +32,9 @@ test("moderators' apps enforce auto-mod only when the space turns it on", async 
     await page.getByTestId("automod-moderator-apps").check();
     await page.getByTestId("automod-save").click();
     await page.keyboard.press("Escape");
+    // It applies to messages that arrive after the setting has reached the moderator's app.
+    await expect.poll(async () => (await readState(owner, spaceId, "io.github.peytong.meadhall.automod")).moderator_apps, { timeout: 30_000 }).toBe(true);
+    await page.waitForTimeout(2_000);
     await sendMessage(member, channelId, "more grog please");
     await expect.poll(() => stillThere("more grog please"), { timeout: 30_000 }).toBe(false);
     await expect(page.locator(".timeline")).toContainText("your message was removed: it had a blocked word", { timeout: 30_000 });

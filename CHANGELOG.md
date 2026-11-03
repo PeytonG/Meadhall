@@ -13,6 +13,11 @@ Versions follow `vX.Y.Z`.
   an empty page, with the speaker icon instead of # in the header.
 - **Add channels like Discord:** a + on Channels and on each category creates a channel right there (a category of voice
   channels starts with Voice picked), and hovering a channel shows Create Invite next to its settings.
+- **Ringing like Discord:** calling in a DM or group chat shows the others as "Ringing…" (then Declined or No answer)
+  and plays the ring for you until someone picks up. Group chats now ring too; space channels never ring anyone.
+  Declining a call tells the caller.
+- **Watch Stream:** hover anyone's LIVE badge (also when you're not in the call) and click the preview to join and see
+  their stream full size. Your own badge says "You're Streaming!".
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 

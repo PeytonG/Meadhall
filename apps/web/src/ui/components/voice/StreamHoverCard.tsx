@@ -13,11 +13,13 @@ interface StreamHoverCardProps {
     userId: string;
     name: string;
     live: boolean;
+    // Your own stream: Discord's "You're Streaming!" instead of Watch Stream.
+    self?: boolean;
     onWatch: () => void;
     children: React.ReactNode;
 }
 
-export function StreamHoverCard({ client, room, userId, name, live, onWatch, children }: StreamHoverCardProps): React.ReactElement {
+export function StreamHoverCard({ client, room, userId, name, live, self = false, onWatch, children }: StreamHoverCardProps): React.ReactElement {
     const [anchor, setAnchor] = useState<DOMRect | null>(null);
     const [image, setImage] = useState<string | null>(null);
     const closeTimer = useRef<number | null>(null);
@@ -78,18 +80,29 @@ export function StreamHoverCard({ client, room, userId, name, live, onWatch, chi
                               <span>Streaming Now</span>
                               <span className="room-item-voice-live-badge">LIVE</span>
                           </div>
-                          <div className="stream-hover-preview">
+                          <button
+                              type="button"
+                              className="stream-hover-preview"
+                              onClick={() => {
+                                  setAnchor(null);
+                                  onWatch();
+                              }}
+                              aria-label={self ? "Your stream" : `Watch ${name}'s stream`}
+                              data-testid="stream-hover-preview"
+                          >
                               {image ? <img src={image} alt={`${name}'s screen`} data-testid="stream-hover-image" /> : <span>{room.hasEncryptionStateEvent() ? "No preview in encrypted channels" : "Preview loading…"}</span>}
-                          </div>
+                              {self ? <span className="stream-hover-self">You&apos;re Streaming!</span> : null}
+                          </button>
                           <button
                               type="button"
                               className="stream-hover-watch"
+                              disabled={self}
                               onClick={() => {
                                   setAnchor(null);
                                   onWatch();
                               }}
                           >
-                              Watch Stream
+                              {self ? "You're Streaming!" : "Watch Stream"}
                           </button>
                       </div>,
                       document.body,

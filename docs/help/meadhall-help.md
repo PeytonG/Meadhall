@@ -135,7 +135,13 @@ Click a voice channel in a space. You join the call right away. Leave with the r
 Open the voice channel (or stay on it): it shows who is in voice and a Join Voice button. Click it to join again.
 
 ### How do I call someone directly?
-Open their profile card → Call, or open your DM with them and press the phone button at the top.
+Open their profile card → Call, or open your DM with them and press the phone button at the top. Their device rings;
+you see them as "Ringing…" until they join. If they decline you see "Declined", and after 30 seconds without an
+answer "No answer". Calls in group chats ring everyone in the chat. Calls in a space's voice channels never ring.
+
+### Someone is calling me. How do I answer or decline?
+A call card shows who is calling. Press the green button to join, or the red one to decline (the caller sees that you
+declined).
 
 ### What are the buttons under "Voice Connected"?
 While you are in a call, the box under the channel list shows the call (click it to go back to the call), a red
@@ -151,7 +157,8 @@ Phones can't share their screen.
 
 ### How do I see what someone is streaming before joining?
 In the channel list, hover over the person with the red LIVE badge under the voice channel. A card shows a recent
-snapshot of their screen and a Watch Stream button. Snapshots are only shared in unencrypted channels.
+snapshot of their screen. Click it (or Watch Stream) to join the call with their stream shown full size. Snapshots are
+only shared in unencrypted channels.
 
 ### How do I turn on my camera?
 In a call, press Turn camera on. You see a preview of yourself first. Pick the camera in Settings → Audio → Camera.

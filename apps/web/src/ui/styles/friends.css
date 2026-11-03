@@ -407,3 +407,64 @@
     display: inline-grid;
     place-items: center;
 }
+
+button.stream-hover-preview {
+    position: relative;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.stream-hover-self {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-weight: 700;
+}
+
+.stream-hover-watch:disabled {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    cursor: default;
+}
+
+/* Someone being rung in a DM or group call (useOutgoingRing.ts), like Discord: the avatar pulses. */
+.voice-room-participant.is-ringing .voice-room-participant-avatar {
+    opacity: 0.75;
+}
+
+.voice-room-participant.is-ringing.is-ringing .voice-room-participant-avatar-wrap {
+    border-radius: 50%;
+    animation: voice-ringing-pulse 1.2s ease-in-out infinite;
+}
+
+.voice-room-participant.is-declined .voice-room-participant-avatar-wrap,
+.voice-room-participant.is-no-answer .voice-room-participant-avatar-wrap {
+    animation: none;
+    opacity: 0.5;
+}
+
+.voice-room-ringing-label {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+@keyframes voice-ringing-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--success, #23a55a) 60%, transparent);
+    }
+    50% {
+        box-shadow: 0 0 0 10px color-mix(in srgb, var(--success, #23a55a) 0%, transparent);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .voice-room-participant.is-ringing .voice-room-participant-avatar-wrap {
+        animation: none;
+    }
+}

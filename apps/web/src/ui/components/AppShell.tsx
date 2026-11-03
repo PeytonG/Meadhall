@@ -32,6 +32,7 @@ import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
 import { HelpDialog } from "../help/HelpDialog";
+import { declineCall, useOutgoingRing } from "../hooks/useOutgoingRing";
 import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
 import type { OverlayState } from "../overlay/overlayState";
 import { watchFriendNotices } from "../../core/friends/friends";
@@ -1028,6 +1029,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [voiceParticipantsByRoomId, setVoiceParticipantsByRoomId] = useState<Map<string, Set<string>>>(new Map());
     const [timelineFocusBottomNonce, setTimelineFocusBottomNonce] = useState(0);
     const voiceRoomRef = useRef<VoiceRoomHandle | null>(null);
+    const [pendingStreamFocus, setPendingStreamFocus] = useState<{ roomId: string; userId: string } | null>(null);
     const autoJoiningDirectRoomIdsRef = useRef<Set<string>>(new Set());
     // Phones show one screen at a time, like the Discord app: the server rail + channel list, or the open chat.
     const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
@@ -1655,6 +1657,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     // server text channels have none, as in Discord.
     const roomCalls = useRoomCalls(client, homeRooms);
     const ringableRoomIds = useMemo(() => new Set(homeRooms.map((room) => room.roomId)), [homeRooms]);
+    // The caller's side of a ringing DM or group call ("Ringing…" and the ring tone, useOutgoingRing.ts).
+    const outgoingRing = useOutgoingRing({
+        client,
+        roomId: hasActiveVoiceSession && voiceSessionRoomId && ringableRoomIds.has(voiceSessionRoomId) ? voiceSessionRoomId : null,
+        roomCalls,
+        playTone: userSettings.notifications.ringtoneEnabled,
+        speakerId: userSettings.audio.preferredAudioOutputId,
+    });
     const { incoming: incomingCall, dismiss: dismissIncomingCall } = useIncomingCall({
         client,
         ringableRoomIds,
@@ -1713,6 +1723,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             window.clearInterval(timer);
         };
     }, [client]);
+
+    useEffect(() => {
+        if (!pendingStreamFocus || voiceSessionRoomId !== pendingStreamFocus.roomId || voiceSessionStatus === "disconnected") return;
+        const handle = voiceRoomRef.current;
+        if (!handle) return;
+        handle.focusScreenShare(pendingStreamFocus.userId);
+        setPendingStreamFocus(null);
+    }, [pendingStreamFocus, voiceSessionRoomId, voiceSessionStatus]);
 
     // Moderators in spaces without a bot: auto-mod and onboarding roles from this app (moderatorDuties.ts).
     useEffect(() => {
@@ -3099,6 +3117,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onOpenRoomSettings={openRoomSettingsFor}
                     onCreateChannel={(categoryId, kind) => openCreateRoomDialog(selectedSpaceRoom?.roomId ?? null, { kind, categoryId })}
                     onInviteToChannel={() => openInviteDialogFor(selectedSpaceRoom?.roomId ?? null)}
+                    onWatchStream={(roomId, userId) => {
+                        selectChannel(roomId);
+                        setMobilePane("chat");
+                        // The call may still be connecting: handed to VoiceRoom once it's there.
+                        setPendingStreamFocus({ roomId, userId });
+                    }}
                 />
                 </>
                 )}
@@ -3459,6 +3483,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
+                            ringing={outgoingRing}
                             announceCall={callAnnouncement(
                                 activeVoiceSessionRoom
                                     ? {
@@ -3805,6 +3830,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         startCallInRoom(roomId);
                     }}
                     onDismiss={dismissIncomingCall}
+                    onDecline={() => {
+                        const { roomId, eventId } = incomingCall;
+                        dismissIncomingCall();
+                        void declineCall(client, roomId, eventId).catch(() => undefined);
+                    }}
                 />
             ) : null}
         </div>

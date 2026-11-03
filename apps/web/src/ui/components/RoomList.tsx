@@ -48,6 +48,7 @@ import { SpeakingCampfire } from "./voice/PixelCampfire";
 import micMuteIcon from "./icons/mic-02.svg";
 import volumeMuteIcon from "./icons/volume-mute-02.svg";
 import { StreamHoverCard } from "./voice/StreamHoverCard";
+import { latestStreamPreview } from "../../core/voice/streamPreview";
 
 interface RoomListProps {
     client: MatrixClient;
@@ -86,6 +87,8 @@ interface RoomListProps {
     onCreateChannel?: (categoryId: string | null, kind: "text" | "voice") => void;
     // The invite icon on a hovered channel.
     onInviteToChannel?: (roomId: string) => void;
+    // Watch Stream / clicking a stream preview: join the call (if needed) and show that person's stream.
+    onWatchStream?: (roomId: string, userId: string) => void;
 }
 
 interface VoiceParticipantInfo {
@@ -261,6 +264,7 @@ export function RoomList({
     onOpenRoomSettings,
     onCreateChannel,
     onInviteToChannel,
+    onWatchStream,
     voiceDiscoveryReady = false,
     mutedRoomIds = EMPTY_MUTED_ROOM_IDS,
     onRoomContextMenu,
@@ -1133,10 +1137,13 @@ export function RoomList({
                             const isSpeaking = Boolean(
                                 liveSpeakingUserIds?.has(participantUserId) || liveSpeakingUserIds?.has(participant.identity),
                             );
+                            // From inside the call, LiveKit says who shares; from outside, a recent "Streaming Now" snapshot does
+                            // (so LIVE shows for everyone, like Discord; snapshots are only posted in unencrypted channels).
                             const isScreenSharing = Boolean(
                                 participant.screenSharing === true ||
                                     liveScreenShareUserIds?.has(participantUserId) ||
-                                    liveScreenShareUserIds?.has(participant.identity),
+                                    liveScreenShareUserIds?.has(participant.identity) ||
+                                    latestStreamPreview(room, participantUserId),
                             );
                             const isMicMuted =
                                 participant.micMuted === true ||
@@ -1152,8 +1159,9 @@ export function RoomList({
                                     room={room}
                                     userId={participantUserId}
                                     name={participantName}
-                                    live={isScreenSharing && !isLocalVoiceParticipant}
-                                    onWatch={() => onSelectRoom(room.roomId)}
+                                    live={isScreenSharing}
+                                    self={isLocalVoiceParticipant}
+                                    onWatch={() => (onWatchStream ? onWatchStream(room.roomId, participantUserId) : onSelectRoom(room.roomId))}
                                 >
                                 <button
                                     type="button"

@@ -66,7 +66,7 @@ test("the person being called sees and hears the call; dismissing stops the ring
     await expect(card).toContainText("is calling you");
     await expect.poll(() => page.evaluate(() => (window as unknown as { audioStats: { oscillators: number } }).audioStats.oscillators)).toBeGreaterThan(0);
 
-    await card.getByRole("button", { name: "Dismiss call" }).click();
+    await card.getByRole("button", { name: "Decline call" }).click();
     await expect(card).toBeHidden();
     const after = await page.evaluate(() => (window as unknown as { audioStats: { oscillators: number } }).audioStats.oscillators);
     await page.waitForTimeout(3_000);
@@ -145,7 +145,7 @@ test("on desktop, the incoming call card's buttons take clicks (not the window d
             expect(await isWindowDragRegionAt(page, point.x, point.y), `${selector} at ${point.x},${point.y}`).toBe(false);
         }
     }
-    await card.getByRole("button", { name: "Dismiss call" }).click();
+    await card.getByRole("button", { name: "Decline call" }).click();
     await expect(card).toBeHidden();
 });
 
