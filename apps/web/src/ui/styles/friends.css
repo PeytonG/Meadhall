@@ -468,3 +468,82 @@ button.stream-hover-preview {
         animation: none;
     }
 }
+
+/* Mic / speaker device menus in the user panel (voice/DevicePicker.tsx), like Discord. */
+.device-picker {
+    position: relative;
+    display: inline-flex;
+}
+
+.device-picker-toggle {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.device-picker-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.device-picker-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: -120px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    min-width: 240px;
+    max-width: 300px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-pane);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.device-picker-title {
+    padding: 4px 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.device-picker-item {
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.device-picker-item:hover {
+    background: var(--bg-hover);
+}
+
+.device-picker-item[aria-checked="true"]::after {
+    content: " ¹3";
+    color: var(--accent);
+}
+
+.device-picker-divider {
+    width: 100%;
+    margin: 4px 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+}

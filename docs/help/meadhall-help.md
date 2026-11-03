@@ -174,6 +174,10 @@ Meadhall is the focused window.
 ### How do I change my voice?
 Settings → Audio → Voice changer. Pick an effect; it applies in calls.
 
+### How do I switch microphone or speakers quickly?
+Press the small arrow next to the microphone (or headphones) under your name at the bottom left. Pick a device, or
+Voice Settings for everything else.
+
 ### My microphone doesn't work.
 Settings → Audio → Microphone test shows the level. Check the right microphone is chosen in Voice settings during a
 call, and that your system allows Meadhall to use the microphone.

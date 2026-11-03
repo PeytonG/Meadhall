@@ -18,6 +18,8 @@ Versions follow `vX.Y.Z`.
   Declining a call tells the caller.
 - **Watch Stream:** hover anyone's LIVE badge (also when you're not in the call) and click the preview to join and see
   their stream full size. Your own badge says "You're Streaming!".
+- **Device menus:** the small arrows next to the mic and headphones under your name pick the microphone or speaker,
+  or open Voice Settings, like Discord.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 

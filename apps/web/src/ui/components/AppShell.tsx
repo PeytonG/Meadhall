@@ -34,6 +34,7 @@ import { FriendsView, useFriends } from "../friends/FriendsView";
 import { HelpDialog } from "../help/HelpDialog";
 import { declineCall, useOutgoingRing } from "../hooks/useOutgoingRing";
 import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
+import { DevicePicker } from "./voice/DevicePicker";
 import type { OverlayState } from "../overlay/overlayState";
 import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
@@ -3366,6 +3367,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         >
                             <PixelIcon name="mic" slashed={selfVoice.muted} />
                         </button>
+                        <DevicePicker
+                            kind="audioinput"
+                            selectedId={userSettings.audio.preferredAudioInputId}
+                            onSelect={(deviceId) => setUserSettings((current) => ({ ...current, audio: { ...current.audio, preferredAudioInputId: deviceId } }))}
+                            onOpenSettings={() => openUserSettings("audio")}
+                        />
                         <button
                             type="button"
                             className={`pane-icon-button${selfVoice.deafened ? " is-muted" : ""}`}
@@ -3377,6 +3384,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         >
                             <PixelIcon name="headphones" slashed={selfVoice.deafened} />
                         </button>
+                        <DevicePicker
+                            kind="audiooutput"
+                            selectedId={userSettings.audio.preferredAudioOutputId}
+                            onSelect={(deviceId) => setUserSettings((current) => ({ ...current, audio: { ...current.audio, preferredAudioOutputId: deviceId } }))}
+                            onOpenSettings={() => openUserSettings("audio")}
+                        />
                         <button
                             type="button"
                             className="pane-icon-button"
