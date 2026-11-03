@@ -137,9 +137,9 @@ export const BUILTIN_SOUNDS: ReadonlyArray<BuiltinSound> = [
         emoji: "🥁",
         seconds: 1.3,
         build: (context) => {
-            tone(context, "sine", 180, 0, 0.18, 0.9, { glideTo: 60 });
-            tone(context, "sine", 160, 0.2, 0.4, 0.9, { glideTo: 55 });
-            noise(context, 0.45, 1.25, 0.6, "highpass", 6000);
+            tone(context, "sine", 180, 0, 0.18, 0.8, { glideTo: 60 });
+            tone(context, "sine", 160, 0.2, 0.4, 0.8, { glideTo: 55 });
+            noise(context, 0.45, 1.25, 0.45, "highpass", 6000);
         },
     },
     {
