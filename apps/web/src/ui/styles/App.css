@@ -4478,7 +4478,8 @@ img.voice-ctrl-icon {
     cursor: default;
 }
 
-.composer-file-input {
+.composer-file-input,
+.composer-camera-input {
     display: none;
 }
 

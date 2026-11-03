@@ -2254,7 +2254,7 @@ export function Composer({
             ) : null}
             <input
                 ref={cameraInputRef}
-                className="composer-file-input"
+                className="composer-camera-input"
                 type="file"
                 accept="image/*"
                 capture="environment"
