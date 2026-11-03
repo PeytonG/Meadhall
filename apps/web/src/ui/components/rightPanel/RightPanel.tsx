@@ -25,6 +25,8 @@ interface RightPanelProps {
     onOpenRoom: (roomId: string) => void;
     onToast?: (toast: { type: "success" | "error" | "info"; message: string }) => void;
     onCallUser?: (userId: string) => void;
+    // The pin panel's Jump: show that message in the timeline.
+    onJumpToEvent?: (eventId: string) => void;
 }
 
 export function RightPanel({
@@ -43,6 +45,7 @@ export function RightPanel({
     onOpenRoom,
     onToast,
     onCallUser,
+    onJumpToEvent,
 }: RightPanelProps): React.ReactElement {
     if (!room) {
         return (
@@ -83,7 +86,7 @@ export function RightPanel({
                             onQueryChange={onSearchQueryChange}
                         />
                     ) : null}
-                    {roomMode === "pins" ? <PinsPanel room={room} /> : null}
+                    {roomMode === "pins" ? <PinsPanel room={room} onJumpToEvent={onJumpToEvent} /> : null}
                     {roomMode === "info" ? (
                         <InfoPanel
                             client={client}

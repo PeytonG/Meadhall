@@ -6,6 +6,7 @@ import {
     buildRtcIdentityMap,
     discoverLiveKitTransport,
     fetchSfuCredentials,
+    callMembersFromState,
     getRtcVoiceParticipants,
     parseMatrixUserIdFromIdentity,
 } from "../../../../src/core/voice/matrixRtc";
@@ -137,6 +138,23 @@ describe("matrixRtc", () => {
 
         expect(result.count).toBe(2);
         expect(result.participants.map((p) => p.matrixUserId)).toEqual(["@bob:example.org", "@carol:example.org"]);
+    });
+
+    it("reads who is in the call from room state: live memberships only", () => {
+        const now = 1_000_000;
+        const event = (sender: string, content: Record<string, unknown>, ts = now) => ({ getSender: () => sender, getContent: () => content, getTs: () => ts });
+        const room = {
+            roomId: "!room:example.org",
+            currentState: {
+                getStateEvents: () => [
+                    event("@bob:example.org", { application: "m.call", expires: 60_000 }),
+                    event("@carol:example.org", {}),
+                    event("@dave:example.org", { application: "m.call", expires: 1_000 }, now - 5_000),
+                    event("@erin:example.org", { application: "m.other" }),
+                ],
+            },
+        } as any;
+        expect(callMembersFromState(room, now)).toEqual(["@bob:example.org"]);
     });
 
     it("imports raw media keys as HKDF and hands them to LiveKit", async () => {

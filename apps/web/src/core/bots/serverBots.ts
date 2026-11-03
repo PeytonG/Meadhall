@@ -5,7 +5,7 @@
 import { EventType, RoomStateEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk/src/matrix";
 import { useEffect, useState } from "react";
 
-import { readAssignments, readRoles, setChannelTalkRole, syncRoles } from "../roles/applyRoles";
+import { readAssignments, readRoles, sendAndWait, setChannelTalkRole, setMemberRoles, syncRoles } from "../roles/applyRoles";
 import { MEMBER_ROLES_EVENT, memberRolesKey } from "../roles/roles";
 import {
     AUTOMOD_EVENT,
@@ -122,15 +122,16 @@ export async function addBot(client: MatrixClient, space: Room, channels: Room[]
         }
     }
     if (roleIds.length > 0) {
-        await client.sendStateEvent(space.roomId, MEMBER_ROLES_EVENT as never, { roles: roleIds } as never, memberRolesKey(botId));
-        await syncRoles(client, space, channels);
+        // Waits for the assignment to be in our copy of the space before working out power levels from it (the bot
+        // otherwise got its role but not its level, so it couldn't moderate or give roles).
+        await setMemberRoles(client, space, channels, botId, roleIds);
     }
 }
 
 export async function removeBot(client: MatrixClient, space: Room, channels: Room[], botId: string): Promise<void> {
     await client.sendStateEvent(space.roomId, BOTS_EVENT as never, botsContent(readBots(space).filter((bot) => bot.userId !== botId)) as never, "");
     if (readAssignments(space).has(botId)) {
-        await client.sendStateEvent(space.roomId, MEMBER_ROLES_EVENT as never, { roles: [] } as never, memberRolesKey(botId));
+        await sendAndWait(client, space, MEMBER_ROLES_EVENT, { roles: [] }, memberRolesKey(botId));
     }
     for (const room of [...channels, space]) {
         const membership = room.getMember(botId)?.membership;
@@ -156,7 +157,7 @@ export async function saveOnboarding(client: MatrixClient, space: Room, channels
         for (const member of space.getJoinedMembers()) {
             const current = assignments.get(member.userId) ?? [];
             if (current.includes(config.memberRoleId)) continue;
-            await client.sendStateEvent(space.roomId, MEMBER_ROLES_EVENT as never, { roles: [...current, config.memberRoleId] } as never, memberRolesKey(member.userId));
+            await sendAndWait(client, space, MEMBER_ROLES_EVENT, { roles: [...current, config.memberRoleId] }, memberRolesKey(member.userId));
         }
     }
     // Every channel: only the member role (and roles above it) may talk.

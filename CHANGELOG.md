@@ -4,6 +4,58 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.5.2 (2026-11-03)
+
+### New
+- **↑ edits your last message:** in an empty message box, the up arrow opens your most recent message for editing
+  (Enter saves, Escape cancels), like Discord.
+- **Voice channels you're not in** show who's in voice and a **Join Voice** button (after leaving a call too), instead of
+  an empty page, with the speaker icon instead of # in the header.
+- **Add channels like Discord:** a + on Channels and on each category creates a channel right there (a category of voice
+  channels starts with Voice picked), and hovering a channel shows Create Invite next to its settings.
+- **Ringing like Discord:** calling in a DM or group chat shows the others as "Ringing…" (then Declined or No answer)
+  and plays the ring for you until someone picks up. Group chats now ring too; space channels never ring anyone.
+  Declining a call tells the caller.
+- **Watch Stream:** hover anyone's LIVE badge (also when you're not in the call) and click the preview to join and see
+  their stream full size. Your own badge says "You're Streaming!".
+- **Device menus:** the small arrows next to the mic and headphones under your name pick the microphone or speaker,
+  or open Voice Settings, like Discord.
+- **Game overlay, much fuller:** movable widgets for Voice (who's talking, and each person's volume), Text chat (read
+  and send to the call's chat, DMs and channels), Notifications (mentions and DMs) and Soundboard. Pin a widget to keep
+  it on screen while you play (clicks go through to the game). Overlay settings choose widgets and opacity. If another
+  app already uses Shift+`, Meadhall uses Ctrl+Shift+` (or Shift+F10), and the voice panel has a Game overlay button.
+- **QR sign-in can bring your encryption keys:** tick "Also bring my encryption keys" and the new device is verified
+  and can read your old messages without the recovery key.
+- **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
+  Unpin.
+- **Take a photo on phones:** the + next to the message box has Take a photo, which opens the camera instead of the
+  gallery. The picture waits in the message box until you send it.
+
+### Changed
+- **Warnings reach the member:** warning, muting, banning or kicking someone sends them a message saying so, with the
+  reason. Warn no longer sits next to a time setting: muting and banning for a set time have their own group.
+- **Auto-mod without a bot is now opt-in:** Space Settings → Auto-mod → "Let moderators' Meadhall enforce auto-mod and
+  give onboarding roles" (off unless you turn it on).
+
+### Fixed
+- **New channels didn't show up** in the channel list until Meadhall was reopened.
+- **Bots couldn't moderate or give roles:** adding a bot with a role saved the role but not its permission level, so the
+  bot answered "I can only do that to people ranked below me". "Give the role to everyone already here" had the same
+  problem.
+- **Member records stayed empty:** the bot's /warn, /timeout, /kick and /ban now go into the moderation log too, and
+  logs on homeservers that encrypt every room are read correctly.
+- The bot could keep an old copy of permission levels (same fix as below), which could keep timeouts from ending.
+- **Room changes that never arrived:** when two changes to a room landed close together (two people leaving a call),
+  one could be lost, so people showed as still in a call they had left ("2 connected" in an empty channel). The same
+  could keep roles, warnings and onboarding from updating. Meadhall now applies such changes when they arrive.
+- Settings could keep saying "Verified: No" after verifying this session from another app.
+- Menus like the category menu were see-through.
+- Roles on profile cards touched the edge of their box.
+- Long names on profile cards were cut off after a few letters: they now wrap and shrink to fit.
+- After sending a picture, the chat stopped short of the bottom once the picture loaded; it now stays at the bottom.
+- Android: the background connection could stop itself just as Meadhall asked it to start again, which Android treats
+  as a crash and closes the app.
+
 ## v0.5.1 (2026-11-02)
 
 ### New

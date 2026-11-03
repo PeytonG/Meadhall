@@ -78,32 +78,13 @@ export function QuickActions({ client, space, userId, defaultReason, onDone, onT
     return (
         <div className="mod-actions" data-testid="mod-actions">
             <label className="settings-field">
-                <span>Reason (saved in the member record)</span>
-                <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={200} />
-            </label>
-            <label className="settings-field mod-duration">
-                <span>For timed actions</span>
-                <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} aria-label="How long">
-                    {DURATIONS.map((option) => (
-                        <option key={option.ms} value={option.ms}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
+                <span>Reason (they see it, and it's saved in their record)</span>
+                <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={200} aria-label="Reason" />
             </label>
             <div className="mod-action-buttons">
-                <button type="button" className="settings-button settings-button-secondary" disabled={busy} onClick={() => void run("warn", null, `Warned ${name}.`)}>
+                <button type="button" className="settings-button settings-button-secondary" disabled={busy} onClick={() => void run("warn", null, `Warned ${name}. They got a message about it.`)} data-testid="mod-warn">
                     Warn
                 </button>
-                {sanction.muteUntil ? (
-                    <button type="button" className="settings-button settings-button-secondary" disabled={busy} onClick={() => void run("unmute", null, `Unmuted ${name}.`)}>
-                        Unmute
-                    </button>
-                ) : (
-                    <button type="button" className="settings-button settings-button-secondary" disabled={busy} onClick={() => void run("mute", null, `Muted ${name} for ${durationLabel}.`)} data-testid="mod-mute">
-                        Mute for {durationLabel}
-                    </button>
-                )}
                 {sanction.shadow ? (
                     <button type="button" className="settings-button settings-button-secondary" disabled={busy} onClick={() => void run("unshadow", null, `Lifted ${name}'s shadow mute.`)} data-testid="mod-unshadow">
                         Lift shadow mute
@@ -130,7 +111,34 @@ export function QuickActions({ client, space, userId, defaultReason, onDone, onT
                         Unban
                     </button>
                 ) : (
-                    <>
+                    <button type="button" className="settings-button settings-button-danger" disabled={busy} onClick={() => void run("ban", `Ban ${name} from the space?`, `Banned ${name}.`)} data-testid="mod-ban">
+                        Ban
+                    </button>
+                )}
+            </div>
+            <fieldset className="settings-fieldset mod-timed">
+                <legend>For a set time</legend>
+                <label className="settings-field mod-duration">
+                    <span>How long</span>
+                    <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} aria-label="How long">
+                        {DURATIONS.map((option) => (
+                            <option key={option.ms} value={option.ms}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <div className="mod-action-buttons">
+                    {sanction.muteUntil ? (
+                        <button type="button" className="settings-button settings-button-secondary" disabled={busy} onClick={() => void run("unmute", null, `Unmuted ${name}.`)} data-testid="mod-unmute">
+                            Unmute
+                        </button>
+                    ) : (
+                        <button type="button" className="settings-button settings-button-secondary" disabled={busy} onClick={() => void run("mute", null, `Muted ${name} for ${durationLabel}.`)} data-testid="mod-mute">
+                            Mute for {durationLabel}
+                        </button>
+                    )}
+                    {membership === "ban" ? null : (
                         <button
                             type="button"
                             className="settings-button settings-button-danger"
@@ -140,12 +148,9 @@ export function QuickActions({ client, space, userId, defaultReason, onDone, onT
                         >
                             Ban for {durationLabel}
                         </button>
-                        <button type="button" className="settings-button settings-button-danger" disabled={busy} onClick={() => void run("ban", `Ban ${name} from the space?`, `Banned ${name}.`)} data-testid="mod-ban">
-                            Ban
-                        </button>
-                    </>
-                )}
-            </div>
+                    )}
+                </div>
+            </fieldset>
         </div>
     );
 }

@@ -20,6 +20,8 @@ interface ComposerBarProps {
     onDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
     onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
     onAttach: () => void;
+    // Phones: take a picture with the camera instead of picking one.
+    onTakePhoto?: () => void;
     onToggleEmoji: () => void;
     emojiPicker: React.ReactNode;
     stickerControl?: React.ReactNode;
@@ -48,6 +50,7 @@ export function ComposerBar({
     onDragLeave,
     onDrop,
     onAttach,
+    onTakePhoto,
     onToggleEmoji,
     emojiPicker,
     stickerControl,
@@ -57,7 +60,7 @@ export function ComposerBar({
     onOpenStickers,
 }: ComposerBarProps): React.ReactElement {
     const isPhone = useMediaQuery("(max-width: 760px)");
-    const hasMenu = isPhone && Boolean(onCreatePoll || onOpenStickers);
+    const hasMenu = isPhone && Boolean(onCreatePoll || onOpenStickers || onTakePhoto);
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
@@ -111,6 +114,11 @@ export function ComposerBar({
                 </button>
                 {hasMenu && menuOpen ? (
                     <div className="composer-plus-menu" role="menu" data-testid="composer-plus-menu">
+                        {onTakePhoto ? (
+                            <button type="button" role="menuitem" onClick={() => pick(onTakePhoto)} data-testid="composer-take-photo">
+                                <PixelIcon name="camera" size={18} /> Take a photo
+                            </button>
+                        ) : null}
                         <button type="button" role="menuitem" onClick={() => pick(onAttach)}>
                             <span aria-hidden="true">📎</span> Upload a file
                         </button>

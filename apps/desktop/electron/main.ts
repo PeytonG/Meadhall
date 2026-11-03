@@ -11,7 +11,7 @@ import { stopRichPresence } from "./activity/richPresence";
 import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
 import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, installVersion, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
-import { hideOverlay, overlayCommand, overlayState, setOverlayState, setUpOverlay, tearDownOverlay } from "./overlay";
+import { hideOverlay, overlayCommand, overlayMode, overlayShortcut, overlayState, setOverlayPinned, setOverlayState, setUpOverlay, tearDownOverlay, toggleOverlay } from "./overlay";
 
 const APP_TITLE = "Meadhall";
 const DEFAULT_DEV_URL = "http://127.0.0.1:5173";
@@ -549,6 +549,10 @@ function registerIpc(): void {
     handleFromApp("heorot:getOverlayState", () => overlayState());
     handleFromApp("heorot:overlayCommand", (_event, command: unknown) => overlayCommand(command));
     handleFromApp("heorot:closeOverlay", () => hideOverlay());
+    handleFromApp("heorot:setOverlayPinned", (_event, pinned: unknown) => setOverlayPinned(pinned));
+    handleFromApp("heorot:getOverlayMode", () => overlayMode());
+    handleFromApp("heorot:toggleOverlay", () => toggleOverlay());
+    handleFromApp("heorot:getOverlayShortcut", () => overlayShortcut());
 
     // "Playing ..." from Steam (the app polls this when sharing activity is on).
     handleFromApp("heorot:getActivity", () => currentActivity());

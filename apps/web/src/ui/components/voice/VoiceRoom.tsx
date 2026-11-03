@@ -59,8 +59,8 @@ import { ScreenSharePicker } from "./ScreenSharePicker";
 import { mergeCapturePreviews } from "../../voice/capturePreviews";
 import { stageGridStyle } from "../../voice/stageGrid";
 import type { HeorotDesktopCaptureSource } from "../../types/heorotDesktop";
-import { renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
-import { decodeCustomSound, type CustomSound } from "../../voice/soundboard/soundboard";
+import { BUILTIN_SOUNDS, renderBuiltinSound } from "../../voice/soundboard/builtinSounds";
+import { decodeCustomSound, loadCustomSounds, type CustomSound } from "../../voice/soundboard/soundboard";
 import { SoundboardTrack, isSoundboardTrack } from "../../voice/soundboard/soundboardTrack";
 import { ALONE_LEFT_MESSAGE, createAloneWatcher, type AloneWatcher } from "../../voice/aloneInCall";
 import { RECONNECT_DELAYS_MS, announceCallEnded, beginCallLog, currentCallLogId, formatCallLog, logCallEvent, readCallLog } from "../../voice/callLog";
@@ -93,6 +93,12 @@ export interface VoiceRoomHandle {
     toggleScreenShare: () => Promise<void>;
     openSoundboard: () => void;
     openVoiceSettings: () => void;
+    // Watch Stream from the channel list: show this person's screen share big (once it's there).
+    focusScreenShare: (userId: string) => void;
+    // The game overlay: play a sound ("builtin:<id>" or "custom:<id>") and per-person volume.
+    playSound: (key: string) => Promise<void>;
+    setUserVolume: (userId: string, percent: number) => void;
+    getUserVolume: (userId: string) => number;
 }
 
 interface VoiceRoomProps {
@@ -114,6 +120,8 @@ interface VoiceRoomProps {
         participants: Array<{ identity: string; userId?: string; isSpeaking: boolean; isScreenSharing: boolean }>;
     }) => void;
     onControlsStateChange?: (state: VoiceControlState) => void;
+    // DM and group calls: people being rung who haven't joined (shown as "Ringing…", then Declined / No answer).
+    ringing?: Array<{ userId: string; state: "ringing" | "declined" | "no-answer" }>;
 }
 
 interface VoiceParticipantState {
@@ -713,6 +721,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         onSessionStateChange,
         onLiveParticipantsChange,
         onControlsStateChange,
+        ringing,
     }: VoiceRoomProps,
     ref,
 ): React.ReactElement {
@@ -1149,6 +1158,18 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
         return false;
     }, [screenShareTrackRevision]);
+
+    const pendingStreamFocusRef = useRef<string | null>(null);
+    useEffect(() => {
+        const wanted = pendingStreamFocusRef.current;
+        if (!wanted) return;
+        const match = screenShareParticipants.find((participant) => participant.matrixUserId === wanted || participant.identity.startsWith(`${wanted}:`));
+        if (match) {
+            pendingStreamFocusRef.current = null;
+            setActiveScreenShareIdentity(match.identity);
+            setScreenShareGridView(false);
+        }
+    }, [screenShareParticipants]);
 
     useEffect(() => {
         if (screenShareParticipants.length === 0) {
@@ -2657,6 +2678,27 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         toggleScreenShare: () => toggleScreenShare(),
         openSoundboard: () => setSoundboardOpen(true),
         openVoiceSettings: () => setSettingsOpen(true),
+        playSound: async (key: string) => {
+            const [kind, id] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
+            if (kind === "builtin") {
+                const sound = BUILTIN_SOUNDS.find((item) => item.id === id);
+                if (sound) await playSoundboardSound({ kind: "builtin", id: sound.id, name: sound.name });
+            } else if (kind === "custom") {
+                const sound = loadCustomSounds(client).find((item) => item.id === id);
+                if (sound) await playSoundboardSound({ kind: "custom", sound });
+            }
+        },
+        setUserVolume: (userId: string, percent: number) => setParticipantVolumePercent(userId, percent),
+        getUserVolume: (userId: string) => getParticipantVolumePercent(userId),
+        focusScreenShare: (userId: string) => {
+            const match = screenShareParticipants.find((participant) => participant.matrixUserId === userId || participant.identity.startsWith(`${userId}:`));
+            if (match) {
+                setActiveScreenShareIdentity(match.identity);
+                setScreenShareGridView(false);
+            } else {
+                pendingStreamFocusRef.current = userId;
+            }
+        },
     }));
 
     return (
@@ -2926,6 +2968,30 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                                 </li>
                             );
                         })}
+                        {(ringing ?? [])
+                            .filter((person) => !participants.some((p) => p.matrixUserId === person.userId))
+                            .map((person) => {
+                                const member = matrixRoom?.getMember(person.userId);
+                                const name = member?.name ?? person.userId;
+                                const mxc = member?.getMxcAvatarUrl() ?? null;
+                                return (
+                                    <li key={`ringing-${person.userId}`} className={`voice-room-participant is-ringing is-${person.state}`} data-testid="call-ringing">
+                                        <div className="voice-room-participant-avatar-wrap">
+                                            <Avatar
+                                                className="voice-room-participant-avatar avatar"
+                                                name={name}
+                                                src={mxc ? thumbnailFromMxc(client, mxc, 240, 240, "crop") : null}
+                                                seed={person.userId}
+                                                userId={person.userId}
+                                            />
+                                        </div>
+                                        <span className="voice-room-participant-name">{name}</span>
+                                        <span className="voice-room-ringing-label">
+                                            {person.state === "ringing" ? "Ringing…" : person.state === "declined" ? "Declined" : "No answer"}
+                                        </span>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     </>
                 ) : (

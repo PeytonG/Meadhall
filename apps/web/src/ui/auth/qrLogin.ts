@@ -5,6 +5,10 @@
 //
 // The QR code is as good as your password for a few minutes (until it's used or expires): only scan it with your
 // own device, and don't show it on a stream.
+//
+// Optionally it also carries your encryption keys (the secrets bundle Element's QR sign-in transfers: cross-signing
+// keys and the message-backup key), so the new device is verified straight away and can read your history without
+// the recovery key. That makes the code as sensitive as your recovery key while it's on screen.
 import { createClient, type MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import { wantsRefreshTokens } from "../../core/platform/android";
@@ -22,12 +26,22 @@ export interface QrLoginPayload {
     token: string;
     // When the code stops working (ms since 1970), if it says.
     expiresAt?: number;
+    // Your encryption keys, when you chose to bring them (CryptoApi.exportSecretsBundle's JSON).
+    keys?: Record<string, unknown>;
 }
+
+const toBase64Url = (text: string): string => btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const fromBase64Url = (text: string): string => atob(text.replace(/-/g, "+").replace(/_/g, "/"));
 
 export function encodeQrPayload(payload: QrLoginPayload): string {
     return (
         PREFIX +
-        new URLSearchParams({ hs: payload.homeserver, t: payload.token, ...(payload.expiresAt ? { x: String(payload.expiresAt) } : {}) }).toString()
+        new URLSearchParams({
+            hs: payload.homeserver,
+            t: payload.token,
+            ...(payload.expiresAt ? { x: String(payload.expiresAt) } : {}),
+            ...(payload.keys ? { k: toBase64Url(JSON.stringify(payload.keys)) } : {}),
+        }).toString()
     );
 }
 
@@ -39,7 +53,7 @@ export function qrPayloadExpired(payload: QrLoginPayload, now = Date.now()): boo
 // Only http(s) homeservers and token-like strings: a QR code from anywhere else is refused.
 export function parseQrPayload(text: string): QrLoginPayload | null {
     const trimmed = text.trim();
-    if (!trimmed.startsWith(PREFIX) || trimmed.length > 2048) return null;
+    if (!trimmed.startsWith(PREFIX) || trimmed.length > 4096) return null;
     const params = new URLSearchParams(trimmed.slice(PREFIX.length));
     const homeserver = params.get("hs") ?? "";
     const token = params.get("t") ?? "";
@@ -53,7 +67,18 @@ export function parseQrPayload(text: string): QrLoginPayload | null {
     if (url.username || url.password) return null;
     if (!/^[A-Za-z0-9._~+/=-]{8,512}$/.test(token)) return null;
     const expiresAt = Number(params.get("x"));
+    let keys: Record<string, unknown> | undefined;
+    const rawKeys = params.get("k");
+    if (rawKeys) {
+        try {
+            const parsed = JSON.parse(fromBase64Url(rawKeys)) as unknown;
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) keys = parsed as Record<string, unknown>;
+        } catch {
+            return null;
+        }
+    }
     return {
+        ...(keys ? { keys } : {}),
         homeserver: url.origin + url.pathname.replace(/\/$/, ""),
         token,
         ...(params.has("x") && Number.isFinite(expiresAt) && expiresAt > 0 ? { expiresAt } : {}),
@@ -98,6 +123,14 @@ export async function loginWithQrPayload(payload: QrLoginPayload, deviceDisplayN
         initial_device_display_name: deviceDisplayName,
         refresh_token: wantsRefreshTokens(),
     });
+    // Imported once the new session's encryption is running (importPendingKeys, called by MatrixProvider).
+    if (payload.keys) {
+        try {
+            sessionStorage.setItem(`${PENDING_KEYS}${response.user_id}`, JSON.stringify(payload.keys));
+        } catch {
+            // No session storage: the keys aren't brought along; the recovery key still works.
+        }
+    }
     return {
         homeserverUrl: payload.homeserver,
         userId: response.user_id,
@@ -106,6 +139,42 @@ export async function loginWithQrPayload(payload: QrLoginPayload, deviceDisplayN
         refreshToken: response.refresh_token,
         guest: false,
     };
+}
+
+const PENDING_KEYS = "meadhall.qrKeys.";
+
+// The other device's encryption keys from a QR sign-in: import them, mark this session as yours (cross-signed), and
+// turn on message backup so old messages decrypt. Returns whether keys were imported.
+export async function importPendingKeys(client: MatrixClient): Promise<boolean> {
+    const userId = client.getUserId();
+    if (!userId) return false;
+    let raw: string | null = null;
+    try {
+        raw = sessionStorage.getItem(`${PENDING_KEYS}${userId}`);
+        sessionStorage.removeItem(`${PENDING_KEYS}${userId}`);
+    } catch {
+        return false;
+    }
+    if (!raw) return false;
+    const crypto = client.getCrypto();
+    if (!crypto?.importSecretsBundle) return false;
+    await crypto.importSecretsBundle(JSON.parse(raw) as never);
+    const deviceId = client.getDeviceId();
+    if (deviceId) await crypto.crossSignDevice(deviceId).catch(() => undefined);
+    await crypto.checkKeyBackupAndEnable().catch(() => undefined);
+    await crypto.restoreKeyBackup().catch(() => undefined);
+    return true;
+}
+
+// Your keys, for a QR code that brings them (null when this session doesn't hold them all).
+export async function exportKeysForQr(client: MatrixClient): Promise<Record<string, unknown> | null> {
+    const crypto = client.getCrypto();
+    if (!crypto?.exportSecretsBundle) return null;
+    try {
+        return (await crypto.exportSecretsBundle()) as unknown as Record<string, unknown>;
+    } catch {
+        return null;
+    }
 }
 
 // Reads a QR code from a camera frame: the browser's own detector where there is one (Android, macOS), jsQR otherwise.

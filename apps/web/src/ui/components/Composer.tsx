@@ -37,10 +37,26 @@ interface ComposerProps {
     activeSpaceId: string | null;
     editingEvent: MatrixEvent | null;
     onCancelEdit: () => void;
+    // ↑ in an empty box edits your last message, like Discord.
+    onEditMessage?: (event: MatrixEvent) => void;
     replyToEvent: MatrixEvent | null;
     onCancelReply: () => void;
     // The thread panel's composer: messages and files go into this thread (no polls or stickers there).
     threadId?: string | null;
+}
+
+// Your newest text message here (in this thread, or outside threads), for ↑ to edit.
+function lastOwnEditableMessage(room: Room, userId: string, threadId: string | null): MatrixEvent | null {
+    const events = room.getLiveTimeline().getEvents();
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+        const event = events[index]!;
+        if (event.getType() !== EventType.RoomMessage || event.getSender() !== userId || event.isRedacted()) continue;
+        if (event.isRelation("m.replace") || !event.getId()?.startsWith("$")) continue;
+        if ((event.threadRootId ?? null) !== threadId && event.getId() !== threadId) continue;
+        const msgtype = event.getContent().msgtype;
+        if (msgtype === "m.text" || msgtype === "m.emote" || msgtype === "m.notice") return event;
+    }
+    return null;
 }
 
 interface ImageDimensions {
@@ -817,6 +833,7 @@ export function Composer({
     activeSpaceId,
     editingEvent,
     onCancelEdit,
+    onEditMessage,
     replyToEvent,
     onCancelReply,
     threadId = null,
@@ -835,6 +852,8 @@ export function Composer({
     const [emojiQuery, setEmojiQuery] = useState<EmojiQueryState | null>(null);
     const [emojiSelectionIndex, setEmojiSelectionIndex] = useState(0);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    // Phones: opens the camera (capture) and sends the picture like any other upload.
+    const cameraInputRef = useRef<HTMLInputElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
     const emojiPickerRef = useRef<HTMLDivElement | null>(null);
@@ -1967,6 +1986,15 @@ export function Composer({
             }
         }
 
+        if (event.key === "ArrowUp" && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && !editingEventId && text.length === 0 && room && onEditMessage) {
+            const own = lastOwnEditableMessage(room, client.getUserId() ?? "", threadId ?? null);
+            if (own) {
+                event.preventDefault();
+                onEditMessage(own);
+                return;
+            }
+        }
+
         if (event.key === "Escape" && editingEventId) {
             event.preventDefault();
             setText("");
@@ -2087,6 +2115,7 @@ export function Composer({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onAttach={() => fileInputRef.current?.click()}
+                onTakePhoto={room ? () => cameraInputRef.current?.click() : undefined}
                 onToggleEmoji={() => setEmojiPickerOpen((open) => !open)}
                 onSend={() => void sendMessage()}
                 canSend={text.trim().length > 0 || uploads.some((upload) => upload.roomId === room?.roomId && upload.status === "queued")}
@@ -2223,6 +2252,20 @@ export function Composer({
                     ))}
                 </div>
             ) : null}
+            <input
+                ref={cameraInputRef}
+                className="composer-camera-input"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(event) => {
+                    handleFileSelection(event.target.files);
+                    event.target.value = "";
+                }}
+                disabled={!room}
+                aria-label="Take a photo"
+                data-testid="composer-camera-input"
+            />
             <input
                 ref={fileInputRef}
                 className="composer-file-input"

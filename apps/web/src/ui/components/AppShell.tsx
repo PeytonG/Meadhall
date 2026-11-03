@@ -32,7 +32,12 @@ import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
 import { HelpDialog } from "../help/HelpDialog";
-import type { OverlayState } from "../overlay/overlayState";
+import { declineCall, useOutgoingRing } from "../hooks/useOutgoingRing";
+import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
+import { DevicePicker } from "./voice/DevicePicker";
+import { parseOverlayCommand, type OverlayState } from "../overlay/overlayState";
+import { BUILTIN_SOUNDS } from "../voice/soundboard/builtinSounds";
+import { loadCustomSounds } from "../voice/soundboard/soundboard";
 import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
@@ -847,6 +852,30 @@ async function resolveSpaceHierarchyVoiceHints(
     return { childOrderOverride, customOrderOverride, voiceHintRoomIds };
 }
 
+const SPACE_CHILD_TYPES = ["m.space.child"] as const;
+
+// Re-renders (at most every 2 s) when anything new arrives, for the overlay's chats and notifications.
+function useAnyTimelineTick(client: MatrixClient, enabled: boolean): number {
+    const [tick, setTick] = useState(0);
+    useEffect(() => {
+        if (!enabled) return undefined;
+        let timer: number | null = null;
+        const onTimeline = (): void => {
+            if (timer !== null) return;
+            timer = window.setTimeout(() => {
+                timer = null;
+                setTick((value) => value + 1);
+            }, 2_000);
+        };
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.off(RoomEvent.Timeline, onTimeline);
+            if (timer !== null) window.clearTimeout(timer);
+        };
+    }, [client, enabled]);
+    return tick;
+}
+
 function useRoomTimelineTick(client: MatrixClient, roomId: string | null): number {
     const [tick, setTick] = useState(0);
     useEffect(() => {
@@ -1025,6 +1054,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [voiceParticipantsByRoomId, setVoiceParticipantsByRoomId] = useState<Map<string, Set<string>>>(new Map());
     const [timelineFocusBottomNonce, setTimelineFocusBottomNonce] = useState(0);
     const voiceRoomRef = useRef<VoiceRoomHandle | null>(null);
+    const [pendingStreamFocus, setPendingStreamFocus] = useState<{ roomId: string; userId: string } | null>(null);
     const autoJoiningDirectRoomIdsRef = useRef<Set<string>>(new Set());
     // Phones show one screen at a time, like the Discord app: the server rail + channel list, or the open chat.
     const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
@@ -1309,6 +1339,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         [client, selectedSpaceRoom, botStateRevision, selectedSpaceMembership],
     );
 
+    // Recompute the channel list when the space's children change (a channel added or removed).
+    const selectedSpaceChildTick = useSpaceState(selectedSpaceRoom, SPACE_CHILD_TYPES);
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
             return homeRooms;
@@ -1318,17 +1350,21 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             return [];
         }
 
+        // The space's channels now, plus any the server's room directory listed (it's fetched once, so on its own it
+        // missed channels made afterwards: a new channel didn't show until the app was reopened).
+        const fromState = getSpaceChannels(selectedSpaceRoom, roomById);
         if (selectedSpaceHierarchyJoinedRoomIds.length > 0) {
+            const known = new Set(fromState.map((room) => room.roomId));
             const hierarchyRooms = selectedSpaceHierarchyJoinedRoomIds
                 .map((roomId) => roomById.get(roomId))
-                .filter((room): room is Room => Boolean(room && !room.isSpaceRoom() && isVisibleMembership(room)));
+                .filter((room): room is Room => Boolean(room && !room.isSpaceRoom() && isVisibleMembership(room) && !known.has(room.roomId)));
             if (hierarchyRooms.length > 0) {
-                return sortRoomsBySpaceOrder(selectedSpaceRoom, hierarchyRooms);
+                return sortRoomsBySpaceOrder(selectedSpaceRoom, [...fromState, ...hierarchyRooms]);
             }
         }
-
-        return getSpaceChannels(selectedSpaceRoom, roomById);
-    }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom]);
+        return fromState;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [homeRooms, roomById, selectedSpaceHierarchyJoinedRoomIds, selectedSpaceId, selectedSpaceRoom, selectedSpaceChildTick]);
     const selectedSpaceView = useSpaceView(selectedSpaceId);
     const selectedSpaceBannerMxc = getSpaceBanner(selectedSpaceRoom);
     const selectedSpaceBannerUrl = selectedSpaceBannerMxc ? mediaFromMxc(client, selectedSpaceBannerMxc) : null;
@@ -1627,6 +1663,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const shouldShowVoicePanel = Boolean(activeRoom && isActiveRoomVoiceChannel && voiceSessionRoomId === activeRoom.roomId);
     // Voice channels with text chat turned on (channel settings) show it beside the call.
     const voiceChatBeside = shouldShowVoicePanel && isVoiceChatEnabled(activeRoom);
+    // A voice channel you're not in shows who's there and Join Voice (VoiceJoinPrompt), not an empty page.
+    const showVoiceJoin = Boolean(
+        activeRoom &&
+            isActiveRoomVoiceChannel &&
+            !(voiceSessionRoomId === activeRoom.roomId && (voiceSessionStatus === "connected" || voiceSessionStatus === "joining")),
+    );
+    const voiceJoinChatBeside = showVoiceJoin && isVoiceChatEnabled(activeRoom);
     const shouldPrefixRoomWithHash = selectedSpaceId !== PEOPLE_SPACE_ID;
     const activeVoiceSessionRoom = useMemo(
         () => (voiceSessionRoomId ? roomById.get(voiceSessionRoomId) ?? client.getRoom(voiceSessionRoomId) ?? null : null),
@@ -1639,6 +1682,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     // server text channels have none, as in Discord.
     const roomCalls = useRoomCalls(client, homeRooms);
     const ringableRoomIds = useMemo(() => new Set(homeRooms.map((room) => room.roomId)), [homeRooms]);
+    // The caller's side of a ringing DM or group call ("Ringing…" and the ring tone, useOutgoingRing.ts).
+    const outgoingRing = useOutgoingRing({
+        client,
+        roomId: hasActiveVoiceSession && voiceSessionRoomId && ringableRoomIds.has(voiceSessionRoomId) ? voiceSessionRoomId : null,
+        roomCalls,
+        playTone: userSettings.notifications.ringtoneEnabled,
+        speakerId: userSettings.audio.preferredAudioOutputId,
+    });
     const { incoming: incomingCall, dismiss: dismissIncomingCall } = useIncomingCall({
         client,
         ringableRoomIds,
@@ -1697,6 +1748,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             window.clearInterval(timer);
         };
     }, [client]);
+
+    useEffect(() => {
+        if (!pendingStreamFocus || voiceSessionRoomId !== pendingStreamFocus.roomId || voiceSessionStatus === "disconnected") return;
+        const handle = voiceRoomRef.current;
+        if (!handle) return;
+        handle.focusScreenShare(pendingStreamFocus.userId);
+        setPendingStreamFocus(null);
+    }, [pendingStreamFocus, voiceSessionRoomId, voiceSessionStatus]);
 
     // Moderators in spaces without a bot: auto-mod and onboarding roles from this app (moderatorDuties.ts).
     useEffect(() => {
@@ -2069,6 +2128,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     // The desktop game overlay (Shift+`): what it shows, and its buttons acting here (overlay/OverlayApp.tsx).
     const overlayRoomTick = useRoomTimelineTick(client, voiceSessionRoomId);
+    const overlayAnyTick = useAnyTimelineTick(client, Boolean(window.heorotDesktop?.setOverlayState));
     useEffect(() => {
         if (!window.heorotDesktop?.setOverlayState) return;
         const inCall = voiceSessionStatus === "connected" && Boolean(voiceSessionRoomId);
@@ -2076,7 +2136,58 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         const speaking = voiceSpeakingByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
         const sharing = voiceScreenShareByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
         const people = [...(voiceParticipantsByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>())];
+        const me = client.getUserId() ?? "";
+        const messagesOf = (target: Room, limit: number) =>
+            target
+                .getLiveTimeline()
+                .getEvents()
+                .filter((event) => event.getType() === EventType.RoomMessage && !event.isRedacted() && typeof event.getContent().body === "string")
+                .slice(-limit)
+                .map((event) => ({
+                    id: event.getId() ?? "",
+                    sender: target.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
+                    body: String(event.getContent().body).slice(0, 500),
+                    room: getRoomName(target),
+                }));
+        // Chats you can use from the overlay: the call's room, then your most recently active conversations.
+        const recent = client
+            .getRooms()
+            .filter((candidate) => candidate.getMyMembership() === "join" && !candidate.isSpaceRoom() && !isRoomVoiceChannel(candidate))
+            .sort((left, right) => right.getLastActiveTimestamp() - left.getLastActiveTimestamp())
+            .slice(0, 8);
+        const chatRooms = [...(room ? [room] : []), ...recent.filter((candidate) => candidate.roomId !== room?.roomId)].slice(0, 8);
+        // Notifications: DMs and mentions of you from others, across your rooms (newest last).
+        const notifications = client
+            .getRooms()
+            .filter((candidate) => candidate.getMyMembership() === "join")
+            .flatMap((candidate) =>
+                candidate
+                    .getLiveTimeline()
+                    .getEvents()
+                    .slice(-20)
+                    .filter((event) => {
+                        if (event.getType() !== EventType.RoomMessage || event.getSender() === me || event.isRedacted()) return false;
+                        const mentioned = (event.getContent()["m.mentions"] as { user_ids?: string[] } | undefined)?.user_ids?.includes(me);
+                        return directRoomIds.has(candidate.roomId) || Boolean(mentioned);
+                    })
+                    .map((event) => ({ event, candidate })),
+            )
+            .sort((left, right) => left.event.getTs() - right.event.getTs())
+            .slice(-8)
+            .map(({ event, candidate }) => ({
+                id: event.getId() ?? "",
+                sender: candidate.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
+                body: String(event.getContent().body ?? "").slice(0, 300),
+                room: getRoomName(candidate),
+            }));
+        const sounds = [
+            ...BUILTIN_SOUNDS.map((sound) => ({ key: `builtin:${sound.id}`, name: sound.name, emoji: sound.emoji })),
+            ...loadCustomSounds(client).map((sound) => ({ key: `custom:${sound.id}`, name: sound.name, emoji: sound.emoji ?? "" })),
+        ];
         const state: OverlayState = {
+            notifications,
+            chats: chatRooms.map((target) => ({ roomId: target.roomId, name: getRoomName(target), messages: messagesOf(target, 12) })),
+            sounds,
             inCall,
             channel: room ? getRoomName(room) : null,
             micMuted: selfVoice.muted,
@@ -2089,26 +2200,17 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                       name: room?.getMember(userId)?.name ?? client.getUser(userId)?.displayName ?? userId,
                       speaking: speaking.has(userId),
                       sharing: sharing.has(userId),
+                      ...(userId !== me ? { volume: voiceRoomRef.current?.getUserVolume(userId) ?? 100 } : {}),
                   }))
-                : [],
-            messages: room
-                ? room
-                      .getLiveTimeline()
-                      .getEvents()
-                      .filter((event) => event.getType() === EventType.RoomMessage && !event.isRedacted() && typeof event.getContent().body === "string")
-                      .slice(-5)
-                      .map((event) => ({
-                          id: event.getId() ?? "",
-                          sender: room.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
-                          body: String(event.getContent().body).slice(0, 300),
-                          room: getRoomName(room),
-                      }))
                 : [],
         };
         void window.heorotDesktop.setOverlayState(state);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         client,
         overlayRoomTick,
+        overlayAnyTick,
+        directRoomIds,
         selfVoice.deafened,
         selfVoice.muted,
         voiceControlState.cameraOn,
@@ -2119,16 +2221,50 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         voiceSessionStatus,
         voiceSpeakingByRoomId,
     ]);
-    const overlayCommandRef = useRef<(command: string) => void>(() => undefined);
-    overlayCommandRef.current = (command) => {
-        if (command === "toggleMute") toggleVoiceMicFromDock();
-        else if (command === "toggleDeafen") toggleVoiceAudioFromDock();
-        else if (command === "toggleCamera") void voiceRoomRef.current?.toggleCamera();
-        else if (command === "leave") leaveVoiceFromDock();
-        else if (voiceSessionRoomId && (command === "toggleScreenShare" || command === "openSoundboard")) {
-            openRoomAtBottom(voiceSessionRoomId);
-            if (command === "toggleScreenShare") void voiceRoomRef.current?.toggleScreenShare();
-            else voiceRoomRef.current?.openSoundboard();
+    const [overlayShortcutLabel, setOverlayShortcutLabel] = useState<string | null>(null);
+    useEffect(() => {
+        void window.heorotDesktop?.getOverlayShortcut?.().then((shortcut) => setOverlayShortcutLabel(shortcut ?? null));
+    }, []);
+    const overlayCommandRef = useRef<(raw: unknown) => void>(() => undefined);
+    overlayCommandRef.current = (raw) => {
+        const command = parseOverlayCommand(raw);
+        if (!command) return;
+        switch (command.type) {
+            case "toggleMute":
+                toggleVoiceMicFromDock();
+                return;
+            case "toggleDeafen":
+                toggleVoiceAudioFromDock();
+                return;
+            case "toggleCamera":
+                void voiceRoomRef.current?.toggleCamera();
+                return;
+            case "leave":
+                leaveVoiceFromDock();
+                return;
+            case "playSound":
+                void voiceRoomRef.current?.playSound(command.key).catch(() => undefined);
+                return;
+            case "setVolume":
+                voiceRoomRef.current?.setUserVolume(command.userId, command.percent);
+                return;
+            case "sendMessage":
+                void client.sendTextMessage(command.roomId, command.body).catch((error: unknown) =>
+                    pushToast({ type: "error", message: error instanceof Error ? error.message : "Couldn't send from the overlay." }),
+                );
+                return;
+            case "openRoom":
+                focusRoom(command.roomId);
+                return;
+            case "toggleScreenShare":
+            case "openSoundboard":
+                if (!voiceSessionRoomId) return;
+                openRoomAtBottom(voiceSessionRoomId);
+                if (command.type === "toggleScreenShare") void voiceRoomRef.current?.toggleScreenShare();
+                else voiceRoomRef.current?.openSoundboard();
+                return;
+            case "openApp":
+                return;
         }
     };
     useEffect(() => window.heorotDesktop?.onOverlayCommand?.((command) => overlayCommandRef.current(command)), []);
@@ -2585,8 +2721,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         });
     }, [selectedSpaceRoom]);
 
-    const openCreateRoomDialog = useCallback((parentSpaceId: string | null): void => {
+    // From a category's "+" too: the kind it starts as, and the category the channel goes in.
+    const [createRoomPreset, setCreateRoomPreset] = useState<{ kind: "text" | "voice"; categoryId: string | null }>({ kind: "text", categoryId: null });
+    const openCreateRoomDialog = useCallback((parentSpaceId: string | null, preset?: { kind: "text" | "voice"; categoryId: string | null }): void => {
         setCreateRoomParentSpaceId(parentSpaceId);
+        setCreateRoomPreset(preset ?? { kind: "text", categoryId: null });
         setCreateRoomOpen(true);
     }, []);
 
@@ -3078,6 +3217,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     liveParticipantsByRoomId={voiceParticipantsByRoomId}
                     liveParticipantsOverrideRoomId={liveVoiceParticipantsOverrideRoomId}
                     onOpenRoomSettings={openRoomSettingsFor}
+                    onCreateChannel={(categoryId, kind) => openCreateRoomDialog(selectedSpaceRoom?.roomId ?? null, { kind, categoryId })}
+                    onInviteToChannel={() => openInviteDialogFor(selectedSpaceRoom?.roomId ?? null)}
+                    onWatchStream={(roomId, userId) => {
+                        selectChannel(roomId);
+                        setMobilePane("chat");
+                        // The call may still be connecting: handed to VoiceRoom once it's there.
+                        setPendingStreamFocus({ roomId, userId });
+                    }}
                 />
                 </>
                 )}
@@ -3184,6 +3331,18 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     >
                                         <PixelIcon name="soundboard" size={18} />
                                     </button>
+                                    {window.heorotDesktop?.toggleOverlay ? (
+                                        <button
+                                            type="button"
+                                            className="pane-voice-action"
+                                            onClick={() => void window.heorotDesktop?.toggleOverlay?.()}
+                                            aria-label="Game overlay"
+                                            title={`Game overlay${overlayShortcutLabel ? ` (${overlayShortcutLabel})` : ""}`}
+                                            data-testid="dock-overlay"
+                                        >
+                                            <PixelIcon name="events" size={18} />
+                                        </button>
+                                    ) : null}
                                     <button
                                         type="button"
                                         className="pane-voice-action"
@@ -3321,6 +3480,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         >
                             <PixelIcon name="mic" slashed={selfVoice.muted} />
                         </button>
+                        <DevicePicker
+                            kind="audioinput"
+                            selectedId={userSettings.audio.preferredAudioInputId}
+                            onSelect={(deviceId) => setUserSettings((current) => ({ ...current, audio: { ...current.audio, preferredAudioInputId: deviceId } }))}
+                            onOpenSettings={() => openUserSettings("audio")}
+                        />
                         <button
                             type="button"
                             className={`pane-icon-button${selfVoice.deafened ? " is-muted" : ""}`}
@@ -3332,6 +3497,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         >
                             <PixelIcon name="headphones" slashed={selfVoice.deafened} />
                         </button>
+                        <DevicePicker
+                            kind="audiooutput"
+                            selectedId={userSettings.audio.preferredAudioOutputId}
+                            onSelect={(deviceId) => setUserSettings((current) => ({ ...current, audio: { ...current.audio, preferredAudioOutputId: deviceId } }))}
+                            onOpenSettings={() => openUserSettings("audio")}
+                        />
                         <button
                             type="button"
                             className="pane-icon-button"
@@ -3378,6 +3549,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                               : undefined
                     }
                     showHashPrefix={shouldPrefixRoomWithHash}
+                    isVoiceChannel={isActiveRoomVoiceChannel}
                     sidebarMode={isNarrowLayout && !narrowPanelOpen ? "closed" : rightSidebarMode}
                     searchQuery={sidebarSearchQuery}
                     canInviteInRoom={canInviteInActiveRoom}
@@ -3403,7 +3575,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                             : undefined
                     }
                 />
-                <div className={`main-body${voiceChatBeside ? " has-voice-chat" : ""}${activeThread && (!shouldShowVoicePanel || voiceChatBeside) ? " has-thread" : ""}`}>
+                <div className={`main-body${voiceChatBeside || voiceJoinChatBeside ? " has-voice-chat" : ""}${activeThread && (!shouldShowVoicePanel || voiceChatBeside) ? " has-thread" : ""}`}>
                 {hasActiveVoiceSession && voiceSessionRoomId ? (
                     <div
                         className={`main-voice-slot${
@@ -3437,6 +3609,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     });
                                 }
                             }}
+                            ringing={outgoingRing}
                             announceCall={callAnnouncement(
                                 activeVoiceSessionRoom
                                     ? {
@@ -3453,7 +3626,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         />
                     </div>
                 ) : null}
-                {!shouldShowVoicePanel || voiceChatBeside ? (
+                {showVoiceJoin && activeRoom ? (
+                    <div className="main-voice-slot">
+                        <VoiceJoinPrompt client={client} room={activeRoom} onJoin={() => selectChannel(activeRoom.roomId)} />
+                    </div>
+                ) : null}
+                {(showVoiceJoin ? voiceJoinChatBeside : !shouldShowVoicePanel || voiceChatBeside) ? (
                     <div className="main-chat-stack" data-testid={voiceChatBeside ? "voice-channel-chat" : undefined}>
                         {isActiveRoomCallable && activeRoom && !isInActiveRoomCall && activeRoomCallOthers.length > 0 ? (
                             <div className="room-call-banner" role="status" data-testid="room-call-banner">
@@ -3506,6 +3684,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     activeSpaceId={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceId}
                                     editingEvent={editingEvent}
                                     onCancelEdit={() => setEditingEvent(null)}
+                                    onEditMessage={(event) => setEditingEvent(event)}
                                     replyToEvent={replyToEvent}
                                     onCancelReply={() => setReplyToEvent(null)}
                                 />
@@ -3536,6 +3715,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 <RightPanel
                     client={client}
                     room={activeRoom}
+                    onJumpToEvent={(eventId) => activeRoom && setLinkFocus({ roomId: activeRoom.roomId, eventId, nonce: Date.now() })}
                     activeSpaceRoom={selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceRoom}
                     mode={panelMode}
                     roomMode={rightSidebarMode}
@@ -3585,6 +3765,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 client={client}
                 open={createRoomOpen}
                 spaceParentId={createRoomParentSpaceId}
+                initialKind={createRoomPreset.kind}
+                categoryId={createRoomPreset.categoryId}
                 onClose={() => {
                     setCreateRoomOpen(false);
                     setCreateRoomParentSpaceId(null);
@@ -3774,6 +3956,11 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         startCallInRoom(roomId);
                     }}
                     onDismiss={dismissIncomingCall}
+                    onDecline={() => {
+                        const { roomId, eventId } = incomingCall;
+                        dismissIncomingCall();
+                        void declineCall(client, roomId, eventId).catch(() => undefined);
+                    }}
                 />
             ) : null}
         </div>

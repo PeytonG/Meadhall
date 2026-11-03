@@ -326,3 +326,224 @@
         min-height: 44px;
     }
 }
+
+/* A voice channel you are not in (voice/VoiceJoinPrompt.tsx), like Discord. */
+.voice-join-prompt {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 24px;
+    background: radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--accent) 45%, transparent) 0%, transparent 70%), var(--bg-app, #000);
+    color: var(--text-main);
+    text-align: center;
+}
+
+.voice-join-prompt h2 {
+    margin: 0;
+    font-size: 26px;
+}
+
+.voice-join-prompt p {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.voice-join-avatars {
+    display: flex;
+    gap: 6px;
+}
+
+.voice-join-avatar {
+    width: 48px;
+    height: 48px;
+}
+
+.voice-join-button {
+    margin-top: 8px;
+    padding: 10px 18px;
+    border: 0;
+    border-radius: 8px;
+    background: #fff;
+    color: #111;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.channel-header-title svg {
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: -2px;
+}
+
+/* Discord-style "+" on Channels and on each category: create a channel there. */
+.room-category-add-button {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.room-category-add-button:hover {
+    color: var(--text-main);
+    background: var(--bg-hover);
+}
+
+.room-category-add-button + .room-category-menu-wrapper {
+    margin-left: 2px;
+}
+
+.room-item-invite-button {
+    display: inline-grid;
+    place-items: center;
+}
+
+button.stream-hover-preview {
+    position: relative;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.stream-hover-self {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-weight: 700;
+}
+
+.stream-hover-watch:disabled {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    cursor: default;
+}
+
+/* Someone being rung in a DM or group call (useOutgoingRing.ts), like Discord: the avatar pulses. */
+.voice-room-participant.is-ringing .voice-room-participant-avatar {
+    opacity: 0.75;
+}
+
+.voice-room-participant.is-ringing.is-ringing .voice-room-participant-avatar-wrap {
+    border-radius: 50%;
+    animation: voice-ringing-pulse 1.2s ease-in-out infinite;
+}
+
+.voice-room-participant.is-declined .voice-room-participant-avatar-wrap,
+.voice-room-participant.is-no-answer .voice-room-participant-avatar-wrap {
+    animation: none;
+    opacity: 0.5;
+}
+
+.voice-room-ringing-label {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+@keyframes voice-ringing-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--success, #23a55a) 60%, transparent);
+    }
+    50% {
+        box-shadow: 0 0 0 10px color-mix(in srgb, var(--success, #23a55a) 0%, transparent);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .voice-room-participant.is-ringing .voice-room-participant-avatar-wrap {
+        animation: none;
+    }
+}
+
+/* Mic / speaker device menus in the user panel (voice/DevicePicker.tsx), like Discord. */
+.device-picker {
+    position: relative;
+    display: inline-flex;
+}
+
+.device-picker-toggle {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.device-picker-toggle:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.device-picker-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: -120px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    min-width: 240px;
+    max-width: 300px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-pane);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.device-picker-title {
+    padding: 4px 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.device-picker-item {
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.device-picker-item:hover {
+    background: var(--bg-hover);
+}
+
+.device-picker-item[aria-checked="true"]::after {
+    content: " ¹3";
+    color: var(--accent);
+}
+
+.device-picker-divider {
+    width: 100%;
+    margin: 4px 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+}

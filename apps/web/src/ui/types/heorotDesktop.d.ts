@@ -52,9 +52,14 @@ export interface HeorotDesktopBridge {
     setOverlayState?: (state: unknown) => Promise<void>;
     getOverlayState?: () => Promise<unknown>;
     onOverlayState?: (listener: (state: unknown) => void) => () => void;
-    overlayCommand?: (command: string) => Promise<void>;
-    onOverlayCommand?: (listener: (command: string) => void) => () => void;
+    overlayCommand?: (command: unknown) => Promise<void>;
+    onOverlayCommand?: (listener: (command: unknown) => void) => () => void;
     closeOverlay?: () => Promise<void>;
+    setOverlayPinned?: (pinned: boolean) => Promise<void>;
+    toggleOverlay?: () => Promise<void>;
+    getOverlayShortcut?: () => Promise<string | null>;
+    getOverlayMode?: () => Promise<string>;
+    onOverlayMode?: (listener: (mode: string) => void) => () => void;
     // previews: false returns at once without thumbnails (desktop 0.3.4+; older apps ignore it and include them).
     getDesktopCapturerSources?: (options?: { previews?: boolean }) => Promise<HeorotDesktopCaptureSource[]>;
     setPreferredDisplayMediaSource?: (sourceId: string) => Promise<void>;

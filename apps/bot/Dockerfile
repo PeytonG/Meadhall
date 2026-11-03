@@ -10,6 +10,8 @@ COPY apps/bot/src apps/bot/src
 # The bot shares the app's formats and role logic (plain TypeScript, no imports).
 COPY apps/web/src/core/bots/botProtocol.ts apps/web/src/core/bots/
 COPY apps/web/src/core/roles/roles.ts apps/web/src/core/roles/
+COPY apps/web/src/core/matrix/stateCatchUp.ts apps/web/src/core/matrix/
+COPY apps/web/src/core/moderation/moderationProtocol.ts apps/web/src/core/moderation/
 USER node
 WORKDIR /meadhall/apps/bot
 CMD ["node", "src/main.ts"]

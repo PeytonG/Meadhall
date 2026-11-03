@@ -7,6 +7,7 @@ import { ReactionPicker } from "../ReactionPicker";
 import { MessageContextMenu } from "./MessageContextMenu";
 import { ReportDialog } from "../../moderation/ReportDialog";
 import { useMessageActions } from "../../hooks/useMessageActions";
+import { canPin, isPinned, setPinned } from "../../../core/rooms/pins";
 
 interface Position {
     x: number;
@@ -328,6 +329,20 @@ export function MessageActionsBar({
                     void withToast(() => copyEventId(), "Copied event ID.", "Failed to copy event ID.", true);
                 }}
                 onReport={reportSpace && event.getSender() !== client.getUserId() && event.getId()?.startsWith("$") ? () => setReporting(true) : undefined}
+                pinned={isPinned(room, event.getId() ?? "")}
+                onTogglePin={
+                    event.getId()?.startsWith("$") && canPin(room, client.getSafeUserId())
+                        ? () => {
+                              const wasPinned = isPinned(room, event.getId() ?? "");
+                              void withToast(
+                                  () => setPinned(client, room, event.getId() ?? "", !wasPinned),
+                                  wasPinned ? "Message unpinned." : "Message pinned.",
+                                  wasPinned ? "Couldn't unpin it." : "Couldn't pin it.",
+                                  true,
+                              );
+                          }
+                        : undefined
+                }
             />
             {reporting && reportSpace ? (
                 <ReportDialog

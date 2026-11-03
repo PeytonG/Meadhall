@@ -58,6 +58,13 @@
         </provider>
     </application>
 
+    <!-- "Take a photo" in the composer: Android 11+ hides the camera app unless we say we look for it -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />

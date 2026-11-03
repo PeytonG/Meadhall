@@ -8,6 +8,8 @@ interface ChannelHeaderProps {
     room: Room | null;
     isDirectMessage: boolean;
     showHashPrefix: boolean;
+    // Voice channels show the speaker icon instead of #.
+    isVoiceChannel?: boolean;
     sidebarMode: RightSidebarMode;
     searchQuery: string;
     canInviteInRoom: boolean;
@@ -109,6 +111,7 @@ export function ChannelHeader({
     room,
     isDirectMessage,
     showHashPrefix,
+    isVoiceChannel = false,
     sidebarMode,
     searchQuery,
     canInviteInRoom,
@@ -139,7 +142,7 @@ export function ChannelHeader({
     const titlePrefix = room
         ? isDirectMessage
             ? "@ "
-            : showHashPrefix
+            : showHashPrefix && !isVoiceChannel
                 ? "# "
                 : ""
         : "";
@@ -202,7 +205,10 @@ export function ChannelHeader({
             ) : null}
             <div className="channel-header-main">
                 <div className="channel-header-title-row">
-                    <h1 className="channel-header-title">{`${titlePrefix}${roomName}`}</h1>
+                    <h1 className="channel-header-title">
+                        {isVoiceChannel ? <PixelIcon name="voice" size={18} /> : null}
+                        {`${titlePrefix}${roomName}`}
+                    </h1>
                     {/* Phones: a small lock instead of the chip (the chip is hidden there). */}
                     {room ? (
                         <span

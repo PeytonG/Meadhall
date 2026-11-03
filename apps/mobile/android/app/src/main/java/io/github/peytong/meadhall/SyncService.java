@@ -27,6 +27,7 @@ public final class SyncService extends Service {
     private HandlerThread thread;
     private Handler handler;
     private MatrixNotificationPoller poller;
+    private volatile int latestStartId;
 
     static void start(Context context) {
         ContextCompat.startForegroundService(context, new Intent(context, SyncService.class));
@@ -63,6 +64,7 @@ public final class SyncService extends Service {
         } else {
             startForeground(ONGOING_ID, ongoing);
         }
+        latestStartId = startId;
         handler.removeCallbacksAndMessages(null);
         handler.post(this::tick);
         return START_STICKY;
@@ -72,8 +74,9 @@ public final class SyncService extends Service {
         if (poller.poll()) {
             handler.postDelayed(this::tick, POLL_MS);
         } else {
-            // Signed out or the sign-in expired: stop until the app starts us again.
-            stopSelf();
+            // Signed out or the sign-in expired: stop until the app starts us again. Passing the start ID keeps a
+            // start that is already queued from being dropped, which Android punishes by crashing the app.
+            stopSelf(latestStartId);
         }
     }
 

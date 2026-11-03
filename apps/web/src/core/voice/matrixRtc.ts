@@ -221,7 +221,33 @@ export function buildRtcIdentityMap(memberships: CallMembership[]): Map<string, 
     return map;
 }
 
+const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
+
+// Who has a live call membership in the room's current state (Element Call's and ours: non-empty, not expired).
+// Read fresh every time: the SDK's session list could keep people who had left after you rejoined and left a call
+// (the channel list then showed "2 connected" in an empty channel).
+export function callMembersFromState(room: Room, now = Date.now()): string[] | null {
+    const events = room.currentState?.getStateEvents?.(CALL_MEMBER_EVENT);
+    if (!Array.isArray(events) || events.length === 0) return null;
+    const users: string[] = [];
+    for (const event of events) {
+        const content = event.getContent() as { expires?: unknown; expires_ts?: unknown; created_ts?: unknown; application?: unknown };
+        if (!content || Object.keys(content).length === 0) continue;
+        if (typeof content.application === "string" && content.application !== "m.call") continue;
+        const created = typeof content.created_ts === "number" ? content.created_ts : event.getTs();
+        const expiresAt = typeof content.expires_ts === "number" ? content.expires_ts : typeof content.expires === "number" ? created + content.expires : null;
+        if (expiresAt !== null && expiresAt < now) continue;
+        const sender = event.getSender();
+        if (sender && !users.includes(sender)) users.push(sender);
+    }
+    return users;
+}
+
 export function getRtcVoiceParticipants(client: MatrixClient, room: Room): VoiceParticipantsResponse {
+    const fromState = callMembersFromState(room);
+    if (fromState) {
+        return { matrixRoomId: room.roomId, participants: fromState.map((userId) => ({ identity: userId, matrixUserId: userId })), count: fromState.length };
+    }
     const session = client.matrixRTC.getRoomSession(room);
     const seenUserIds = new Set<string>();
     const participants: VoiceParticipantsResponse["participants"] = [];

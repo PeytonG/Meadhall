@@ -26,7 +26,8 @@ homeservers need a registration token (an invite code) from whoever runs them: t
 ### How do I sign in on another device with a QR code?
 On a device where you are already signed in: Settings → Devices → Sign in another device → Show QR code (you type your
 password first). On the new device, choose Sign in with QR code and scan it. The code lasts 3 minutes and only works
-once. If the card says your homeserver doesn't allow it, the homeserver's admin must turn on
+once. Tick "Also bring my encryption keys" to have the new device verified and able to read your old messages without
+the recovery key (only do this for your own device: while it shows, the code also unlocks your messages). If the card says your homeserver doesn't allow it, the homeserver's admin must turn on
 login_via_existing_session in Synapse (the card shows the exact setting to copy).
 
 ### How do I change how Meadhall looks the first time?
@@ -48,11 +49,13 @@ Invited spaces appear in the space list on the left. Click it, then press Accept
 If the space has onboarding, its rules and questions open right away.
 
 ### How do I invite people to a space?
-Right-click the space in the space list → Invite to space. Type their Matrix ID (like
+Right-click the space in the space list → Invite to space, or hover any channel and press the invite icon (Create
+Invite) next to its settings. Type their Matrix ID (like
 @name:example.org). They see the invite in their space list.
 
 ### How do I create a channel?
-Right-click the space in the space list → Create channel, or use the + next to the channel list. Choose text or voice. Only people who may
+Use the + next to Channels at the top of the channel list, or the + on a category (the channel goes in that
+category), or right-click the space in the space list → Create channel. Pick Text, Voice or another type, then Create. Choose text or voice. Only people who may
 manage channels can do this.
 
 ### How do I make a channel private, or limit who can talk?
@@ -75,9 +78,20 @@ conversation. Mark them read from there.
 Hover over a message (long-press on phones) to see its actions: reply, react, edit (your own), delete (your own, or
 anyone's if you can manage messages), pin, reply in thread, copy link, report.
 
+### How do I pin a message?
+Right-click the message (or hover and press ..., or long-press on phones) → Pin message. Pinned messages are in the
+pin panel: the pin button at the top of the channel. Jump goes to the message; Unpin removes it. Only people with the
+Pin messages permission (Space Settings → Members → Roles) can pin or unpin.
+
 ### How do I send pictures, files, polls or stickers?
 Use the + to the left of the message box for files and pictures. The poll button and the sticker button are on the right
-of the message box. Paste a picture or GIF straight into the box to send it.
+of the message box. Paste a picture or GIF straight into the box to send it. On phones, the + also has Take a photo
+(opens the camera; the picture waits in the message box until you press Send), Upload a file, Create a poll and Send a
+sticker.
+
+### How do I quickly edit the message I just sent?
+With the message box empty, press the up arrow (↑). Your last message opens for editing in the box. Change it and press
+Enter to save, or Escape to cancel.
 
 ### How do I start a thread?
 Hover over a message → Reply in thread. Thread replies show as "N replies" under the message.
@@ -120,8 +134,17 @@ DMs with more than one other person. Start one from Home → Group Chats → +.
 ### How do I join a voice channel?
 Click a voice channel in a space. You join the call right away. Leave with the red phone button (Leave voice channel).
 
+### I left a call. How do I get back in?
+Open the voice channel (or stay on it): it shows who is in voice and a Join Voice button. Click it to join again.
+
 ### How do I call someone directly?
-Open their profile card → Call, or open your DM with them and press the phone button at the top.
+Open their profile card → Call, or open your DM with them and press the phone button at the top. Their device rings;
+you see them as "Ringing…" until they join. If they decline you see "Declined", and after 30 seconds without an
+answer "No answer". Calls in group chats ring everyone in the chat. Calls in a space's voice channels never ring.
+
+### Someone is calling me. How do I answer or decline?
+A call card shows who is calling. Press the green button to join, or the red one to decline (the caller sees that you
+declined).
 
 ### What are the buttons under "Voice Connected"?
 While you are in a call, the box under the channel list shows the call (click it to go back to the call), a red
@@ -137,7 +160,8 @@ Phones can't share their screen.
 
 ### How do I see what someone is streaming before joining?
 In the channel list, hover over the person with the red LIVE badge under the voice channel. A card shows a recent
-snapshot of their screen and a Watch Stream button. Snapshots are only shared in unencrypted channels.
+snapshot of their screen. Click it (or Watch Stream) to join the call with their stream shown full size. Snapshots are
+only shared in unencrypted channels.
 
 ### How do I turn on my camera?
 In a call, press Turn camera on. You see a preview of yourself first. Pick the camera in Settings → Audio → Camera.
@@ -153,15 +177,22 @@ Meadhall is the focused window.
 ### How do I change my voice?
 Settings → Audio → Voice changer. Pick an effect; it applies in calls.
 
+### How do I switch microphone or speakers quickly?
+Press the small arrow next to the microphone (or headphones) under your name at the bottom left. Pick a device, or
+Voice Settings for everything else.
+
 ### My microphone doesn't work.
 Settings → Audio → Microphone test shows the level. Check the right microphone is chosen in Voice settings during a
 call, and that your system allows Meadhall to use the microphone.
 
 ### How do I use the game overlay?
-On the desktop app, press Shift and ` (the key left of 1) together, in any game or app. The overlay shows the call
-buttons (mute, deafen, camera, share screen, soundboard, leave), who is in the call and talking, and recent messages.
-Press Esc or Shift + ` again to close it. It works over games in windowed or borderless fullscreen mode, not in
-exclusive fullscreen. If another app already uses Shift + `, the overlay can't open with it.
+On the desktop app, press Shift and ` (the key left of 1) together, in any game or app. If another app already uses
+that key, Meadhall uses Ctrl+Shift+` (or Shift+F10); the Game overlay button under "Voice Connected" also opens it and
+shows which key works. The overlay has the call buttons at the top and widgets: Voice (who is talking; click someone
+to change their volume), Text chat (pick a conversation, read it and type to send), Notifications (mentions and DMs)
+and Soundboard. Drag a widget by its title to move it. The gear shows or hides widgets and changes the opacity. The pin
+on a widget keeps it on screen after you close the overlay, while you play (it doesn't take your mouse). Press Esc or
+the shortcut again to close. It works over games in windowed or borderless fullscreen mode, not exclusive fullscreen.
 
 ### What is the campfire?
 The flames around someone's picture while they talk. Turn it into a simple ring in Settings → Audio → Speaking campfire.
@@ -228,16 +259,19 @@ Hover over the message (long-press on phones) → Report, or open their profile 
 moderators.
 
 ### How do moderators handle reports?
-Space Settings → Reports. Open a report and warn, mute (also for a set time), shadow mute, kick or ban. Member records
-show everything done to someone.
+Space Settings → Reports. Open a report, or pick someone under Member records. Warn, shadow mute, kick or ban; or mute
+or ban for a set time (choose how long under For a set time). The person gets a message saying what happened and why.
+Member records show everything done to someone, including what the Meadhall bot did with /warn, /timeout, /kick and
+/ban.
 
 ### How do I set up onboarding (rules and questions for newcomers)?
 Space Settings → Onboarding. Turn it on, write rules and questions; answers can give roles. Use Preview as a newcomer to
 see it, since admins and moderators skip it. "Require it" means only people with the member role can talk.
 
 ### How do I set up auto-mod?
-Space Settings → Auto-mod. Block words, links and mention spam, and choose delete, warn or time out. Without a bot, an
-online moderator's Meadhall enforces it; with a bot it works around the clock.
+Space Settings → Auto-mod. Block words, links and mention spam, and choose delete, warn or time out. It needs a bot
+(works around the clock). Without one, you can tick "Let moderators' Meadhall enforce auto-mod": then a moderator's
+Meadhall does it while they are online.
 
 ### How do I add a bot?
 Make an account for the bot and run the Meadhall bot (see docs/bots.md). Then Space Settings → Bots → Add a bot, type

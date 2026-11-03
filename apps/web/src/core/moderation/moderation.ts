@@ -259,6 +259,8 @@ export async function ensureModLogRoom(client: MatrixClient, space: Room): Promi
 export async function readModLog(client: MatrixClient, space: Room, userId?: string): Promise<ModLogEntry[]> {
     const room = await ensureModLogRoom(client, space);
     if (!room) return [];
+    // On homeservers that encrypt new rooms, the entries arrive encrypted: decrypt them before reading.
+    const decryptAll = (): Promise<unknown> => Promise.all(room.getLiveTimeline().getEvents().map((event) => client.decryptEventIfNeeded(event).catch(() => undefined)));
     const read = (): ModLogEntry[] =>
         room
             .getLiveTimeline()
@@ -270,7 +272,32 @@ export async function readModLog(client: MatrixClient, space: Room, userId?: str
     for (let page = 0; page < 5 && room.getLiveTimeline().getPaginationToken("b" as never); page += 1) {
         await client.scrollback(room, 100).catch(() => undefined);
     }
+    await decryptAll();
     return read().sort((left, right) => right.at - left.at);
+}
+
+// What the member is told (in your DM with them), like Discord's moderation DMs: which space, what, why, until when.
+const NOTICE_TEXT: Partial<Record<ModAction, string>> = {
+    warn: "You received a warning",
+    mute: "You were muted",
+    timed_ban: "You were banned for a time",
+    ban: "You were banned",
+    kick: "You were removed",
+};
+
+async function tellMember(client: MatrixClient, space: Room, user: string, action: ModAction, reason: string, until?: number): Promise<void> {
+    const what = NOTICE_TEXT[action];
+    if (!what || user === client.getUserId()) return;
+    const { createOrReuseDirectChat } = await import("../dm/directChats");
+    const { roomId } = await createOrReuseDirectChat(client, user);
+    const parts = [`${what} in ${space.name || "a space"}`];
+    if (until) parts.push(`until ${new Date(until).toLocaleString()}`);
+    const body = `${parts.join(" ")}.${reason ? ` Reason: ${reason}` : ""}`;
+    await client.sendMessage(roomId, {
+        msgtype: "m.notice",
+        body,
+        "io.github.peytong.meadhall.mod_notice": { space: space.roomId, action, ...(reason ? { reason } : {}), ...(until ? { until } : {}) },
+    } as never);
 }
 
 // Sent by room ID, so it works even before a brand-new log room has synced.
@@ -285,6 +312,8 @@ export interface ActionOptions {
     reason: string;
     // For timed bans and mutes.
     durationMs?: number;
+    // Tell the member in a DM (warn, mute, ban and kick do unless this is false).
+    notify?: boolean;
 }
 
 export async function applyModAction(client: MatrixClient, space: Room, user: string, action: ModAction, options: ActionOptions): Promise<void> {
@@ -339,6 +368,7 @@ export async function applyModAction(client: MatrixClient, space: Room, user: st
             break;
     }
     await logAction(client, space, { user, action, reason: options.reason, ...(until ? { until } : {}) });
+    if (options.notify !== false) await tellMember(client, space, user, action, options.reason, until).catch(() => undefined);
 }
 
 // Timed bans and mutes that have run out are lifted by whichever moderator's Meadhall notices first.

@@ -17,10 +17,12 @@ interface IncomingCallCardProps {
     ringtone?: { enabled: boolean; customDataUrl: string | null };
     onJoin: () => void;
     onDismiss: () => void;
+    // Decline: the caller's app stops ringing for you (MSC4310).
+    onDecline?: () => void;
 }
 
 // "Bob is calling": shown (and ringing) for the person being called, never the caller.
-export function IncomingCallCard({ client, call, speakerId, ringtone, onJoin, onDismiss }: IncomingCallCardProps): React.ReactElement {
+export function IncomingCallCard({ client, call, speakerId, ringtone, onJoin, onDismiss, onDecline }: IncomingCallCardProps): React.ReactElement {
     const room = client.getRoom(call.roomId);
     const member = room?.getMember(call.callerId) ?? null;
     const callerName = member?.name ?? client.getUser(call.callerId)?.displayName ?? call.callerId;
@@ -81,7 +83,7 @@ export function IncomingCallCard({ client, call, speakerId, ringtone, onJoin, on
                 <PixelIcon name="phone" size={18} />
                 Join
             </button>
-            <button type="button" className="incoming-call-dismiss" onClick={onDismiss} aria-label="Dismiss call">
+            <button type="button" className="incoming-call-dismiss" onClick={onDecline ?? onDismiss} aria-label="Decline call" data-testid="incoming-call-decline">
                 <PixelIcon name="hangup" size={18} />
             </button>
         </div>

@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import { callAnnouncement } from "../../../src/ui/voice/callAnnouncement";
 
 describe("call announcements", () => {
-    it("rings one-to-one DMs and notifies group chats", () => {
+    it("rings DMs and group chats, like Discord", () => {
         expect(callAnnouncement({ isVoiceChannel: false, isHomeRoom: true, isOneToOne: true })).toBe("ring");
-        expect(callAnnouncement({ isVoiceChannel: false, isHomeRoom: true, isOneToOne: false })).toBe("notification");
+        expect(callAnnouncement({ isVoiceChannel: false, isHomeRoom: true, isOneToOne: false })).toBe("ring");
     });
 
     it("never announces calls in a server's channels, voice or text", () => {

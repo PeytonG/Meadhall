@@ -351,6 +351,9 @@ export interface AutomodConfig {
     timeoutMinutes: number;
     // Members with a role ranked at least this are never checked (moderators).
     exemptRank: number;
+    // Without a bot: moderators' own Meadhall apps enforce the rules and give onboarding roles while they're online
+    // (core/moderation/moderatorDuties.ts). Off unless the space turns it on.
+    moderatorApps: boolean;
 }
 
 export const DEFAULT_AUTOMOD: AutomodConfig = {
@@ -361,6 +364,7 @@ export const DEFAULT_AUTOMOD: AutomodConfig = {
     action: "warn",
     timeoutMinutes: 10,
     exemptRank: 50,
+    moderatorApps: false,
 };
 
 export function parseAutomod(content: unknown): AutomodConfig {
@@ -375,6 +379,7 @@ export function parseAutomod(content: unknown): AutomodConfig {
         action: content.action === "delete" || content.action === "timeout" ? content.action : "warn",
         timeoutMinutes: clamp(content.timeout_minutes, 1, 10_080, 10),
         exemptRank: clamp(content.exempt_rank, 1, 100, 50),
+        moderatorApps: content.moderator_apps === true,
     };
 }
 
@@ -387,6 +392,7 @@ export function automodContent(config: AutomodConfig): Record<string, unknown> {
         action: config.action,
         timeout_minutes: config.timeoutMinutes,
         exempt_rank: config.exemptRank,
+        moderator_apps: config.moderatorApps,
     };
 }
 

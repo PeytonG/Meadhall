@@ -15,6 +15,12 @@ html.is-overlay #root {
     font-family: var(--font-ui, inherit);
 }
 
+/* Pinned widgets while you play: no dimming, and the window lets clicks through to the game. */
+.overlay-root.is-pinned-mode {
+    background: transparent;
+    pointer-events: none;
+}
+
 .overlay-bar {
     position: absolute;
     top: 24px;
@@ -25,16 +31,15 @@ html.is-overlay #root {
     padding: 8px 10px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--bg-pane) 92%, transparent);
+    background: var(--bg-pane);
     transform: translateX(-50%);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
-.overlay-button {
+.overlay-button,
+.overlay-icon-button {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 36px;
     border: 0;
     border-radius: 8px;
     background: var(--bg-input);
@@ -42,11 +47,26 @@ html.is-overlay #root {
     cursor: pointer;
 }
 
-.overlay-button:hover {
-    background: var(--bg-hover);
+.overlay-button {
+    width: 40px;
+    height: 36px;
 }
 
-.overlay-button.is-active {
+.overlay-icon-button {
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.overlay-button:hover,
+.overlay-icon-button:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+.overlay-button.is-active,
+.overlay-icon-button.is-active {
     background: var(--accent);
     color: var(--on-primary);
 }
@@ -68,8 +88,14 @@ html.is-overlay #root {
     font-size: 13px;
 }
 
-.overlay-bar-status small {
+.overlay-bar-status small,
+.overlay-empty {
     color: var(--text-muted);
+}
+
+.overlay-empty {
+    margin: 0;
+    font-size: 13px;
 }
 
 .overlay-close {
@@ -91,43 +117,77 @@ html.is-overlay #root {
 
 .overlay-widget {
     position: absolute;
-    left: 24px;
-    width: 280px;
-    padding: 10px 12px;
+    width: 300px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--bg-pane) 90%, transparent);
+    background: var(--bg-pane);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
 }
 
-.overlay-widget h2 {
-    margin: 0 0 8px;
+.is-pinned-mode .overlay-widget {
+    pointer-events: none;
+}
+
+.overlay-widget-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 8px 6px 12px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.overlay-widget-header h2 {
+    flex: 1 1 auto;
+    margin: 0;
     color: var(--text-muted);
     font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 
-.overlay-widget ul {
+.overlay-widget-body {
+    max-height: 340px;
+    padding: 0 12px 12px;
+    overflow-y: auto;
+}
+
+.is-pinned-mode .overlay-widget-body {
+    padding-top: 10px;
+}
+
+.overlay-members,
+.overlay-chat-messages,
+.overlay-notifications {
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
-.overlay-members {
-    top: 24px;
-}
-
-.overlay-members li {
+.overlay-member {
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
     padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.overlay-member:disabled {
+    cursor: default;
 }
 
 .overlay-dot {
     width: 10px;
     height: 10px;
+    flex: 0 0 auto;
     border-radius: 50%;
     background: var(--text-muted);
 }
@@ -147,24 +207,110 @@ html.is-overlay #root {
     font-weight: 700;
 }
 
-.overlay-messages {
-    top: 280px;
-    max-height: calc(100vh - 320px);
-    overflow-y: auto;
+.overlay-volume {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 0 6px 18px;
+    color: var(--text-muted);
+    font-size: 12px;
 }
 
-.overlay-messages li {
-    padding: 6px 0;
-    border-top: 1px solid var(--border);
+.overlay-chat {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.overlay-messages small {
+.overlay-chat select,
+.overlay-chat input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+}
+
+.overlay-chat-messages li,
+.overlay-notifications li {
+    padding: 4px 0;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+}
+
+.overlay-notifications small {
     color: var(--text-muted);
 }
 
-.overlay-messages p {
+.overlay-notifications p {
     margin: 2px 0 0;
-    overflow-wrap: anywhere;
+}
+
+.overlay-sounds {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.overlay-sound {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.overlay-sound:hover {
+    background: var(--bg-hover);
+}
+
+.overlay-settings {
+    position: absolute;
+    top: 84px;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 280px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-pane);
+    transform: translateX(-50%);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.overlay-settings h2 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.overlay-setting {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.overlay-reset {
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+    cursor: pointer;
 }
 
 .overlay-hint {
