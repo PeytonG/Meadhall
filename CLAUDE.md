@@ -884,6 +884,32 @@ as references; what they showed is described in each row.
 | 14 | **Later, not v0.5.1: local help LLM** | Optional toggle to download and run a small local model that answers from #13. Plan only (model size, runtime such as WebGPU or llama.cpp, fully local) | later |
 | 15 | **Game overlay (Shift+`)** | Like Discord's overlay: hotkey shows over the game a call bar (mic, headset, camera, share, soundboard, effects, disconnect), voice members with speaking rings, recent messages/notifications, pinnable movable widgets for video tiles and screen shares; Esc closes. Desktop only. Transparent always-on-top Electron window works over windowed/borderless games; exclusive fullscreen would need DLL injection, which we won't do (anti-cheat bans). Tell the owner the limits | ✅ `apps/desktop/electron/overlay.ts`, `ui/overlay/` (checked in the real dev app); no draggable widgets or video tiles yet |
 
+### 10.7 Owner's v0.5.2 backlog (requested 2026-11-03; branch `release/v0.5.2`)
+The owner's verdict on v0.5.1: **"You're implementing a lot of stuff half baked."** Rule for this list: compare every
+feature against Discord's behaviour step by step (what you click, what the other person sees, what happens on
+errors, phone and desktop), and test it the way a user would, with two accounts where another person is involved,
+before marking it done. Includes the unfinished parts of §10.6 (mic/headset device dropdowns, overlay widgets).
+
+| # | Request | Notes / plan | State |
+|---|---|---|---|
+| 1 | **CI failing on main** | `e2e/verificationSas.spec.ts` fails intermittently (failed on the v0.5.1 merge commit; passed on retry before). Find the real race and fix it, don't just retry | ☐ |
+| 2 | **Up arrow edits your last message** | In an empty message box (DM, group or channel), ↑ opens your most recent message for editing, like Discord; Esc cancels, Enter saves | ☐ |
+| 3 | **Ringing in DM and group calls** | While a DM or group-DM call is ringing, show the other person(s) as "Ringing…" (Discord: their avatar pulses in the call view) and play the outgoing ring tone for the caller for the whole ring, until they answer, decline or it times out. Space channels never ring anyone | ☐ |
+| 4 | **Overlay: everything Discord's has** | Soundboard usable from the overlay; send messages from it (pick a channel/DM, text box); notifications widget; voice widget with speaking rings and per-user mute/volume; video tiles and screen shares as pinnable, movable, resizable widgets; position memory; in-overlay settings (hotkey, opacity, which widgets show) | ☐ |
+| 5 | **Moderation history and warnings don't work** | Warnings do nothing and member records stay empty: reproduce with two accounts, fix logging and display. A warning should notify the person (DM/notice) and land in their record. Drop the time setting for warnings (only mutes/bans are timed) | ☐ |
+| 6 | **Moderators' apps enforcing auto-mod: opt-in** | Make "moderators' Meadhall enforces auto-mod and onboarding roles when there's no bot" a Space Settings option, off by default | ☐ |
+| 7 | **QR sign-in also transfers encryption keys (optional)** | Signing in with a QR code should be able to bring the encryption identity along (cross-signing, key backup / recovery key, so the new device is verified and can read history without entering the recovery key). Optional checkbox. Look at MSC4108 (QR login with secure channel and secrets transfer) | ☐ |
+| 8 | **Onboarding doesn't give the role** | Owner tested: finishing onboarding didn't give the role. Reproduce with the real bot and without, fix | ☐ |
+| 9 | **Timeouts don't end** | Bot timeouts (and timed mutes) don't give permissions back when the time is up. Reproduce, fix both the bot and moderator-app paths | ☐ |
+| 10 | **Explore (don't build): passkeys / FIDO2** | Fingerprint sign-in on phones, Windows Hello, built-in passkeys: what Matrix/Synapse/MAS support (OIDC + WebAuthn via MAS), what Meadhall would need to store (tokens, keys), security trade-offs. Write up only | ☐ |
+| 11 | **Research: unused features of Matrix, LiveKit, Caddy, Synapse, etc.** | Read the specs and docs, list features they support that clients rarely use and that would help Meadhall (write-up with recommendations) | ☐ |
+| 12 | **Roles in profile cards touch the box edge** | "Roles in shared spaces": the space blocks/role chips are flush with the card's edge; add inner padding (both looks) | ☐ |
+| 13 | **Pin messages** | No way to pin a message: add Pin (and Unpin) to the message "..." menu (React, Reply, Reply in thread, Copy link, Copy text, Copy event ID, Report message), respecting the pin permission, and show pins in the channel's pin panel | ☐ |
+| 14 | **Add channels like Discord** | Discord shows "Text Channels ⌄ +" and "Voice Channels ⌄ +" category headers with a + to add a channel of that kind, and hovering a channel shows invite and settings icons. Same in Meadhall; also make editing (rename/delete category, channel settings) as direct as Discord's | ☐ |
+| 15 | **Right-click menu transparency** | The category "..." / right-click menu (Rename, Delete) is see-through: text behind it shows through. Give menus a solid background in both looks | ☐ |
+| 16 | **Watch a stream from its preview** | Clicking the Streaming Now preview (or Watch Stream) joins the call and opens that person's stream full size, like Discord. When you are the one streaming, the card says "You're Streaming!" | ☐ |
+| 17 | **Unfinished from v0.5.1** | Mic/headset device dropdowns in the user panel; overlay draggable widgets and video tiles (folded into #4) | ☐ |
+
 ## 11. Work log
 
 | Date | Work |
