@@ -10,8 +10,15 @@ Versions follow `vX.Y.Z`.
 - **Move around zoomed pictures:** in the picture viewer, click where you want to zoom in or use the mouse wheel,
   drag to move a zoomed picture, pinch on phones; a click without dragging zooms back out. Download saves the picture
   (to Downloads on Android).
+- **Resize the member list and profile panel** by dragging its left edge, like the channel list. Each width is
+  remembered, and the chat always keeps enough room.
+- **Home opens on Friends** when you have no conversations yet (it showed an empty chat), with Help and the inbox at
+  the top right.
 
 ### Fixed
+- **Narrow side panels didn't fit their text:** message previews in Direct Messages were cut off mid-letter, headings
+  wrapped, and the chat header's name could disappear next to the Unencrypted chip. Everything now shortens with "…",
+  and the channel list's resize edge is easier to grab.
 - **Opening Friends ended your call.** Browsing anywhere in Meadhall now keeps the call going, like Discord.
 - **Android's Back button did nothing.** It now closes what's open, then goes back from a chat to the list and from a
   space to Home, and finally puts Meadhall in the background.

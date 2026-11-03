@@ -223,7 +223,7 @@ export function ChannelHeader({
                     {room && encrypted ? (
                         <span className="channel-header-chip channel-header-chip-encrypted" data-testid="encryption-chip">
                             <span aria-hidden="true">{"\uD83D\uDD12"}</span>
-                            Encrypted
+                            <span className="channel-header-chip-label">Encrypted</span>
                         </span>
                     ) : null}
                     {/* Unencrypted rooms say so too: the server (and its admins) can read them. */}
@@ -234,7 +234,7 @@ export function ChannelHeader({
                             title="Not end-to-end encrypted: the server can read messages here"
                         >
                             <span aria-hidden="true">{"\uD83D\uDD13"}</span>
-                            Unencrypted
+                            <span className="channel-header-chip-label">Unencrypted</span>
                         </span>
                     ) : null}
                 </div>

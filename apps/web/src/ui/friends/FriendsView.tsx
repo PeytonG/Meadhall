@@ -8,6 +8,7 @@ import { FRIENDS_EVENT, friendAction, readFriends, type FriendAction, type Frien
 import { isValidMatrixUserId } from "../../core/dm/directChats";
 import { thumbnailFromMxc } from "../adapters/media";
 import { Avatar } from "../components/Avatar";
+import { PixelIcon } from "../components/PixelIcon";
 import { useIgnoredUsers } from "../hooks/useIgnoredUsers";
 import { toAvatarPresenceState } from "../presence/buildPresenceVm";
 import { usePresenceMap } from "../presence/usePresence";
@@ -57,9 +58,13 @@ interface FriendsViewProps {
     onOpenRoom: (roomId: string) => void;
     onCallUser?: (userId: string) => void;
     onToast?: (toast: { type: "success" | "error" | "info"; message: string }) => void;
+    // Like Discord's Friends page: Help and Inbox at the top right (the chat header isn't shown here).
+    onOpenHelp?: () => void;
+    inbox?: { count: number; open: boolean; onToggle: () => void };
+    update?: { label: string; onClick: () => void };
 }
 
-export function FriendsView({ client, onOpenRoom, onCallUser, onToast }: FriendsViewProps): React.ReactElement {
+export function FriendsView({ client, onOpenRoom, onCallUser, onToast, onOpenHelp, inbox, update }: FriendsViewProps): React.ReactElement {
     const list = useFriends(client);
     const { ignored, setIgnored } = useIgnoredUsers(client);
     const [tab, setTab] = useState<Tab>("online");
@@ -172,6 +177,40 @@ export function FriendsView({ client, onOpenRoom, onCallUser, onToast }: Friends
                         Add Friend
                     </button>
                 </nav>
+                <span className="friends-header-actions">
+                    {update ? (
+                        <button
+                            type="button"
+                            className="channel-header-icon-btn channel-header-update"
+                            aria-label={update.label}
+                            title={update.label}
+                            onClick={update.onClick}
+                            data-testid="header-update"
+                        >
+                            <PixelIcon name="download" size={18} />
+                        </button>
+                    ) : null}
+                    {inbox ? (
+                        <button
+                            type="button"
+                            className={`channel-header-icon-btn channel-header-inbox${inbox.open ? " is-active" : ""}`}
+                            aria-label={inbox.count > 0 ? `Inbox, ${inbox.count} unread` : "Inbox"}
+                            aria-expanded={inbox.open}
+                            title="Inbox"
+                            onClick={inbox.onToggle}
+                            data-inbox-toggle
+                            data-testid="header-inbox"
+                        >
+                            <PixelIcon name="inbox" size={18} />
+                            {inbox.count > 0 ? <span className="channel-header-inbox-count">{inbox.count > 99 ? "99+" : inbox.count}</span> : null}
+                        </button>
+                    ) : null}
+                    {onOpenHelp ? (
+                        <button type="button" className="channel-header-icon-btn" aria-label="Help" title="Help" onClick={onOpenHelp} data-testid="header-help">
+                            <PixelIcon name="faq" size={18} />
+                        </button>
+                    ) : null}
+                </span>
             </header>
             {tab === "add" ? (
                 <form

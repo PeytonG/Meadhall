@@ -95,7 +95,8 @@ function HomeRow({ client, room, isActive, subtitle, callLive, presenceUserId, p
                 <span className="home-row-name">{name}</span>
                 <span className={`home-row-subtitle${callLive ? " is-call" : ""}`}>
                     {callLive ? <PixelIcon name="phone" size={12} /> : null}
-                    {subtitle}
+                    {/* Its own box: text loose in the flex row would be cut off without "…". */}
+                    <span className="home-row-subtitle-text">{subtitle}</span>
                 </span>
             </span>
             {unread > 0 ? <span className="home-row-unread">{unread > 99 ? "99+" : unread}</span> : null}

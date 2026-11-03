@@ -27,6 +27,8 @@ interface RightPanelProps {
     onCallUser?: (userId: string) => void;
     // The pin panel's Jump: show that message in the timeline.
     onJumpToEvent?: (eventId: string) => void;
+    // Desktop: drag the panel's left edge to resize it (AppShell, usePaneWidth).
+    onResizeStart?: (event: React.PointerEvent<HTMLElement>) => void;
 }
 
 export function RightPanel({
@@ -46,10 +48,13 @@ export function RightPanel({
     onToast,
     onCallUser,
     onJumpToEvent,
+    onResizeStart,
 }: RightPanelProps): React.ReactElement {
+    const handle = onResizeStart ? <div className="right-panel-resize-handle" onPointerDown={onResizeStart} data-testid="right-panel-resize" /> : null;
     if (!room) {
         return (
             <aside className="right-panel">
+                {handle}
                 <div className="right-panel-empty">Select a room to view room info.</div>
             </aside>
         );
@@ -57,6 +62,7 @@ export function RightPanel({
 
     return (
         <aside className="right-panel">
+            {handle}
             {mode.mode === "user" ? (
                 <UserProfilePanel
                     client={client}

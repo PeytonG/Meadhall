@@ -119,6 +119,9 @@ verify this device from another signed-in device (Settings → Devices → Verif
 
 ## Friends and direct messages
 
+Home opens on Friends when you have no conversations yet. Help (?) and the inbox are at the top right of Friends, as
+in a chat. Opening Friends during a call keeps you in the call.
+
 ### How do I add a friend?
 Home (the Meadhall logo at the top of the space list) → Friends → Add Friend. Type their Matrix ID and press Send
 Friend Request. Or open their profile card and press Add friend.
@@ -254,6 +257,11 @@ Settings → Appearance → Language.
 
 ### How do I reduce animations?
 Settings → Appearance → Motion → Reduce motion.
+
+### How do I make the side panels wider or narrower?
+Drag the edge of the panel: the right edge of the channel / Direct Messages list, or the left edge of the member list
+and profile panel (desktop and wide windows). Meadhall remembers each width. The chat in the middle always keeps enough
+room; names and message previews shorten with "…" when a panel is narrow.
 
 ### How do I update Meadhall?
 Desktop: Settings → Updates (or the update banner that appears when a new version is out). Android: the update notice

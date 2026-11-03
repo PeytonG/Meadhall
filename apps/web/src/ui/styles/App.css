@@ -662,7 +662,7 @@ textarea {
     height: 100%;
     width: 100%;
     display: grid;
-    grid-template-columns: 72px var(--channels-pane-width, 280px) minmax(0, 1fr) 280px;
+    grid-template-columns: 72px var(--channels-pane-width, 280px) minmax(0, 1fr) var(--right-panel-width, 280px);
     background: var(--bg-app);
     overflow: hidden;
     transition: grid-template-columns var(--motion-normal) var(--motion-ease-standard);
@@ -768,10 +768,11 @@ textarea {
     overflow: hidden;
 }
 
+/* Inside the pane (which clips what sticks out), so the whole strip can be grabbed. */
 .channels-pane-resize-handle {
     position: absolute;
     top: 0;
-    right: -3px;
+    right: 0;
     width: 6px;
     height: 100%;
     cursor: col-resize;
@@ -779,7 +780,9 @@ textarea {
 }
 
 .channels-pane-resize-handle:hover,
-.app-shell.is-resizing .channels-pane-resize-handle {
+.app-shell.is-resizing .channels-pane-resize-handle,
+.right-panel-resize-handle:hover,
+.app-shell.is-resizing .right-panel-resize-handle {
     background: var(--accent, #5865f2);
     opacity: 0.5;
 }
@@ -2164,6 +2167,7 @@ textarea {
 }
 
 .timeline-empty {
+    flex: 1;
     display: grid;
     place-items: center;
     color: var(--text-muted);
@@ -4996,9 +5000,19 @@ img.voice-ctrl-icon {
     font-size: 11px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    gap: 6px;
+}
+
+/* One line, shortened with "…" when the list is narrow. */
+.home-section-header > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .home-section-header button {
+    flex-shrink: 0;
     display: grid;
     place-items: center;
     width: 22px;
@@ -5057,10 +5071,21 @@ img.voice-ctrl-icon {
 }
 
 .home-row-name,
-.home-row-subtitle {
+.home-row-subtitle,
+.home-row-subtitle-text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.home-row-subtitle-text {
+    min-width: 0;
+}
+
+/* Avatar and unread count keep their size; the name and preview shorten instead. */
+.home-row-avatar,
+.home-row-unread {
+    flex-shrink: 0;
 }
 
 .home-row-name {
