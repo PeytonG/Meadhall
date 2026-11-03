@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import type { MatrixCredentials } from "../../core/types/credentials";
-import { encodeQrPayload, loginWithQrPayload, makeLoginToken, parseQrPayload, qrPayloadExpired, readQrFromVideo, serverAllowsQrLogin } from "./qrLogin";
+import { encodeQrPayload, exportKeysForQr, loginWithQrPayload, makeLoginToken, parseQrPayload, qrPayloadExpired, readQrFromVideo, serverAllowsQrLogin } from "./qrLogin";
 
 // What a Synapse admin adds to homeserver.yaml for sign-in codes (Matrix "login/get_token", MSC3882).
 const SYNAPSE_QR_CONFIG = `login_via_existing_session:
@@ -21,6 +21,9 @@ export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.Rea
     const [code, setCode] = useState<{ payload: string; expiresAt: number } | null>(null);
     const [now, setNow] = useState(Date.now());
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    // Also bring the encryption keys, so the new device is verified and reads old messages (off unless chosen).
+    const [withKeys, setWithKeys] = useState(false);
+    const [codeHasKeys, setCodeHasKeys] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -55,8 +58,13 @@ export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.Rea
         setBusy(true);
         setError(null);
         try {
+            const keys = withKeys ? await exportKeysForQr(client) : null;
+            if (withKeys && !keys) {
+                throw new Error("This device doesn't have all your encryption keys to pass on. Verify it or enter your recovery key first (Settings → Encryption & Recovery), or make the code without keys.");
+            }
             const { token, expiresAt } = await makeLoginToken(client, password);
-            setCode({ payload: encodeQrPayload({ homeserver: client.getHomeserverUrl(), token, expiresAt }), expiresAt });
+            setCode({ payload: encodeQrPayload({ homeserver: client.getHomeserverUrl(), token, expiresAt, ...(keys ? { keys } : {}) }), expiresAt });
+            setCodeHasKeys(Boolean(keys));
             setNow(Date.now());
             setAsking(false);
         } catch (createError) {
@@ -88,8 +96,8 @@ export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.Rea
                 <>
                     <canvas ref={canvasRef} className="qr-login-canvas" aria-label="Sign-in QR code" role="img" />
                     <p className="settings-inline-error">
-                        Anyone who scans this can sign in as you until it&apos;s used or expires ({Math.max(0, Math.ceil((code.expiresAt - now) / 1000))} s).
-                        Only scan it with your own device, and don&apos;t show it on stream.
+                        Anyone who scans this can sign in as you{codeHasKeys ? " and read your encrypted messages" : ""} until it&apos;s used or expires (
+                        {Math.max(0, Math.ceil((code.expiresAt - now) / 1000))} s). Only scan it with your own device, and don&apos;t show it on stream.
                     </p>
                     <details>
                         <summary>Can&apos;t scan? Use the code</summary>
@@ -109,6 +117,10 @@ export function ShowLoginQrCard({ client }: { client: MatrixClient }): React.Rea
                     <label className="settings-field">
                         <span>Your password (to confirm it&apos;s you)</span>
                         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" data-testid="qr-login-password" />
+                    </label>
+                    <label className="settings-toggle">
+                        <input type="checkbox" checked={withKeys} onChange={(event) => setWithKeys(event.target.checked)} data-testid="qr-login-with-keys" />
+                        Also bring my encryption keys: the new device is verified and can read old messages without the recovery key
                     </label>
                     <button type="submit" className="settings-button" disabled={busy || !password} data-testid="qr-login-create">
                         {busy ? "Making code..." : "Show QR code"}

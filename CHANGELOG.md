@@ -24,6 +24,8 @@ Versions follow `vX.Y.Z`.
   and send to the call's chat, DMs and channels), Notifications (mentions and DMs) and Soundboard. Pin a widget to keep
   it on screen while you play (clicks go through to the game). Overlay settings choose widgets and opacity. If another
   app already uses Shift+`, Meadhall uses Ctrl+Shift+` (or Shift+F10), and the voice panel has a Game overlay button.
+- **QR sign-in can bring your encryption keys:** tick "Also bring my encryption keys" and the new device is verified
+  and can read your old messages without the recovery key.
 - **Pin messages:** Pin message in a message's menu; the pin panel lists every pin (also older ones), with Jump and
   Unpin.
 

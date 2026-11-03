@@ -32,6 +32,7 @@ import {
 import { syncMediaServiceWorkerAuthState } from "../serviceWorker/registerMediaServiceWorker";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { stopAndroidBackgroundSync } from "../platform/androidBackgroundSync";
+import { importPendingKeys } from "../auth/qrLogin";
 
 export type MatrixSessionStatus =
     | "booting"
@@ -815,6 +816,10 @@ export function MatrixProvider({ children }: React.PropsWithChildren): React.Rea
         if (!client || state.status !== "ready") {
             return undefined;
         }
+        // Signed in with a QR code that brought the other device's encryption keys (auth/qrLogin.ts).
+        void importPendingKeys(client)
+            .then((imported) => (imported ? refreshTrustStatus() : undefined))
+            .catch(() => undefined);
         const onTrustChanged = (userId: string): void => {
             if (userId === client.getUserId()) void refreshTrustStatus();
         };

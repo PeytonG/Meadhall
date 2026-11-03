@@ -26,7 +26,8 @@ homeservers need a registration token (an invite code) from whoever runs them: t
 ### How do I sign in on another device with a QR code?
 On a device where you are already signed in: Settings → Devices → Sign in another device → Show QR code (you type your
 password first). On the new device, choose Sign in with QR code and scan it. The code lasts 3 minutes and only works
-once. If the card says your homeserver doesn't allow it, the homeserver's admin must turn on
+once. Tick "Also bring my encryption keys" to have the new device verified and able to read your old messages without
+the recovery key (only do this for your own device: while it shows, the code also unlocks your messages). If the card says your homeserver doesn't allow it, the homeserver's admin must turn on
 login_via_existing_session in Synapse (the card shows the exact setting to copy).
 
 ### How do I change how Meadhall looks the first time?

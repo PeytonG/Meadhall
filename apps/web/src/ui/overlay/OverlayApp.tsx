@@ -150,7 +150,7 @@ export function OverlayApp(): React.ReactElement {
         void window.heorotDesktop?.getOverlayState?.().then((value) => setState(parseOverlayState(value)));
         void window.heorotDesktop?.getOverlayMode?.().then((value) => setMode(value || "open"));
         void window.heorotDesktop?.getOverlayShortcut?.().then((value) => {
-            if (value) setShortcut(value.replace(/+/g, " + "));
+            if (value) setShortcut(value.split("+").join(" + "));
         });
         const stopState = window.heorotDesktop?.onOverlayState?.((value) => setState(parseOverlayState(value)));
         const stopMode = window.heorotDesktop?.onOverlayMode?.((value) => setMode(value));
