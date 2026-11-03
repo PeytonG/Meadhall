@@ -4,7 +4,7 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
-## Unreleased
+## v0.5.2 (2026-11-03)
 
 ### New
 - **↑ edits your last message:** in an empty message box, the up arrow opens your most recent message for editing
