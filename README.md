@@ -466,6 +466,7 @@ privately as described in **[SECURITY.md](SECURITY.md)**.
   See [NOTICE](NOTICE) for what this fork changed.
 - **[matrix-js-sdk](https://github.com/matrix-org/matrix-js-sdk)** (Apache 2.0) and
   **[LiveKit](https://github.com/livekit/client-sdk-js)** (Apache 2.0).
+- File previews: **[PDF.js](https://github.com/mozilla/pdf.js)** (Apache 2.0) and **[mammoth](https://github.com/mwilliamson/mammoth.js)** (BSD 2-Clause).
 - Fonts: **Pixelify Sans** and **Silkscreen** (SIL Open Font License 1.1).
 
 Meadhall is licensed under the **[GNU AGPL-3.0](LICENSE)**. If you host a modified Meadhall for others, you must offer

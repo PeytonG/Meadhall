@@ -21,8 +21,10 @@
     "highlight.js": "11.11.1",
     "jsqr": "1.4.0",
     "livekit-client": "^2.23.0",
+    "mammoth": "1.13.0",
     "matrix-encrypt-attachment": "1.0.3",
     "matrix-js-sdk": "^40.2.0",
+    "pdfjs-dist": "6.4.299",
     "qrcode": "1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

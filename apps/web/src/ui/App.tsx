@@ -22,6 +22,7 @@ import "./styles/pixel.css";
 import "./styles/mobile.css";
 import "./styles/friends.css";
 import "./styles/help.css";
+import "./styles/files.css";
 
 function LoadingView({ label }: { label: string }): React.ReactElement {
     return (

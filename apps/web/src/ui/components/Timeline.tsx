@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import * as encrypt from "matrix-encrypt-attachment";
 import {
     ClientEvent,
@@ -40,8 +41,10 @@ import { getOrCreateThread, isThreadReplyFallback, threadEvents, threadSummary }
 import { ThreadSummaryBar } from "../threads/ThreadSummaryBar";
 import { parseAppLink } from "../utils/permalink";
 import { AppLinkPreview } from "./messages/AppLinkPreview";
+import { FileAttachment } from "./messages/FileAttachment";
+import { PixelIcon } from "./PixelIcon";
 import { ImageViewer } from "./messages/ImageViewer";
-import { saveMedia } from "../platform/saveMedia";
+import { fetchMediaBlob, saveMedia } from "../platform/saveMedia";
 import { isModerator, isShadowMuted } from "../../core/moderation/moderation";
 import { SANCTION_EVENT } from "../../core/moderation/moderationProtocol";
 
@@ -2445,6 +2448,15 @@ export function Timeline({
                                         <span className="timeline-media-details">
                                             {[mediaDuration, mediaSize].filter(Boolean).join(" . ")}
                                         </span>
+                                        <button
+                                            type="button"
+                                            className="file-attachment-download"
+                                            onClick={() => void downloadAttachment(mediaUrl, mediaName)}
+                                            aria-label={`Download ${mediaName}`}
+                                            title="Download"
+                                        >
+                                            <PixelIcon name="download" size={16} />
+                                        </button>
                                     </div>
                                 </div>
                             ) : mediaMsgType === MsgType.Audio && mediaUrl ? (
@@ -2459,28 +2471,27 @@ export function Timeline({
                                         <span className="timeline-media-details">
                                             {[mediaDuration, mediaSize].filter(Boolean).join(" . ")}
                                         </span>
+                                        <button
+                                            type="button"
+                                            className="file-attachment-download"
+                                            onClick={() => void downloadAttachment(mediaUrl, mediaName)}
+                                            aria-label={`Download ${mediaName}`}
+                                            title="Download"
+                                        >
+                                            <PixelIcon name="download" size={16} />
+                                        </button>
                                     </div>
                                 </div>
                             ) : mediaMsgType === MsgType.File && mediaUrl ? (
-                                <a
-                                    className={`timeline-file-card${showHeader ? "" : " timeline-file-card-grouped"}`}
-                                    href={mediaUrl}
-                                    download={mediaName || undefined}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <span className="timeline-file-icon" aria-hidden="true">
-                                        FILE
-                                    </span>
-                                    <span className="timeline-file-content">
-                                        <span className="timeline-file-name" title={mediaName}>
-                                            {mediaName}
-                                        </span>
-                                        <span className="timeline-file-meta">
-                                            {[mediaLabel, mediaSize].filter(Boolean).join(" . ")}
-                                        </span>
-                                    </span>
-                                </a>
+                                <FileAttachment
+                                    name={mediaName}
+                                    mimeType={typeof content.info?.mimetype === "string" ? content.info.mimetype : null}
+                                    size={typeof content.info?.size === "number" ? content.info.size : null}
+                                    sizeLabel={mediaSize}
+                                    grouped={!showHeader}
+                                    fetchFile={() => fetchMediaBlob(client, mediaUrl)}
+                                    onDownload={() => void downloadAttachment(mediaUrl, mediaName, typeof content.info?.mimetype === "string" ? content.info.mimetype : undefined)}
+                                />
                             ) : decryptingEncryptedMedia ? (
                                 <div className={`timeline-media-status${showHeader ? "" : " timeline-media-status-grouped"}`}>
                                     Decrypting {mediaLabel.toLowerCase()}...
@@ -2662,7 +2673,8 @@ export function Timeline({
                     onClose={() => setLightbox(null)}
                 />
             ) : null}
-            <Toast toast={toast} onClose={() => setToast(null)} />
+            {/* At the top of the page, so it shows over the picture and file viewers ("Saved to Downloads"). */}
+            {createPortal(<Toast toast={toast} onClose={() => setToast(null)} />, document.body)}
         </>
     );
 }

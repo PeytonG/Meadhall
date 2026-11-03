@@ -94,6 +94,13 @@ of the message box. Paste a picture or GIF straight into the box to send it. On 
 (opens the camera; the picture waits in the message box until you press Send), Upload a file, Create a poll and Send a
 sticker.
 
+### How do I open or download a file someone sent?
+Every file in the chat has a Download button (the arrow on its right); on Android files go to your Downloads folder.
+Click (tap) the file to open it inside Meadhall: PDFs show their pages (zoom with − and +, scroll for more pages), Word
+documents (.docx) show their text, and text or code files (.txt, .log, .md, .json, .csv, code) show all their text.
+Text files also show their first lines right in the chat; press Expand for more. Other files just download. Videos and
+voice clips play in the chat and have a Download button too.
+
 ### How do I look at a picture up close?
 Click (tap) a picture in the chat to open it. Click where you want to zoom in, or scroll the mouse wheel; on phones
 pinch with two fingers. Drag (one finger on phones) to move around a zoomed picture. Click without dragging to zoom

@@ -12,6 +12,10 @@ Versions follow `vX.Y.Z`.
   (to Downloads on Android).
 - **Resize the member list and profile panel** by dragging its left edge, like the channel list. Each width is
   remembered, and the chat always keeps enough room.
+- **File previews and Download buttons:** PDFs show their first page and page count in the chat and open in a viewer
+  (pages, zoom); Word documents open as formatted text; text and code files show their first lines (Expand, View
+  whole file). Every attachment (files, videos, voice clips, pictures) has a Download button; on Android files are
+  saved to Downloads.
 - **Home opens on Friends** when you have no conversations yet (it showed an empty chat), with Help and the inbox at
   the top right.
 
