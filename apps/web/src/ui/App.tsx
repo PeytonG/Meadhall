@@ -23,6 +23,7 @@ import "./styles/mobile.css";
 import "./styles/friends.css";
 import "./styles/help.css";
 import "./styles/files.css";
+import "./styles/notes.css";
 
 function LoadingView({ label }: { label: string }): React.ReactElement {
     return (

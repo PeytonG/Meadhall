@@ -25,12 +25,14 @@ import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpa
 import { ContextMenu } from "./menus/ContextMenu";
 import { isServerAdmin } from "../../core/admin/synapseAdmin";
 import { isModerationRoom, liftExpiredSanctions, shouldAutoJoinReport } from "../../core/moderation/moderation";
+import { isNotesRoom, watchNotesInvites } from "../../core/notes/notesRoom";
 import { enforceAutomod, grantOnboardingRoles, grantPendingOnboardingRoles } from "../../core/moderation/moderatorDuties";
 import { ONBOARDING_RESPONSE_EVENT } from "../../core/bots/botProtocol";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
+import { NotesView } from "../notes/NotesView";
 import { HelpDialog } from "../help/HelpDialog";
 import { declineCall, useOutgoingRing } from "../hooks/useOutgoingRing";
 import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
@@ -197,7 +199,7 @@ function getRoomName(room: Room): string {
 // Every room except the hidden bug-report rooms (Settings → Report a bug) and report and moderation-log rooms
 // (Server Settings → Reports).
 function listedRooms(client: MatrixClient): Room[] {
-    return client.getRooms().filter((room) => !isSentBugReport(room, client.getUserId()) && !isModerationRoom(room));
+    return client.getRooms().filter((room) => !isSentBugReport(room, client.getUserId()) && !isModerationRoom(room) && !isNotesRoom(room));
 }
 
 function isVisibleMembership(room: Room): boolean {
@@ -1057,19 +1059,29 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
     // Home → Friends shows in the main pane until a conversation is opened.
     const [friendsOpen, setFriendsOpen] = useState(false);
+    // Shared notes open for this DM, group chat or space (notes/NotesView.tsx), over the chat like Friends.
+    const [notesParentId, setNotesParentId] = useState<string | null>(null);
     const [helpOpen, setHelpOpen] = useState(false);
     const friendsList = useFriends(client);
     useEffect(() => watchFriendNotices(client), [client]);
+    useEffect(() => watchNotesInvites(client), [client]);
     const openRoomAtBottom = useCallback((roomId: string): void => {
         setFriendsOpen(false);
         setActiveRoomId(roomId);
         setTimelineFocusBottomNonce((value) => value + 1);
     }, []);
+    const openNotesFor = useCallback((parentId: string): void => {
+        setFriendsOpen(false);
+        setNotesParentId(parentId);
+        setMobilePane("chat");
+    }, []);
     const selectHome = useCallback((): void => {
+        setNotesParentId(null);
         setSelectedSpaceId(PEOPLE_SPACE_ID);
         setMobilePane("list");
     }, []);
     const selectServer = useCallback((spaceId: string): void => {
+        setNotesParentId(null);
         setSelectedSpaceId(spaceId);
         setMobilePane("list");
     }, []);
@@ -1672,6 +1684,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
               : undefined;
     // Home shows Friends when it's picked, or when there are no conversations yet (like Discord).
     const showFriends = selectedSpaceId === PEOPLE_SPACE_ID && !activeRoom && (friendsOpen || channels.length === 0);
+    const notesParent = notesParentId ? client.getRoom(notesParentId) : null;
+    const showNotes = Boolean(notesParent) && !showFriends;
+    const coveredPane = showFriends || showNotes;
     const shouldShowVoicePanel = Boolean(activeRoom && isActiveRoomVoiceChannel && voiceSessionRoomId === activeRoom.roomId);
     // Voice channels with text chat turned on (channel settings) show it beside the call.
     const voiceChatBeside = shouldShowVoicePanel && isVoiceChatEnabled(activeRoom);
@@ -2347,6 +2362,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 minimizeNativeApp();
             }
         };
+        // Screens with their own steps back (shared notes: the open note, then the notes) take it first.
+        const back = new CustomEvent("meadhall:back", { cancelable: true });
+        if (!window.dispatchEvent(back)) return;
         const before = openLayers();
         if (before === 0) {
             goBack();
@@ -2410,6 +2428,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const selectChannel = useCallback(
         (roomId: string): void => {
             setPendingFocusRoomId(null);
+            setNotesParentId(null);
             openRoomAtBottom(roomId);
             setMobilePane("chat");
             const room = roomById.get(roomId) ?? client.getRoom(roomId);
@@ -3264,6 +3283,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onOpenRoomSettings={openRoomSettingsFor}
                     onCreateChannel={(categoryId, kind) => openCreateRoomDialog(selectedSpaceRoom?.roomId ?? null, { kind, categoryId })}
                     onInviteToChannel={() => openInviteDialogFor(selectedSpaceRoom?.roomId ?? null)}
+                    onOpenNotes={selectedSpaceRoom ? () => openNotesFor(selectedSpaceRoom.roomId) : undefined}
+                    notesOpen={Boolean(selectedSpaceRoom) && notesParentId === selectedSpaceRoom?.roomId}
                     onWatchStream={(roomId, userId) => {
                         selectChannel(roomId);
                         setMobilePane("chat");
@@ -3578,11 +3599,19 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             ) : null}
             {/* Stays mounted behind Friends: it holds the call, and unmounting it would hang up (like Discord, browsing
                 never ends a call). */}
-            <section className={`main-pane${showFriends ? " is-behind-friends" : ""}`} aria-hidden={showFriends || undefined}>
+            {showNotes && notesParent ? (
+                <section className="main-pane notes-pane">
+                    <NotesView client={client} parent={notesParent} isPhone={isPhoneLayout} onClose={() => setNotesParentId(null)} />
+                </section>
+            ) : null}
+            <section className={`main-pane${coveredPane ? " is-behind-friends" : ""}`} aria-hidden={coveredPane || undefined}>
                 {/* Friends has its own Help and Inbox; one header at a time. */}
-                {showFriends ? null : (
+                {coveredPane ? null : (
                     <ChannelHeader
                         onOpenHelp={() => setHelpOpen(true)}
+                        onOpenNotes={
+                            activeRoom && selectedSpaceId === PEOPLE_SPACE_ID ? () => openNotesFor(activeRoom.roomId) : undefined
+                        }
                         room={activeRoom}
                         isDirectMessage={Boolean(activeRoom && isActiveRoomDirect && isOneToOneRoom(activeRoom, ownUserId))}
                         subtitle={

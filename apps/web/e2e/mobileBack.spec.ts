@@ -77,3 +77,37 @@ test("Back closes menus, then leaves the chat, then the space, then backgrounds 
     await pressBack(page);
     await expect.poll(() => minimized(page)).toBe(1);
 });
+
+test("on a phone, shared notes show the list, then the note; Back closes the note, then the notes", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    const dm = await createRoom(bob, { is_direct: true, preset: "trusted_private_chat", invite: [alice.userId] });
+    await joinRoom(alice, dm);
+    await setAccountData(alice, "m.direct", { [bob.userId]: [dm] });
+    await sendMessage(bob, dm, "let's plan the feast");
+    await fakeAndroidApp(page);
+    await signIn(page, alice);
+    await expect.poll(() => page.evaluate(() => Boolean((window as unknown as { __android: { back: unknown } }).__android.back))).toBe(true);
+
+    await page.getByRole("region", { name: "Direct messages" }).getByTestId("home-row").first().tap();
+    await page.getByRole("button", { name: "More channel actions" }).tap();
+    await page.getByRole("menuitem", { name: "Shared notes" }).tap();
+    await page.getByTestId("notes-create").tap();
+    await page.getByTestId("notes-new-note").tap();
+    await page.getByRole("textbox", { name: "Note title" }).first().fill("Feast");
+    await page.getByRole("textbox", { name: "Note title" }).first().press("Enter");
+    // One thing at a time on a phone: the note fills the screen, without the list.
+    await expect(page.getByTestId("note-text")).toBeVisible();
+    await expect(page.getByTestId("notes-tree")).toBeHidden();
+    await page.getByTestId("note-text").fill("Mead for twelve");
+    if (process.env.PREVIEW_DIR) await page.screenshot({ path: `${process.env.PREVIEW_DIR}/notes-phone.png` });
+
+    await pressBack(page);
+    await expect(page.getByTestId("notes-tree")).toBeVisible();
+    await expect(page.getByTestId("notes-note").filter({ hasText: "Feast" })).toBeVisible();
+    await pressBack(page);
+    await expect(page.getByTestId("notes-view")).toBeHidden();
+    await expect(page.locator(".timeline").getByText("let's plan the feast")).toBeVisible();
+    await pressBack(page);
+    await expect(page.getByRole("region", { name: "Direct messages" })).toBeVisible();
+});

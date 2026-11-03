@@ -89,6 +89,9 @@ interface RoomListProps {
     onInviteToChannel?: (roomId: string) => void;
     // Watch Stream / clicking a stream preview: join the call (if needed) and show that person's stream.
     onWatchStream?: (roomId: string, userId: string) => void;
+    // The space's shared notes (notes/NotesView.tsx), shown above the channels; `notesOpen` highlights the row.
+    onOpenNotes?: () => void;
+    notesOpen?: boolean;
 }
 
 interface VoiceParticipantInfo {
@@ -265,6 +268,8 @@ export function RoomList({
     onCreateChannel,
     onInviteToChannel,
     onWatchStream,
+    onOpenNotes,
+    notesOpen = false,
     voiceDiscoveryReady = false,
     mutedRoomIds = EMPTY_MUTED_ROOM_IDS,
     onRoomContextMenu,
@@ -1279,6 +1284,12 @@ export function RoomList({
                 </div>
             </div>
             <div className="room-list-items">
+                {onOpenNotes ? (
+                    <button type="button" className={`room-list-notes${notesOpen ? " is-active" : ""}`} onClick={onOpenNotes} data-testid="space-notes">
+                        <PixelIcon name="note" size={16} />
+                        <span>Notes</span>
+                    </button>
+                ) : null}
                 {/* Each group of channels is a list, so screen readers say "item 2 of 5". */}
                 {uncategorized.length > 0 ? (
                     <div role="list" aria-label="Channels" className="room-list-group">

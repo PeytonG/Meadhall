@@ -46,3 +46,4 @@ Files added by this fork carry an SPDX-License-Identifier: AGPL-3.0-only header.
 Third-party fonts: Pixelify Sans and Silkscreen, SIL Open Font License 1.1.
 File previews use PDF.js (Mozilla, Apache License 2.0) and mammoth (Michael Williamson,
 BSD 2-Clause License), loaded only when a PDF or Word document is opened.
+Shared notes use Yjs (Kevin Jahns, MIT License).

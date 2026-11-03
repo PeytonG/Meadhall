@@ -7,6 +7,9 @@ Versions follow `vX.Y.Z`.
 ## v0.5.3 (unreleased)
 
 ### New
+- **Shared notes** in DMs, group chats and spaces: as many notes as you like in folders inside folders, edited by
+  everyone at the same time (changes show for the others within a moment). Each note holds up to 0.3 MB. Open them
+  with the notes button at the top of a chat, or Notes above a space's channels. Encrypted when the chat is.
 - **Move around zoomed pictures:** in the picture viewer, click where you want to zoom in or use the mouse wheel,
   drag to move a zoomed picture, pinch on phones; a click without dragging zooms back out. Download saves the picture
   (to Downloads on Android).

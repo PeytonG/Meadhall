@@ -165,6 +165,10 @@ days): see [Installing on your iPhone for free](docs/ios-free-install.md).
 - 👥 **Multiple accounts**: sign in to accounts on different servers, switch from the user panel, and get
   notifications for all of them.
 - 📱 **Sign in with a QR code**: show a one-time code on a device you're signed in on and scan it with the new one.
+- 📝 **Shared notes** in DMs, group chats and servers: notes in folders inside folders, edited by everyone at the same
+  time (encrypted when the chat is), up to 0.3 MB each.
+- 📎 **File previews**: PDFs (pages and zoom), Word documents and text or code files open inside Meadhall, and every
+  attachment has a Download button.
 - ↩️ Replies, edits, reactions, pins, read receipts, typing indicators, search and a member list.
 
 **Voice and calls**
@@ -467,6 +471,7 @@ privately as described in **[SECURITY.md](SECURITY.md)**.
 - **[matrix-js-sdk](https://github.com/matrix-org/matrix-js-sdk)** (Apache 2.0) and
   **[LiveKit](https://github.com/livekit/client-sdk-js)** (Apache 2.0).
 - File previews: **[PDF.js](https://github.com/mozilla/pdf.js)** (Apache 2.0) and **[mammoth](https://github.com/mwilliamson/mammoth.js)** (BSD 2-Clause).
+- Shared notes: **[Yjs](https://github.com/yjs/yjs)** (MIT).
 - Fonts: **Pixelify Sans** and **Silkscreen** (SIL Open Font License 1.1).
 
 Meadhall is licensed under the **[GNU AGPL-3.0](LICENSE)**. If you host a modified Meadhall for others, you must offer

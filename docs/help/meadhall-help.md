@@ -124,6 +124,29 @@ The channel is not end-to-end encrypted: the homeserver can read its messages. D
 This device doesn't have the keys for it. Restore them in Settings → Encryption & Recovery with your recovery key, or
 verify this device from another signed-in device (Settings → Devices → Verify this device).
 
+## Shared notes
+
+### How do I make shared notes with someone?
+In a DM or group chat: the notes button at the top of the chat (on phones: ... → Shared notes). In a space: Notes,
+above the channels. The first time, press Start shared notes (in a space only moderators can start them; after that
+everyone in the space can use them). Notes in an encrypted chat are encrypted too.
+
+### How do I add notes and folders?
+In the notes, press Note or Folder. New ones go into the folder you picked (folders can hold folders). Name a note
+in the box at the top of it. To move something, drag it onto a folder, or use its ... → Move to. ... → Rename or
+Delete (deleting a folder deletes everything in it, for everyone).
+
+### Can several people edit a note at the same time?
+Yes. Everyone in the chat or space sees changes within a moment, and edits made at the same time are combined. The
+bottom of the note says when it's saved and who edited it last.
+
+### How big can a note be?
+Up to 300 KB of text (0.3 MB). The bottom of the note shows how much is used. When a note is full, start another one.
+
+### How do I get back to the chat?
+The X at the top right of the notes, or click a channel or conversation. On phones, Back (or the back arrow) closes
+the open note, then the notes.
+
 ## Friends and direct messages
 
 Home opens on Friends when you have no conversations yet. Help (?) and the inbox are at the top right of Friends, as

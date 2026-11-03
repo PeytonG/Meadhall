@@ -5216,7 +5216,8 @@ img.voice-ctrl-icon {
 
     /* Bigger touch targets. */
     .home-row,
-    .room-item-select {
+    .room-item-select,
+    .room-list-notes {
         min-height: 48px;
     }
 
