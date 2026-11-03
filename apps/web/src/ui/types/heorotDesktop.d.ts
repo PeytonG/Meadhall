@@ -48,6 +48,13 @@ export interface HeorotDesktopBridge {
     onOpenLink?: (listener: (link: string) => void) => () => void;
     setTitleBarColors?: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp?: () => Promise<void>;
+    // The game overlay (Shift+`, apps/desktop/electron/overlay.ts).
+    setOverlayState?: (state: unknown) => Promise<void>;
+    getOverlayState?: () => Promise<unknown>;
+    onOverlayState?: (listener: (state: unknown) => void) => () => void;
+    overlayCommand?: (command: string) => Promise<void>;
+    onOverlayCommand?: (listener: (command: string) => void) => () => void;
+    closeOverlay?: () => Promise<void>;
     // previews: false returns at once without thumbnails (desktop 0.3.4+; older apps ignore it and include them).
     getDesktopCapturerSources?: (options?: { previews?: boolean }) => Promise<HeorotDesktopCaptureSource[]>;
     setPreferredDisplayMediaSource?: (sourceId: string) => Promise<void>;

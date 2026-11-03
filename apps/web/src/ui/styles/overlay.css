@@ -1,0 +1,177 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The game overlay page (overlay/OverlayApp.tsx): transparent, so the game shows through around the widgets. */
+
+html.is-overlay,
+html.is-overlay body,
+html.is-overlay #root {
+    background: transparent !important;
+}
+
+.overlay-root {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--text-main);
+    font-family: var(--font-ui, inherit);
+}
+
+.overlay-bar {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-pane) 92%, transparent);
+    transform: translateX(-50%);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.overlay-button {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 36px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.overlay-button:hover {
+    background: var(--bg-hover);
+}
+
+.overlay-button.is-active {
+    background: var(--accent);
+    color: var(--on-primary);
+}
+
+.overlay-button.is-danger {
+    background: var(--danger, #e5484d);
+    color: #fff;
+}
+
+.overlay-bar-status {
+    display: flex;
+    flex-direction: column;
+    margin: 0 8px;
+    line-height: 1.2;
+}
+
+.overlay-bar-status strong {
+    color: var(--success, #23a55a);
+    font-size: 13px;
+}
+
+.overlay-bar-status small {
+    color: var(--text-muted);
+}
+
+.overlay-close {
+    display: grid;
+    place-items: center;
+    margin-left: 6px;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.overlay-close small {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.overlay-widget {
+    position: absolute;
+    left: 24px;
+    width: 280px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-pane) 90%, transparent);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.overlay-widget h2 {
+    margin: 0 0 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.overlay-widget ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.overlay-members {
+    top: 24px;
+}
+
+.overlay-members li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.overlay-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+
+.overlay-members li.is-speaking .overlay-dot {
+    background: var(--success, #23a55a);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #23a55a) 40%, transparent);
+}
+
+.overlay-live {
+    margin-left: auto;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--danger, #e5484d);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.overlay-messages {
+    top: 280px;
+    max-height: calc(100vh - 320px);
+    overflow-y: auto;
+}
+
+.overlay-messages li {
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+}
+
+.overlay-messages small {
+    color: var(--text-muted);
+}
+
+.overlay-messages p {
+    margin: 2px 0 0;
+    overflow-wrap: anywhere;
+}
+
+.overlay-hint {
+    position: absolute;
+    right: 24px;
+    bottom: 16px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+}

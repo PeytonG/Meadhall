@@ -158,6 +158,20 @@ export function AppearanceTab({
                 </p>
             </div>
 
+            <div className="settings-section-card">
+                <h3>Colored controls</h3>
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={settings.accentControls}
+                        onChange={(event) => onChange({ ...settings, accentControls: event.target.checked })}
+                        data-testid="accent-controls-toggle"
+                    />
+                    Scrollbars in your theme color
+                </label>
+                <p className="settings-field-help">Off for neutral grey. Works the same with rounded and square shapes.</p>
+            </div>
+
             <LanguageCard />
 
             <div className="settings-section-card">

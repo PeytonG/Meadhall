@@ -165,20 +165,22 @@ canvas,
     outline-offset: 2px;
 }
 
-/* Chunky scrollbars. */
+/* Scrollbars: colored with the accent unless "Colored controls" is off (data-accent-controls), in either shape;
+   Square only makes them chunkier. */
+:root {
+    --scrollbar-thumb: color-mix(in srgb, var(--text-muted) 45%, transparent);
+}
+
+:root[data-accent-controls="on"] {
+    --scrollbar-thumb: var(--accent);
+}
+
+:where(:root) * {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
 :where(:root[data-shape="pixel"]) * {
     scrollbar-width: auto;
-    scrollbar-color: var(--accent) transparent;
-}
-
-:where(:root[data-shape="pixel"]) ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-:where(:root[data-shape="pixel"]) ::-webkit-scrollbar-thumb {
-    background: var(--accent);
-    border: 2px solid var(--bg-pane);
 }
 
 ::-webkit-scrollbar-track {

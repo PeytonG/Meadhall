@@ -759,11 +759,11 @@
 }
 
 .rp-profile-menu-panel {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
+    position: fixed;
+    top: 0;
+    left: 0;
     min-width: 170px;
-    z-index: 120;
+    z-index: 1000;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--bg-pane);

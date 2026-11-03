@@ -45,6 +45,13 @@ export interface HeorotDesktopBridge {
     // Recolors the window-controls overlay (minimize/maximize/close) to match the app theme.
     setTitleBarColors: (colors: { color: string; symbolColor: string }) => Promise<void>;
     quitApp: () => Promise<void>;
+    // The game overlay (Shift+`, overlay.ts).
+    setOverlayState: (state: unknown) => Promise<void>;
+    getOverlayState: () => Promise<unknown>;
+    onOverlayState: (listener: (state: unknown) => void) => () => void;
+    overlayCommand: (command: string) => Promise<void>;
+    onOverlayCommand: (listener: (command: string) => void) => () => void;
+    closeOverlay: () => Promise<void>;
     getDesktopCapturerSources: (options?: { previews?: boolean }) => Promise<DesktopCaptureSource[]>;
     setPreferredDisplayMediaSource: (sourceId: string) => Promise<void>;
     getStartAtLogin: () => Promise<boolean>;
@@ -126,6 +133,30 @@ const bridge: HeorotDesktopBridge = {
     },
     quitApp: async (): Promise<void> => {
         await ipcRenderer.invoke("heorot:quitApp");
+    },
+    setOverlayState: async (state: unknown): Promise<void> => {
+        await ipcRenderer.invoke("heorot:setOverlayState", state);
+    },
+    getOverlayState: async (): Promise<unknown> => ipcRenderer.invoke("heorot:getOverlayState"),
+    onOverlayState: (listener: (state: unknown) => void): (() => void) => {
+        const handler = (_event: unknown, state: unknown): void => listener(state);
+        ipcRenderer.on("heorot:overlayState", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:overlayState", handler);
+        };
+    },
+    overlayCommand: async (command: string): Promise<void> => {
+        await ipcRenderer.invoke("heorot:overlayCommand", command);
+    },
+    onOverlayCommand: (listener: (command: string) => void): (() => void) => {
+        const handler = (_event: unknown, command: string): void => listener(command);
+        ipcRenderer.on("heorot:overlayCommand", handler);
+        return () => {
+            ipcRenderer.removeListener("heorot:overlayCommand", handler);
+        };
+    },
+    closeOverlay: async (): Promise<void> => {
+        await ipcRenderer.invoke("heorot:closeOverlay");
     },
     getDesktopCapturerSources: async (options?: { previews?: boolean }): Promise<DesktopCaptureSource[]> => {
         return (await ipcRenderer.invoke("heorot:getDesktopCapturerSources", { previews: options?.previews !== false })) as DesktopCaptureSource[];

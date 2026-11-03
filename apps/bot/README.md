@@ -1,5 +1,8 @@
 # Meadhall bot
 
+> **Setting it up for the first time?** Follow the step-by-step [bot guide](../../docs/bots.md): accounts, Docker,
+> roles, checks and troubleshooting. This page is the short version.
+
 A bot for Meadhall servers: **onboarding** (gives roles once a new member accepts the rules and answers the
 questions), **welcome messages**, **auto-mod** (blocked words, links, mention spam) and **moderation commands**
 (`/warn`, `/timeout`, `/untimeout`, `/kick`, `/ban`, `/rules`, `/help`). Everything is set up per server in

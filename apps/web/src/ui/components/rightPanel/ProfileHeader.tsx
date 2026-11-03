@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar } from "../Avatar";
 import type { PresenceVm } from "../../presence/buildPresenceVm";
@@ -23,6 +23,8 @@ interface ProfileHeaderProps {
     onCopyUserId: () => Promise<void>;
     onMessage?: () => Promise<void>;
     onCall?: () => void;
+    // Add friend / Pending / Friends (core/friends/friends.ts); absent on your own profile.
+    friend?: { label: string; onClick?: () => void };
 }
 
 function hashToHue(value: string): number {
@@ -46,6 +48,7 @@ export function ProfileHeader({
     onCopyUserId,
     onMessage,
     onCall,
+    friend,
 }: ProfileHeaderProps): React.ReactElement {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +85,24 @@ export function ProfileHeader({
             window.removeEventListener("mousedown", onMouseDown);
             window.removeEventListener("keydown", onKeyDown);
         };
+    }, [menuOpen]);
+
+    // The panel clips overflow, so the menu is fixed to the window and kept inside it.
+    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+    const menuPanelRef = useRef<HTMLDivElement | null>(null);
+    useLayoutEffect(() => {
+        if (!menuOpen) {
+            setMenuPosition(null);
+            return;
+        }
+        const button = menuRef.current?.querySelector("button")?.getBoundingClientRect();
+        const panel = menuPanelRef.current?.getBoundingClientRect();
+        if (!button || !panel) return;
+        const margin = 8;
+        const left = Math.min(Math.max(margin, button.right - panel.width), window.innerWidth - panel.width - margin);
+        const below = button.bottom + 6;
+        const top = below + panel.height > window.innerHeight - margin ? Math.max(margin, button.top - 6 - panel.height) : below;
+        setMenuPosition({ top, left });
     }, [menuOpen]);
 
     return (
@@ -128,9 +149,11 @@ export function ProfileHeader({
                 >
                     Call
                 </button>
-                <button type="button" className="rp-icon-btn" disabled>
-                    Add
-                </button>
+                {friend ? (
+                    <button type="button" className="rp-icon-btn" disabled={!friend.onClick} onClick={friend.onClick} data-testid="profile-friend">
+                        {friend.label}
+                    </button>
+                ) : null}
                 <div className="rp-profile-menu" ref={menuRef}>
                     <button
                         type="button"
@@ -142,7 +165,12 @@ export function ProfileHeader({
                         ...
                     </button>
                     {menuOpen ? (
-                        <div className="rp-profile-menu-panel" role="menu">
+                        <div
+                            className="rp-profile-menu-panel"
+                            role="menu"
+                            ref={menuPanelRef}
+                            style={menuPosition ?? { visibility: "hidden" }}
+                        >
                             <button
                                 type="button"
                                 className="rp-profile-menu-item"

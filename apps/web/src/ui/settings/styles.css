@@ -1719,3 +1719,208 @@
         grid-row: 2;
     }
 }
+
+.qr-login-config {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+/* Server admin sections (ServerAdminTab.tsx, admin/AdminSections.tsx). */
+.admin-sections {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.admin-section-button,
+.admin-subtab {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.admin-section-button.is-active,
+.admin-subtab.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-primary, #fff);
+}
+
+.admin-subtabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0 14px;
+}
+
+.admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.admin-toolbar input[type="search"],
+.admin-toolbar input[type="text"] {
+    flex: 1 1 220px;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    font: inherit;
+}
+
+.admin-file-button {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.admin-file-button input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.admin-grid-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.admin-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.admin-grid th,
+.admin-grid td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.admin-grid th {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.admin-grid tr:last-child td {
+    border-bottom: 0;
+}
+
+.admin-grid .admin-cell-wrap {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-width: 360px;
+}
+
+.admin-grid .admin-cell-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.admin-grid tr.admin-clickable {
+    cursor: pointer;
+}
+
+.admin-grid tr.admin-clickable:hover {
+    background: var(--bg-hover);
+}
+
+.admin-grid tr.is-failing {
+    background: color-mix(in srgb, var(--danger, #e5484d) 22%, transparent);
+}
+
+.admin-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+    color: var(--text-muted);
+}
+
+.admin-detail-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-detail-header h3 {
+    flex: 1 1 auto;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.admin-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.admin-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+    margin: 10px 0 14px;
+}
+
+.admin-facts dt {
+    color: var(--text-muted);
+}
+
+.admin-facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.admin-user-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-password-row {
+    display: flex;
+    gap: 8px;
+}
+
+.admin-password-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.admin-inline-form {
+    margin: 10px 0;
+}
+
+.admin-plain-list {
+    margin: 0;
+    padding-left: 18px;
+    max-height: 260px;
+    overflow-y: auto;
+    font-size: 14px;
+}

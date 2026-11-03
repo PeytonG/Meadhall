@@ -47,6 +47,7 @@ const EMPTY_MUTED_ROOM_IDS: ReadonlySet<string> = new Set();
 import { SpeakingCampfire } from "./voice/PixelCampfire";
 import micMuteIcon from "./icons/mic-02.svg";
 import volumeMuteIcon from "./icons/volume-mute-02.svg";
+import { StreamHoverCard } from "./voice/StreamHoverCard";
 
 interface RoomListProps {
     client: MatrixClient;
@@ -1125,8 +1126,16 @@ export function RoomList({
                                 (isLocalVoiceParticipant && localVoiceSessionForRoom?.audioMuted === true);
 
                             return (
-                                <button
+                                <StreamHoverCard
                                     key={participant.identity}
+                                    client={client}
+                                    room={room}
+                                    userId={participantUserId}
+                                    name={participantName}
+                                    live={isScreenSharing && !isLocalVoiceParticipant}
+                                    onWatch={() => onSelectRoom(room.roomId)}
+                                >
+                                <button
                                     type="button"
                                     className={`room-item-voice-user${isSpeaking ? " is-speaking" : ""}${
                                         isScreenSharing ? " is-screen-sharing" : ""
@@ -1201,6 +1210,7 @@ export function RoomList({
                                     </span>
                                     {isScreenSharing ? <span className="room-item-voice-live-badge">LIVE</span> : null}
                                 </button>
+                                </StreamHoverCard>
                             );
                         })}
                     </div>

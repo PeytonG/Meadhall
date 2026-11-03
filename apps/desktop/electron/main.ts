@@ -11,6 +11,7 @@ import { stopRichPresence } from "./activity/richPresence";
 import { createTray, destroyTray, getTrayState, hasTray, setTrayState, type TrayState } from "./tray";
 import { checkForUpdates, configureAutoUpdater, downloadAndInstallUpdate, getUpdateStatus, installVersion, isAutoUpdateSupported } from "./updater";
 import { openExternalSafely, readWindowState, writeWindowState } from "./util";
+import { hideOverlay, overlayCommand, overlayState, setOverlayState, setUpOverlay, tearDownOverlay } from "./overlay";
 
 const APP_TITLE = "Meadhall";
 const DEFAULT_DEV_URL = "http://127.0.0.1:5173";
@@ -309,13 +310,14 @@ function canNavigateInsideApp(rawUrl: string): boolean {
     }
 }
 
-async function loadRenderer(window: BrowserWindow): Promise<void> {
+async function loadRenderer(window: BrowserWindow, hash = ""): Promise<void> {
+    const suffix = hash ? `#${hash}` : "";
     if (DEV_URL) {
-        await window.loadURL(DEV_URL);
+        await window.loadURL(`${DEV_URL}${suffix}`);
         return;
     }
 
-    await window.loadURL(APP_ENTRY_URL);
+    await window.loadURL(`${APP_ENTRY_URL}${suffix}`);
 }
 
 function configureNavigationSafety(window: BrowserWindow): void {
@@ -542,6 +544,12 @@ function registerIpc(): void {
     });
     handleFromApp("heorot:getTrayState", () => getTrayState());
 
+    // The game overlay (overlay.ts): the main window publishes what to show, the overlay sends back clicks.
+    handleFromApp("heorot:setOverlayState", (_event, state: unknown) => setOverlayState(state));
+    handleFromApp("heorot:getOverlayState", () => overlayState());
+    handleFromApp("heorot:overlayCommand", (_event, command: unknown) => overlayCommand(command));
+    handleFromApp("heorot:closeOverlay", () => hideOverlay());
+
     // "Playing ..." from Steam (the app polls this when sharing activity is on).
     handleFromApp("heorot:getActivity", () => currentActivity());
     handleFromApp("heorot:takePendingLink", () => {
@@ -705,6 +713,7 @@ async function bootstrap(): Promise<void> {
     app.on("will-quit", () => {
         stopRichPresence();
         destroyTray();
+        tearDownOverlay();
     });
 
     await app.whenReady();
@@ -730,6 +739,7 @@ async function bootstrap(): Promise<void> {
 
     mainWindow = createMainWindow(wasLaunchedHidden());
     await loadRenderer(mainWindow);
+    setUpOverlay({ preload: resolvePreloadPath(), load: loadRenderer, mainWindow: () => mainWindow, secure: configureNavigationSafety });
 
     configureAutoUpdater(() => mainWindow);
 }

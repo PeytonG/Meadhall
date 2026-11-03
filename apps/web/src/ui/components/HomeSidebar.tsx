@@ -30,6 +30,10 @@ interface HomeSidebarProps {
     bugReports?: Room[];
     onAcceptInvite?: (roomId: string) => void;
     onDeclineInvite?: (roomId: string) => void;
+    // Home → Friends (FriendsView in the main pane).
+    friendsOpen?: boolean;
+    pendingFriendRequests?: number;
+    onOpenFriends?: () => void;
 }
 
 function inviterName(room: Room, ownUserId: string): string {
@@ -112,6 +116,9 @@ export function HomeSidebar({
     bugReports = [],
     onAcceptInvite,
     onDeclineInvite,
+    friendsOpen = false,
+    pendingFriendRequests = 0,
+    onOpenFriends,
 }: HomeSidebarProps): React.ReactElement {
     const { config } = useMatrix();
     const ownUserId = client.getUserId() ?? "";
@@ -196,6 +203,13 @@ export function HomeSidebar({
                     <PixelIcon name="plus" size={16} />
                 </button>
             </div>
+            {onOpenFriends ? (
+                <button type="button" className={`home-friends-button${friendsOpen ? " is-active" : ""}`} onClick={onOpenFriends} data-testid="home-friends">
+                    <PixelIcon name="people" size={18} />
+                    <span>Friends</span>
+                    {pendingFriendRequests > 0 ? <span className="friends-badge">{pendingFriendRequests}</span> : null}
+                </button>
+            ) : null}
             <div className="home-sections">
                 <section className="home-section" aria-label="Direct messages">
                     <header className="home-section-header">

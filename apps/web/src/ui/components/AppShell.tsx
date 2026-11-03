@@ -25,9 +25,15 @@ import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpa
 import { ContextMenu } from "./menus/ContextMenu";
 import { isServerAdmin } from "../../core/admin/synapseAdmin";
 import { isModerationRoom, liftExpiredSanctions, shouldAutoJoinReport } from "../../core/moderation/moderation";
+import { enforceAutomod, grantOnboardingRoles, grantPendingOnboardingRoles } from "../../core/moderation/moderatorDuties";
+import { ONBOARDING_RESPONSE_EVENT } from "../../core/bots/botProtocol";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
-import { OnboardingGate } from "../bots/OnboardingDialog";
+import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
+import { FriendsView, useFriends } from "../friends/FriendsView";
+import { HelpDialog } from "../help/HelpDialog";
+import type { OverlayState } from "../overlay/overlayState";
+import { watchFriendNotices } from "../../core/friends/friends";
 import { BOT_STATE_TYPES, needsOnboarding, useSpaceState } from "../../core/bots/serverBots";
 import { getSpaceBanner } from "../../core/rooms/spaceBanner";
 import { isVoiceChatEnabled } from "../../core/voice/voiceChat";
@@ -841,6 +847,21 @@ async function resolveSpaceHierarchyVoiceHints(
     return { childOrderOverride, customOrderOverride, voiceHintRoomIds };
 }
 
+function useRoomTimelineTick(client: MatrixClient, roomId: string | null): number {
+    const [tick, setTick] = useState(0);
+    useEffect(() => {
+        if (!roomId) return undefined;
+        const onTimeline = (_event: MatrixEvent, room: Room | undefined): void => {
+            if (room?.roomId === roomId) setTick((value) => value + 1);
+        };
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.off(RoomEvent.Timeline, onTimeline);
+        };
+    }, [client, roomId]);
+    return tick;
+}
+
 function findParentSpaceIdForRoom(roomId: string, spaces: Room[]): string | null {
     for (const space of spaces) {
         const children = readSpaceChildOrder(space);
@@ -1007,7 +1028,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const autoJoiningDirectRoomIdsRef = useRef<Set<string>>(new Set());
     // Phones show one screen at a time, like the Discord app: the server rail + channel list, or the open chat.
     const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
+    // Home → Friends shows in the main pane until a conversation is opened.
+    const [friendsOpen, setFriendsOpen] = useState(false);
+    const [helpOpen, setHelpOpen] = useState(false);
+    const friendsList = useFriends(client);
+    useEffect(() => watchFriendNotices(client), [client]);
     const openRoomAtBottom = useCallback((roomId: string): void => {
+        setFriendsOpen(false);
         setActiveRoomId(roomId);
         setTimelineFocusBottomNonce((value) => value + 1);
     }, []);
@@ -1275,7 +1302,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     );
     // The server's onboarding (rules and questions) stands in for the message box until you've done it.
     const botStateRevision = useSpaceState(selectedSpaceRoom, BOT_STATE_TYPES);
-    const onboardingNeeded = useMemo(() => needsOnboarding(client, selectedSpaceRoom), [client, selectedSpaceRoom, botStateRevision]);
+    const selectedSpaceMembership = selectedSpaceRoom?.getMyMembership();
+    const onboardingNeeded = useMemo(
+        () => needsOnboarding(client, selectedSpaceRoom),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [client, selectedSpaceRoom, botStateRevision, selectedSpaceMembership],
+    );
 
     const channels = useMemo(() => {
         if (selectedSpaceId === PEOPLE_SPACE_ID) {
@@ -1477,10 +1509,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             return;
         }
 
-        if (!spaces.some((space) => space.roomId === selectedSpaceId)) {
+        // A space you're joining can drop out of the list for a moment (invite → join): keep it selected.
+        const membership = client.getRoom(selectedSpaceId)?.getMyMembership();
+        if (!spaces.some((space) => space.roomId === selectedSpaceId) && membership !== "join" && membership !== "invite") {
             setSelectedSpaceId(PEOPLE_SPACE_ID);
         }
-    }, [selectedSpaceId, spaces]);
+    }, [client, selectedSpaceId, spaces]);
 
     useEffect(() => {
         const visibleSpaceIds = new Set(spaces.map((space) => space.roomId));
@@ -1515,6 +1549,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }
 
         if (!activeRoomId) {
+            // Home → Friends stays open with no conversation selected.
+            if (friendsOpen && selectedSpaceId === PEOPLE_SPACE_ID) return;
             openRoomAtBottom(channels[0].roomId);
             return;
         }
@@ -1528,7 +1564,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
             openRoomAtBottom(channels[0].roomId);
         }
-    }, [activeRoomId, channels, directRoomIds, openRoomAtBottom, pendingFocusRoomId, selectedSpaceId]);
+    }, [activeRoomId, channels, directRoomIds, friendsOpen, openRoomAtBottom, pendingFocusRoomId, selectedSpaceId]);
 
     useEffect(() => {
         setReplyToEvent(null);
@@ -1658,6 +1694,33 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         }, 60_000);
         return () => {
             client.off(ClientEvent.Room, joinReports);
+            window.clearInterval(timer);
+        };
+    }, [client]);
+
+    // Moderators in spaces without a bot: auto-mod and onboarding roles from this app (moderatorDuties.ts).
+    useEffect(() => {
+        const onTimeline = (event: MatrixEvent, room: Room | undefined, toStartOfTimeline: boolean | undefined): void => {
+            if (!room || toStartOfTimeline) return;
+            void (async () => {
+                await client.decryptEventIfNeeded(event);
+                if (event.getType() === ONBOARDING_RESPONSE_EVENT && room.isSpaceRoom()) {
+                    await grantOnboardingRoles(client, room, event);
+                } else {
+                    await enforceAutomod(client, room, event);
+                }
+            })().catch(() => undefined);
+        };
+        const catchUp = (): void => {
+            for (const space of client.getRooms()) {
+                if (space.isSpaceRoom() && space.getMyMembership() === "join") void grantPendingOnboardingRoles(client, space).catch(() => undefined);
+            }
+        };
+        catchUp();
+        const timer = window.setInterval(catchUp, 5 * 60_000);
+        client.on(RoomEvent.Timeline, onTimeline);
+        return () => {
+            client.off(RoomEvent.Timeline, onTimeline);
             window.clearInterval(timer);
         };
     }, [client]);
@@ -2004,6 +2067,72 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     };
     useEffect(() => window.heorotDesktop?.onTrayAction?.((action) => trayActionRef.current(action)), []);
 
+    // The desktop game overlay (Shift+`): what it shows, and its buttons acting here (overlay/OverlayApp.tsx).
+    const overlayRoomTick = useRoomTimelineTick(client, voiceSessionRoomId);
+    useEffect(() => {
+        if (!window.heorotDesktop?.setOverlayState) return;
+        const inCall = voiceSessionStatus === "connected" && Boolean(voiceSessionRoomId);
+        const room = voiceSessionRoomId ? client.getRoom(voiceSessionRoomId) : null;
+        const speaking = voiceSpeakingByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
+        const sharing = voiceScreenShareByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>();
+        const people = [...(voiceParticipantsByRoomId.get(voiceSessionRoomId ?? "") ?? new Set<string>())];
+        const state: OverlayState = {
+            inCall,
+            channel: room ? getRoomName(room) : null,
+            micMuted: selfVoice.muted,
+            deafened: selfVoice.deafened,
+            cameraOn: Boolean(voiceControlState.cameraOn),
+            sharing: Boolean(voiceControlState.screenSharing),
+            participants: inCall
+                ? people.map((userId) => ({
+                      userId,
+                      name: room?.getMember(userId)?.name ?? client.getUser(userId)?.displayName ?? userId,
+                      speaking: speaking.has(userId),
+                      sharing: sharing.has(userId),
+                  }))
+                : [],
+            messages: room
+                ? room
+                      .getLiveTimeline()
+                      .getEvents()
+                      .filter((event) => event.getType() === EventType.RoomMessage && !event.isRedacted() && typeof event.getContent().body === "string")
+                      .slice(-5)
+                      .map((event) => ({
+                          id: event.getId() ?? "",
+                          sender: room.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
+                          body: String(event.getContent().body).slice(0, 300),
+                          room: getRoomName(room),
+                      }))
+                : [],
+        };
+        void window.heorotDesktop.setOverlayState(state);
+    }, [
+        client,
+        overlayRoomTick,
+        selfVoice.deafened,
+        selfVoice.muted,
+        voiceControlState.cameraOn,
+        voiceControlState.screenSharing,
+        voiceParticipantsByRoomId,
+        voiceScreenShareByRoomId,
+        voiceSessionRoomId,
+        voiceSessionStatus,
+        voiceSpeakingByRoomId,
+    ]);
+    const overlayCommandRef = useRef<(command: string) => void>(() => undefined);
+    overlayCommandRef.current = (command) => {
+        if (command === "toggleMute") toggleVoiceMicFromDock();
+        else if (command === "toggleDeafen") toggleVoiceAudioFromDock();
+        else if (command === "toggleCamera") void voiceRoomRef.current?.toggleCamera();
+        else if (command === "leave") leaveVoiceFromDock();
+        else if (voiceSessionRoomId && (command === "toggleScreenShare" || command === "openSoundboard")) {
+            openRoomAtBottom(voiceSessionRoomId);
+            if (command === "toggleScreenShare") void voiceRoomRef.current?.toggleScreenShare();
+            else voiceRoomRef.current?.openSoundboard();
+        }
+    };
+    useEffect(() => window.heorotDesktop?.onOverlayCommand?.((command) => overlayCommandRef.current(command)), []);
+
     // Below 1100px the members/profile panel slides over the chat, so it only opens when asked for and closing it
     // there doesn't change the saved (desktop) panel choice.
     const isNarrowLayout = useMediaQuery("(max-width: 1100px)");
@@ -2188,9 +2317,12 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
 
     const requestJoinRoom = useCallback(
         async (target: string, options?: { viaServers?: string[]; preferredSpaceId?: string | null }): Promise<string> => {
+            // An invited space can look like a plain room right after joining (its full state arrives with the next
+            // sync), so remember what it was.
+            const wasSpace = client.getRoom(target)?.isSpaceRoom() === true;
             const joinedRoom = await joinRoomWithRetry(client, target, { viaServers: options?.viaServers });
 
-            if (joinedRoom.isSpaceRoom()) {
+            if (wasSpace || joinedRoom.isSpaceRoom()) {
                 setSelectedSpaceId(joinedRoom.roomId);
                 setActiveRoomId(null);
                 setPendingFocusRoomId(null);
@@ -2335,7 +2467,10 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             if (room.isSpaceRoom() || room.getMyMembership() !== "invite" || directRoomIds.has(room.roomId)) {
                 continue;
             }
-            if (!findParentSpaceIdForRoom(room.roomId, spaces) || autoJoiningChannelIdsRef.current.has(room.roomId)) {
+            // Only for spaces you have joined: an invited space has to be accepted first (its onboarding and rules
+            // can only be read once you are in it).
+            const parentId = findParentSpaceIdForRoom(room.roomId, spaces);
+            if (!parentId || client.getRoom(parentId)?.getMyMembership() !== "join" || autoJoiningChannelIdsRef.current.has(room.roomId)) {
                 continue;
             }
             autoJoiningChannelIdsRef.current.add(room.roomId);
@@ -2773,6 +2908,13 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         otherRooms={homeGroupRooms}
                         bugReports={homeBugReports}
                         invites={homeInvites.filter((room) => !isBugReportRoom(room))}
+                        friendsOpen={friendsOpen}
+                        pendingFriendRequests={friendsList.incoming.length}
+                        onOpenFriends={() => {
+                            setFriendsOpen(true);
+                            setActiveRoomId(null);
+                            setMobilePane("chat");
+                        }}
                         onAcceptInvite={(roomId) => {
                             void requestJoinRoom(roomId, { preferredSpaceId: null })
                                 .then(() => selectChannel(roomId))
@@ -2818,6 +2960,46 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 {selectedSpaceBannerUrl ? (
                     <div className="space-banner" data-testid="space-banner">
                         <MotionImage src={selectedSpaceBannerUrl} alt="" />
+                    </div>
+                ) : null}
+                {onboardingNeeded && selectedSpaceRoom ? <OnboardingAutoOpen key={selectedSpaceRoom.roomId} client={client} space={selectedSpaceRoom} /> : null}
+                {selectedSpaceRoom && selectedSpaceRoom.getMyMembership() === "invite" ? (
+                    <div className="space-onboarding-card" data-testid="space-invite-card">
+                        <div className="space-onboarding-header">
+                            <h3 className="space-onboarding-title">You're invited to {selectedSpaceRoom.name || "this space"}</h3>
+                        </div>
+                        <p className="space-onboarding-text">
+                            {(() => {
+                                const inviter = selectedSpaceRoom.getMember(client.getSafeUserId())?.events.member?.getSender();
+                                return inviter ? `Invited by ${selectedSpaceRoom.getMember(inviter)?.name ?? inviter}.` : "Join to see its channels.";
+                            })()}
+                        </p>
+                        <div className="space-onboarding-actions">
+                            <button
+                                type="button"
+                                className="room-dialog-button room-dialog-button-primary"
+                                data-testid="space-invite-accept"
+                                onClick={() => {
+                                    const spaceId = selectedSpaceRoom.roomId;
+                                    void requestJoinRoom(spaceId, { preferredSpaceId: null }).catch((joinError) =>
+                                        pushToast({ type: "error", message: describeJoinError(joinError, spaceId) }),
+                                    );
+                                }}
+                            >
+                                Accept
+                            </button>
+                            <button
+                                type="button"
+                                className="room-dialog-button"
+                                onClick={() => {
+                                    const spaceId = selectedSpaceRoom.roomId;
+                                    setSelectedSpaceId(PEOPLE_SPACE_ID);
+                                    void client.leave(spaceId).catch(() => undefined);
+                                }}
+                            >
+                                Decline
+                            </button>
+                        </div>
                     </div>
                 ) : null}
                 {showSpaceOnboarding ? (
@@ -2952,6 +3134,72 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                                     <PixelIcon name="hangup" />
                                 </button>
                             )}
+                            {voiceSessionStatus === "connected" ? (
+                                // Discord's row under "Voice Connected": camera, screen share, soundboard and call settings.
+                                <div className="pane-voice-actions" role="group" aria-label="Call controls">
+                                    <button
+                                        type="button"
+                                        className={`pane-voice-action${voiceControlState.cameraOn ? " is-on" : ""}`}
+                                        onClick={() => {
+                                            // Turning it on shows a preview in the call first.
+                                            openRoomAtBottom(voiceSessionRoomId);
+                                            setMobilePane("chat");
+                                            void voiceRoomRef.current?.toggleCamera();
+                                        }}
+                                        aria-pressed={Boolean(voiceControlState.cameraOn)}
+                                        aria-label={voiceControlState.cameraOn ? "Turn camera off" : "Turn camera on"}
+                                        title={voiceControlState.cameraOn ? "Turn camera off" : "Turn camera on"}
+                                        data-testid="dock-camera"
+                                    >
+                                        <PixelIcon name="camera" size={18} />
+                                    </button>
+                                    {isPhoneLayout ? null : (
+                                        <button
+                                            type="button"
+                                            className={`pane-voice-action${voiceControlState.screenSharing ? " is-on" : ""}`}
+                                            onClick={() => {
+                                                // The source picker shows in the call, so open it first.
+                                                openRoomAtBottom(voiceSessionRoomId);
+                                                void voiceRoomRef.current?.toggleScreenShare();
+                                            }}
+                                            aria-pressed={Boolean(voiceControlState.screenSharing)}
+                                            aria-label={voiceControlState.screenSharing ? "Stop screen share" : "Share screen"}
+                                            title={voiceControlState.screenSharing ? "Stop screen share" : "Share screen"}
+                                            data-testid="dock-screen-share"
+                                        >
+                                            <PixelIcon name="screen" size={18} />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="pane-voice-action"
+                                        onClick={() => {
+                                            openRoomAtBottom(voiceSessionRoomId);
+                                            setMobilePane("chat");
+                                            voiceRoomRef.current?.openSoundboard();
+                                        }}
+                                        aria-label="Soundboard"
+                                        title="Soundboard"
+                                        data-testid="dock-soundboard"
+                                    >
+                                        <PixelIcon name="soundboard" size={18} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="pane-voice-action"
+                                        onClick={() => {
+                                            openRoomAtBottom(voiceSessionRoomId);
+                                            setMobilePane("chat");
+                                            voiceRoomRef.current?.openVoiceSettings();
+                                        }}
+                                        aria-label="Call settings"
+                                        title="Call settings"
+                                        data-testid="dock-voice-settings"
+                                    >
+                                        <PixelIcon name="gear" size={18} />
+                                    </button>
+                                </div>
+                            ) : null}
                         </div>
                     ) : null}
                     {/* Discord-style user panel: profile plus mic, deafen and settings */}
@@ -3099,8 +3347,14 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </div>
             </section>
 
+            {friendsOpen && selectedSpaceId === PEOPLE_SPACE_ID && !activeRoom ? (
+                <section className="main-pane friends-pane">
+                    <FriendsView client={client} onOpenRoom={selectChannel} onCallUser={(userId) => void callUser(userId)} onToast={pushToast} />
+                </section>
+            ) : (
             <section className="main-pane">
                 <ChannelHeader
+                    onOpenHelp={() => setHelpOpen(true)}
                     room={activeRoom}
                     isDirectMessage={Boolean(activeRoom && isActiveRoomDirect && isOneToOneRoom(activeRoom, ownUserId))}
                     subtitle={
@@ -3274,6 +3528,9 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 ) : null}
                 </div>
             </section>
+            )}
+
+            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 
             {shouldRenderRightPanel ? (
                 <RightPanel

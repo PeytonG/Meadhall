@@ -17,12 +17,14 @@ import { EventType, type MatrixClient, type Room as MatrixRoom } from "matrix-js
 import { MatrixRTCSessionEvent, type MatrixRTCSession } from "matrix-js-sdk/src/matrixrtc";
 
 import { Avatar } from "../Avatar";
+import { STREAM_PREVIEW_INTERVAL_MS, postStreamPreview } from "../../../core/voice/streamPreview";
 import micMutedIcon from "../icons/mic-02.svg";
 import volumeMutedIcon from "../icons/volume-mute-02.svg";
 
 import {
     MatrixRtcKeyProvider,
     buildRtcIdentityMap,
+    activeCallTransport,
     discoverLiveKitTransport,
     fetchLiveKitToken,
     fetchSfuCredentials,
@@ -77,6 +79,9 @@ export interface VoiceControlState {
     connected: boolean;
     micMuted: boolean;
     audioMuted: boolean;
+    // For the call controls under the channel list (AppShell's voice dock).
+    cameraOn?: boolean;
+    screenSharing?: boolean;
 }
 
 export interface VoiceRoomHandle {
@@ -85,6 +90,9 @@ export interface VoiceRoomHandle {
     toggleMute: () => Promise<void>;
     toggleAudioMute: () => Promise<void>;
     toggleCamera: () => Promise<void>;
+    toggleScreenShare: () => Promise<void>;
+    openSoundboard: () => void;
+    openVoiceSettings: () => void;
 }
 
 interface VoiceRoomProps {
@@ -1323,6 +1331,17 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             signal: joinAbortController.signal,
                         });
                         return { backend: "relay" as const, wsUrl: relay.wsUrl, token: relay.token, transport: null };
+                    }
+                    // Join the call where it already is (maybe another homeserver's call server); ours if we're first or
+                    // theirs refuses us. Our membership still names our own server, as Element Call's does.
+                    const active = targetMatrixRoom ? activeCallTransport(client, targetMatrixRoom) : null;
+                    if (active && active.livekit_service_url !== transport.livekit_service_url) {
+                        try {
+                            const remote = await fetchSfuCredentials(client, active, targetRoomId, { signal: joinAbortController.signal });
+                            return { backend: "matrixrtc" as const, wsUrl: remote.url, token: remote.jwt, transport };
+                        } catch (remoteError) {
+                            logCallEvent("Other homeserver's call server refused; using ours", `${active.livekit_service_url}: ${remoteError instanceof Error ? remoteError.message : String(remoteError)}`);
+                        }
                     }
                     const sfu = await fetchSfuCredentials(client, transport, targetRoomId, {
                         signal: joinAbortController.signal,
@@ -2608,8 +2627,26 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             connected: connectionState === ConnectionState.Connected,
             micMuted,
             audioMuted,
+            cameraOn,
+            screenSharing: localScreenSharing,
         });
-    }, [audioMuted, connectionState, joining, micMuted, onControlsStateChange]);
+    }, [audioMuted, cameraOn, connectionState, joining, localScreenSharing, micMuted, onControlsStateChange]);
+
+    // "Streaming Now" snapshots for the channel list while you share (core/voice/streamPreview.ts).
+    useEffect(() => {
+        if (!localScreenSharing) return undefined;
+        const post = (): void => {
+            const track = (roomRef.current?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track as { mediaStreamTrack?: MediaStreamTrack } | undefined)
+                ?.mediaStreamTrack;
+            if (track && track.readyState === "live") void postStreamPreview(client, matrixRoomId, track).catch(() => undefined);
+        };
+        const first = window.setTimeout(post, 2_000);
+        const timer = window.setInterval(post, STREAM_PREVIEW_INTERVAL_MS);
+        return () => {
+            window.clearTimeout(first);
+            window.clearInterval(timer);
+        };
+    }, [client, localScreenSharing, matrixRoomId]);
 
     useImperativeHandle(ref, () => ({
         join: joinVoice,
@@ -2617,6 +2654,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         toggleMute,
         toggleAudioMute,
         toggleCamera: () => toggleCamera(),
+        toggleScreenShare: () => toggleScreenShare(),
+        openSoundboard: () => setSoundboardOpen(true),
+        openVoiceSettings: () => setSettingsOpen(true),
     }));
 
     return (

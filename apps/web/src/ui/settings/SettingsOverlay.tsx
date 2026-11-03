@@ -109,7 +109,7 @@ const USER_NAV: SettingsNavSection[] = [
         ],
     },
     {
-        title: "Danger",
+        title: "Session",
         items: [{ id: "sign-out", label: "Sign out" }],
     },
 ];

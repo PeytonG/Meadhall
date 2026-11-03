@@ -4,6 +4,44 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.5.1 (2026-11-02)
+
+### New
+- **Friends**, like Discord's: Home → Friends shows Online, All, Pending and Blocked, and **Add Friend** sends a
+  request by Matrix ID. Requests arrive as a count on Friends. Profile cards have **Add friend** and a
+  **"Message @name"** box that sends a direct message without leaving the card.
+- **Notification sounds:** pick from 10 built-in sounds (8-bit or smooth) or your own file, with separate
+  sounds for mentions and direct messages if you like (Settings → Notifications → Notification sounds).
+- **Call controls under "Voice Connected"**, like Discord: camera, screen share, soundboard and call settings right
+  below the channel list.
+- **Streaming Now previews:** hover someone's LIVE badge in the channel list to see a snapshot of their screen, with
+  Watch Stream. Snapshots are only shared in unencrypted channels, and only while someone is sharing.
+- **Game overlay (desktop):** press **Shift + `** in any game to show the call controls (mute, deafen, camera,
+  screen share, soundboard, leave), who's talking and recent messages over the game. Works in windowed and borderless
+  games; exclusive-fullscreen games would need hooking into the game, which anti-cheat can ban for, so Meadhall doesn't.
+- **Help:** the **?** at the top of the chat opens Meadhall's help, by category and searchable.
+- **Auto-mod and onboarding roles without a bot:** in spaces without a bot, an online moderator's Meadhall removes
+  rule-breaking messages (and warns or times out) and gives the roles onboarding answers earn.
+- **Homeserver admin panel** with everything Synapse-Admin does: Overview, Users (filters, export, CSV import, and a
+  page per user with devices, connections, media, rooms and pushers; lock, reactivate, shadow-ban, rate limits,
+  erase), Rooms (make yourself admin, block, purge history, delete), Users' media, Reported events, Room directory,
+  Federation (failing servers in red, reconnect), Registration tokens and Server notices.
+- **Preview as a newcomer** in Space Settings → Onboarding (admins skip onboarding, so they couldn't see it before).
+- **Colored controls** (Settings → Appearance): scrollbars in your theme color or neutral grey, whatever the shapes.
+- Guides: [setting up the Meadhall bot](docs/bots.md) and [installing on your iPhone for free](docs/ios-free-install.md).
+
+### Fixed
+- **Calls with people on other homeservers:** Meadhall now joins the call on the call server it is already running on
+  (whoever has been in it longest), like Element Call, instead of always using your own homeserver's. People from
+  different homeservers end up in the same call and hear each other.
+- **People invited to a space skipped its onboarding.** An invited space now asks you to Accept or Decline, its
+  channels are joined only after that, and onboarding opens as soon as you enter.
+- Channels created after a bot was added now invite the bot and follow the space's roles.
+- The profile card's "..." menu was cut off at the panel's edge.
+- Scrollbars lost their color with Rounded shapes.
+- The settings section above Sign out is called "Session" instead of "Danger".
+- The QR sign-in card shows the exact Synapse setting to copy when the homeserver doesn't allow it.
+
 ## v0.5.0 (2026-11-01)
 
 ### New

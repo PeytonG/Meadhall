@@ -31,6 +31,8 @@ interface ChannelHeaderProps {
     inbox?: { count: number; open: boolean; onToggle: () => void };
     // Shown only when an update is ready, like Discord's green download arrow.
     update?: { label: string; onClick: () => void };
+    // The ? button: Meadhall's help (help/HelpDialog.tsx).
+    onOpenHelp?: () => void;
 }
 
 type HeaderIconKind = "search" | "pins" | "members" | "info" | "more";
@@ -124,6 +126,7 @@ export function ChannelHeader({
     subtitle,
     onMobileBack,
     inbox,
+    onOpenHelp,
     update,
 }: ChannelHeaderProps): React.ReactElement {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -309,6 +312,11 @@ export function ChannelHeader({
                         data-testid="header-update"
                     >
                         <PixelIcon name="download" size={18} />
+                    </button>
+                ) : null}
+                {onOpenHelp ? (
+                    <button type="button" className="channel-header-icon-btn" aria-label="Help" title="Help" onClick={onOpenHelp} data-testid="header-help">
+                        <PixelIcon name="faq" size={18} />
                     </button>
                 ) : null}
                 {inbox ? (

@@ -91,7 +91,7 @@ export function useSpaceState(space: Room | null, types: readonly string[]): num
         return () => {
             space.currentState.removeListener(RoomStateEvent.Events, onEvent);
         };
-    }, [space, key]);
+    }, [space, space?.currentState, key]);
     return revision;
 }
 

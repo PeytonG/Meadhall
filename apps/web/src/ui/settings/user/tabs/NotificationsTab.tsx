@@ -1,7 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 
 import type { NotificationsSettings } from "../settingsStore";
-import { playNotificationSound } from "../../../notifications/sound";
+import { NotificationSoundsCard } from "./NotificationSoundsCard";
 import { RingtoneSettings } from "./RingtoneSettings";
 import { setSoundStyle } from "../../../notifications/soundStyle";
 
@@ -14,8 +14,6 @@ interface NotificationsTabProps {
 
 export function NotificationsTab({ settings, onChange, speakerId }: NotificationsTabProps): React.ReactElement {
     const [error, setError] = useState<string | null>(null);
-    const [testPending, setTestPending] = useState(false);
-    const soundUploadRef = useRef<HTMLInputElement | null>(null);
 
     const desktopPermission = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
     const desktopEnabled = settings.notificationsEnabled;
@@ -46,51 +44,6 @@ export function NotificationsTab({ settings, onChange, speakerId }: Notification
         }
 
         onChange({ ...settings, notificationsEnabled: true });
-    };
-
-    const onSoundUploadChanged = (event: React.ChangeEvent<HTMLInputElement>): void => {
-        const file = event.target.files?.[0];
-        if (!file) {
-            return;
-        }
-
-        if (!file.type.startsWith("audio/")) {
-            setError("Selected file is not an audio file.");
-            return;
-        }
-
-        setError(null);
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            const dataUrl = typeof reader.result === "string" ? reader.result : null;
-            if (!dataUrl || !dataUrl.startsWith("data:")) {
-                setError("Failed to read selected sound.");
-                return;
-            }
-
-            onChange({
-                ...settings,
-                customMessageSoundDataUrl: dataUrl,
-                customMessageSoundName: file.name,
-            });
-        };
-        reader.onerror = () => {
-            setError("Failed to load selected sound.");
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const testSound = async (): Promise<void> => {
-        setError(null);
-        setTestPending(true);
-        try {
-            await playNotificationSound(settings.customMessageSoundDataUrl);
-        } catch (soundError) {
-            setError(soundError instanceof Error ? soundError.message : "Unable to play sound.");
-        } finally {
-            setTestPending(false);
-        }
     };
 
     return (
@@ -139,57 +92,7 @@ export function NotificationsTab({ settings, onChange, speakerId }: Notification
                 Enable notification sound
             </label>
 
-            <div className="settings-section-card">
-                <h3>Message sound</h3>
-                <p className="settings-inline-note">
-                    Current:{" "}
-                    {settings.customMessageSoundName && settings.customMessageSoundDataUrl
-                        ? settings.customMessageSoundName
-                        : "Default"}
-                </p>
-                <input
-                    ref={soundUploadRef}
-                    type="file"
-                    accept="audio/*"
-                    className="settings-hidden-input"
-                    onChange={onSoundUploadChanged}
-                    aria-label="Upload custom message sound"
-                />
-                <div className="settings-actions-row">
-                    <button
-                        type="button"
-                        className="settings-button settings-button-secondary"
-                        onClick={() => soundUploadRef.current?.click()}
-                    >
-                        Browse audio file
-                    </button>
-                    <button
-                        type="button"
-                        className="settings-button settings-button-secondary"
-                        onClick={() =>
-                            onChange({
-                                ...settings,
-                                customMessageSoundDataUrl: null,
-                                customMessageSoundName: null,
-                            })
-                        }
-                        disabled={!settings.customMessageSoundDataUrl}
-                    >
-                        Use default
-                    </button>
-                    <button
-                        type="button"
-                        className="settings-button"
-                        onClick={() => {
-                            void testSound();
-                        }}
-                        disabled={testPending}
-                    >
-                        {testPending ? "Testing..." : "Test sound"}
-                    </button>
-                </div>
-            </div>
-
+            <NotificationSoundsCard settings={settings} onChange={onChange} />
             <div className="settings-section-card">
                 <h3>Sound style</h3>
                 <div className="settings-theme-row" role="radiogroup" aria-label="Sound style">

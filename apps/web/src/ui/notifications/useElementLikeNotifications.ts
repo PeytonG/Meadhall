@@ -19,6 +19,8 @@ import { mediaFromMxc, thumbnailFromMxc } from "../adapters/media";
 import type { NotificationsSettings } from "../settings/user/settingsStore";
 import { isPollEndType, isPollStartType, parsePollStart } from "../polls/pollModel";
 import { playNotificationSound } from "./sound";
+import { playTone, soundFor, type NotificationKind } from "./notificationTones";
+import { getDirectRoomIds } from "../../core/dm/directChats";
 
 interface UseElementLikeNotificationsOptions {
     client: MatrixClient;
@@ -344,14 +346,16 @@ export function useElementLikeNotifications({
             notifsByRoomRef.current[room.roomId].push(notification);
         };
 
-        const playAudioNotification = async (): Promise<void> => {
+        const playAudioNotification = async (kind: NotificationKind): Promise<void> => {
             if (!settingsRef.current.audioNotificationsEnabled) {
                 return;
             }
             if (localNotificationsAreSilenced(client) || isDoNotDisturb()) {
                 return;
             }
-            await playNotificationSound(settingsRef.current.customMessageSoundDataUrl);
+            const sound = soundFor(settingsRef.current, kind);
+            if (sound.file) await playNotificationSound(sound.file);
+            else await playTone(sound.tone);
         };
 
         const evaluateEvent = (event: MatrixEvent): void => {
@@ -388,7 +392,8 @@ export function useElementLikeNotifications({
             // One sound per burst: several messages arriving together don't each ping.
             if (actions.tweaks?.sound && Date.now() - lastSoundAtRef.current > SOUND_COOLDOWN_MS) {
                 lastSoundAtRef.current = Date.now();
-                void playAudioNotification().catch(() => undefined);
+                const kind: NotificationKind = actions.tweaks?.highlight ? "mention" : getDirectRoomIds(client).has(room.roomId) ? "direct" : "message";
+                void playAudioNotification(kind).catch(() => undefined);
             }
         };
 
