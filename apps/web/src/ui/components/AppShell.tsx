@@ -25,12 +25,14 @@ import { RoomList, getServerUnreadCount, hasUnreadActivity, type DiscoverableSpa
 import { ContextMenu } from "./menus/ContextMenu";
 import { isServerAdmin } from "../../core/admin/synapseAdmin";
 import { isModerationRoom, liftExpiredSanctions, shouldAutoJoinReport } from "../../core/moderation/moderation";
+import { isNotesRoom, watchNotesInvites } from "../../core/notes/notesRoom";
 import { enforceAutomod, grantOnboardingRoles, grantPendingOnboardingRoles } from "../../core/moderation/moderatorDuties";
 import { ONBOARDING_RESPONSE_EVENT } from "../../core/bots/botProtocol";
 import { InboxPanel } from "./inbox/InboxPanel";
 import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
+import { NotesView } from "../notes/NotesView";
 import { HelpDialog } from "../help/HelpDialog";
 import { declineCall, useOutgoingRing } from "../hooks/useOutgoingRing";
 import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
@@ -83,6 +85,7 @@ import {
 import type { EmojiPackTarget } from "../emoji/EmojiPackTypes";
 import { useSelectedUser } from "../hooks/useSelectedUser";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { usePaneWidth } from "../hooks/usePaneWidth";
 import { useElementLikeNotifications } from "../notifications/useElementLikeNotifications";
 import { useMatrix } from "../providers/MatrixProvider";
 import { buildMeadhallRoomLink, parseAppLink, type AppLink } from "../utils/permalink";
@@ -104,6 +107,7 @@ import { cleanUpBugReportRooms, isBugReportRoom, isReceivedBugReport, isSentBugR
 import { syncDesktopTitleBarColors } from "../desktop/titleBarColors";
 import { onAccessTokenRefreshed } from "../../core/auth/accessTokenEvents";
 import { startAndroidBackgroundSync, stopAndroidBackgroundSync, updateAndroidBackgroundSyncToken } from "../platform/androidBackgroundSync";
+import { minimizeNativeApp, onNativeBack } from "../platform/nativeApp";
 import { PixelIcon } from "./PixelIcon";
 import {
     MATRIX_CALL_COMPAT_EVENT,
@@ -162,23 +166,18 @@ const CHANNELS_PANE_WIDTH_KEY = "heorot.ui.channelsPaneWidth";
 const CHANNELS_PANE_MIN = 180;
 const CHANNELS_PANE_MAX = 480;
 const CHANNELS_PANE_DEFAULT = 280;
+const RIGHT_PANE_WIDTH_KEY = "meadhall.ui.rightPaneWidth";
+const RIGHT_PANE_MIN = 220;
+const RIGHT_PANE_MAX = 480;
+const RIGHT_PANE_DEFAULT = 280;
+const RAIL_WIDTH = 72;
+const CHAT_MIN_WIDTH = 440;
 const DEFAULT_VOICE_CONTROL_STATE: VoiceControlState = {
     joining: false,
     connected: false,
     micMuted: true,
     audioMuted: false,
 };
-
-function readChannelsPaneWidth(): number {
-    try {
-        const raw = window.localStorage.getItem(CHANNELS_PANE_WIDTH_KEY);
-        if (raw) {
-            const n = Number(raw);
-            if (Number.isFinite(n)) return Math.min(CHANNELS_PANE_MAX, Math.max(CHANNELS_PANE_MIN, n));
-        }
-    } catch { /* ignore */ }
-    return CHANNELS_PANE_DEFAULT;
-}
 
 function readStoredRightSidebarMode(): RightSidebarMode {
     if (typeof window === "undefined") {
@@ -200,7 +199,7 @@ function getRoomName(room: Room): string {
 // Every room except the hidden bug-report rooms (Settings → Report a bug) and report and moderation-log rooms
 // (Server Settings → Reports).
 function listedRooms(client: MatrixClient): Room[] {
-    return client.getRooms().filter((room) => !isSentBugReport(room, client.getUserId()) && !isModerationRoom(room));
+    return client.getRooms().filter((room) => !isSentBugReport(room, client.getUserId()) && !isModerationRoom(room) && !isNotesRoom(room));
 }
 
 function isVisibleMembership(room: Room): boolean {
@@ -1060,19 +1059,29 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
     // Home → Friends shows in the main pane until a conversation is opened.
     const [friendsOpen, setFriendsOpen] = useState(false);
+    // Shared notes open for this DM, group chat or space (notes/NotesView.tsx), over the chat like Friends.
+    const [notesParentId, setNotesParentId] = useState<string | null>(null);
     const [helpOpen, setHelpOpen] = useState(false);
     const friendsList = useFriends(client);
     useEffect(() => watchFriendNotices(client), [client]);
+    useEffect(() => watchNotesInvites(client), [client]);
     const openRoomAtBottom = useCallback((roomId: string): void => {
         setFriendsOpen(false);
         setActiveRoomId(roomId);
         setTimelineFocusBottomNonce((value) => value + 1);
     }, []);
+    const openNotesFor = useCallback((parentId: string): void => {
+        setFriendsOpen(false);
+        setNotesParentId(parentId);
+        setMobilePane("chat");
+    }, []);
     const selectHome = useCallback((): void => {
+        setNotesParentId(null);
         setSelectedSpaceId(PEOPLE_SPACE_ID);
         setMobilePane("list");
     }, []);
     const selectServer = useCallback((spaceId: string): void => {
+        setNotesParentId(null);
         setSelectedSpaceId(spaceId);
         setMobilePane("list");
     }, []);
@@ -1660,6 +1669,24 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const shouldShowReadReceipts =
         userSettings.privacy.showReadReceipts && selectedSpaceId === PEOPLE_SPACE_ID && isActiveRoomDirect;
     const isActiveRoomVoiceChannel = isRoomVoiceChannel(activeRoom);
+    // The update button in the chat header (and on Friends).
+    const headerUpdate =
+        desktopUpdates.status && (desktopUpdates.status.state === "available" || desktopUpdates.status.state === "downloaded")
+            ? {
+                  label:
+                      desktopUpdates.status.state === "downloaded"
+                          ? `Restart to update to Meadhall ${desktopUpdates.status.version}`
+                          : `Update to Meadhall ${desktopUpdates.status.version}`,
+                  onClick: desktopUpdates.updateNow,
+              }
+            : mobileUpdates.updateAvailable
+              ? { label: "A new version of Meadhall is out", onClick: () => openUserSettings("updates") }
+              : undefined;
+    // Home shows Friends when it's picked, or when there are no conversations yet (like Discord).
+    const showFriends = selectedSpaceId === PEOPLE_SPACE_ID && !activeRoom && (friendsOpen || channels.length === 0);
+    const notesParent = notesParentId ? client.getRoom(notesParentId) : null;
+    const showNotes = Boolean(notesParent) && !showFriends;
+    const coveredPane = showFriends || showNotes;
     const shouldShowVoicePanel = Boolean(activeRoom && isActiveRoomVoiceChannel && voiceSessionRoomId === activeRoom.roomId);
     // Voice channels with text chat turned on (channel settings) show it beside the call.
     const voiceChatBeside = shouldShowVoicePanel && isVoiceChatEnabled(activeRoom);
@@ -2319,6 +2346,40 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         setMobilePane("list");
     }, []);
 
+    // Android's Back button/gesture (MeadhallNative plugin), one step at a time like Discord: close what's open
+    // (menus, dialogs, the picture viewer, settings: they all close on Escape), else leave the chat for the list, else
+    // leave a space for Home, else put the app in the background.
+    const nativeBackRef = useRef<() => void>(() => undefined);
+    nativeBackRef.current = () => {
+        const openLayers = (): number =>
+            document.querySelectorAll('[aria-modal="true"], [role="dialog"], [role="alertdialog"], [role="menu"], .settings-overlay').length;
+        const goBack = (): void => {
+            if (isPhoneLayout && mobilePane === "chat") {
+                goBackToList();
+            } else if (selectedSpaceId !== PEOPLE_SPACE_ID) {
+                selectHome();
+            } else {
+                minimizeNativeApp();
+            }
+        };
+        // Screens with their own steps back (shared notes: the open note, then the notes) take it first.
+        const back = new CustomEvent("meadhall:back", { cancelable: true });
+        if (!window.dispatchEvent(back)) return;
+        const before = openLayers();
+        if (before === 0) {
+            goBack();
+            return;
+        }
+        (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        // Something that doesn't close on Escape mustn't trap Back: if nothing closed, go back a screen instead.
+        window.setTimeout(() => {
+            if (openLayers() >= before) {
+                goBack();
+            }
+        }, 80);
+    };
+    useEffect(() => onNativeBack(() => nativeBackRef.current()), []);
+
     // Phones: swipe right in a chat to go back to the list (Direct Messages / channels), swipe left from the list to
     // return to the open chat, like the Discord app.
     useEffect(() => {
@@ -2367,6 +2428,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const selectChannel = useCallback(
         (roomId: string): void => {
             setPendingFocusRoomId(null);
+            setNotesParentId(null);
             openRoomAtBottom(roomId);
             setMobilePane("chat");
             const room = roomById.get(roomId) ?? client.getRoom(roomId);
@@ -2740,35 +2802,37 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     const shouldRenderRightPanel =
         (panelMode.mode === "user" || rightSidebarMode !== "closed") && (!isNarrowLayout || narrowPanelOpen);
 
-    const [channelsPaneWidth, setChannelsPaneWidth] = useState<number>(readChannelsPaneWidth);
-    const [isResizingPane, setIsResizingPane] = useState(false);
-
-    const handleResizePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
-        e.preventDefault();
-        const startX = e.clientX;
-        const startWidth = channelsPaneWidth;
-        setIsResizingPane(true);
-
-        const onMove = (ev: PointerEvent): void => {
-            const next = Math.min(CHANNELS_PANE_MAX, Math.max(CHANNELS_PANE_MIN, startWidth + ev.clientX - startX));
-            setChannelsPaneWidth(next);
-        };
-        const onUp = (ev: PointerEvent): void => {
-            const final = Math.min(CHANNELS_PANE_MAX, Math.max(CHANNELS_PANE_MIN, startWidth + ev.clientX - startX));
-            setChannelsPaneWidth(final);
-            try { window.localStorage.setItem(CHANNELS_PANE_WIDTH_KEY, String(Math.round(final))); } catch { /* ignore */ }
-            setIsResizingPane(false);
-            document.removeEventListener("pointermove", onMove);
-            document.removeEventListener("pointerup", onUp);
-        };
-        document.addEventListener("pointermove", onMove);
-        document.addEventListener("pointerup", onUp);
-    }, [channelsPaneWidth]);
+    // Both side panels resize by dragging their inner edge (usePaneWidth); the chat between keeps at least
+    // CHAT_MIN_WIDTH. On tablets and phones the right panel slides over the chat instead and has no handle.
+    const spareWidth = (): number =>
+        window.innerWidth - RAIL_WIDTH - channelsPane.width - (shouldRenderRightPanel && !isNarrowLayout ? rightPane.width : 0) - CHAT_MIN_WIDTH;
+    const channelsPane = usePaneWidth({
+        storageKey: CHANNELS_PANE_WIDTH_KEY,
+        min: CHANNELS_PANE_MIN,
+        max: CHANNELS_PANE_MAX,
+        fallback: CHANNELS_PANE_DEFAULT,
+        direction: 1,
+        roomLeft: spareWidth,
+    });
+    const rightPane = usePaneWidth({
+        storageKey: RIGHT_PANE_WIDTH_KEY,
+        min: RIGHT_PANE_MIN,
+        max: RIGHT_PANE_MAX,
+        fallback: RIGHT_PANE_DEFAULT,
+        direction: -1,
+        roomLeft: spareWidth,
+    });
+    const channelsPaneWidth = channelsPane.width;
+    const isResizingPane = channelsPane.resizing || rightPane.resizing;
 
     // The grid itself lives in CSS (App.css "Layout"), so phone and tablet layouts can change it.
     const appShellStyle = useMemo(
-        () => ({ ["--channels-pane-width" as string]: `${channelsPaneWidth}px` }) as React.CSSProperties,
-        [channelsPaneWidth],
+        () =>
+            ({
+                ["--channels-pane-width" as string]: `${channelsPaneWidth}px`,
+                ["--right-panel-width" as string]: `${rightPane.width}px`,
+            }) as React.CSSProperties,
+        [channelsPaneWidth, rightPane.width],
     );
 
     const appShellClassName = useMemo(() => {
@@ -3039,7 +3103,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
             </aside>
 
             <section className="channels-pane">
-                <div className="channels-pane-resize-handle" onPointerDown={handleResizePointerDown} />
+                <div className="channels-pane-resize-handle" onPointerDown={channelsPane.onResizeStart} data-testid="channels-pane-resize" />
                 {selectedSpaceId === PEOPLE_SPACE_ID ? (
                     <HomeSidebar
                         client={client}
@@ -3047,7 +3111,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                         otherRooms={homeGroupRooms}
                         bugReports={homeBugReports}
                         invites={homeInvites.filter((room) => !isBugReportRoom(room))}
-                        friendsOpen={friendsOpen}
+                        friendsOpen={friendsOpen || showFriends}
                         pendingFriendRequests={friendsList.incoming.length}
                         onOpenFriends={() => {
                             setFriendsOpen(true);
@@ -3219,6 +3283,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onOpenRoomSettings={openRoomSettingsFor}
                     onCreateChannel={(categoryId, kind) => openCreateRoomDialog(selectedSpaceRoom?.roomId ?? null, { kind, categoryId })}
                     onInviteToChannel={() => openInviteDialogFor(selectedSpaceRoom?.roomId ?? null)}
+                    onOpenNotes={selectedSpaceRoom ? () => openNotesFor(selectedSpaceRoom.roomId) : undefined}
+                    notesOpen={Boolean(selectedSpaceRoom) && notesParentId === selectedSpaceRoom?.roomId}
                     onWatchStream={(roomId, userId) => {
                         selectChannel(roomId);
                         setMobilePane("chat");
@@ -3518,63 +3584,72 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 </div>
             </section>
 
-            {friendsOpen && selectedSpaceId === PEOPLE_SPACE_ID && !activeRoom ? (
+            {showFriends ? (
                 <section className="main-pane friends-pane">
-                    <FriendsView client={client} onOpenRoom={selectChannel} onCallUser={(userId) => void callUser(userId)} onToast={pushToast} />
+                    <FriendsView
+                        client={client}
+                        onOpenRoom={selectChannel}
+                        onCallUser={(userId) => void callUser(userId)}
+                        onToast={pushToast}
+                        onOpenHelp={() => setHelpOpen(true)}
+                        inbox={{ count: inboxCount, open: inboxOpen, onToggle: () => setInboxOpen((open) => !open) }}
+                        update={headerUpdate}
+                    />
                 </section>
-            ) : (
-            <section className="main-pane">
-                <ChannelHeader
-                    onOpenHelp={() => setHelpOpen(true)}
-                    room={activeRoom}
-                    isDirectMessage={Boolean(activeRoom && isActiveRoomDirect && isOneToOneRoom(activeRoom, ownUserId))}
-                    subtitle={
-                        activeRoom && selectedSpaceId === PEOPLE_SPACE_ID && !isOneToOneRoom(activeRoom, ownUserId)
-                            ? `Group chat · ${activeRoom.getJoinedMemberCount()} members`
-                            : undefined
-                    }
-                    onMobileBack={goBackToList}
-                    inbox={{ count: inboxCount, open: inboxOpen, onToggle: () => setInboxOpen((open) => !open) }}
-                    update={
-                        desktopUpdates.status && (desktopUpdates.status.state === "available" || desktopUpdates.status.state === "downloaded")
-                            ? {
-                                  label:
-                                      desktopUpdates.status.state === "downloaded"
-                                          ? `Restart to update to Meadhall ${desktopUpdates.status.version}`
-                                          : `Update to Meadhall ${desktopUpdates.status.version}`,
-                                  onClick: desktopUpdates.updateNow,
-                              }
-                            : mobileUpdates.updateAvailable
-                              ? { label: "A new version of Meadhall is out", onClick: () => openUserSettings("updates") }
-                              : undefined
-                    }
-                    showHashPrefix={shouldPrefixRoomWithHash}
-                    isVoiceChannel={isActiveRoomVoiceChannel}
-                    sidebarMode={isNarrowLayout && !narrowPanelOpen ? "closed" : rightSidebarMode}
-                    searchQuery={sidebarSearchQuery}
-                    canInviteInRoom={canInviteInActiveRoom}
-                    onSearchQueryChange={setSidebarSearchQuery}
-                    onSelectSidebarMode={selectSidebarMode}
-                    onOpenDirectChat={() => setCreateDirectChatOpen(true)}
-                    onOpenCreateRoom={() =>
-                        openCreateRoomDialog(selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceRoom?.roomId ?? null)
-                    }
-                    onOpenJoinRoom={() => setJoinRoomOpen(true)}
-                    onOpenInviteUsers={() => openInviteDialogFor(activeRoom?.roomId ?? null)}
-                    onOpenRoomSettings={() => openRoomSettingsFor(activeRoom?.roomId ?? null)}
-                    onOpenModeration={() => setRoomModerationOpen(true)}
-                    onCopyRoomLink={copyActiveRoomLink}
-                    onLeaveRoom={leaveActiveRoom}
-                    call={
-                        isActiveRoomCallable && activeRoom
-                            ? {
-                                  inCall: isInActiveRoomCall,
-                                  othersInCall: activeRoomCallOthers.length,
-                                  onStartCall: () => startCallInRoom(activeRoom.roomId),
-                              }
-                            : undefined
-                    }
-                />
+            ) : null}
+            {/* Stays mounted behind Friends: it holds the call, and unmounting it would hang up (like Discord, browsing
+                never ends a call). */}
+            {showNotes && notesParent ? (
+                <section className="main-pane notes-pane">
+                    <NotesView client={client} parent={notesParent} isPhone={isPhoneLayout} onClose={() => setNotesParentId(null)} />
+                </section>
+            ) : null}
+            <section className={`main-pane${coveredPane ? " is-behind-friends" : ""}`} aria-hidden={coveredPane || undefined}>
+                {/* Friends has its own Help and Inbox; one header at a time. */}
+                {coveredPane ? null : (
+                    <ChannelHeader
+                        onOpenHelp={() => setHelpOpen(true)}
+                        onOpenNotes={
+                            activeRoom && selectedSpaceId === PEOPLE_SPACE_ID ? () => openNotesFor(activeRoom.roomId) : undefined
+                        }
+                        room={activeRoom}
+                        isDirectMessage={Boolean(activeRoom && isActiveRoomDirect && isOneToOneRoom(activeRoom, ownUserId))}
+                        subtitle={
+                            activeRoom && selectedSpaceId === PEOPLE_SPACE_ID && !isOneToOneRoom(activeRoom, ownUserId)
+                                ? `Group chat · ${activeRoom.getJoinedMemberCount()} members`
+                                : undefined
+                        }
+                        onMobileBack={goBackToList}
+                        inbox={{ count: inboxCount, open: inboxOpen, onToggle: () => setInboxOpen((open) => !open) }}
+                        update={headerUpdate}
+                        showHashPrefix={shouldPrefixRoomWithHash}
+                        isVoiceChannel={isActiveRoomVoiceChannel}
+                        sidebarMode={isNarrowLayout && !narrowPanelOpen ? "closed" : rightSidebarMode}
+                        searchQuery={sidebarSearchQuery}
+                        canInviteInRoom={canInviteInActiveRoom}
+                        onSearchQueryChange={setSidebarSearchQuery}
+                        onSelectSidebarMode={selectSidebarMode}
+                        onOpenDirectChat={() => setCreateDirectChatOpen(true)}
+                        onOpenCreateRoom={() =>
+                            openCreateRoomDialog(selectedSpaceId === PEOPLE_SPACE_ID ? null : selectedSpaceRoom?.roomId ?? null)
+                        }
+                        onOpenJoinRoom={() => setJoinRoomOpen(true)}
+                        onOpenInviteUsers={() => openInviteDialogFor(activeRoom?.roomId ?? null)}
+                        onOpenRoomSettings={() => openRoomSettingsFor(activeRoom?.roomId ?? null)}
+                        onOpenModeration={() => setRoomModerationOpen(true)}
+                        onCopyRoomLink={copyActiveRoomLink}
+                        onLeaveRoom={leaveActiveRoom}
+                        call={
+                            isActiveRoomCallable && activeRoom
+                                ? {
+                                      inCall: isInActiveRoomCall,
+                                      othersInCall: activeRoomCallOthers.length,
+                                      onStartCall: () => startCallInRoom(activeRoom.roomId),
+                                  }
+                                : undefined
+                        }
+                    />
+                )}
                 <div className={`main-body${voiceChatBeside || voiceJoinChatBeside ? " has-voice-chat" : ""}${activeThread && (!shouldShowVoicePanel || voiceChatBeside) ? " has-thread" : ""}`}>
                 {hasActiveVoiceSession && voiceSessionRoomId ? (
                     <div
@@ -3707,7 +3782,6 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 ) : null}
                 </div>
             </section>
-            )}
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 
@@ -3729,6 +3803,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                     onOpenRoom={focusRoom}
                     onToast={pushToast}
                     onCallUser={(userId) => void callUser(userId)}
+                    onResizeStart={isNarrowLayout ? undefined : rightPane.onResizeStart}
                 />
             ) : null}
             {emojiUploadOpen && emojiUploadTarget ? (

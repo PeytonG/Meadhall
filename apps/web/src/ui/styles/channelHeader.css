@@ -6,9 +6,12 @@
     justify-content: space-between;
     gap: 12px;
     min-width: 0;
+    /* Narrow headers (side panels made wide) shorten the encryption chip below. */
+    container: channel-header / inline-size;
 }
 
 .channel-header-main {
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -31,6 +34,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* Never squeezed away by the chip next to it: at least a few letters and "…". */
+    min-width: min(4.5em, 100%);
 }
 
 .channel-header-chip {
@@ -205,4 +210,24 @@
 .channel-header svg.pixel-icon:not(.is-smooth) {
     stroke: none;
     fill: currentColor;
+}
+
+/* Not much room: the encryption chip keeps its colour and lock, without the word (its tooltip still says it). */
+@container channel-header (max-width: 620px) {
+    .channel-header-chip-label {
+        display: none;
+    }
+}
+
+/* Very little room: the small lock phones use, so the name keeps a few letters. */
+@container channel-header (max-width: 480px) {
+    .channel-header-chip {
+        display: none;
+    }
+
+    .channel-header .channel-header-lock {
+        display: inline;
+        flex-shrink: 0;
+        font-size: var(--text-sm);
+    }
 }

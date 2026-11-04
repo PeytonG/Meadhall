@@ -38,6 +38,11 @@ Settings → Appearance.
 Windows, Linux and Android downloads are on the Meadhall releases page on GitHub. iPhone: through a TestFlight invite,
 or install it yourself for free with a Mac and Xcode (docs/ios-free-install.md). Meadhall also runs in a web browser.
 
+### How do I go back on a phone?
+Use the back arrow at the top left of a chat, or swipe right. On Android the Back button or gesture works too, one
+step at a time: it closes an open menu, dialog or picture first, then goes from a chat to the list, then from a space
+to Home, and finally puts Meadhall in the background (it keeps running, so calls and notifications continue).
+
 ## Spaces and channels
 
 ### How do I create a space?
@@ -89,6 +94,19 @@ of the message box. Paste a picture or GIF straight into the box to send it. On 
 (opens the camera; the picture waits in the message box until you press Send), Upload a file, Create a poll and Send a
 sticker.
 
+### How do I open or download a file someone sent?
+Every file in the chat has a Download button (the arrow on its right); on Android files go to your Downloads folder.
+Click (tap) the file to open it inside Meadhall: PDFs show their pages (zoom with − and +, scroll for more pages), Word
+documents (.docx) show their text, and text or code files (.txt, .log, .md, .json, .csv, code) show all their text.
+Text files also show their first lines right in the chat; press Expand for more. Other files just download. Videos and
+voice clips play in the chat and have a Download button too.
+
+### How do I look at a picture up close?
+Click (tap) a picture in the chat to open it. Click where you want to zoom in, or scroll the mouse wheel; on phones
+pinch with two fingers. Drag (one finger on phones) to move around a zoomed picture. Click without dragging to zoom
+back out. Download (the arrow at the top right) saves the picture; on Android it goes to your Downloads folder. Close
+with the X, Escape (Back on Android) or a click next to the picture.
+
 ### How do I quickly edit the message I just sent?
 With the message box empty, press the up arrow (↑). Your last message opens for editing in the box. Change it and press
 Enter to save, or Escape to cancel.
@@ -106,7 +124,33 @@ The channel is not end-to-end encrypted: the homeserver can read its messages. D
 This device doesn't have the keys for it. Restore them in Settings → Encryption & Recovery with your recovery key, or
 verify this device from another signed-in device (Settings → Devices → Verify this device).
 
+## Shared notes
+
+### How do I make shared notes with someone?
+In a DM or group chat: the notes button at the top of the chat (on phones: ... → Shared notes). In a space: Notes,
+above the channels. The first time, press Start shared notes (in a space only moderators can start them; after that
+everyone in the space can use them). Notes in an encrypted chat are encrypted too.
+
+### How do I add notes and folders?
+In the notes, press Note or Folder. New ones go into the folder you picked (folders can hold folders). Name a note
+in the box at the top of it. To move something, drag it onto a folder, or use its ... → Move to. ... → Rename or
+Delete (deleting a folder deletes everything in it, for everyone).
+
+### Can several people edit a note at the same time?
+Yes. Everyone in the chat or space sees changes within a moment, and edits made at the same time are combined. The
+bottom of the note says when it's saved and who edited it last.
+
+### How big can a note be?
+Up to 300 KB of text (0.3 MB). The bottom of the note shows how much is used. When a note is full, start another one.
+
+### How do I get back to the chat?
+The X at the top right of the notes, or click a channel or conversation. On phones, Back (or the back arrow) closes
+the open note, then the notes.
+
 ## Friends and direct messages
+
+Home opens on Friends when you have no conversations yet. Help (?) and the inbox are at the top right of Friends, as
+in a chat. Opening Friends during a call keeps you in the call.
 
 ### How do I add a friend?
 Home (the Meadhall logo at the top of the space list) → Friends → Add Friend. Type their Matrix ID and press Send
@@ -243,6 +287,11 @@ Settings → Appearance → Language.
 
 ### How do I reduce animations?
 Settings → Appearance → Motion → Reduce motion.
+
+### How do I make the side panels wider or narrower?
+Drag the edge of the panel: the right edge of the channel / Direct Messages list, or the left edge of the member list
+and profile panel (desktop and wide windows). Meadhall remembers each width. The chat in the middle always keeps enough
+room; names and message previews shorten with "…" when a panel is narrow.
 
 ### How do I update Meadhall?
 Desktop: Settings → Updates (or the update banner that appears when a new version is out). Android: the update notice

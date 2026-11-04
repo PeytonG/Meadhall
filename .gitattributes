@@ -1,0 +1,3 @@
+# Byte-exact files: PDFs record byte offsets, so line-ending conversion breaks them.
+*.pdf binary
+*.docx binary

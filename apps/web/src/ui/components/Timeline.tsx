@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import * as encrypt from "matrix-encrypt-attachment";
 import {
     ClientEvent,
@@ -40,6 +41,10 @@ import { getOrCreateThread, isThreadReplyFallback, threadEvents, threadSummary }
 import { ThreadSummaryBar } from "../threads/ThreadSummaryBar";
 import { parseAppLink } from "../utils/permalink";
 import { AppLinkPreview } from "./messages/AppLinkPreview";
+import { FileAttachment } from "./messages/FileAttachment";
+import { PixelIcon } from "./PixelIcon";
+import { ImageViewer } from "./messages/ImageViewer";
+import { fetchMediaBlob, saveMedia } from "../platform/saveMedia";
 import { isModerator, isShadowMuted } from "../../core/moderation/moderation";
 import { SANCTION_EVENT } from "../../core/moderation/moderationProtocol";
 
@@ -66,7 +71,7 @@ interface TimelineProps {
 interface LightboxState {
     src: string;
     alt: string;
-    zoomed: boolean;
+    fileName?: string;
 }
 
 interface RenderEvent {
@@ -1429,6 +1434,20 @@ export function Timeline({
         });
     }, []);
 
+    const downloadAttachment = useCallback(
+        async (url: string, fileName: string, mimeType?: string): Promise<void> => {
+            try {
+                const folder = await saveMedia(client, url, fileName, mimeType);
+                if (folder) {
+                    pushToast({ type: "success", message: `Saved ${fileName} to ${folder}` });
+                }
+            } catch (error) {
+                pushToast({ type: "error", message: error instanceof Error ? error.message : "Download failed" });
+            }
+        },
+        [client, pushToast],
+    );
+
     const focusEventById = useCallback((eventId: string, behavior: ScrollBehavior): boolean => {
         const container = scrollContainerRef.current;
         if (!container) {
@@ -2204,22 +2223,6 @@ export function Timeline({
         }
     };
 
-    useEffect(() => {
-        if (!lightbox) {
-            return undefined;
-        }
-
-        const onKeyDown = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") {
-                setLightbox(null);
-            }
-        };
-
-        window.addEventListener("keydown", onKeyDown);
-        return () => {
-            window.removeEventListener("keydown", onKeyDown);
-        };
-    }, [lightbox]);
 
     const renderEvents = useMemo(
         () => toRenderEvents(client, room, events, latestEditEventsByTarget),
@@ -2418,7 +2421,7 @@ export function Timeline({
                                     <button
                                         type="button"
                                         className="timeline-image-button"
-                                        onClick={() => setLightbox({ src: mediaUrl, alt: imageAlt, zoomed: false })}
+                                        onClick={() => setLightbox({ src: mediaUrl, alt: imageAlt, fileName: mediaName })}
                                         title="Open image"
                                         aria-label="Open image"
                                     >
@@ -2445,6 +2448,15 @@ export function Timeline({
                                         <span className="timeline-media-details">
                                             {[mediaDuration, mediaSize].filter(Boolean).join(" . ")}
                                         </span>
+                                        <button
+                                            type="button"
+                                            className="file-attachment-download"
+                                            onClick={() => void downloadAttachment(mediaUrl, mediaName)}
+                                            aria-label={`Download ${mediaName}`}
+                                            title="Download"
+                                        >
+                                            <PixelIcon name="download" size={16} />
+                                        </button>
                                     </div>
                                 </div>
                             ) : mediaMsgType === MsgType.Audio && mediaUrl ? (
@@ -2459,28 +2471,27 @@ export function Timeline({
                                         <span className="timeline-media-details">
                                             {[mediaDuration, mediaSize].filter(Boolean).join(" . ")}
                                         </span>
+                                        <button
+                                            type="button"
+                                            className="file-attachment-download"
+                                            onClick={() => void downloadAttachment(mediaUrl, mediaName)}
+                                            aria-label={`Download ${mediaName}`}
+                                            title="Download"
+                                        >
+                                            <PixelIcon name="download" size={16} />
+                                        </button>
                                     </div>
                                 </div>
                             ) : mediaMsgType === MsgType.File && mediaUrl ? (
-                                <a
-                                    className={`timeline-file-card${showHeader ? "" : " timeline-file-card-grouped"}`}
-                                    href={mediaUrl}
-                                    download={mediaName || undefined}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <span className="timeline-file-icon" aria-hidden="true">
-                                        FILE
-                                    </span>
-                                    <span className="timeline-file-content">
-                                        <span className="timeline-file-name" title={mediaName}>
-                                            {mediaName}
-                                        </span>
-                                        <span className="timeline-file-meta">
-                                            {[mediaLabel, mediaSize].filter(Boolean).join(" . ")}
-                                        </span>
-                                    </span>
-                                </a>
+                                <FileAttachment
+                                    name={mediaName}
+                                    mimeType={typeof content.info?.mimetype === "string" ? content.info.mimetype : null}
+                                    size={typeof content.info?.size === "number" ? content.info.size : null}
+                                    sizeLabel={mediaSize}
+                                    grouped={!showHeader}
+                                    fetchFile={() => fetchMediaBlob(client, mediaUrl)}
+                                    onDownload={() => void downloadAttachment(mediaUrl, mediaName, typeof content.info?.mimetype === "string" ? content.info.mimetype : undefined)}
+                                />
                             ) : decryptingEncryptedMedia ? (
                                 <div className={`timeline-media-status${showHeader ? "" : " timeline-media-status-grouped"}`}>
                                     Decrypting {mediaLabel.toLowerCase()}...
@@ -2655,36 +2666,15 @@ export function Timeline({
                 })}
             </div>
             {lightbox ? (
-                <div
-                    className="timeline-lightbox"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Image preview"
-                    onClick={() => setLightbox(null)}
-                >
-                    <button
-                        type="button"
-                        className="timeline-lightbox-close"
-                        onClick={() => setLightbox(null)}
-                        aria-label="Close image preview"
-                    >
-                        {/* Drawn, not a typed "x": a letter sits on the font's baseline and is never quite centered. */}
-                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-                        </svg>
-                    </button>
-                    <img
-                        className={`timeline-lightbox-image${lightbox.zoomed ? " is-zoomed" : ""}`}
-                        src={lightbox.src}
-                        alt={lightbox.alt}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            setLightbox((current) => (current ? { ...current, zoomed: !current.zoomed } : current));
-                        }}
-                    />
-                </div>
+                <ImageViewer
+                    src={lightbox.src}
+                    alt={lightbox.alt}
+                    onDownload={() => void downloadAttachment(lightbox.src, lightbox.fileName || "image")}
+                    onClose={() => setLightbox(null)}
+                />
             ) : null}
-            <Toast toast={toast} onClose={() => setToast(null)} />
+            {/* At the top of the page, so it shows over the picture and file viewers ("Saved to Downloads"). */}
+            {createPortal(<Toast toast={toast} onClose={() => setToast(null)} />, document.body)}
         </>
     );
 }

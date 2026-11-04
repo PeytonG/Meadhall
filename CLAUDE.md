@@ -574,6 +574,30 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
 - QR sign-in codes last at most 3 minutes: the code carries its expiry (`x`), the scanner refuses stale ones, and
   the test Synapse's `token_timeout` is 3m (recommend the same to server admins).
 
+### 7.27 Shared notes (v0.5.3: `core/notes`, `ui/notes`)
+- **Where:** a companion "notes room" per DM, group chat or space (creation type `io.github.peytong.meadhall.notes`),
+  linked from the parent with state `io.github.peytong.meadhall.notes_room` `{ room_id, via }` (`notesRoom.ts`).
+  DMs and group chats: private, the chat's people invited, encrypted when the chat is (inviting at creation is what
+  lets their devices decrypt the first edits). Spaces: restricted join (space members), unencrypted (people who join
+  later couldn't decrypt older edits), and only people who can send state in the space can start them. Power levels
+  only set `events_default: 0` (never `users`: room v12). Hidden from room lists (`listedRooms`), muted per account
+  (a push-rule override; two-person encrypted rooms otherwise notify on every event), and invites to a notes room
+  linked from a room you're in are accepted silently (`watchNotesInvites`).
+- **Sync (`notesSession.ts`):** the folder tree and each note are Yjs documents. Local edits are batched (0.7–2 s)
+  into `io.github.peytong.meadhall.notes.update` `{ doc: "tree" | noteId, update: base64 }`; homeservers rate-limit
+  (Synapse `rc_message`), so on `M_LIMIT_EXCEEDED` the batch waits `retry_after_ms` and merges with later edits.
+  After 8 s idle (and on close) the editor uploads `Y.encodeStateAsUpdate` as a file (encrypted attachment in
+  encrypted rooms) and sends `…notes.snapshot` `{ doc, url | file, size }`. Updates over 30 KB go straight to a
+  snapshot (events max 64 KB). Opening pages back through the notes room until that doc's latest snapshot; applying
+  an older update again is harmless (CRDT). Others see edits after about a second, not per keystroke.
+- **Limit:** 300,000 bytes (UTF-8) of text per note, enforced in `NoteEditor` (an edit that would go over is undone;
+  deleting always works). Concurrent edits from others may go slightly over.
+- **Known limit:** the Android background notifier can still show the notes-room invite once ("New message") when
+  the app isn't running; the app accepts it on next start.
+- Tests: `e2e/notes.spec.ts` (two people in an encrypted DM typing in the same note at once, nested folders, move,
+  reload, no notifications; the size limit; space notes with a member), `e2e/mobileBack.spec.ts` (phone + Back),
+  `test/unit-tests/core/notesSession.test.ts`.
+
 ### 7.16 Accessibility
 High contrast theme (`data-theme="contrast"`): pure black/white, white outlines, yellow focus ring, accent
 brightened to 7:1. `e2e/contrast.spec.ts` walks every visible text node and requires 7:1 against its background
@@ -712,7 +736,8 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.4.1`: threads, inbox clearing, cross-app verification (§7.23) | ✅ tests: 251 unit, 25 smoke, 111 E2E (11 screenshot-only skipped), incl. verification against a Rust-crypto client standing in for FluffyChat |
 | `v0.5.0`: server bots (onboarding, auto-mod, slash commands, Meadhall bot), phone redesign, camera preview, sharper logo, Playing fix, look picker, reports and moderation, app links (§7.24–§7.26) | ✅ published 2026-11-02 (PR #22): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.0 |
 | `v0.5.1`: §10.6 (bot guide, auto-mod without a bot, onboarding and invite fixes, friends, help, notification sounds, call dock, stream previews, calls across homeservers, game overlay, admin panel) | ✅ published 2026-11-03 (PR #25): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.1 |
-| `v0.5.2`: §10.7 (verification CI fix, lost room state, moderation and bot fixes, ringing, pins, overlay widgets, QR keys, channel +, voice join screen, ...) | ✅ released 2026-11-03 (PR #26) |
+| `v0.5.2`: §10.7 (verification CI fix, lost room state, moderation and bot fixes, ringing, pins, overlay widgets, QR keys, channel +, voice join screen, ...) | ✅ published 2026-11-03 (PR #26): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.2 |
+| `v0.5.3`: §10.8 (shared notes, file previews and Download, Android Back, resizable panels, Friends keeps calls, pan zoomed pictures) | ✅ released 2026-11-04 (PR #27) |
 
 ## 10. Open issues and roadmap
 
@@ -914,6 +939,21 @@ before marking it done. Includes the unfinished parts of §10.6 (mic/headset dev
 | 18 | **Voice channel after leaving: show Join, not a blank page** | After leaving a call with the voice channel still selected, Meadhall shows "# Test Channel" with an empty page. Discord shows the channel name, "No one is currently in voice" (or who is) and a **Join Voice** button on a gradient. Do the same, with the voice icon in the header instead of # | ✅ `VoiceJoinPrompt`, `e2e-calls/voiceJoinPrompt.spec.ts`; found and fixed lost room state (`core/matrix/stateCatchUp.ts`) |
 | 19 | **Long display names cut off on the profile card** | "Peyton Gna…" in the right-panel profile: show the whole name (wrap to two lines, then shrink the font a step) like Discord, instead of an ellipsis after a few letters; same check for the user ID line | ✅ names wrap (3 lines) and shrink by length; user ID wraps |
 | 17 | **Unfinished from v0.5.1** | Mic/headset device dropdowns in the user panel; overlay draggable widgets and video tiles (folded into #4) | ✅ device menus (`DevicePicker`, `e2e/devicePicker.spec.ts`); overlay widgets → #4 |
+
+### 10.8 Owner's v0.5.3 backlog (requested 2026-11-03; branch `release/v0.5.3`)
+Same rule as §10.7: compare with Discord step by step and test like a user (two accounts where someone else is
+involved, phone and desktop, both looks).
+
+| # | Request | Notes / plan | State |
+|---|---|---|---|
+| 1 | **Resizing the DM sidebar doesn't adapt** | Home's sidebar (Friends, Direct Messages with names and previews): when made narrower, names and message previews don't shorten or resize to fit. Discord ellipsizes names and previews and keeps avatars/badges visible | ✅ previews were loose text in a flex row (cut without …); headings, header name/chip fixed; handle was clipped to 3 px (`e2e/paneResize.spec.ts`) |
+| 2 | **Members / profile panel can't be resized** | The right panel (member list, profile) has no resize handle. Make it resizable like the left sidebar (remembered width, min/max) and make its contents adapt the same way as #1 | ✅ `usePaneWidth` for both panels (220–480 px, remembered, chat keeps 440 px); Home shows Friends with no conversations, with Help/Inbox/update (`e2e/paneResize.spec.ts`) |
+| 3 | **Opening Friends ends the call** | Going to Home → Friends during a call hangs up. Discord keeps the call running while you browse anywhere; the call dock stays | ✅ the chat pane (which holds the call) stays mounted behind Friends (`e2e-calls/friendsKeepsCall.spec.ts`, two accounts) |
+| 4 | **Android back button does nothing** | The system back button/gesture should go back like Discord: close a dialog/menu/viewer, then leave the chat to the list, then the space to Home, then leave the app | ✅ the app had no Back handling (Capacitor's App plugin isn't installed); `MeadhallNativePlugin` sends it to the web app (`nativeApp.ts`, AppShell): Escape what's open → list → Home → background. Checked on the emulator; `e2e/mobileBack.spec.ts` |
+| 5 | **PDF viewer with download** | A sent PDF is only a file link. Show a preview card (first page, page count) and open a viewer (scroll pages, zoom), with a Download button | ✅ `messages/FileAttachment.tsx` + `FileViewer.tsx` (pdf.js legacy build: Android WebView 133 lacks `Uint8Array.toHex`); checked on the emulator (pages, Download to Downloads, Back) (`e2e/filePreviews.spec.ts`) |
+| 6 | **Other file types** | Previews for .txt/.md/code/.json/.csv (text), .docx (rendered text), audio and video players; every attachment gets a Download button | ✅ .docx via mammoth rendered through `SafeHtml` (allow-list, no raw HTML); text/code first lines + viewer; Download on files, video, audio, pictures |
+| 7 | **Shared notes with nested folders** | In DMs and spaces: several notes in nested folders, opened in a view inside Meadhall and edited together live (both see each other's edits, for projects). Each note at most 0.3 MB | ✅ §7.27: companion notes room, Yjs over Matrix events + snapshots, nested folders, 300 KB limit (`e2e/notes.spec.ts`: two people typing at once in an encrypted DM; space notes; phone + Back) |
+| 8 | **Pan zoomed images** | Still can't move a zoomed-in picture with the mouse (§10 "pan zoomed images"): drag to pan, pinch on touch, click without dragging toggles zoom | ✅ `ui/components/messages/ImageViewer.tsx`: click/wheel/pinch zoom at the pointer, drag to pan (clamped to the window), Download (`ui/platform/saveMedia.ts`) (`e2e/imageViewer.spec.ts`) |
 
 ## 11. Work log
 

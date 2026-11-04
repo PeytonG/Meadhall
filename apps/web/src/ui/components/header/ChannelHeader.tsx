@@ -35,6 +35,8 @@ interface ChannelHeaderProps {
     update?: { label: string; onClick: () => void };
     // The ? button: Meadhall's help (help/HelpDialog.tsx).
     onOpenHelp?: () => void;
+    // DMs and group chats: shared notes (notes/NotesView.tsx). Spaces open them from the channel list.
+    onOpenNotes?: () => void;
 }
 
 type HeaderIconKind = "search" | "pins" | "members" | "info" | "more";
@@ -130,6 +132,7 @@ export function ChannelHeader({
     onMobileBack,
     inbox,
     onOpenHelp,
+    onOpenNotes,
     update,
 }: ChannelHeaderProps): React.ReactElement {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -223,7 +226,7 @@ export function ChannelHeader({
                     {room && encrypted ? (
                         <span className="channel-header-chip channel-header-chip-encrypted" data-testid="encryption-chip">
                             <span aria-hidden="true">{"\uD83D\uDD12"}</span>
-                            Encrypted
+                            <span className="channel-header-chip-label">Encrypted</span>
                         </span>
                     ) : null}
                     {/* Unencrypted rooms say so too: the server (and its admins) can read them. */}
@@ -234,7 +237,7 @@ export function ChannelHeader({
                             title="Not end-to-end encrypted: the server can read messages here"
                         >
                             <span aria-hidden="true">{"\uD83D\uDD13"}</span>
-                            Unencrypted
+                            <span className="channel-header-chip-label">Unencrypted</span>
                         </span>
                     ) : null}
                 </div>
@@ -287,6 +290,19 @@ export function ChannelHeader({
                 >
                     <HeaderIcon kind="pins" />
                 </button>
+                {onOpenNotes ? (
+                    <button
+                        type="button"
+                        className="channel-header-icon-btn"
+                        aria-label="Shared notes"
+                        title="Shared notes"
+                        onClick={onOpenNotes}
+                        disabled={!room}
+                        data-testid="header-notes"
+                    >
+                        <PixelIcon name="note" size={18} />
+                    </button>
+                ) : null}
                 <button
                     type="button"
                     className={`channel-header-icon-btn${sidebarMode === "members" ? " is-active" : ""}`}
@@ -377,6 +393,20 @@ export function ChannelHeader({
                                     {label}
                                 </button>
                             ))}
+                            {onOpenNotes ? (
+                                <button
+                                    type="button"
+                                    className="channel-header-menu-item channel-header-menu-item-phone"
+                                    role="menuitem"
+                                    disabled={!room}
+                                    onClick={() => {
+                                        onOpenNotes();
+                                        setMenuOpen(false);
+                                    }}
+                                >
+                                    Shared notes
+                                </button>
+                            ) : null}
                             <hr className="channel-header-menu-divider channel-header-menu-item-phone" />
                             <button
                                 type="button"

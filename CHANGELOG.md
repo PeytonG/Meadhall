@@ -4,6 +4,32 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.5.3 (2026-11-04)
+
+### New
+- **Shared notes** in DMs, group chats and spaces: as many notes as you like in folders inside folders, edited by
+  everyone at the same time (changes show for the others within a moment). Each note holds up to 0.3 MB. Open them
+  with the notes button at the top of a chat, or Notes above a space's channels. Encrypted when the chat is.
+- **Move around zoomed pictures:** in the picture viewer, click where you want to zoom in or use the mouse wheel,
+  drag to move a zoomed picture, pinch on phones; a click without dragging zooms back out. Download saves the picture
+  (to Downloads on Android).
+- **Resize the member list and profile panel** by dragging its left edge, like the channel list. Each width is
+  remembered, and the chat always keeps enough room.
+- **File previews and Download buttons:** PDFs show their first page and page count in the chat and open in a viewer
+  (pages, zoom); Word documents open as formatted text; text and code files show their first lines (Expand, View
+  whole file). Every attachment (files, videos, voice clips, pictures) has a Download button; on Android files are
+  saved to Downloads.
+- **Home opens on Friends** when you have no conversations yet (it showed an empty chat), with Help and the inbox at
+  the top right.
+
+### Fixed
+- **Narrow side panels didn't fit their text:** message previews in Direct Messages were cut off mid-letter, headings
+  wrapped, and the chat header's name could disappear next to the Unencrypted chip. Everything now shortens with "…",
+  and the channel list's resize edge is easier to grab.
+- **Opening Friends ended your call.** Browsing anywhere in Meadhall now keeps the call going, like Discord.
+- **Android's Back button did nothing.** It now closes what's open, then goes back from a chat to the list and from a
+  space to Home, and finally puts Meadhall in the background.
+
 ## v0.5.2 (2026-11-03)
 
 ### New

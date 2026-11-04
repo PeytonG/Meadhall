@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { defineConfig, devices } from "@playwright/test";
 
-const PHONE_SPECS = /(mobile|mobileUpdates|mobileTour)\.spec\.ts$/;
+const PHONE_SPECS = /(mobile|mobileUpdates|mobileTour|mobileBack)\.spec\.ts$/;
 
 // E2E tests drive the production build against the test Synapse: start it with `node scripts/test-synapse.mjs start`.
 export default defineConfig({
