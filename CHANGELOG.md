@@ -4,7 +4,7 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
-## v0.5.3 (unreleased)
+## v0.5.3 (2026-11-04)
 
 ### New
 - **Shared notes** in DMs, group chats and spaces: as many notes as you like in folders inside folders, edited by

@@ -737,6 +737,7 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.5.0`: server bots (onboarding, auto-mod, slash commands, Meadhall bot), phone redesign, camera preview, sharper logo, Playing fix, look picker, reports and moderation, app links (§7.24–§7.26) | ✅ published 2026-11-02 (PR #22): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.0 |
 | `v0.5.1`: §10.6 (bot guide, auto-mod without a bot, onboarding and invite fixes, friends, help, notification sounds, call dock, stream previews, calls across homeservers, game overlay, admin panel) | ✅ published 2026-11-03 (PR #25): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.1 |
 | `v0.5.2`: §10.7 (verification CI fix, lost room state, moderation and bot fixes, ringing, pins, overlay widgets, QR keys, channel +, voice join screen, ...) | ✅ published 2026-11-03 (PR #26): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.2 |
+| `v0.5.3`: §10.8 (shared notes, file previews and Download, Android Back, resizable panels, Friends keeps calls, pan zoomed pictures) | ✅ released 2026-11-04 (PR #27) |
 
 ## 10. Open issues and roadmap
 
