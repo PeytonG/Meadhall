@@ -251,7 +251,10 @@ Click your name at the bottom left. Choose Online, Away, Do Not Disturb or Invis
 
 ### How do I show what game I'm playing?
 Settings → Privacy & Safety → Activity. Meadhall can show the game you're playing (Steam and detected games) and who may
-see it.
+see it. While you're Invisible, nobody sees what you're playing. It stops showing as soon as the game closes.
+
+### Why don't I see someone's status?
+People who are offline or Invisible show no status and no game, like on Discord.
 
 ### How do I change my profile card colors?
 Settings → Profile → Profile style. Choose a gradient or your own colors.
@@ -292,6 +295,10 @@ Settings → Appearance → Motion → Reduce motion.
 Drag the edge of the panel: the right edge of the channel / Direct Messages list, or the left edge of the member list
 and profile panel (desktop and wide windows). Meadhall remembers each width. The chat in the middle always keeps enough
 room; names and message previews shorten with "…" when a panel is narrow.
+
+### Where did the buttons at the top of the chat go?
+In a small window (or on a phone) the top of the chat keeps the call button, the inbox and ...; Search, Pins, Notes,
+Members, Channel info and Help move into the ... menu. Make the window wider to get them back in the bar.
 
 ### How do I update Meadhall?
 Desktop: Settings → Updates (or the update banner that appears when a new version is out). Android: the update notice

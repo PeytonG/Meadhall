@@ -7,6 +7,13 @@ Versions follow `vX.Y.Z`.
 ## v0.5.4 (unreleased)
 
 ### Fixed
+- **Small windows: the top of the chat overlapped** the name and covered the call button. Search, Pins, Notes,
+  Members, Channel info and Help now move into the ... menu when there isn't room (as on phones), so the name and the
+  call button always fit.
+- **"Playing ..." stayed** under people's names long after they stopped: closing Meadhall mid-game left it behind for
+  everyone, and a game that crashed (with Steam still listing it) kept showing. People who are offline or Invisible
+  now show no status, and a Steam game only shows while its program is running.
+- **Invisible showed your game:** while you're Invisible, nobody sees what you're playing.
 - **Notes: titles piled up** when you switched from one note to another.
 
 ## v0.5.3 (2026-11-04)

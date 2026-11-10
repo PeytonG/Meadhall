@@ -419,9 +419,8 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   in localStorage (200 entries), credentials redacted, each with a hint (`hintFor`). The call history is
   `ui/voice/callLog.ts`. Calls that end without the user choosing to call `announceCallEnded`, and
   `CallEndedNotice` (rendered by AppShell) shows why until dismissed.
-- **Report a bug** (`core/bugReport/bugReport.ts`): sent from the reporter's account to
-  `@peytongna:elementprojectzkypg.duckdns.org` (forks: `bug_report_recipient` in config.json), whose ID is never
-  shown. Each report is a fresh unencrypted room with creation type `io.github.peytong.meadhall.bug_report`. Only the
+- **Report a bug** (`core/bugReport/bugReport.ts`): sent from the reporter's account to the owner's account (built-in default; forks: `bug_report_recipient` in
+  config.json), whose ID is never shown (and isn't written in these docs). Each report is a fresh unencrypted room with creation type `io.github.peytong.meadhall.bug_report`. Only the
   sender's copy is hidden (room list, DM suggestions, mutual rooms, taskbar badge: `isSentBugReport`, i.e. the type
   and the create event's sender is us). The recipient's Meadhall auto-joins report invites and lists them under
   Home → Bug reports (v0.3.4; before that they were hidden from the owner too). The reporter can't leave straight
@@ -960,11 +959,11 @@ Same rule as §10.7: compare with Discord and test like a user. The owner asked 
 
 | # | Request | Notes / plan | State |
 |---|---|---|---|
-| 1 | **Small window: the top bar overlaps** | When the app is made small, the chat header overlaps the name and the Join call button can't be pressed. Every width from phone to desktop must keep the name, the call button and the other buttons usable | ☐ |
+| 1 | **Small window: the top bar overlaps** | When the app is made small, the chat header overlaps the name and the Join call button can't be pressed. Every width from phone to desktop must keep the name, the call button and the other buttons usable | ✅ header buttons move into the ... menu under 600 px (container query; same items phones use), call/update/inbox stay (`e2e/narrowHeader.spec.ts`; checked by a separate ui-consistency checker) |
 | 2 | **Friend can't join a call the owner started** | The friend's join "tries to connect then immediately stops"; calls only work when the friend starts them. Find why (SFU choice / token / membership), fix, test with two accounts | ☐ |
 | 3 | **Notes: titles stack when switching notes** | Open a note, click another: the titles pile up and keep stacking | ✅ the title box and the text box shared one React key, so React kept old title boxes; distinct keys (`e2e/notes.spec.ts` switching test) |
-| 4 | **Invisible hides the game** | With status Invisible, "Playing ..." must not show to anyone | ☐ |
-| 5 | **Games keep showing after you stop** | "Playing ..." still shows long after the game closed (again). Find every source that can keep it | ☐ |
+| 4 | **Invisible hides the game** | With status Invisible, "Playing ..." must not show to anyone | ✅ viewers showed the Matrix status message ("Playing ...") of offline/invisible people; now nothing for offline (`buildPresenceVm`, unit test) |
+| 5 | **Games keep showing after you stop** | "Playing ..." still shows long after the game closed (again). Find every source that can keep it | ✅ two causes: the homeserver keeps the last status message after Meadhall closes (shown under offline names, fixed with #4); Steam's RunningAppID outlives crashed games: only trusted while a program from the game's install folder runs (`steamActivity.ts`, desktop test kills the game) |
 | 6 | **Overlay chat shows pictures** | Images in the overlay's text chat widget should be viewable | ☐ |
 | 7 | **Explore: Meadhall in Rust** | Effort and benefits of converting Meadhall to Rust (write-up only) | ☐ |
 
