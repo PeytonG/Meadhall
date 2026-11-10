@@ -21,4 +21,19 @@ describe("status and activity", () => {
     it("doesn't show a game for someone offline", () => {
         expect(buildPresenceVm({ presence: "offline", statusMessage: "ZzZzZzZ", published: playing }).activityText).toBeNull();
     });
+
+    // The homeserver keeps the last status message after someone leaves or goes invisible: closing Meadhall mid-game
+    // used to leave "Playing ..." under their name for good.
+    it("shows no status at all for someone offline or invisible, even a leftover Playing message", () => {
+        for (const presence of ["offline", "unknown"] as const) {
+            const vm = buildPresenceVm({ presence, statusMessage: "Playing Call of Duty", published: playing });
+            expect(vm.statusText).toBeNull();
+            expect(vm.activityText).toBeNull();
+        }
+        expect(buildPresenceVm({ presence: "offline", statusMessage: "ZzZzZzZ" }).statusText).toBeNull();
+    });
+
+    it("still shows the status of someone away", () => {
+        expect(buildPresenceVm({ presence: "unavailable", statusMessage: "Playing Call of Duty" }).statusText).toBe("Playing Call of Duty");
+    });
 });

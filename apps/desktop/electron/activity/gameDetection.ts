@@ -67,7 +67,6 @@ const SCAN_EVERY_MS = 5_000;
 const startedAt = new Map<string, number>();
 let lastScan = 0;
 let lastResult: DetectedGame[] = [];
-let scanning: Promise<DetectedGame[]> | null = null;
 
 export function detectedFrom(processes: ProcessEntry[], now = Date.now()): DetectedGame[] {
     const found = new Map<string, DetectedGame>();
@@ -82,17 +81,28 @@ export function detectedFrom(processes: ProcessEntry[], now = Date.now()): Detec
     return [...found.values()];
 }
 
-export function runningGames(): Promise<DetectedGame[]> {
-    if (Date.now() - lastScan < SCAN_EVERY_MS) return Promise.resolve(lastResult);
-    scanning ??= listProcesses()
-        .then((processes) => {
-            lastResult = detectedFrom(processes);
-            lastScan = Date.now();
-            return lastResult;
+// One process list shared by game detection and the Steam check, taken at most every 5 seconds (listing processes
+// on Windows starts PowerShell).
+let snapshot: { at: number; list: ProcessEntry[] } | null = null;
+let snapshotting: Promise<ProcessEntry[]> | null = null;
+
+export function processSnapshot(): Promise<ProcessEntry[]> {
+    if (snapshot && Date.now() - snapshot.at < SCAN_EVERY_MS) return Promise.resolve(snapshot.list);
+    snapshotting ??= listProcesses()
+        .then((list) => {
+            snapshot = { at: Date.now(), list };
+            return list;
         })
-        .catch(() => lastResult)
+        .catch(() => snapshot?.list ?? [])
         .finally(() => {
-            scanning = null;
+            snapshotting = null;
         });
-    return scanning;
+    return snapshotting;
+}
+
+export async function runningGames(): Promise<DetectedGame[]> {
+    if (Date.now() - lastScan < SCAN_EVERY_MS) return lastResult;
+    lastResult = detectedFrom(await processSnapshot());
+    lastScan = Date.now();
+    return lastResult;
 }
