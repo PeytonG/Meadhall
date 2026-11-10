@@ -231,3 +231,23 @@
         font-size: var(--text-sm);
     }
 }
+
+/* A narrow header (small window, or wide side panels): Search, Pins, Notes, Members, Channel info and Help move into
+   the ... menu, as they do on phones, so the name and the call button keep their room. Call, update, inbox and ...
+   stay. */
+@container channel-header (max-width: 600px) {
+    .channel-header-actions .channel-header-icon-btn.is-overflowable {
+        display: none;
+    }
+
+    /* Search opened from the menu: a smaller box, so the name keeps its room. */
+    .channel-header-search {
+        width: min(230px, 40cqw);
+        min-width: 90px;
+    }
+
+    /* More specific than mobile.css's "phones only" rule, which loads later. */
+    .channel-header-menu-panel .channel-header-menu-item-phone {
+        display: block;
+    }
+}

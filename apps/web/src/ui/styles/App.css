@@ -5204,9 +5204,9 @@ img.voice-ctrl-icon {
         padding-left: 6px;
     }
 
-    /* Keep the header to the essentials on a phone: call, search and members. */
-    .channel-header-actions .channel-header-icon-btn[aria-label="Pins panel"],
-    .channel-header-actions .channel-header-icon-btn[aria-label="Channel info panel"] {
+    /* Keep the header to the essentials on a phone: the call and update buttons and the ... menu, which has the rest (the same
+       buttons a narrow header moves there, so none shows twice). */
+    .channel-header-actions .channel-header-icon-btn.is-overflowable {
         display: none;
     }
 
