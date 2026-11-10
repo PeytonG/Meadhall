@@ -6,6 +6,10 @@ Versions follow `vX.Y.Z`.
 
 ## v0.5.4 (unreleased)
 
+### New
+- **Pictures in the game overlay:** pictures in the overlay's Text chat and Notifications show right there; click
+  one to see it large (Esc closes it). Pictures from encrypted chats too.
+
 ### Fixed
 - **Small windows: the top of the chat overlapped** the name and covered the call button. Search, Pins, Notes,
   Members, Channel info and Help now move into the ... menu when there isn't room (as on phones), so the name and the

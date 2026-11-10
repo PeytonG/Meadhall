@@ -33,6 +33,7 @@ import { ThreadPanel } from "../threads/ThreadPanel";
 import { OnboardingAutoOpen, OnboardingGate } from "../bots/OnboardingDialog";
 import { FriendsView, useFriends } from "../friends/FriendsView";
 import { NotesView } from "../notes/NotesView";
+import { overlayImageFor } from "../overlay/overlayImages";
 import { HelpDialog } from "../help/HelpDialog";
 import { declineCall, useOutgoingRing } from "../hooks/useOutgoingRing";
 import { VoiceJoinPrompt } from "./voice/VoiceJoinPrompt";
@@ -2156,6 +2157,8 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
     // The desktop game overlay (Shift+`): what it shows, and its buttons acting here (overlay/OverlayApp.tsx).
     const overlayRoomTick = useRoomTimelineTick(client, voiceSessionRoomId);
     const overlayAnyTick = useAnyTimelineTick(client, Boolean(window.heorotDesktop?.setOverlayState));
+    // Bumped when a picture from an encrypted room has been decrypted for the overlay, so it's sent again.
+    const [overlayImageTick, setOverlayImageTick] = useState(0);
     useEffect(() => {
         if (!window.heorotDesktop?.setOverlayState) return;
         const inCall = voiceSessionStatus === "connected" && Boolean(voiceSessionRoomId);
@@ -2170,12 +2173,16 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
                 .getEvents()
                 .filter((event) => event.getType() === EventType.RoomMessage && !event.isRedacted() && typeof event.getContent().body === "string")
                 .slice(-limit)
-                .map((event) => ({
-                    id: event.getId() ?? "",
-                    sender: target.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
-                    body: String(event.getContent().body).slice(0, 500),
-                    room: getRoomName(target),
-                }));
+                .map((event) => {
+                    const image = overlayImageFor(client, event, () => setOverlayImageTick((tick) => tick + 1));
+                    return {
+                        id: event.getId() ?? "",
+                        sender: target.getMember(event.getSender() ?? "")?.name ?? event.getSender() ?? "",
+                        body: String(event.getContent().body).slice(0, 500),
+                        room: getRoomName(target),
+                        ...(image ? { image } : {}),
+                    };
+                });
         // Chats you can use from the overlay: the call's room, then your most recently active conversations.
         const recent = client
             .getRooms()
@@ -2234,6 +2241,7 @@ export function AppShell({ client, onLogout }: AppShellProps): React.ReactElemen
         void window.heorotDesktop.setOverlayState(state);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
+        overlayImageTick,
         client,
         overlayRoomTick,
         overlayAnyTick,

@@ -233,8 +233,8 @@ call, and that your system allows Meadhall to use the microphone.
 On the desktop app, press Shift and ` (the key left of 1) together, in any game or app. If another app already uses
 that key, Meadhall uses Ctrl+Shift+` (or Shift+F10); the Game overlay button under "Voice Connected" also opens it and
 shows which key works. The overlay has the call buttons at the top and widgets: Voice (who is talking; click someone
-to change their volume), Text chat (pick a conversation, read it and type to send), Notifications (mentions and DMs)
-and Soundboard. Drag a widget by its title to move it. The gear shows or hides widgets and changes the opacity. The pin
+to change their volume), Text chat (pick a conversation, read it and type to send; pictures show in the chat, click
+one to see it large and press Esc to close it), Notifications (mentions and DMs, with their pictures) and Soundboard. Drag a widget by its title to move it. The gear shows or hides widgets and changes the opacity. The pin
 on a widget keeps it on screen after you close the overlay, while you play (it doesn't take your mouse). Press Esc or
 the shortcut again to close. It works over games in windowed or borderless fullscreen mode, not exclusive fullscreen.
 

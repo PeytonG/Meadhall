@@ -11,11 +11,21 @@ export interface OverlayParticipant {
     volume?: number;
 }
 
+// A picture in a message: `thumb` in the chat, `full` when opened (web addresses, or a decrypted JPEG from an
+// encrypted room as a data: address; see overlayImages.ts).
+export interface OverlayImage {
+    thumb: string;
+    full: string;
+    width?: number;
+    height?: number;
+}
+
 export interface OverlayMessage {
     id: string;
     sender: string;
     body: string;
     room: string;
+    image?: OverlayImage;
 }
 
 // A conversation you can read and write to from the overlay (the call's chat, recent DMs and channels).
@@ -68,7 +78,21 @@ export const EMPTY_OVERLAY_STATE: OverlayState = {
 const text = (value: unknown, max: number): string => (typeof value === "string" ? value.slice(0, max) : "");
 const objects = (value: unknown, max: number): Array<Record<string, unknown>> =>
     Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object").slice(0, max) : [];
-const message = (item: Record<string, unknown>): OverlayMessage => ({ id: text(item.id, 255), sender: text(item.sender, 80), body: text(item.body, 500), room: text(item.room, 80) });
+// Only web addresses and image data (never javascript: or other schemes); decrypted previews are at most ~2 MB.
+const imageSource = (value: unknown): string | null =>
+    typeof value === "string" && value.length <= 2_000_000 && (/^https?:\/\//i.test(value) || /^data:image\/(jpeg|png|gif|webp);base64,/i.test(value)) ? value : null;
+const size = (value: unknown): number | undefined => (typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.min(value, 100_000) : undefined);
+const image = (value: unknown): OverlayImage | undefined => {
+    if (!value || typeof value !== "object") return undefined;
+    const record = value as Record<string, unknown>;
+    const thumb = imageSource(record.thumb);
+    const full = imageSource(record.full);
+    return thumb && full ? { thumb, full, width: size(record.width), height: size(record.height) } : undefined;
+};
+const message = (item: Record<string, unknown>): OverlayMessage => {
+    const picture = image(item.image);
+    return { id: text(item.id, 255), sender: text(item.sender, 80), body: text(item.body, 500), room: text(item.room, 80), ...(picture ? { image: picture } : {}) };
+};
 
 // The overlay page reads what the main window sent, defensively.
 export function parseOverlayState(value: unknown): OverlayState {
