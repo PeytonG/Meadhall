@@ -4,7 +4,7 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
-## v0.5.4 (unreleased)
+## v0.5.4 (2026-11-10)
 
 ### New
 - **Pictures in the game overlay:** pictures in the overlay's Text chat and Notifications show right there; click
