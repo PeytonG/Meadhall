@@ -955,6 +955,19 @@ involved, phone and desktop, both looks).
 | 7 | **Shared notes with nested folders** | In DMs and spaces: several notes in nested folders, opened in a view inside Meadhall and edited together live (both see each other's edits, for projects). Each note at most 0.3 MB | ✅ §7.27: companion notes room, Yjs over Matrix events + snapshots, nested folders, 300 KB limit (`e2e/notes.spec.ts`: two people typing at once in an encrypted DM; space notes; phone + Back) |
 | 8 | **Pan zoomed images** | Still can't move a zoomed-in picture with the mouse (§10 "pan zoomed images"): drag to pan, pinch on touch, click without dragging toggles zoom | ✅ `ui/components/messages/ImageViewer.tsx`: click/wheel/pinch zoom at the pointer, drag to pan (clamped to the window), Download (`ui/platform/saveMedia.ts`) (`e2e/imageViewer.spec.ts`) |
 
+### 10.9 Owner's v0.5.4 backlog (requested 2026-11-10; branch `release/v0.5.4`)
+Same rule as §10.7: compare with Discord and test like a user. The owner asked to ship these as v0.5.4.
+
+| # | Request | Notes / plan | State |
+|---|---|---|---|
+| 1 | **Small window: the top bar overlaps** | When the app is made small, the chat header overlaps the name and the Join call button can't be pressed. Every width from phone to desktop must keep the name, the call button and the other buttons usable | ☐ |
+| 2 | **Friend can't join a call the owner started** | The friend's join "tries to connect then immediately stops"; calls only work when the friend starts them. Find why (SFU choice / token / membership), fix, test with two accounts | ☐ |
+| 3 | **Notes: titles stack when switching notes** | Open a note, click another: the titles pile up and keep stacking | ☐ |
+| 4 | **Invisible hides the game** | With status Invisible, "Playing ..." must not show to anyone | ☐ |
+| 5 | **Games keep showing after you stop** | "Playing ..." still shows long after the game closed (again). Find every source that can keep it | ☐ |
+| 6 | **Overlay chat shows pictures** | Images in the overlay's text chat widget should be viewable | ☐ |
+| 7 | **Explore: Meadhall in Rust** | Effort and benefits of converting Meadhall to Rust (write-up only) | ☐ |
+
 ## 11. Work log
 
 | Date | Work |
