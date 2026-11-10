@@ -962,7 +962,7 @@ Same rule as §10.7: compare with Discord and test like a user. The owner asked 
 |---|---|---|---|
 | 1 | **Small window: the top bar overlaps** | When the app is made small, the chat header overlaps the name and the Join call button can't be pressed. Every width from phone to desktop must keep the name, the call button and the other buttons usable | ☐ |
 | 2 | **Friend can't join a call the owner started** | The friend's join "tries to connect then immediately stops"; calls only work when the friend starts them. Find why (SFU choice / token / membership), fix, test with two accounts | ☐ |
-| 3 | **Notes: titles stack when switching notes** | Open a note, click another: the titles pile up and keep stacking | ☐ |
+| 3 | **Notes: titles stack when switching notes** | Open a note, click another: the titles pile up and keep stacking | ✅ the title box and the text box shared one React key, so React kept old title boxes; distinct keys (`e2e/notes.spec.ts` switching test) |
 | 4 | **Invisible hides the game** | With status Invisible, "Playing ..." must not show to anyone | ☐ |
 | 5 | **Games keep showing after you stop** | "Playing ..." still shows long after the game closed (again). Find every source that can keep it | ☐ |
 | 6 | **Overlay chat shows pictures** | Images in the overlay's text chat widget should be viewable | ☐ |

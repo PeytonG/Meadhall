@@ -430,8 +430,9 @@ export function NotesView({ client, parent, isPhone, onClose }: NotesViewProps):
                         <div className="notes-editor">
                             {openNote && noteDoc ? (
                                 <>
+                                    {/* Distinct keys: siblings sharing one key made React keep old title boxes (v0.5.3 bug). */}
                                     <input
-                                        key={openNote.id}
+                                        key={`title-${openNote.id}`}
                                         className="notes-editor-title"
                                         defaultValue={openNote.title}
                                         aria-label="Note title"
@@ -444,7 +445,7 @@ export function NotesView({ client, parent, isPhone, onClose }: NotesViewProps):
                                         }}
                                     />
                                     <NoteEditor
-                                        key={openNote.id}
+                                        key={`text-${openNote.id}`}
                                         doc={noteDoc}
                                         placeholder="Write something. Everyone here can see and edit it."
                                         onSizeChange={(bytes) => {
