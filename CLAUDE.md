@@ -970,7 +970,7 @@ Same rule as §10.7: compare with Discord and test like a user. The owner asked 
 | 4 | **Invisible hides the game** | With status Invisible, "Playing ..." must not show to anyone | ✅ viewers showed the Matrix status message ("Playing ...") of offline/invisible people; now nothing for offline (`buildPresenceVm`, unit test) |
 | 5 | **Games keep showing after you stop** | "Playing ..." still shows long after the game closed (again). Find every source that can keep it | ✅ two causes: the homeserver keeps the last status message after Meadhall closes (shown under offline names, fixed with #4); Steam's RunningAppID outlives crashed games: only trusted while a program from the game's install folder runs (`steamActivity.ts`, desktop test kills the game) |
 | 6 | **Overlay chat shows pictures** | Images in the overlay's text chat widget should be viewable | ✅ `overlay/overlayImages.ts`: plain rooms send the homeserver URLs (overlay shares the signed session), encrypted rooms a decrypted JPEG preview; viewer in the overlay, Escape closes it first; only http(s)/data:image accepted (`e2e/overlay`, `e2e/overlayPictures`) |
-| 7 | **Explore: Meadhall in Rust** | Effort and benefits of converting Meadhall to Rust (write-up only) | ☐ |
+| 7 | **Explore: Meadhall in Rust** | Effort and benefits of converting Meadhall to Rust (write-up only) | ✅ `docs/research/rust.md`: don't rewrite; staged path (Tauri shell, then matrix-rust-sdk screen by screen), with Element's 2026 experience |
 
 ## 11. Work log
 
