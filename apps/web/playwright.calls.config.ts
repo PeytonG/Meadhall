@@ -31,5 +31,19 @@ export default defineConfig({
             port: 7890,
             reuseExistingServer: !process.env.CI,
         },
+        // Two more call servers, standing in for two homeservers' (multiSfu.spec.ts): each with its own rooms, and only
+        // its own user (alice on A, bob on B) may talk.
+        {
+            command: "node e2e/support/lkTokenService.mjs",
+            port: 7891,
+            env: { LK_TOKEN_PORT: "7891", LK_ROOM_PREFIX: "A-", LK_FULL_ACCESS: "^@alice" },
+            reuseExistingServer: !process.env.CI,
+        },
+        {
+            command: "node e2e/support/lkTokenService.mjs",
+            port: 7892,
+            env: { LK_TOKEN_PORT: "7892", LK_ROOM_PREFIX: "B-", LK_FULL_ACCESS: "^@bob" },
+            reuseExistingServer: !process.env.CI,
+        },
     ],
 });

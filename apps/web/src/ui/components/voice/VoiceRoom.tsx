@@ -28,11 +28,13 @@ import {
     discoverLiveKitTransport,
     fetchLiveKitToken,
     fetchSfuCredentials,
+    tokenCanPublish,
     joinMatrixRtcSession,
     parseMatrixUserIdFromIdentity,
     updateVoiceParticipantState,
 } from "../../adapters/voiceAdapter";
 import { createLiveKitE2EEWorker } from "../../voice/e2eeWorker";
+import { ListenerRooms, transportsToListenOn } from "./listenerRooms";
 import { allowMembersToJoinCalls, canJoinCalls, canMembersJoinCalls } from "../../voice/voiceChannel";
 import {
     playVoiceJoinSound,
@@ -874,6 +876,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
     };
 
     const speakingSidsRef = useRef<Set<string>>(new Set());
+    // Listen-only connections to the other call servers in the call (listenerRooms.ts), and how to update them.
+    const listenerRoomsRef = useRef<ListenerRooms | null>(null);
+    const syncListenersRef = useRef<(() => void) | null>(null);
 
     const syncParticipants = useCallback((): void => {
         const room = roomRef.current;
@@ -883,7 +888,9 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
         }
 
         if ("activeSpeakers" in room && Array.isArray(room.activeSpeakers)) {
-            speakingSidsRef.current = new Set((room.activeSpeakers as Participant[]).map((p) => p.sid));
+            speakingSidsRef.current = new Set(
+                [...(room.activeSpeakers as Participant[]), ...(listenerRoomsRef.current?.activeSpeakers() ?? [])].map((p) => p.sid),
+            );
         }
         const speakingSids = speakingSidsRef.current;
         const isParticipantSpeaking = (participant: Participant | LocalParticipant): boolean => {
@@ -911,7 +918,13 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 hasCamera: participantHasCamera(room.localParticipant),
             });
         }
-        for (const participant of room.remoteParticipants.values()) {
+        const remotes = new Map<string, RemoteParticipant>();
+        for (const participant of [...room.remoteParticipants.values(), ...(listenerRoomsRef.current?.remoteParticipants() ?? [])]) {
+            if (participant.identity === room.localParticipant.identity) continue;
+            const known = remotes.get(participant.identity);
+            if (!known || (known.trackPublications.size === 0 && participant.trackPublications.size > 0)) remotes.set(participant.identity, participant);
+        }
+        for (const participant of remotes.values()) {
             if (!isListedRemoteParticipant(participant, rtcIdentityMap)) {
                 continue;
             }
@@ -1347,27 +1360,34 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                             "Your role can't join calls in this channel yet. Ask a channel admin to allow members to join calls.",
                         );
                     }
-                    if (!transport) {
-                        const relay = await fetchLiveKitToken(client, config, targetRoomId, {
-                            signal: joinAbortController.signal,
-                        });
-                        return { backend: "relay" as const, wsUrl: relay.wsUrl, token: relay.token, transport: null };
-                    }
-                    // Join the call where it already is (maybe another homeserver's call server); ours if we're first or
-                    // theirs refuses us. Our membership still names our own server, as Element Call's does.
+                    // Join the call where it already is (maybe another homeserver's call server) when that server lets
+                    // us talk; since lk-jwt-service 0.7 a server lets only its own users talk, so then we talk on ours
+                    // and listen on theirs (ListenerRooms). Our membership still names our own server, as Element
+                    // Call's does.
                     const active = targetMatrixRoom ? activeCallTransport(client, targetMatrixRoom) : null;
-                    if (active && active.livekit_service_url !== transport.livekit_service_url) {
+                    if (active && active.livekit_service_url !== transport?.livekit_service_url) {
                         try {
                             const remote = await fetchSfuCredentials(client, active, targetRoomId, { signal: joinAbortController.signal });
-                            return { backend: "matrixrtc" as const, wsUrl: remote.url, token: remote.jwt, transport };
+                            const canTalk = tokenCanPublish(remote.jwt);
+                            if (canTalk || !transport) {
+                                // No call server of our own: listen there (and say why we can't talk).
+                                return { backend: "matrixrtc" as const, wsUrl: remote.url, token: remote.jwt, transport: transport ?? active, talkingOn: active, listenOnly: !canTalk };
+                            }
+                            logCallEvent("Other homeserver's call server only lets its own users talk; talking on ours", active.livekit_service_url);
                         } catch (remoteError) {
                             logCallEvent("Other homeserver's call server refused; using ours", `${active.livekit_service_url}: ${remoteError instanceof Error ? remoteError.message : String(remoteError)}`);
                         }
                     }
+                    if (!transport) {
+                        const relay = await fetchLiveKitToken(client, config, targetRoomId, {
+                            signal: joinAbortController.signal,
+                        });
+                        return { backend: "relay" as const, wsUrl: relay.wsUrl, token: relay.token, transport: null, talkingOn: null, listenOnly: false };
+                    }
                     const sfu = await fetchSfuCredentials(client, transport, targetRoomId, {
                         signal: joinAbortController.signal,
                     });
-                    return { backend: "matrixrtc" as const, wsUrl: sfu.url, token: sfu.jwt, transport };
+                    return { backend: "matrixrtc" as const, wsUrl: sfu.url, token: sfu.jwt, transport, talkingOn: transport, listenOnly: false };
                 })(),
                 VOICE_JOIN_TOKEN_TIMEOUT_MS,
                 "Voice token request timed out.",
@@ -1404,6 +1424,7 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                 };
                 const onMembershipsChanged = (): void => {
                     rtcIdentityMapRef.current = buildRtcIdentityMap(session.memberships);
+                    syncListenersRef.current?.();
                     runIfCurrentJoin(() => {
                         setRtcOtherMembers(countOtherMembers(session.memberships, client.getUserId()));
                         syncParticipants();
@@ -1658,6 +1679,31 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
                     announce: announceCall,
                 });
                 ensureCurrentJoinRequest();
+                const session = rtcSession;
+                const talkingOnUrl = credentials.talkingOn?.livekit_service_url ?? "";
+                const listeners = new ListenerRooms(client, targetRoomId, keyProvider, {
+                    onTrackSubscribed: (track, publication, participant) => runIfCurrentJoin(() => attachRemoteAudioTrack(track, publication, participant)),
+                    onTrackUnsubscribed: (track, publication) => runIfCurrentJoin(() => detachRemoteAudioTrack(track, publication)),
+                    onChange: () =>
+                        runIfCurrentJoin(() => {
+                            setScreenShareTrackRevision((current) => current + 1);
+                            syncParticipants();
+                        }),
+                    onError: (serviceUrl, listenError) =>
+                        logCallEvent("Couldn't listen on another call server", `${serviceUrl}: ${listenError instanceof Error ? listenError.message : String(listenError)}`),
+                });
+                listenerRoomsRef.current = listeners;
+                const syncListeners = (): void =>
+                    listeners.sync(transportsToListenOn(session.memberships, { userId: client.getSafeUserId(), deviceId: client.getDeviceId() ?? "" }, talkingOnUrl));
+                syncListenersRef.current = syncListeners;
+                syncListeners();
+                const previousTeardown = rtcTeardownRef.current;
+                rtcTeardownRef.current = () => {
+                    syncListenersRef.current = null;
+                    listenerRoomsRef.current = null;
+                    listeners.closeAll();
+                    previousTeardown?.();
+                };
             }
 
             try {
@@ -1691,7 +1737,10 @@ export const VoiceRoom = React.forwardRef<VoiceRoomHandle, VoiceRoomProps>(funct
             }
 
             // Joining muted (or deafened) never opens the mic; unmuting later publishes it.
-            const startMuted = joinMutedRef.current || joinDeafenedRef.current || audioSettings.pushToTalk;
+            if (credentials.listenOnly) {
+                setError("You can listen, but not talk: this call's server only lets its own homeserver's users talk, and your homeserver has no call server.");
+            }
+            const startMuted = joinMutedRef.current || joinDeafenedRef.current || audioSettings.pushToTalk || credentials.listenOnly;
             if (!startMuted) {
                 await withTimeout(
                     room.localParticipant.setMicrophoneEnabled(

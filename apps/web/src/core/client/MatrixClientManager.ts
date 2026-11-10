@@ -3,7 +3,9 @@ import {
     type IStartClientOpts,
     type MatrixClient,
     type TokenRefreshFunction,
+    MatrixEvent,
     MemoryStore,
+    Method,
     PendingEventOrdering,
 } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
@@ -110,7 +112,16 @@ export class MatrixClientManager {
         const opts = await this.assign(assignOpts);
         // Room state the SDK can drop with MSC4222 sync (core/matrix/stateCatchUp.ts).
         this.stopStateCatchUp?.();
-        this.stopStateCatchUp = watchMissedStateEvents(this.safeGet());
+        const stateClient = this.safeGet();
+        this.stopStateCatchUp = watchMissedStateEvents(stateClient, async (roomId, type, stateKey) => {
+            const path = `/rooms/${encodeURIComponent(roomId)}/state/${encodeURIComponent(type)}/${encodeURIComponent(stateKey)}`;
+            try {
+                const raw = await stateClient.http.authedRequest(Method.Get, path, { format: "event" });
+                return raw && typeof raw === "object" && "event_id" in raw ? new MatrixEvent(raw as never) : null;
+            } catch {
+                return null;
+            }
+        });
         await this.safeGet().startClient(opts);
     }
 

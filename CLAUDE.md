@@ -740,10 +740,15 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 
 ## 10. Open issues and roadmap
 
-- **Calls across homeservers (v0.5.1):** like Element Call's default "oldest_membership" mode, Meadhall connects to the
-  SFU of the oldest call membership (`activeCallTransport` in `core/voice/matrixRtc.ts`), falling back to our own if
-  that lk-jwt-service refuses us (it must allow federated users into existing rooms). True multi-SFU (`multi_sfu`,
-  one subscriber connection per remote transport) is not implemented; nobody uses it by default yet.
+- **Calls across homeservers (v0.5.1, multi-SFU v0.5.4):** like Element Call, Meadhall joins the call on the SFU of
+  the oldest call membership (`activeCallTransport` in `core/voice/matrixRtc.ts`) when that SFU lets it publish. Since
+  lk-jwt-service 0.7 an SFU lets only its own homeserver's users publish (others get a listen-only token,
+  `tokenCanPublish`), so then Meadhall publishes on its own SFU and keeps listen-only connections to every other SFU
+  named in the call's memberships (`ui/components/voice/listenerRooms.ts`, merged into the participant list). With no
+  SFU of its own it joins listen-only and says why. `e2e-calls/multiSfu.spec.ts` runs two call servers that each let
+  only their own user publish. Room state that the SDK loses (MSC4222 state_after) is applied after each sync, with a
+  server lookup when the replaces_state chain is broken (`core/matrix/stateCatchUp.ts`), and the Join Voice screen
+  checks shown call members with the server (`refreshCallMembers`).
 - **Matrix 2.0 mode:** js-sdk 40.2 hashes `user|device|member`; lk-jwt-service hashes JSON. Upgrade matrix-js-sdk
   (44+) before Element Call makes that mode the default.
 - MSC4195 `url`-only transports aren't supported yet (falls back to the relay).
@@ -960,7 +965,7 @@ Same rule as §10.7: compare with Discord and test like a user. The owner asked 
 | # | Request | Notes / plan | State |
 |---|---|---|---|
 | 1 | **Small window: the top bar overlaps** | When the app is made small, the chat header overlaps the name and the Join call button can't be pressed. Every width from phone to desktop must keep the name, the call button and the other buttons usable | ✅ header buttons move into the ... menu under 600 px (container query; same items phones use), call/update/inbox stay (`e2e/narrowHeader.spec.ts`; checked by a separate ui-consistency checker) |
-| 2 | **Friend can't join a call the owner started** | The friend's join "tries to connect then immediately stops"; calls only work when the friend starts them. Find why (SFU choice / token / membership), fix, test with two accounts | ☐ |
+| 2 | **Friend can't join a call the owner started** | The friend's join "tries to connect then immediately stops"; calls only work when the friend starts them. Find why (SFU choice / token / membership), fix, test with two accounts | ✅ the friend is on another homeserver (kystack.org); lk-jwt-service 0.7+ lets only its own users publish, so joining the owner's call got a listen-only token and the mic publish failed the join. Multi-SFU: talk on the call's server if allowed, else ours, and listen on every other server in the call (`voice/listenerRooms.ts`); listen-only when we have none (`e2e-calls/multiSfu.spec.ts`, two restricted call servers; fails on the old code) |
 | 3 | **Notes: titles stack when switching notes** | Open a note, click another: the titles pile up and keep stacking | ✅ the title box and the text box shared one React key, so React kept old title boxes; distinct keys (`e2e/notes.spec.ts` switching test) |
 | 4 | **Invisible hides the game** | With status Invisible, "Playing ..." must not show to anyone | ✅ viewers showed the Matrix status message ("Playing ...") of offline/invisible people; now nothing for offline (`buildPresenceVm`, unit test) |
 | 5 | **Games keep showing after you stop** | "Playing ..." still shows long after the game closed (again). Find every source that can keep it | ✅ two causes: the homeserver keeps the last status message after Meadhall closes (shown under offline names, fixed with #4); Steam's RunningAppID outlives crashed games: only trusted while a program from the game's install folder runs (`steamActivity.ts`, desktop test kills the game) |
