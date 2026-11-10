@@ -2,7 +2,7 @@
 // The desktop app's Steam file parsing ("Playing ..."), tested here since the desktop package has no unit tests.
 import { describe, expect, it } from "vitest";
 
-import { gameNameFromManifest, libraryPathsFrom, parseVdf, runningAppIdFromRegistry } from "../../../../desktop/electron/vdf";
+import { gameNameFromManifest, installDirFromManifest, libraryPathsFrom, parseVdf, runningAppIdFromRegistry } from "../../../../desktop/electron/vdf";
 
 describe("Steam VDF files", () => {
     it("parses nested blocks, escapes and case-insensitive keys", () => {
@@ -25,5 +25,8 @@ describe("Steam VDF files", () => {
         ]);
         expect(libraryPathsFrom('"LibraryFolders" { "TimeNextStatsReport" "123" "1" "D:\\\\Steam" }')).toEqual(["D:\\Steam"]);
         expect(gameNameFromManifest('"AppState" { "appid" "413150" "name" "Stardew Valley" }')).toBe("Stardew Valley");
+        // Where the game lives (steamapps/common/<installdir>), to check its program is really running.
+        expect(installDirFromManifest('"AppState" { "name" "Stardew Valley" "installdir" "Stardew Valley" }')).toBe("Stardew Valley");
+        expect(installDirFromManifest('"AppState" { "name" "Old" }')).toBeNull();
     });
 });

@@ -8,7 +8,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { CloseIcon } from "../components/CloseIcon";
 import { PixelIcon } from "../components/PixelIcon";
 import { applyAppearanceTheme, loadUserLocalSettings } from "../settings/user/settingsStore";
-import { EMPTY_OVERLAY_STATE, parseOverlayState, type OverlayCommand, type OverlayState } from "./overlayState";
+import { EMPTY_OVERLAY_STATE, parseOverlayState, type OverlayCommand, type OverlayState, type OverlayImage } from "./overlayState";
 
 type WidgetId = "voice" | "chat" | "notifications" | "soundboard";
 
@@ -141,6 +141,10 @@ export function OverlayApp(): React.ReactElement {
     const [chatRoomId, setChatRoomId] = useState<string | null>(null);
     const [draft, setDraft] = useState("");
     const [volumeFor, setVolumeFor] = useState<string | null>(null);
+    // A picture from the chat opened large (Escape closes it before the overlay).
+    const [viewing, setViewing] = useState<{ src: string; alt: string } | null>(null);
+    const viewingRef = useRef(viewing);
+    viewingRef.current = viewing;
     const [shortcut, setShortcut] = useState("Shift + `");
 
     useEffect(() => {
@@ -155,7 +159,9 @@ export function OverlayApp(): React.ReactElement {
         const stopState = window.heorotDesktop?.onOverlayState?.((value) => setState(parseOverlayState(value)));
         const stopMode = window.heorotDesktop?.onOverlayMode?.((value) => setMode(value));
         const onKey = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") close();
+            if (event.key !== "Escape") return;
+            if (viewingRef.current) setViewing(null);
+            else close();
         };
         window.addEventListener("keydown", onKey);
         return () => {
@@ -199,6 +205,18 @@ export function OverlayApp(): React.ReactElement {
             <PixelIcon name={icon} size={20} />
         </button>
     );
+
+    // A picture in a message: small in the widget, large when clicked (not while pinned: clicks go to the game).
+    const picture = (image: OverlayImage, alt: string): React.ReactNode => {
+        const img = <img className="overlay-picture" src={image.thumb} alt={alt} loading="lazy" draggable={false} />;
+        return pinnedMode ? (
+            img
+        ) : (
+            <button type="button" className="overlay-picture-button" onClick={() => setViewing({ src: image.full, alt })} aria-label={`Open ${alt || "picture"}`} data-testid="overlay-picture">
+                {img}
+            </button>
+        );
+    };
 
     const body = (id: WidgetId): React.ReactNode => {
         switch (id) {
@@ -252,7 +270,8 @@ export function OverlayApp(): React.ReactElement {
                         <ul className="overlay-chat-messages">
                             {chat.messages.map((item) => (
                                 <li key={item.id}>
-                                    <strong>{item.sender}</strong> {item.body}
+                                    <strong>{item.sender}</strong> {item.image ? null : item.body}
+                                    {item.image ? picture(item.image, item.body) : null}
                                 </li>
                             ))}
                         </ul>
@@ -278,7 +297,7 @@ export function OverlayApp(): React.ReactElement {
                         {state.notifications.map((item) => (
                             <li key={item.id}>
                                 <strong>{item.sender}</strong> <small>{item.room}</small>
-                                <p>{item.body}</p>
+                                {item.image ? picture(item.image, item.body) : <p>{item.body}</p>}
                             </li>
                         ))}
                     </ul>
@@ -361,6 +380,16 @@ export function OverlayApp(): React.ReactElement {
                     {body(id)}
                 </Widget>
             ))}
+            {viewing && !pinnedMode ? (
+                <div className="overlay-viewer" role="dialog" aria-modal="true" aria-label={viewing.alt || "Picture"} onClick={() => setViewing(null)} data-testid="overlay-viewer">
+                    <img src={viewing.src} alt={viewing.alt} draggable={false} onClick={(event) => event.stopPropagation()} />
+                    <button type="button" className="overlay-viewer-close" onClick={() => setViewing(null)} aria-label="Close picture">
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+                        </svg>
+                    </button>
+                </div>
+            ) : null}
             {pinnedMode ? null : <p className="overlay-hint">{shortcut} to close · drag widgets by their title · the pin keeps one on screen</p>}
         </div>
     );

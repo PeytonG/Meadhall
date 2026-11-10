@@ -7,7 +7,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { gameNameFromManifest, libraryPathsFrom, runningAppIdFromRegistry } from "./vdf";
+import { processSnapshot } from "./activity/gameDetection";
+import { gameNameFromManifest, installDirFromManifest, libraryPathsFrom, runningAppIdFromRegistry } from "./vdf";
 
 export interface Activity {
     name: string;
@@ -62,14 +63,37 @@ async function runningAppId(dir: string): Promise<string | null> {
     return registry ? runningAppIdFromRegistry(registry) : null;
 }
 
-async function gameName(dir: string, appId: string): Promise<string | null> {
+// The game's name and install folder, from its appmanifest in whichever Steam library holds it.
+async function gameInfo(dir: string, appId: string): Promise<{ name: string; installPath: string | null } | null> {
     const libraries = libraryPathsFrom((await readText(path.join(dir, "steamapps", "libraryfolders.vdf"))) ?? "");
     for (const library of [dir, ...libraries]) {
         const manifest = await readText(path.join(library, "steamapps", `appmanifest_${appId}.acf`));
         const name = manifest ? gameNameFromManifest(manifest) : null;
-        if (name) return name;
+        if (!name || !manifest) continue;
+        const installDir = installDirFromManifest(manifest);
+        return { name, installPath: installDir ? path.join(library, "steamapps", "common", installDir) : null };
     }
     return null;
+}
+
+// Steam's "running" value can outlive the game: it stays set after a crash, while a launcher or anti-cheat helper
+// lingers, or until Steam restarts. So only believe it while a program from the game's own folder is running. A game
+// whose folder can't be found (no installdir, or not where the manifest says) is taken at Steam's word.
+export async function stillRunning(installPath: string | null): Promise<boolean> {
+    if (!installPath) return true;
+    const exists = await fs.stat(installPath).then((stats) => stats.isDirectory()).catch(() => false);
+    if (!exists) return true;
+    const normalize = (value: string): string => {
+        const resolved = path.resolve(value);
+        return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
+    };
+    const folder = normalize(installPath) + path.sep;
+    // Linux games through Proton run as Wine with the game's path among its arguments, as Z:\home\...\Game.exe.
+    const fromWine = (value: string): string => (/^[zZ]:\\/.test(value) ? value.slice(2).replace(/\\/g, "/") : value);
+    const processes = await processSnapshot();
+    return processes.some((entry) =>
+        [entry.path, ...entry.args].some((value) => value && normalize(fromWine(value)).startsWith(folder)),
+    );
 }
 
 export async function currentActivity(): Promise<Activity | null> {
@@ -78,8 +102,9 @@ export async function currentActivity(): Promise<Activity | null> {
         if (!dir) return null;
         const appId = await runningAppId(dir);
         if (!appId) return null;
-        const name = await gameName(dir, appId);
-        return name ? { name, appId, source: "steam" } : null;
+        const game = await gameInfo(dir, appId);
+        if (!game || !(await stillRunning(game.installPath))) return null;
+        return { name: game.name, appId, source: "steam" };
     } catch {
         return null;
     }

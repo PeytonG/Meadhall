@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { spawn, type ChildProcess } from "node:child_process";
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
 import { canLogIn, createRoom, joinRoom, makeServerAdmin, readPresence, readProfileField, registerUser, sendMessage, setAccountData, setDisplayName, setProfileField, type ApiUser } from "../e2e/support/matrixApi";
@@ -19,6 +20,8 @@ const electronBinary = createRequire(path.join(desktopDir, "package.json"))("ele
 
 let app: ElectronApplication;
 let window: Page;
+// The fake Steam game's program, running from its install folder (Steam's "running" value alone isn't trusted).
+let steamGame: ChildProcess | null = null;
 
 test.beforeAll(async () => {
     // A fake Steam install running Stardew Valley, for "Playing ...".
@@ -26,7 +29,12 @@ test.beforeAll(async () => {
     fs.mkdirSync(path.join(steamDir, "steamapps"));
     fs.writeFileSync(path.join(steamDir, "registry.vdf"), '"Registry" { "HKCU" { "Software" { "Valve" { "Steam" { "RunningAppID" "413150" } } } } }');
     fs.writeFileSync(path.join(steamDir, "steamapps", "libraryfolders.vdf"), '"libraryfolders" { }');
-    fs.writeFileSync(path.join(steamDir, "steamapps", "appmanifest_413150.acf"), '"AppState" { "appid" "413150" "name" "Stardew Valley" }');
+    fs.writeFileSync(path.join(steamDir, "steamapps", "appmanifest_413150.acf"), '"AppState" { "appid" "413150" "name" "Stardew Valley" "installdir" "Stardew Valley" }');
+    const gameDir = path.join(steamDir, "steamapps", "common", "Stardew Valley");
+    fs.mkdirSync(gameDir, { recursive: true });
+    const gameExe = path.join(gameDir, process.platform === "win32" ? "StardewValley.exe" : "StardewValley");
+    fs.copyFileSync(process.execPath, gameExe);
+    steamGame = spawn(gameExe, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore" });
     const env = {
         ...process.env,
         MEADHALL_USER_DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "meadhall-desktop-test-")),
@@ -45,6 +53,7 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
     await app?.close();
+    steamGame?.kill();
 });
 
 // The window as the OS draws it, title bar included, sampled at a point (x from the right edge).
@@ -491,8 +500,13 @@ function websocketHandshake(port: number, origin: string | null): Promise<boolea
 }
 
 // Meadhall's port in Discord's range (a running Discord may hold the first one).
+// Ports taken before the test app turned Rich Presence on (another Meadhall or Discord on this computer) don't count.
+const portsTakenBefore = new Set<number>();
+
 async function richPresencePort(): Promise<number | null> {
-    for (let port = 6463; port <= 6472; port += 1) if (await websocketHandshake(port, null)) return port;
+    for (let port = 6463; port <= 6472; port += 1) {
+        if (!portsTakenBefore.has(port) && (await websocketHandshake(port, null))) return port;
+    }
     return null;
 }
 
@@ -500,6 +514,7 @@ test("Rich Presence: a game's activity is shared (named from the local list), ca
     await window.getByRole("button", { name: "User settings", exact: true }).click();
     await window.getByRole("button", { name: "Privacy & Safety", exact: true }).click();
     await window.getByTestId("share-activity").check();
+    for (let port = 6463; port <= 6472; port += 1) if (await websocketHandshake(port, null)) portsTakenBefore.add(port);
     await window.getByTestId("activity-rich-presence").check();
 
     const game = await connectAsGame("1234567890123");
@@ -539,4 +554,23 @@ test("Rich Presence: a game's activity is shared (named from the local list), ca
     await expect.poll(() => richPresencePort(), { timeout: 15_000 }).toBeNull();
     await window.getByTestId("activity-details").uncheck();
     await window.keyboard.press("Escape");
+});
+
+test("a game that closed stops showing even while Steam still says it's running", async () => {
+    await window.getByRole("button", { name: "User settings", exact: true }).click();
+    await window.getByRole("button", { name: "Privacy & Safety", exact: true }).click();
+    await window.getByTestId("share-activity").check();
+    await window.getByTestId("activity-audience").selectOption("contacts");
+    await window.keyboard.press("Escape");
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 40_000 })
+        .toBe("Playing Stardew Valley");
+
+    // The game quits (or crashes); Steam's registry still names it, as it does after a crash.
+    steamGame?.kill();
+    await expect.poll(() => window.evaluate(() => window.heorotDesktop?.getActivity?.()), { timeout: 30_000 }).toBeNull();
+    await expect(window.getByTestId("own-status-text")).not.toContainText("Playing", { timeout: 30_000 });
+    await expect
+        .poll(() => readPresence(bob, deskUser.userId).then((presence) => presence.status_msg ?? ""), { timeout: 40_000 })
+        .toBe("");
 });

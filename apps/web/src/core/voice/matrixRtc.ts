@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { BaseKeyProvider, createKeyMaterialFromBuffer } from "livekit-client";
-import type { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
+import { MatrixEvent, Method, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import {
     isLivekitTransportConfig,
     type CallMembership,
@@ -172,6 +172,19 @@ export async function fetchSfuCredentials(
     return { url: body.url, jwt: body.jwt };
 }
 
+// Whether a LiveKit token lets us talk (publish). lk-jwt-service 0.7+ gives people from other homeservers tokens that
+// may only listen; unreadable tokens count as allowed (the call server enforces it anyway).
+export function tokenCanPublish(jwt: string): boolean {
+    try {
+        const payload = jwt.split(".")[1] ?? "";
+        const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "="));
+        const video = (JSON.parse(json) as { video?: { canPublish?: unknown } }).video;
+        return video?.canPublish !== false;
+    } catch {
+        return true;
+    }
+}
+
 // Same parameters as Element Call's MatrixKeyProvider so encrypted media decrypts on both sides.
 export class MatrixRtcKeyProvider extends BaseKeyProvider {
     public constructor() {
@@ -241,6 +254,29 @@ export function callMembersFromState(room: Room, now = Date.now()): string[] | n
         if (sender && !users.includes(sender)) users.push(sender);
     }
     return users;
+}
+
+// Checks the call memberships we show as "in" against the homeserver and corrects our copy. The SDK can keep an old
+// membership after two changes land close together (its sync state list misses one), which showed people "in voice"
+// after they had left. Used while a voice channel's people are on screen; returns whether anything changed.
+export async function refreshCallMembers(client: MatrixClient, room: Room): Promise<boolean> {
+    const events = room.currentState?.getStateEvents?.(CALL_MEMBER_EVENT) ?? [];
+    let changed = false;
+    for (const event of events) {
+        if (Object.keys(event.getContent() ?? {}).length === 0) continue;
+        const key = event.getStateKey() ?? "";
+        const path = `/rooms/${encodeURIComponent(room.roomId)}/state/${encodeURIComponent(CALL_MEMBER_EVENT)}/${encodeURIComponent(key)}`;
+        try {
+            const raw = (await client.http.authedRequest(Method.Get, path, { format: "event" })) as { event_id?: string } | null;
+            if (raw?.event_id && raw.event_id !== event.getId()) {
+                room.currentState.setStateEvents([new MatrixEvent(raw as never)]);
+                changed = true;
+            }
+        } catch {
+            // Offline, or the server doesn't know format=event: keep what we have.
+        }
+    }
+    return changed;
 }
 
 export function getRtcVoiceParticipants(client: MatrixClient, room: Room): VoiceParticipantsResponse {

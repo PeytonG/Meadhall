@@ -6,6 +6,11 @@ import crypto from "node:crypto";
 import http from "node:http";
 
 const PORT = Number(process.env.LK_TOKEN_PORT ?? 7890);
+// Standing in for another homeserver's call server (multi-SFU tests): its own LiveKit rooms (a prefix on the room
+// name), and, like lk-jwt-service 0.7+, only its own users may talk (LK_FULL_ACCESS: a pattern of user IDs; unset =
+// everyone). Others get a token that may only listen.
+const ROOM_PREFIX = process.env.LK_ROOM_PREFIX ?? "";
+const FULL_ACCESS = process.env.LK_FULL_ACCESS ? new RegExp(process.env.LK_FULL_ACCESS) : null;
 const SYNAPSE_URL = process.env.SYNAPSE_URL ?? "http://localhost:8008";
 const LIVEKIT_URL = "ws://127.0.0.1:7880";
 // Must match scripts/test-livekit.mjs.
@@ -14,7 +19,7 @@ const SECRET = "meadhall-test-secret-that-is-at-least-32-chars";
 
 const base64url = (value) => Buffer.from(value).toString("base64url");
 
-function livekitToken(identity, room) {
+function livekitToken(identity, room, canPublish) {
     const now = Math.floor(Date.now() / 1000);
     const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
     const payload = base64url(
@@ -23,7 +28,7 @@ function livekitToken(identity, room) {
             sub: identity,
             nbf: now - 10,
             exp: now + 3600,
-            video: { room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true },
+            video: { room, roomJoin: true, canPublish, canSubscribe: true, canPublishData: canPublish },
         }),
     );
     const signature = crypto.createHmac("sha256", SECRET).update(`${header}.${payload}`).digest("base64url");
@@ -50,8 +55,9 @@ const server = http.createServer((request, response) => {
             if (!check.ok) throw new Error("bad OpenID token");
             const { sub: userId } = await check.json();
             // Same room naming and identity as lk-jwt-service, so MatrixRTC matches participants to members.
-            const livekitRoom = crypto.createHash("sha256").update(`${room}|m.call#ROOM`).digest("base64").replace(/=+$/, "");
-            response.writeHead(200, { ...cors, "Content-Type": "application/json" }).end(JSON.stringify({ url: LIVEKIT_URL, jwt: livekitToken(`${userId}:${deviceId}`, livekitRoom) }));
+            const livekitRoom = ROOM_PREFIX + crypto.createHash("sha256").update(`${room}|m.call#ROOM`).digest("base64").replace(/=+$/, "");
+            const canPublish = !FULL_ACCESS || FULL_ACCESS.test(userId);
+            response.writeHead(200, { ...cors, "Content-Type": "application/json" }).end(JSON.stringify({ url: LIVEKIT_URL, jwt: livekitToken(`${userId}:${deviceId}`, livekitRoom, canPublish) }));
         } catch (error) {
             response.writeHead(401, { ...cors, "Content-Type": "application/json" }).end(JSON.stringify({ error: String(error) }));
         }

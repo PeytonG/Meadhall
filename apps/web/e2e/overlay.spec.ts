@@ -90,3 +90,61 @@ test("the game overlay shows the call, sends messages and sounds, and pins widge
     await page.keyboard.press("Escape");
     await expect.poll(sent).toContain("close");
 });
+
+// A tiny red PNG, as a decrypted preview from an encrypted room would arrive.
+const RED_DOT =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEUlEQVR4nGP4z8DwH4QZYAwAR8oH+WdZbrcAAAAASUVORK5CYII=";
+
+test("pictures in the overlay's chat show, open large, and close with Escape before the overlay does", async ({ page }) => {
+    await page.addInitScript((dot) => {
+        const sent: unknown[] = [];
+        (window as unknown as Record<string, unknown>).overlaySent = sent;
+        (window as unknown as Record<string, unknown>).heorotDesktop = {
+            platform: "win32",
+            getOverlayState: async () => ({
+                inCall: false,
+                channel: null,
+                participants: [],
+                notifications: [{ id: "$n", sender: "Carol", body: "map.png", room: "Guild", image: { thumb: dot, full: dot } }],
+                chats: [
+                    {
+                        roomId: "!dm",
+                        name: "Carol",
+                        messages: [
+                            { id: "$1", sender: "Carol", body: "look at this", room: "Carol" },
+                            { id: "$2", sender: "Carol", body: "route.png", room: "Carol", image: { thumb: dot, full: dot, width: 8, height: 8 } },
+                            // Never loaded: only web addresses and image data are accepted.
+                            { id: "$3", sender: "Mallory", body: "trap.png", room: "Carol", image: { thumb: "javascript:alert(1)", full: "javascript:alert(1)" } },
+                        ],
+                    },
+                ],
+                sounds: [],
+            }),
+            getOverlayMode: async () => "open",
+            onOverlayState: () => () => undefined,
+            onOverlayMode: () => () => undefined,
+            overlayCommand: async (command: unknown) => void sent.push(command),
+            closeOverlay: async () => void sent.push("close"),
+            setOverlayPinned: async () => undefined,
+        };
+    }, RED_DOT);
+    await page.goto("/#overlay");
+    const chat = page.getByTestId("overlay-widget-chat");
+    await expect(chat).toContainText("look at this");
+    await expect(chat.getByTestId("overlay-picture")).toHaveCount(1);
+    await expect(chat.locator("img.overlay-picture")).toHaveAttribute("src", RED_DOT);
+    // The unsafe one shows as text only.
+    await expect(chat).toContainText("trap.png");
+    expect(await page.locator("img[src^='javascript:']").count()).toBe(0);
+    // Mentions and DMs show pictures too.
+    await expect(page.getByTestId("overlay-widget-notifications").locator("img.overlay-picture")).toHaveCount(1);
+
+    await chat.getByTestId("overlay-picture").click();
+    const viewer = page.getByTestId("overlay-viewer");
+    await expect(viewer.locator("img")).toHaveAttribute("src", RED_DOT);
+    await page.keyboard.press("Escape");
+    await expect(viewer).toBeHidden();
+    expect(await page.evaluate(() => (window as unknown as { overlaySent: unknown[] }).overlaySent)).not.toContain("close");
+    await page.keyboard.press("Escape");
+    expect(await page.evaluate(() => (window as unknown as { overlaySent: unknown[] }).overlaySent)).toContain("close");
+});

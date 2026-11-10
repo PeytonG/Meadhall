@@ -165,9 +165,13 @@ export function buildPresenceVm(source: PresenceSource | null | undefined): Pres
     }
 
     // The custom status first; what they're doing (only while they're around) next to it, or on its own.
-    const activity = state !== "offline" && state !== "unknown" ? published?.activity ?? null : null;
+    // Nothing for people who are offline or invisible, like Discord: the homeserver keeps the last status message
+    // after someone leaves (closing Meadhall mid-game left "Playing ..." under their name for good), and going
+    // invisible must not keep showing the game.
+    const around = state !== "offline" && state !== "unknown";
+    const activity = around ? published?.activity ?? null : null;
     const statusText =
-        typeof source?.statusMessage === "string" && source.statusMessage.trim()
+        around && typeof source?.statusMessage === "string" && source.statusMessage.trim()
             ? source.statusMessage.trim()
             : activity
               ? activityText(activity)

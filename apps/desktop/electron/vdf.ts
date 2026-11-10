@@ -55,3 +55,9 @@ export function gameNameFromManifest(text: string): string | null {
     const name = vdfGet(parseVdf(text), ["appstate", "name"]);
     return typeof name === "string" && name.trim() ? name.trim() : null;
 }
+
+// The game's folder name under steamapps/common (AppState.installdir).
+export function installDirFromManifest(text: string): string | null {
+    const dir = vdfGet(parseVdf(text), ["appstate", "installdir"]);
+    return typeof dir === "string" && dir.trim() ? dir.trim() : null;
+}

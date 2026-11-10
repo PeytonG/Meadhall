@@ -419,9 +419,8 @@ background, so notifications need APNs through Sygnal (a push gateway) on the se
   in localStorage (200 entries), credentials redacted, each with a hint (`hintFor`). The call history is
   `ui/voice/callLog.ts`. Calls that end without the user choosing to call `announceCallEnded`, and
   `CallEndedNotice` (rendered by AppShell) shows why until dismissed.
-- **Report a bug** (`core/bugReport/bugReport.ts`): sent from the reporter's account to
-  `@peytongna:elementprojectzkypg.duckdns.org` (forks: `bug_report_recipient` in config.json), whose ID is never
-  shown. Each report is a fresh unencrypted room with creation type `io.github.peytong.meadhall.bug_report`. Only the
+- **Report a bug** (`core/bugReport/bugReport.ts`): sent from the reporter's account to the owner's account (built-in default; forks: `bug_report_recipient` in
+  config.json), whose ID is never shown (and isn't written in these docs). Each report is a fresh unencrypted room with creation type `io.github.peytong.meadhall.bug_report`. Only the
   sender's copy is hidden (room list, DM suggestions, mutual rooms, taskbar badge: `isSentBugReport`, i.e. the type
   and the create event's sender is us). The recipient's Meadhall auto-joins report invites and lists them under
   Home → Bug reports (v0.3.4; before that they were hidden from the owner too). The reporter can't leave straight
@@ -737,14 +736,20 @@ first frame. Channel groups are `role="list"`; sign-in mode switch is a tablist.
 | `v0.5.0`: server bots (onboarding, auto-mod, slash commands, Meadhall bot), phone redesign, camera preview, sharper logo, Playing fix, look picker, reports and moderation, app links (§7.24–§7.26) | ✅ published 2026-11-02 (PR #22): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.0 |
 | `v0.5.1`: §10.6 (bot guide, auto-mod without a bot, onboarding and invite fixes, friends, help, notification sounds, call dock, stream previews, calls across homeservers, game overlay, admin panel) | ✅ published 2026-11-03 (PR #25): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.1 |
 | `v0.5.2`: §10.7 (verification CI fix, lost room state, moderation and bot fixes, ringing, pins, overlay widgets, QR keys, channel +, voice join screen, ...) | ✅ published 2026-11-03 (PR #26): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.2 |
-| `v0.5.3`: §10.8 (shared notes, file previews and Download, Android Back, resizable panels, Friends keeps calls, pan zoomed pictures) | ✅ released 2026-11-04 (PR #27) |
+| `v0.5.3`: §10.8 (shared notes, file previews and Download, Android Back, resizable panels, Friends keeps calls, pan zoomed pictures) | ✅ published 2026-11-04 (PR #27): https://github.com/PeytonG/Meadhall/releases/tag/v0.5.3 |
+| `v0.5.4`: §10.9 (calls across homeservers / multi-SFU, small-window header, Playing fixes, overlay pictures, notes titles, Rust research) | ✅ released 2026-11-10 (PR #29) |
 
 ## 10. Open issues and roadmap
 
-- **Calls across homeservers (v0.5.1):** like Element Call's default "oldest_membership" mode, Meadhall connects to the
-  SFU of the oldest call membership (`activeCallTransport` in `core/voice/matrixRtc.ts`), falling back to our own if
-  that lk-jwt-service refuses us (it must allow federated users into existing rooms). True multi-SFU (`multi_sfu`,
-  one subscriber connection per remote transport) is not implemented; nobody uses it by default yet.
+- **Calls across homeservers (v0.5.1, multi-SFU v0.5.4):** like Element Call, Meadhall joins the call on the SFU of
+  the oldest call membership (`activeCallTransport` in `core/voice/matrixRtc.ts`) when that SFU lets it publish. Since
+  lk-jwt-service 0.7 an SFU lets only its own homeserver's users publish (others get a listen-only token,
+  `tokenCanPublish`), so then Meadhall publishes on its own SFU and keeps listen-only connections to every other SFU
+  named in the call's memberships (`ui/components/voice/listenerRooms.ts`, merged into the participant list). With no
+  SFU of its own it joins listen-only and says why. `e2e-calls/multiSfu.spec.ts` runs two call servers that each let
+  only their own user publish. Room state that the SDK loses (MSC4222 state_after) is applied after each sync, with a
+  server lookup when the replaces_state chain is broken (`core/matrix/stateCatchUp.ts`), and the Join Voice screen
+  checks shown call members with the server (`refreshCallMembers`).
 - **Matrix 2.0 mode:** js-sdk 40.2 hashes `user|device|member`; lk-jwt-service hashes JSON. Upgrade matrix-js-sdk
   (44+) before Element Call makes that mode the default.
 - MSC4195 `url`-only transports aren't supported yet (falls back to the relay).
@@ -954,6 +959,19 @@ involved, phone and desktop, both looks).
 | 6 | **Other file types** | Previews for .txt/.md/code/.json/.csv (text), .docx (rendered text), audio and video players; every attachment gets a Download button | ✅ .docx via mammoth rendered through `SafeHtml` (allow-list, no raw HTML); text/code first lines + viewer; Download on files, video, audio, pictures |
 | 7 | **Shared notes with nested folders** | In DMs and spaces: several notes in nested folders, opened in a view inside Meadhall and edited together live (both see each other's edits, for projects). Each note at most 0.3 MB | ✅ §7.27: companion notes room, Yjs over Matrix events + snapshots, nested folders, 300 KB limit (`e2e/notes.spec.ts`: two people typing at once in an encrypted DM; space notes; phone + Back) |
 | 8 | **Pan zoomed images** | Still can't move a zoomed-in picture with the mouse (§10 "pan zoomed images"): drag to pan, pinch on touch, click without dragging toggles zoom | ✅ `ui/components/messages/ImageViewer.tsx`: click/wheel/pinch zoom at the pointer, drag to pan (clamped to the window), Download (`ui/platform/saveMedia.ts`) (`e2e/imageViewer.spec.ts`) |
+
+### 10.9 Owner's v0.5.4 backlog (requested 2026-11-10; branch `release/v0.5.4`)
+Same rule as §10.7: compare with Discord and test like a user. The owner asked to ship these as v0.5.4.
+
+| # | Request | Notes / plan | State |
+|---|---|---|---|
+| 1 | **Small window: the top bar overlaps** | When the app is made small, the chat header overlaps the name and the Join call button can't be pressed. Every width from phone to desktop must keep the name, the call button and the other buttons usable | ✅ header buttons move into the ... menu under 600 px (container query; same items phones use), call/update/inbox stay (`e2e/narrowHeader.spec.ts`; checked by a separate ui-consistency checker) |
+| 2 | **Friend can't join a call the owner started** | The friend's join "tries to connect then immediately stops"; calls only work when the friend starts them. Find why (SFU choice / token / membership), fix, test with two accounts | ✅ the friend is on another homeserver (kystack.org); lk-jwt-service 0.7+ lets only its own users publish, so joining the owner's call got a listen-only token and the mic publish failed the join. Multi-SFU: talk on the call's server if allowed, else ours, and listen on every other server in the call (`voice/listenerRooms.ts`); listen-only when we have none (`e2e-calls/multiSfu.spec.ts`, two restricted call servers; fails on the old code) |
+| 3 | **Notes: titles stack when switching notes** | Open a note, click another: the titles pile up and keep stacking | ✅ the title box and the text box shared one React key, so React kept old title boxes; distinct keys (`e2e/notes.spec.ts` switching test) |
+| 4 | **Invisible hides the game** | With status Invisible, "Playing ..." must not show to anyone | ✅ viewers showed the Matrix status message ("Playing ...") of offline/invisible people; now nothing for offline (`buildPresenceVm`, unit test) |
+| 5 | **Games keep showing after you stop** | "Playing ..." still shows long after the game closed (again). Find every source that can keep it | ✅ two causes: the homeserver keeps the last status message after Meadhall closes (shown under offline names, fixed with #4); Steam's RunningAppID outlives crashed games: only trusted while a program from the game's install folder runs (`steamActivity.ts`, desktop test kills the game) |
+| 6 | **Overlay chat shows pictures** | Images in the overlay's text chat widget should be viewable | ✅ `overlay/overlayImages.ts`: plain rooms send the homeserver URLs (overlay shares the signed session), encrypted rooms a decrypted JPEG preview; viewer in the overlay, Escape closes it first; only http(s)/data:image accepted (`e2e/overlay`, `e2e/overlayPictures`) |
+| 7 | **Explore: Meadhall in Rust** | Effort and benefits of converting Meadhall to Rust (write-up only) | ✅ `docs/research/rust.md`: don't rewrite; staged path (Tauri shell, then matrix-rust-sdk screen by screen), with Element's 2026 experience |
 
 ## 11. Work log
 

@@ -175,3 +175,25 @@ test("space notes: the owner starts them, members edit them; members can't start
     await page.locator(".room-item").filter({ hasText: "general" }).locator(".room-item-select").click();
     await expect(page.getByTestId("notes-view")).toBeHidden();
 });
+
+test("switching between notes shows one title, the right one (titles used to pile up)", async ({ page }) => {
+    const alice = await registerUser("alice");
+    const bob = await registerUser("bob");
+    await encryptedDm(alice, bob);
+    await signIn(page, alice);
+    await openDmNotes(page);
+    await page.getByTestId("notes-create").click();
+    for (const title of ["First", "Second", "Third"]) {
+        await page.getByTestId("notes-new-note").click();
+        await page.getByLabel("Note title").first().fill(title);
+        await page.getByLabel("Note title").first().press("Enter");
+        await noteText(page).fill(`${title} text`);
+    }
+    for (const title of ["First", "Third", "Second", "First", "Third"]) {
+        await page.getByTestId("notes-note").filter({ hasText: title }).click();
+        await expect(page.getByTestId("note-title")).toHaveCount(1);
+        await expect(page.getByTestId("note-title")).toHaveValue(title);
+        await expect(noteText(page)).toHaveCount(1);
+        await expect(noteText(page)).toHaveValue(`${title} text`);
+    }
+});

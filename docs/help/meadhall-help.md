@@ -233,8 +233,8 @@ call, and that your system allows Meadhall to use the microphone.
 On the desktop app, press Shift and ` (the key left of 1) together, in any game or app. If another app already uses
 that key, Meadhall uses Ctrl+Shift+` (or Shift+F10); the Game overlay button under "Voice Connected" also opens it and
 shows which key works. The overlay has the call buttons at the top and widgets: Voice (who is talking; click someone
-to change their volume), Text chat (pick a conversation, read it and type to send), Notifications (mentions and DMs)
-and Soundboard. Drag a widget by its title to move it. The gear shows or hides widgets and changes the opacity. The pin
+to change their volume), Text chat (pick a conversation, read it and type to send; pictures show in the chat, click
+one to see it large and press Esc to close it), Notifications (mentions and DMs, with their pictures) and Soundboard. Drag a widget by its title to move it. The gear shows or hides widgets and changes the opacity. The pin
 on a widget keeps it on screen after you close the overlay, while you play (it doesn't take your mouse). Press Esc or
 the shortcut again to close. It works over games in windowed or borderless fullscreen mode, not exclusive fullscreen.
 
@@ -251,7 +251,10 @@ Click your name at the bottom left. Choose Online, Away, Do Not Disturb or Invis
 
 ### How do I show what game I'm playing?
 Settings → Privacy & Safety → Activity. Meadhall can show the game you're playing (Steam and detected games) and who may
-see it.
+see it. While you're Invisible, nobody sees what you're playing. It stops showing as soon as the game closes.
+
+### Why don't I see someone's status?
+People who are offline or Invisible show no status and no game, like on Discord.
 
 ### How do I change my profile card colors?
 Settings → Profile → Profile style. Choose a gradient or your own colors.
@@ -292,6 +295,10 @@ Settings → Appearance → Motion → Reduce motion.
 Drag the edge of the panel: the right edge of the channel / Direct Messages list, or the left edge of the member list
 and profile panel (desktop and wide windows). Meadhall remembers each width. The chat in the middle always keeps enough
 room; names and message previews shorten with "…" when a panel is narrow.
+
+### Where did the buttons at the top of the chat go?
+In a small window (or on a phone) the top of the chat keeps the call button, the inbox and ...; Search, Pins, Notes,
+Members, Channel info and Help move into the ... menu. Make the window wider to get them back in the bar.
 
 ### How do I update Meadhall?
 Desktop: Settings → Updates (or the update banner that appears when a new version is out). Android: the update notice

@@ -4,6 +4,28 @@ What changed in each Meadhall release, written for the people using it. The rele
 for each version tag as that release's notes, so every release needs a section here before it is tagged.
 Versions follow `vX.Y.Z`.
 
+## v0.5.4 (2026-11-10)
+
+### New
+- **Pictures in the game overlay:** pictures in the overlay's Text chat and Notifications show right there; click
+  one to see it large (Esc closes it). Pictures from encrypted chats too.
+
+### Fixed
+- **Couldn't join a friend's call from another homeserver:** joining dropped right after "Connecting" when the call was
+  started by someone on another homeserver (it only worked if your friend started it). Newer call servers only let
+  their own homeserver's people talk, so Meadhall now talks on your homeserver's call server and listens on theirs,
+  like Element Call. If your homeserver has no call server, you can still join and listen.
+- **"In voice" after leaving:** a voice channel could keep showing someone in voice after they left, when two people
+  left close together. Meadhall now applies those changes after each sync and checks who it shows with the homeserver.
+- **Small windows: the top of the chat overlapped** the name and covered the call button. Search, Pins, Notes,
+  Members, Channel info and Help now move into the ... menu when there isn't room (as on phones), so the name and the
+  call button always fit.
+- **"Playing ..." stayed** under people's names long after they stopped: closing Meadhall mid-game left it behind for
+  everyone, and a game that crashed (with Steam still listing it) kept showing. People who are offline or Invisible
+  now show no status, and a Steam game only shows while its program is running.
+- **Invisible showed your game:** while you're Invisible, nobody sees what you're playing.
+- **Notes: titles piled up** when you switched from one note to another.
+
 ## v0.5.3 (2026-11-04)
 
 ### New

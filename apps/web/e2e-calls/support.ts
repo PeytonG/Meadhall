@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Helpers for real-call tests: voice turned on and pointed at the test token service, and a voice channel to meet in.
-import type { Browser, Page } from "@playwright/test";
+import { test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
 import { createRoom, joinRoom, registerUser, sendState, setDisplayName, type ApiUser } from "../e2e/support/matrixApi";
 import { signIn } from "../e2e/support/ui";
 
-export async function enableCalls(page: Page): Promise<void> {
+// `callServer`: this person's homeserver call server (null: their homeserver has none).
+export async function enableCalls(page: Page, callServer: string | null = "http://127.0.0.1:7890"): Promise<void> {
     await page.route("**/config.127.0.0.1.json*", async (route) => {
         const response = await route.fetch();
-        await route.fulfill({ response, json: { ...(await response.json()), voice_enabled: true, livekit_service_url: "http://127.0.0.1:7890" } });
+        const config = { ...(await response.json()), voice_enabled: true } as Record<string, unknown>;
+        if (callServer) config.livekit_service_url = callServer;
+        else delete config.livekit_service_url;
+        await route.fulfill({ response, json: config });
     });
 }
 
@@ -43,9 +47,18 @@ export async function voiceHall(names: string[]): Promise<VoiceHall> {
     return { spaceId, voiceId, users };
 }
 
-export async function joinCall(browser: Browser, user: ApiUser): Promise<Page> {
-    const page = await (await browser.newContext()).newPage();
-    await enableCalls(page);
+// Each test's callers leave when it ends: windows left in their calls (fake camera and mic running) piled up over a
+// run and starved later tests' joins.
+const openContexts: BrowserContext[] = [];
+test.afterEach(async () => {
+    await Promise.all(openContexts.splice(0).map((context) => context.close().catch(() => undefined)));
+});
+
+export async function joinCall(browser: Browser, user: ApiUser, callServer?: string | null): Promise<Page> {
+    const context = await browser.newContext();
+    openContexts.push(context);
+    const page = await context.newPage();
+    await enableCalls(page, callServer);
     await signIn(page, user);
     await page.getByTitle("Call Hall").click();
     await page.locator(".room-item").filter({ hasText: "Voice" }).locator(".room-item-select").click();

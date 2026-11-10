@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { RoomStateEvent, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import { MatrixRTCSessionEvent } from "matrix-js-sdk/src/matrixrtc";
 
-import { getRtcVoiceParticipants } from "../../adapters/voiceAdapter";
+import { getRtcVoiceParticipants, refreshCallMembers } from "../../adapters/voiceAdapter";
 import { thumbnailFromMxc } from "../../adapters/media";
 import { Avatar } from "../Avatar";
 import { PixelIcon } from "../PixelIcon";
@@ -32,10 +32,17 @@ function useVoiceMembers(client: MatrixClient, room: Room): string[] {
         session.on(MatrixRTCSessionEvent.MembershipsChanged, onChange);
         room.currentState.on(RoomStateEvent.Events, onChange);
         const timer = window.setInterval(onChange, 3_000);
+        // Check who we show against the homeserver now and then (refreshCallMembers): our copy can keep someone who left.
+        const verify = (): void => {
+            if (read().length) void refreshCallMembers(client, room).then((changed) => changed && onChange());
+        };
+        verify();
+        const verifyTimer = window.setInterval(verify, 10_000);
         return () => {
             session.off(MatrixRTCSessionEvent.MembershipsChanged, onChange);
             room.currentState.removeListener(RoomStateEvent.Events, onChange);
             window.clearInterval(timer);
+            window.clearInterval(verifyTimer);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [client, room]);

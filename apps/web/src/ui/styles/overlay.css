@@ -321,3 +321,58 @@ html.is-overlay #root {
     color: rgba(255, 255, 255, 0.7);
     font-size: 12px;
 }
+
+/* Pictures in the chat and notifications widgets, and opened large. */
+.overlay-picture-button {
+    display: block;
+    margin-top: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: zoom-in;
+}
+
+.overlay-picture {
+    display: block;
+    max-width: 100%;
+    max-height: 160px;
+    margin-top: 4px;
+    border-radius: 6px;
+    object-fit: contain;
+}
+
+.overlay-picture-button .overlay-picture {
+    margin-top: 0;
+}
+
+.overlay-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 32px;
+    background: rgba(10, 10, 12, 0.82);
+}
+
+.overlay-viewer img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.overlay-viewer-close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(30, 31, 34, 0.9);
+    color: #fff;
+    cursor: pointer;
+}

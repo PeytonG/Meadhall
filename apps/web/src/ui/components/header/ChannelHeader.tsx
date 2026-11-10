@@ -272,7 +272,7 @@ export function ChannelHeader({
 
                 <button
                     type="button"
-                    className={`channel-header-icon-btn${sidebarMode === "search" ? " is-active" : ""}`}
+                    className={`channel-header-icon-btn is-overflowable${sidebarMode === "search" ? " is-active" : ""}`}
                     aria-label="Search panel"
                     title="Search"
                     onClick={() => toggleMode("search")}
@@ -282,7 +282,7 @@ export function ChannelHeader({
                 </button>
                 <button
                     type="button"
-                    className={`channel-header-icon-btn${sidebarMode === "pins" ? " is-active" : ""}`}
+                    className={`channel-header-icon-btn is-overflowable${sidebarMode === "pins" ? " is-active" : ""}`}
                     aria-label="Pins panel"
                     title="Pins"
                     onClick={() => toggleMode("pins")}
@@ -293,7 +293,7 @@ export function ChannelHeader({
                 {onOpenNotes ? (
                     <button
                         type="button"
-                        className="channel-header-icon-btn"
+                        className="channel-header-icon-btn is-overflowable"
                         aria-label="Shared notes"
                         title="Shared notes"
                         onClick={onOpenNotes}
@@ -305,7 +305,7 @@ export function ChannelHeader({
                 ) : null}
                 <button
                     type="button"
-                    className={`channel-header-icon-btn${sidebarMode === "members" ? " is-active" : ""}`}
+                    className={`channel-header-icon-btn is-overflowable${sidebarMode === "members" ? " is-active" : ""}`}
                     aria-label="Members panel"
                     title="Members"
                     onClick={() => toggleMode("members")}
@@ -315,7 +315,7 @@ export function ChannelHeader({
                 </button>
                 <button
                     type="button"
-                    className={`channel-header-icon-btn${sidebarMode === "info" ? " is-active" : ""}`}
+                    className={`channel-header-icon-btn is-overflowable${sidebarMode === "info" ? " is-active" : ""}`}
                     aria-label="Channel info panel"
                     title="Channel info"
                     onClick={() => toggleMode("info")}
@@ -337,7 +337,7 @@ export function ChannelHeader({
                     </button>
                 ) : null}
                 {onOpenHelp ? (
-                    <button type="button" className="channel-header-icon-btn" aria-label="Help" title="Help" onClick={onOpenHelp} data-testid="header-help">
+                    <button type="button" className="channel-header-icon-btn is-overflowable" aria-label="Help" title="Help" onClick={onOpenHelp} data-testid="header-help">
                         <PixelIcon name="faq" size={18} />
                     </button>
                 ) : null}
@@ -405,6 +405,31 @@ export function ChannelHeader({
                                     }}
                                 >
                                     Shared notes
+                                </button>
+                            ) : null}
+                            <button
+                                type="button"
+                                className="channel-header-menu-item channel-header-menu-item-phone"
+                                role="menuitem"
+                                disabled={!room}
+                                onClick={() => {
+                                    toggleMode("info");
+                                    setMenuOpen(false);
+                                }}
+                            >
+                                Channel info
+                            </button>
+                            {onOpenHelp ? (
+                                <button
+                                    type="button"
+                                    className="channel-header-menu-item channel-header-menu-item-phone"
+                                    role="menuitem"
+                                    onClick={() => {
+                                        onOpenHelp();
+                                        setMenuOpen(false);
+                                    }}
+                                >
+                                    Help
                                 </button>
                             ) : null}
                             <hr className="channel-header-menu-divider channel-header-menu-item-phone" />
