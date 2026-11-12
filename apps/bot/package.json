@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "matrix-js-sdk": "^40.2.0"
+    "matrix-js-sdk": "^45.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
