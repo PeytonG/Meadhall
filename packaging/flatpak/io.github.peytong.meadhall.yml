@@ -38,7 +38,7 @@ modules:
       # Updated for each release: scripts/flatpak-manifest.mjs <version> fills in the URL and sha256.
       - type: file
         url: https://github.com/PeytonG/Meadhall/releases/download/v0.4.0/Meadhall-0.4.0-amd64.deb
-        sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+        sha256: "aab34b3e656df54321fdbdc4a3b2a0acba6cb4d2f34f0a8f5d07a8b7e5bc8225"
         dest-filename: meadhall.deb
         only-arches: [x86_64]
       - type: file
